@@ -1,0 +1,38 @@
+# FoxBrain V4 Docs
+
+This directory is the long-term documentation system for FoxBrain V4.
+
+## Standard Documents
+
+- [00_VISION.md](00_VISION.md)
+- [01_PRODUCT_SPEC.md](01_PRODUCT_SPEC.md)
+- [02_SYSTEM_ARCHITECTURE.md](02_SYSTEM_ARCHITECTURE.md)
+- [03_DATABASE_DESIGN.md](03_DATABASE_DESIGN.md)
+- [04_UI_DESIGN_SYSTEM.md](04_UI_DESIGN_SYSTEM.md)
+- [05_AI_AGENT_SPEC.md](05_AI_AGENT_SPEC.md)
+- [06_KNOWLEDGE_CENTER.md](06_KNOWLEDGE_CENTER.md)
+- [07_SAP_B1.md](07_SAP_B1.md)
+- [08_WORKFLOW.md](08_WORKFLOW.md)
+- [09_PERMISSION.md](09_PERMISSION.md)
+- [10_API_STANDARD.md](10_API_STANDARD.md)
+- [11_MOBILE.md](11_MOBILE.md)
+- [12_DOCUMENT_CENTER.md](12_DOCUMENT_CENTER.md)
+- [13_SEARCH_ENGINE.md](13_SEARCH_ENGINE.md)
+- [14_ARCHIVE_ENGINE.md](14_ARCHIVE_ENGINE.md)
+- [15_DEPLOYMENT.md](15_DEPLOYMENT.md)
+- [16_GIT_STANDARD.md](16_GIT_STANDARD.md)
+
+## Codex Tasks
+
+- [Task001](CODEX_TASKS/Task001/README.md)
+
+Future tasks should use folders:
+
+```text
+CODEX_TASKS/
+  Task001/
+  Task002/
+  ...
+  Task100/
+```
+
