@@ -183,6 +183,56 @@ def extract_tags(text):
     return ",".join(dict.fromkeys(tags))
 
 
+def extract_file_text(path, filename):
+    ext = Path(filename).suffix.lower()
+    try:
+        if ext in (".txt", ".md", ".csv", ".json"):
+            return Path(path).read_text(encoding="utf-8", errors="ignore")[:200000]
+        if ext == ".pdf":
+            try:
+                import pypdf
+                reader = pypdf.PdfReader(path)
+                return "\n".join((p.extract_text() or "") for p in reader.pages)[:200000]
+            except Exception:
+                return ""
+        if ext == ".docx":
+            try:
+                import docx
+                doc = docx.Document(path)
+                return "\n".join(p.text for p in doc.paragraphs)[:200000]
+            except Exception:
+                return ""
+        if ext in (".xlsx", ".xls"):
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+                lines = []
+                for ws in wb.worksheets[:3]:
+                    for row in ws.iter_rows(max_row=200, values_only=True):
+                        lines.append("\t".join("" if v is None else str(v) for v in row))
+                return "\n".join(lines)[:200000]
+            except Exception:
+                return ""
+    except Exception:
+        return ""
+    return ""
+
+
+def fetch_url_text(url):
+    if not url.lower().startswith(("http://", "https://")):
+        return ""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 FoxBrain"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read(500000)
+        text = raw.decode("utf-8", errors="ignore")
+        text = re.sub(r"(?is)<script.*?</script>|<style.*?</style>", " ", text)
+        text = re.sub(r"(?s)<[^>]+>", " ", text)
+        return re.sub(r"\s+", " ", html.unescape(text)).strip()[:200000]
+    except Exception:
+        return ""
+
+
 def load_summary():
     fallback = {
         "data_date": U(r"\u6d4b\u8bd5\u6570\u636e"),
@@ -526,6 +576,16 @@ class App(BaseHTTPRequestHandler):
             return self.ai_ceo(user)
         if path == "/ai-store-manager":
             return self.ai_store_manager(user)
+        if path == "/ai-query":
+            return self.ai_assistant(user)
+        if path == "/agents":
+            return self.agents(user)
+        if path == "/sap-sync":
+            return self.sap_sync(user)
+        if path == "/business-overview":
+            return self.business_overview(user)
+        if path == "/content-center":
+            return self.module_page(user, "/content")
         if path == "/knowledge":
             return self.knowledge(user)
         if path == "/inventory":
@@ -578,7 +638,7 @@ class App(BaseHTTPRequestHandler):
             return self.upload_post()
         if path == "/web-search":
             return self.web_search_post()
-        if path == "/ai-assistant":
+        if path in ("/ai-assistant", "/ai-query"):
             return self.ai_assistant_post()
         if path == "/knowledge/save":
             return self.knowledge_save()
@@ -958,6 +1018,231 @@ class App(BaseHTTPRequestHandler):
                 count += 1
         self.log_action(user, "records_import", "record", None, f"{module}:{count}")
         return self.redir("/" + module)
+
+    def upload(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        module_opts = "".join('<option value="{}">{}</option>'.format(module_key(k), esc(v[0])) for k, v in MODULES.items())
+        body = f"""
+<div class="panel form">
+  <h2>{U(r'\u6587\u4ef6\u4e0a\u4f20\u4e0e\u81ea\u52a8\u5f52\u6863')}</h2>
+  <form method="post" action="/upload" enctype="multipart/form-data">
+    <label>{U(r'\u6587\u4ef6')}</label><input name="file" type="file" required>
+    <label>{U(r'\u5f52\u5c5e\u6a21\u5757')}</label><select name="module"><option value="knowledge">{U(r'\u77e5\u8bc6\u4e2d\u5fc3')}</option>{module_opts}</select>
+    <label>{U(r'\u6240\u5c5e\u5206\u7c7b')}</label><input name="category" placeholder="01_公司制度 / 02_产品资料 / 07_库存采购">
+    <label>{U(r'\u8865\u5145\u8bf4\u660e')}</label><textarea name="description"></textarea>
+    <p><button>{U(r'\u4e0a\u4f20\u5e76\u81ea\u52a8\u5165\u5e93')}</button></p>
+  </form>
+</div>"""
+        self.out(layout(U(r"\u6587\u4ef6\u4e0a\u4f20"), body, user=user))
+
+    def upload_post(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.multipart()
+        item = form["file"] if "file" in form else None
+        if not item or not getattr(item, "filename", ""):
+            return self.upload(user)
+        original = Path(item.filename).name
+        module = module_key(form.getfirst("module", "knowledge"))
+        category = form.getfirst("category", "").strip()
+        description = form.getfirst("description", "").strip()
+        folder = Path(UPLOAD_DIR) / module
+        folder.mkdir(parents=True, exist_ok=True)
+        saved = uuid.uuid4().hex + Path(original).suffix.lower()
+        path = folder / saved
+        data = item.file.read()
+        path.write_bytes(data)
+        extracted = extract_file_text(str(path), original)
+        combined = "\n".join([original, description, extracted])
+        category = category or classify_text(combined)
+        summary = summarize_text(combined)
+        tags = extract_tags(combined)
+        now = ts()
+        with db() as conn:
+            kcur = conn.execute(
+                "insert into knowledge_items(title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                (original, category, tags, extracted or description, summary, U(r"\u6587\u4ef6\u4e0a\u4f20"), original, user["id"], now, now),
+            )
+            kid = kcur.lastrowid
+            conn.execute(
+                "insert into uploaded_files(original_name,saved_name,path,mime,size,category,description,extracted_text,knowledge_id,created_by,created_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                (original, saved, str(path), mimetypes.guess_type(original)[0], len(data), category, description, extracted, kid, user["id"], now),
+            )
+        self.log_action(user, "file_upload", "knowledge", kid, original)
+        return self.redir(f"/knowledge/view?id={kid}")
+
+    def knowledge_form(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        body = f"""
+<div class="panel form">
+  <h2>{U(r'\u65b0\u5efa\u77e5\u8bc6')}</h2>
+  <form method="post" action="/knowledge/save">
+    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
+    <label>{U(r'\u5206\u7c7b')}</label><input name="category" placeholder="01_公司制度">
+    <label>{U(r'\u6807\u7b7e')}</label><input name="tags">
+    <label>{U(r'\u6b63\u6587')}</label><textarea name="body" required></textarea>
+    <p><button>{T['save']}</button></p>
+  </form>
+</div>"""
+        self.out(layout(U(r"\u65b0\u5efa\u77e5\u8bc6"), body, user=user))
+
+    def knowledge_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        body = form.get("body", "")
+        category = form.get("category", "").strip() or classify_text(body)
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                "insert into knowledge_items(title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                (form.get("title", "").strip(), category, form.get("tags", "") or extract_tags(body), body, summarize_text(body), U(r"\u624b\u52a8\u5f55\u5165"), "", user["id"], now, now),
+            )
+            kid = cur.lastrowid
+        self.log_action(user, "knowledge_create", "knowledge", kid, form.get("title", ""))
+        return self.redir(f"/knowledge/view?id={kid}")
+
+    def knowledge_view(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        kid = parse_qs(urlparse(self.path).query).get("id", [""])[0]
+        with db() as conn:
+            row = conn.execute("select * from knowledge_items where id=?", (kid,)).fetchone()
+        if not row:
+            return self.redir("/knowledge")
+        body = f"""
+<div class="panel">
+  <h2>{esc(row['title'])}</h2>
+  <p class="small">{esc(row['category'])} ｜ {esc(row['tags'])} ｜ {esc(row['source_type'])}：{esc(row['source_ref'])}</p>
+  <h2>{U(r'AI \u6458\u8981')}</h2><p>{esc(row['ai_summary'])}</p>
+  <h2>{U(r'\u6b63\u6587')}</h2><p>{esc(row['body'])}</p>
+  <p><a class="btn" href="/ai-query">{U(r'\u7528 AI \u67e5\u8be2')}</a> <a class="btn gray" href="/knowledge">{U(r'\u8fd4\u56de')}</a></p>
+</div>"""
+        self.out(layout(row["title"], body, user=user, wide=True))
+
+    def ai_assistant(self, user, answer="", question="", refs=None):
+        user = self.require_login(user)
+        if not user:
+            return
+        refs = refs or []
+        ref_html = self.bullets(refs) if refs else "<p class='small'>暂无引用，提问后会显示来源。</p>"
+        body = f"""
+<div class="panel form">
+  <h2>{U(r'AI \u667a\u80fd\u4f53\u67e5\u8be2')}</h2>
+  <form method="post" action="/ai-query">
+    <label>{U(r'\u95ee\u9898')}</label><textarea name="question" required>{esc(question)}</textarea>
+    <label>{U(r'\u8303\u56f4')}</label><select name="scope"><option value="all">{U(r'\u5168\u516c\u53f8')}</option><option value="stores">{U(r'\u95e8\u5e97')}</option><option value="products">{U(r'\u4ea7\u54c1')}</option><option value="finance">{U(r'\u8d22\u52a1')}</option></select>
+    <p><button>{U(r'\u67e5\u8be2')}</button></p>
+  </form>
+</div>
+<div class="panel"><h2>{U(r'AI \u56de\u7b54')}</h2><p>{esc(answer or U(r'\u8bf7\u8f93\u5165\u95ee\u9898\uff0c\u7cfb\u7edf\u4f1a\u5148\u67e5\u5185\u90e8\u77e5\u8bc6\u5e93\u3002'))}</p><h2>{U(r'\u5f15\u7528\u6765\u6e90')}</h2>{ref_html}</div>"""
+        self.out(layout(U(r"AI \u667a\u80fd\u4f53\u67e5\u8be2"), body, user=user, wide=True))
+
+    def ai_assistant_post(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        question = form.get("question", "").strip()
+        words = [w for w in re.split(r"\s+", question) if w][:5]
+        with db() as conn:
+            rows = []
+            for w in words or [question]:
+                rows += conn.execute("select * from knowledge_items where title like ? or body like ? or tags like ? order by updated_at desc limit 5", (f"%{w}%", f"%{w}%", f"%{w}%")).fetchall()
+        seen, refs, snippets = set(), [], []
+        for row in rows:
+            if row["id"] in seen:
+                continue
+            seen.add(row["id"])
+            refs.append(f"{row['title']} / {row['category']}")
+            snippets.append(row["ai_summary"] or summarize_text(row["body"], 120))
+        if snippets:
+            answer = U(r"\u6839\u636e\u5185\u90e8\u77e5\u8bc6\u5e93\uff0c\u521d\u6b65\u7ed3\u8bba\uff1a") + " ".join(snippets[:3])
+        else:
+            answer = U(r"\u5185\u90e8\u77e5\u8bc6\u5e93\u6682\u672a\u547d\u4e2d\u8db3\u591f\u5185\u5bb9\uff0c\u5efa\u8bae\u5148\u4e0a\u4f20\u76f8\u5173\u6587\u6863\uff0c\u6216\u5230\u5916\u7f51\u641c\u7d22\u9875\u6293\u53d6\u8d44\u6599\u540e\u5165\u5e93\u3002")
+        self.log_action(user, "ai_query", "knowledge", None, question)
+        return self.ai_assistant(user, answer, question, refs)
+
+    def web_search(self, user, msg=""):
+        user = self.require_login(user)
+        if not user:
+            return
+        body = f"""
+<div class="panel form">
+  <h2>{U(r'\u5916\u7f51\u8d44\u6599\u4fdd\u5b58\u5230\u77e5\u8bc6\u5e93')}</h2>
+  <p class="small">{U(r'\u7b2c\u4e00\u7248\u652f\u6301\u7c98\u8d34\u7f51\u9875 URL \u6293\u53d6\u6b63\u6587\uff0c\u540e\u7eed\u518d\u63a5 Bing/SerpAPI/Tavily\u3002')}</p>
+  <form method="post" action="/web-search">
+    <label>URL</label><input name="url" placeholder="https://...">
+    <label>{U(r'\u6807\u9898')}</label><input name="title">
+    <p><button>{U(r'\u6293\u53d6\u5e76\u4fdd\u5b58')}</button></p>
+  </form>
+</div>"""
+        self.out(layout(U(r"\u5916\u7f51\u641c\u7d22"), body, user=user, msg=msg))
+
+    def web_search_post(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        url = form.get("url", "").strip()
+        text = fetch_url_text(url)
+        if not text:
+            return self.web_search(user, U(r"\u6293\u53d6\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5 URL\u3002"))
+        title = form.get("title", "").strip() or summarize_text(text, 40)
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                "insert into knowledge_items(title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                (title, classify_text(text), extract_tags(text), text, summarize_text(text), U(r"\u5916\u7f51\u641c\u7d22"), url, user["id"], now, now),
+            )
+            kid = cur.lastrowid
+        self.log_action(user, "web_save", "knowledge", kid, url)
+        return self.redir(f"/knowledge/view?id={kid}")
+
+    def agents(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        agents = [U(r"AI \u603b\u7ecf\u7406"), U(r"AI \u8d22\u52a1\u603b\u76d1"), U(r"AI \u91c7\u8d2d\u7ecf\u7406"), U(r"AI \u5e93\u5b58\u7ecf\u7406"), U(r"AI \u54c1\u724c\u7ecf\u7406"), U(r"AI \u95e8\u5e97\u7ecf\u7406"), U(r"AI \u4eba\u4e8b\u7ecf\u7406"), U(r"AI \u5185\u5bb9\u7ecf\u7406"), U(r"AI \u5ba2\u670d"), U(r"AI \u6cd5\u52a1"), U(r"AI \u6570\u636e\u5206\u6790\u5e08"), U(r"AI \u6295\u8d44\u52a9\u624b")]
+        cards = "".join(self.card(a, U(r"\u57fa\u4e8e\u6743\u9650\u8303\u56f4\u67e5\u8be2\u6570\u636e\uff0c\u8f93\u51fa\u5efa\u8bae\u548c\u884c\u52a8\u6e05\u5355\u3002"), "/ai-query", "btn", True) for a in agents)
+        self.out(layout(U(r"AI \u667a\u80fd\u4f53\u77e9\u9635"), '<div class="grid">' + cards + "</div>", user=user, wide=True))
+
+    def business_overview(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        s = load_summary()
+        metrics = "".join([
+            self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(s.get("month_sales")), pct(s.get("completion_rate"))),
+            self.metric(U(r"\u672c\u6708\u6bdb\u5229"), U(r"\uffe5") + money(s.get("month_gross_profit")), U(r"\u6bdb\u5229\u7387 ") + pct(s.get("yesterday_gross_margin"))),
+            self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), U(r"\uffe5") + money(s.get("inventory_amount")), U(r"\u98ce\u9669 ") + money(s.get("risk_count"))),
+        ])
+        body = f"<div class='panel'><h2>{U(r'\u7ecf\u8425\u603b\u89c8')}</h2><div class='metrics'>{metrics}</div>{self.bullets(s.get('ai_suggestions', []))}</div>"
+        self.out(layout(U(r"\u7ecf\u8425\u603b\u89c8"), body, user=user, wide=True))
+
+    def sap_sync(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        s = load_summary()
+        body = f"""
+<div class="panel">
+  <h2>SAP B1 {U(r'\u540c\u6b65\u72b6\u6001')}</h2>
+  <div class="metrics">
+    {self.metric(U(r'\u6570\u636e\u65e5\u671f'), s.get('data_date'), U(r'\u6458\u8981\u6587\u4ef6'))}
+    {self.metric(U(r'\u6628\u65e5\u9500\u552e'), U(r'\uffe5') + money(s.get('yesterday_sales')), U(r'SAP B1'))}
+    {self.metric(U(r'\u5e93\u5b58\u91d1\u989d'), U(r'\uffe5') + money(s.get('inventory_amount')), U(r'\u5df2\u540c\u6b65'))}
+  </div>
+  <p class="small">{U(r'\u624b\u52a8\u540c\u6b65\u5efa\u8bae\u5728\u670d\u52a1\u5668\u6267\u884c systemctl start firefox-sap-sync.service\uff0c\u9875\u9762\u5148\u63d0\u4f9b\u72b6\u6001\u67e5\u770b\u3002')}</p>
+</div>"""
+        self.out(layout(U(r"SAP B1 \u540c\u6b65"), body, user=user, wide=True))
 
     def dashboard(self, user):
         role = user["role"]
