@@ -1,0 +1,13 @@
+.env
+*.env
+secret.key
+portal.db
+*.db
+*.sqlite
+uploads/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+.codex_tmp_paramiko/
+latest_summary.json
