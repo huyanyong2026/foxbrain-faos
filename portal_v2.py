@@ -101,6 +101,15 @@ MODULES = {
     "/content": (U(r"\u5185\u5bb9\u53d1\u5e03\u4e2d\u5fc3"), U(r"\u65b0\u5a92\u4f53\u63a8\u5e7f\u3001\u95e8\u5e97\u5185\u5bb9\u3001\u4ea7\u54c1\u7d20\u6750\u548c\u53d1\u5e03\u8ba1\u5212\u3002"), ("boss", "admin", "store_manager", "employee")),
     "/tasks": (U(r"\u4efb\u52a1\u4e2d\u5fc3"), U(r"\u4eca\u65e5\u5f85\u529e\u3001\u95e8\u5e97\u4efb\u52a1\u3001\u5458\u5de5\u8ddf\u8fdb\u548c\u81ea\u52a8\u5316\u4efb\u52a1\u3002"), ("boss", "admin", "store_manager", "employee", "purchasing", "finance")),
 }
+
+ARCHIVE_FIELDS = {
+    "stores": [U(r"\u95e8\u5e97\u540d\u79f0"), U(r"\u5730\u5740"), U(r"\u9762\u79ef"), U(r"\u5f00\u4e1a\u65f6\u95f4"), U(r"\u79df\u8d41\u5408\u540c"), U(r"\u8425\u4e1a\u989d"), U(r"\u79df\u91d1"), U(r"\u5458\u5de5"), U(r"\u54c1\u724c"), U(r"AI \u5efa\u8bae")],
+    "employees": [U(r"\u59d3\u540d"), U(r"\u7167\u7247"), U(r"\u5e74\u9f84"), U(r"\u7535\u8bdd"), U(r"\u5c97\u4f4d"), U(r"\u90e8\u95e8"), U(r"\u5165\u804c\u65e5\u671f"), U(r"\u5de5\u8d44"), U(r"\u7ee9\u6548"), U(r"AI \u8bc4\u4ef7")],
+    "brands": [U(r"\u54c1\u724c\u540d\u79f0"), "Logo", U(r"\u54c1\u724c\u4ecb\u7ecd"), U(r"\u8d1f\u8d23\u4eba"), U(r"\u5408\u540c"), U(r"\u9500\u552e"), U(r"\u6bdb\u5229"), U(r"\u5e93\u5b58"), U(r"\u672a\u6765\u89c4\u5212"), U(r"AI \u5206\u6790")],
+    "products": [U(r"\u4ea7\u54c1\u540d\u79f0"), "SKU", U(r"\u6761\u7801"), U(r"\u54c1\u724c"), U(r"\u5206\u7c7b"), U(r"\u56fe\u7247"), U(r"\u8bf4\u660e\u4e66"), U(r"\u9500\u552e"), U(r"\u5e93\u5b58"), U(r"AI \u63a8\u8350")],
+    "suppliers": [U(r"\u4f9b\u5e94\u5546\u540d\u79f0"), U(r"\u8054\u7cfb\u4eba"), U(r"\u7535\u8bdd"), U(r"\u5fae\u4fe1"), U(r"\u5408\u540c"), U(r"\u4ed8\u6b3e\u65b9\u5f0f"), U(r"\u5386\u53f2\u91c7\u8d2d"), U(r"\u9644\u4ef6"), U(r"AI \u8bc4\u4ef7")],
+    "members": [U(r"\u59d3\u540d"), U(r"\u7535\u8bdd"), U(r"\u5fae\u4fe1"), U(r"\u751f\u65e5"), U(r"\u6d88\u8d39\u8bb0\u5f55"), U(r"\u79ef\u5206"), U(r"\u4f1a\u5458\u7b49\u7ea7"), U(r"\u5174\u8da3"), U(r"\u5907\u6ce8"), U(r"AI \u63a8\u8350")],
+}
 OLD_ROLE_MAP = {
     "leader": "boss",
     "manager": "store_manager",
@@ -582,6 +591,10 @@ class App(BaseHTTPRequestHandler):
             return self.agents(user)
         if path == "/sap-sync":
             return self.sap_sync(user)
+        if path == "/documents":
+            return self.document_center(user)
+        if path == "/workflow":
+            return self.workflow_center(user)
         if path == "/business-overview":
             return self.business_overview(user)
         if path == "/content-center":
@@ -612,6 +625,8 @@ class App(BaseHTTPRequestHandler):
             return self.knowledge_form(user)
         if path == "/api/dashboard/summary":
             return self.json_out(load_summary())
+        if path.startswith("/api/sap/"):
+            return self.sap_api_placeholder(user, path)
         if path == "/":
             return self.dashboard(user) if user else self.login()
         if path == "/daily":
@@ -1515,6 +1530,126 @@ class App(BaseHTTPRequestHandler):
                 (hp(new_password), int(time.time()), form.get("id")),
             )
         return self.redir("/admin")
+
+    def dashboard(self, user):
+        role = user["role"]
+        can_boss = role in ("boss", "admin", "finance", "purchasing")
+        can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
+        can_admin = role == "admin"
+        cards = [
+            self.card(U(r"AI \u603b\u7ecf\u7406"), U(r"\u4eca\u5929\u516c\u53f8\u60c5\u51b5\u3001\u98ce\u9669\u63d0\u9192\u3001\u7ecf\u8425\u5efa\u8bae\u3002"), "/ai-ceo", "btn", can_boss),
+            self.card(U(r"\u7ecf\u8425\u603b\u89c8"), U(r"\u9500\u552e\u3001\u5229\u6da6\u3001\u5e93\u5b58\u3001\u73b0\u91d1\u6d41\u3002"), "/business-overview", "btn dark", can_boss),
+            self.card(U(r"\u95e8\u5e97\u4e2d\u5fc3"), U(r"\u5357\u5c71\u5e97\u3001\u632f\u5174\u5e97\u3001\u822a\u82d1\u5e97\u7b49\u95e8\u5e97\u6863\u6848\u3002"), "/stores", "btn green", can_manager),
+            self.card(U(r"\u5458\u5de5\u4e2d\u5fc3"), U(r"\u5458\u5de5\u4fe1\u606f\u3001\u9500\u552e\u3001\u6536\u5165\u3001\u6210\u957f\u8bb0\u5f55\u3002"), "/employees", "btn green", can_manager),
+            self.card(U(r"\u54c1\u724c\u4e2d\u5fc3"), U(r"KAILAS\u3001Mammut\u3001OSPREY\u3001Deuter \u7b49\u54c1\u724c\u6863\u6848\u3002"), "/brands", "btn", role in ("boss", "admin", "purchasing", "store_manager")),
+            self.card(U(r"\u4ea7\u54c1\u4e2d\u5fc3"), U(r"\u4ea7\u54c1\u8bf4\u660e\u3001\u5e93\u5b58\u3001\u9500\u552e\u5386\u53f2\u3001AI \u8bdd\u672f\u3002"), "/products", "btn", True),
+            self.card(U(r"\u4f9b\u5e94\u5546\u4e2d\u5fc3"), U(r"\u5408\u540c\u3001\u4ed8\u6b3e\u3001\u4f9b\u8d27\u8bb0\u5f55\u3002"), "/suppliers", "btn orange", role in ("boss", "admin", "purchasing", "finance")),
+            self.card(U(r"\u987e\u5ba2\u4e2d\u5fc3"), U(r"\u6d88\u8d39\u8bb0\u5f55\u3001\u6807\u7b7e\u3001\u4f1a\u5458\u8d21\u732e\u3002"), "/members", "btn green", True),
+            self.card(U(r"\u5e93\u5b58\u91c7\u8d2d"), U(r"\u5e93\u5b58\u98ce\u9669\u3001\u91c7\u8d2d\u9884\u8b66\u3001SAP B1 \u6458\u8981\u3002"), "/inventory", "btn dark", can_manager),
+            self.card(U(r"\u8d22\u52a1\u4e2d\u5fc3"), U(r"\u8d44\u91d1\u3001\u4ed8\u6b3e\u3001\u8d39\u7528\u3001\u5229\u6da6\u5206\u6790\u3002"), "/finance", "btn dark", role in ("boss", "admin", "finance")),
+            self.card(U(r"\u5185\u5bb9\u4e2d\u5fc3"), U(r"\u516c\u4f17\u53f7\u3001\u89c6\u9891\u53f7\u3001\u5c0f\u7ea2\u4e66\u3001\u6296\u97f3\u7b49\u5185\u5bb9\u6846\u67b6\u3002"), "/content-center", "btn orange", True),
+            self.card(U(r"\u77e5\u8bc6\u4e2d\u5fc3"), U(r"\u6587\u6863\u3001\u5408\u540c\u3001\u4f1a\u8bae\u7eaa\u8981\u3001AI \u95ee\u7b54\u7684\u77e5\u8bc6\u5165\u53e3\u3002"), "/knowledge", "btn red", True),
+            self.card(U(r"AI \u667a\u80fd\u4f53"), U(r"AI CEO\u3001AI CFO\u3001AI \u91c7\u8d2d\u3001AI \u5e93\u5b58\u7b49\u667a\u80fd\u4f53\u77e9\u9635\u3002"), "/agents", "btn", True),
+            self.card(U(r"\u5de5\u4f5c\u6d41"), U(r"\u91c7\u8d2d\u3001\u4ed8\u6b3e\u3001\u5408\u540c\u3001\u8bf7\u5047\u3001\u5185\u5bb9\u5ba1\u6838\u6d41\u7a0b\u9884\u7559\u3002"), "/workflow", "btn", True),
+            self.card(U(r"\u7cfb\u7edf\u7ba1\u7406"), U(r"\u8d26\u53f7\u3001\u6743\u9650\u3001\u5ba1\u6838\u548c\u91cd\u7f6e\u5bc6\u7801\u3002"), "/admin", "btn dark", can_admin),
+        ]
+        info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
+            U(r"\u5f53\u524d\u8d26\u53f7"), T["name"], esc(user["name"]), T["store"], esc(user["store"]), T["role"], esc(ROLES.get(role, role))
+        )
+        self.out(layout(T["brand"], '<div class="grid">' + "".join(cards) + "</div>" + info, user=user, wide=True))
+
+    def module_page(self, user, path):
+        user = self.require_login(user)
+        if not user:
+            return
+        module = module_key(path)
+        title, text, roles = MODULES[path]
+        if not self.can_open(user, roles):
+            return self.dashboard(user)
+        q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+        sql = "select * from records where module=? and status!='deleted'"
+        params = [module]
+        if q:
+            like = "%" + q + "%"
+            sql += " and (title like ? or tags like ? or summary like ? or data_json like ?)"
+            params += [like, like, like, like]
+        sql += " order by updated_at desc limit 100"
+        with db() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        field_html = "".join('<span class="pill">{}</span>'.format(esc(f)) for f in ARCHIVE_FIELDS.get(module, []))
+        row_html = ""
+        for row in rows:
+            row_html += "<tr><td>{}</td><td>{}</td><td>{}</td><td><a href=\"/records/view?id={}\">{}</a> <a href=\"/records/edit?id={}\">{}</a></td></tr>".format(
+                esc(row["title"]), esc(row["tags"]), esc(dt(row["updated_at"])), row["id"], U(r"\u8be6\u60c5"), row["id"], U(r"\u7f16\u8f91")
+            )
+        if not row_html:
+            row_html = '<tr><td colspan="4" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u6863\u6848\uff0c\u53ef\u4ee5\u5148\u65b0\u5efa\u4e00\u6761\u3002"))
+        abilities = [U(r"\u65b0\u5efa"), U(r"\u7f16\u8f91"), U(r"\u5220\u9664"), U(r"\u8be6\u60c5\u9875"), U(r"\u641c\u7d22"), U(r"\u6807\u7b7e"), U(r"\u5907\u6ce8"), U(r"\u65f6\u95f4\u8f74"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u9644\u4ef6"), U(r"\u56fe\u7247/PDF/Word/Excel/\u89c6\u9891\u4e0a\u4f20"), U(r"AI \u67e5\u8be2\u9884\u7559")]
+        body = f"""
+<div class="panel">
+  <h2>{esc(title)}</h2><p>{esc(text)}</p>
+  <div class="inline"><a class="btn" href="/records/new?module={esc(module)}">{U(r'\u65b0\u5efa')}</a><a class="btn green" href="/records/export?module={esc(module)}">{U(r'Excel \u5bfc\u51fa')}</a><a class="btn orange" href="/upload">{U(r'\u4e0a\u4f20\u9644\u4ef6')}</a><a class="btn gray" href="/ai-query">{U(r'AI \u67e5\u8be2')}</a></div>
+</div>
+<div class="panel"><h2>{U(r'\u5b57\u6bb5\u89c4\u5212')}</h2><div>{field_html}</div></div>
+<div class="panel">
+  <form method="get" action="/{esc(module)}"><label>{U(r'\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u540d\u79f0\u3001\u6807\u7b7e\u3001\u5185\u5bb9')}"><p><button>{U(r'\u641c\u7d22')}</button></p></form>
+  <table><thead><tr><th>{U(r'\u540d\u79f0')}</th><th>{U(r'\u6807\u7b7e')}</th><th>{U(r'\u66f4\u65b0')}</th><th>{T['action']}</th></tr></thead><tbody>{row_html}</tbody></table>
+</div>
+<div class="panel"><h2>{U(r'\u7edf\u4e00\u6863\u6848\u80fd\u529b')}</h2>{self.bullets(abilities)}</div>"""
+        self.out(layout(title, body, user=user, wide=True))
+
+    def document_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            files = conn.execute("select * from uploaded_files order by created_at desc limit 80").fetchall()
+        rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(f["original_name"]), esc(f["category"]), esc(f["mime"]), esc(dt(f["created_at"]))) for f in files)
+        if not rows:
+            rows = '<tr><td colspan="4" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u6587\u4ef6\uff0c\u8bf7\u5148\u4e0a\u4f20\u3002"))
+        features = [U(r"\u4e0a\u4f20"), U(r"\u6587\u4ef6\u5217\u8868"), U(r"\u6587\u4ef6\u8be6\u60c5"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u6807\u7b7e"), U(r"OCR \u9884\u7559"), U(r"\u81ea\u52a8\u6458\u8981"), U(r"\u5411\u91cf\u5316\u9884\u7559"), U(r"AI Q&A")]
+        body = f"<div class='panel'><h2>{U(r'\u7edf\u4e00\u6587\u4ef6\u4e2d\u5fc3')}</h2><p><a class='btn' href='/upload'>{U(r'\u4e0a\u4f20\u6587\u4ef6')}</a></p>{self.bullets(features)}</div><div class='panel'><table><thead><tr><th>{U(r'\u6587\u4ef6')}</th><th>{U(r'\u5206\u7c7b')}</th><th>{U(r'\u7c7b\u578b')}</th><th>{U(r'\u65f6\u95f4')}</th></tr></thead><tbody>{rows}</tbody></table></div>"
+        self.out(layout(U(r"\u7edf\u4e00\u6587\u4ef6\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def workflow_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        flows = [U(r"\u91c7\u8d2d\u5ba1\u6279"), U(r"\u4ed8\u6b3e\u5ba1\u6279"), U(r"\u5408\u540c\u5ba1\u6279"), U(r"\u8bf7\u5047\u5ba1\u6279"), U(r"\u62db\u8058"), U(r"\u79bb\u804c"), U(r"\u95e8\u5e97\u4efb\u52a1\u5206\u914d"), U(r"\u5185\u5bb9\u5ba1\u6838")]
+        cards = "".join(self.card(f, U(r"\u6d41\u7a0b\u5f15\u64ce\u9884\u7559\uff1a\u5ba1\u6279\u8282\u70b9\u3001\u6267\u884c\u4eba\u3001\u65f6\u95f4\u8f74\u3001\u901a\u77e5\u548c\u65e5\u5fd7\u3002"), "/tasks", "btn", True) for f in flows)
+        self.out(layout(U(r"\u5de5\u4f5c\u6d41\u4e2d\u5fc3"), '<div class="grid">' + cards + "</div>", user=user, wide=True))
+
+    def sap_api_placeholder(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        mapping = {
+            "/api/sap/business-analysis": "business analysis",
+            "/api/sap/profit-analysis": "profit analysis",
+            "/api/sap/inventory-analysis": "inventory analysis",
+            "/api/sap/sales-trend": "sales trend",
+            "/api/sap/ai-analysis": "ai analysis",
+        }
+        return self.json_out({"ok": True, "endpoint": mapping.get(path, "sap placeholder"), "data": load_summary(), "note": "placeholder; existing SAP sync is unchanged"})
+
+    def agents(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        agent_defs = [
+            (U(r"AI CEO / AI \u603b\u7ecf\u7406"), U(r"\u7ecf\u8425\u5224\u65ad\u3001\u98ce\u9669\u9884\u8b66\u3001\u884c\u52a8\u5efa\u8bae")),
+            (U(r"AI CFO / AI \u8d22\u52a1\u603b\u76d1"), U(r"\u73b0\u91d1\u6d41\u3001\u8d39\u7528\u3001\u4ed8\u6b3e\u548c\u5229\u6da6\u5206\u6790")),
+            (U(r"AI COO / AI \u8fd0\u8425\u603b\u76d1"), U(r"\u95e8\u5e97\u8fd0\u8425\u3001\u4efb\u52a1\u548c SOP \u63a8\u8fdb")),
+            (U(r"AI \u91c7\u8d2d\u7ecf\u7406"), U(r"\u91c7\u8d2d\u3001\u8865\u8d27\u3001\u4f9b\u5e94\u5546\u548c\u8d26\u671f")),
+            (U(r"AI \u5e93\u5b58\u7ecf\u7406"), U(r"\u5e93\u5b58\u91d1\u989d\u3001\u6ede\u9500\u3001\u8c03\u62e8\u548c\u98ce\u9669")),
+            (U(r"AI \u54c1\u724c\u7ecf\u7406"), U(r"\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u5408\u4f5c\u548c\u672a\u6765\u89c4\u5212")),
+            (U(r"AI \u95e8\u5e97\u7ecf\u7406"), U(r"\u95e8\u5e97\u9500\u552e\u3001\u4f1a\u5458\u3001\u5458\u5de5\u548c\u5e93\u5b58")),
+            (U(r"AI \u8425\u9500\u7ecf\u7406"), U(r"\u5c0f\u7ea2\u4e66\u3001\u6296\u97f3\u3001\u89c6\u9891\u53f7\u3001\u516c\u4f17\u53f7")),
+            (U(r"AI \u57f9\u8bad\u7ecf\u7406"), U(r"\u57f9\u8bad\u8bfe\u7a0b\u3001\u8003\u6838\u548c\u6210\u957f\u8bb0\u5f55")),
+            (U(r"AI \u5ba2\u670d"), U(r"\u987e\u5ba2\u95ee\u9898\u3001\u552e\u540e\u548c\u4f1a\u5458\u7ef4\u62a4")),
+            (U(r"AI \u79d8\u4e66"), U(r"\u4f1a\u8bae\u7eaa\u8981\u3001\u4efb\u52a1\u5206\u89e3\u548c\u63d0\u9192")),
+        ]
+        cards = "".join(self.card(name, desc + U(r"\u3002\u72b6\u6001\uff1a\u6846\u67b6\u5df2\u5c31\u7eea\uff0cAPI \u9884\u7559\u3002"), "/ai-query", "btn", True) for name, desc in agent_defs)
+        self.out(layout(U(r"AI \u667a\u80fd\u4f53\u4e2d\u5fc3"), '<div class="grid">' + cards + "</div>", user=user, wide=True))
 
 
 if __name__ == "__main__":
