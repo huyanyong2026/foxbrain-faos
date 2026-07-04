@@ -2,35 +2,84 @@
 
 ## 目标
 
-所有经营资料都进入知识库，AI 可以查询。
+FoxBrain 知识中心不是普通文件夹，而是企业长期记忆中心。它负责沉淀制度、SOP、品牌资料、产品资料、培训材料、合同、会议纪要、SAP 摘要、经营分析和 AI 问答记录，为后续 AI 推理、引用回答和智能体记忆提供基础。
 
-## 数据来源
+## Knowledge Item 模型
 
-- 手动录入
-- 文件上传
-- 外网网页保存
-- SAP 导入
-- 会议纪要
-- 内容文案
+每条知识至少支持以下字段：
 
-## 每条知识包含
+- `knowledge_id`: 业务知识编号，例如 `KB-xxxx`
+- `title`: 标题
+- `content/body`: 正文或解析后的文本
+- `source_type`: 来源类型，支持 `document`、`note`、`web`、`sap_report`、`meeting`、`image`、`audio`、`video`
+- `source_id`: 外部来源标识
+- `source_file_id`: 文件中心来源
+- `object_type` / `object_id`: 关联门店、员工、品牌、产品、供应商、会员等档案对象
+- `summary` / `human_summary`: 自动摘要和人工摘要
+- `keywords`: 关键词
+- `tags` / `auto_tags` / `manual_tags`: 自动标签和人工标签
+- `status`: `draft`、`uploaded`、`parsed`、`summarized`、`embedded`、`ready`、`failed`
+- `visibility`: `public_internal`、`manager_only`、`finance_only`、`owner_only`、`restricted`
+- `embedding_status`: `pending`、`processing`、`done`、`failed`
 
-- 标题
-- 分类
-- 标签
-- 正文
-- AI 摘要
-- 来源类型
-- 来源地址或文件名
-- 创建人
-- 创建时间
-- 更新时间
+## Document-to-Knowledge 管线
 
-## 后续能力
+文件上传后进入以下流程：
+
+1. 文件保存
+2. 元数据保存
+3. 解析占位
+4. 文本切片
+5. 摘要占位
+6. 关键词和标签占位
+7. 向量化占位
+8. 知识条目创建
+9. 关联档案对象
+10. 进入搜索和 AI 查询
+
+当前版本只在能安全解析到真实文本时生成切片；如果无法解析，不伪造内容，只显示等待解析和等待 AI 摘要状态。
+
+## Chunk 模型
+
+文档切片用于未来向量检索和引用回答：
+
+- `chunk_id`
+- `knowledge_id`
+- `document_id`
+- `chunk_index`
+- `chunk_text`
+- `token_count`
+- `page_number`
+- `section_title`
+- `embedding_status`
+- `created_at`
+
+## AI 查询结构
+
+AI 查询中心 V1 返回引用准备结构：
+
+- `answer`
+- `confidence`
+- `cited_documents`
+- `cited_chunks`
+- `cited_sap_records`
+- `related_objects`
+- `generated_at`
+- `model_name`
+- `limitations`
+
+当前版本不编造经营结论；如果没有接入模型或没有命中资料，只返回安全提示。
+
+## 权限
+
+知识可见范围必须在查询、页面和 API 中同时生效。财务、老板、管理员、店长和普通员工看到的知识范围不同，敏感合同、工资、财务资料不能默认给所有员工。
+
+## 后续升级
 
 - OCR
-- 向量化
-- 权限隔离
-- 引用来源
-- 知识审核
-
+- PDF/Word/Excel 深度解析
+- 向量数据库
+- Dify 知识库同步
+- n8n 自动生成晨报
+- SAP 数据知识化
+- 知识图谱和多智能体记忆

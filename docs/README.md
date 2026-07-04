@@ -25,6 +25,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 ## Codex Tasks
 
 - [Task001](CODEX_TASKS/Task001/README.md)
+- [Task003 Knowledge Engine](CODEX_TASKS/Task003_Knowledge_Engine.md)
 
 Future tasks should use folders:
 
@@ -35,4 +36,3 @@ CODEX_TASKS/
   ...
   Task100/
 ```
-

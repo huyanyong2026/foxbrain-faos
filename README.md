@@ -58,6 +58,17 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Mobile-first responsive UI preserved
 - Documentation updated
 
+## V4 Task003 Completed
+
+- Knowledge Item model expanded for AI-ready enterprise memory
+- Document-to-Knowledge pipeline foundation
+- Document chunk model for future vector search
+- Summary, keyword, tag, visibility, and embedding placeholders
+- AI Query Center V1 with citation-ready answer structure
+- Knowledge dashboard, search, detail pages, and JSON APIs
+- Permission-safe knowledge visibility
+- Existing login, role system, SAP B1 sync, and archive engine preserved
+
 ## V4 Routes
 
 - `/`
@@ -70,6 +81,7 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/members`
 - `/documents`
 - `/knowledge`
+- `/knowledge/query`
 - `/agents`
 - `/workflow`
 - `/sap-sync`

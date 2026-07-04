@@ -150,6 +150,28 @@ def dt(value):
         return ""
 
 
+def safe_json(value, fallback=None):
+    try:
+        return json.loads(value or "")
+    except Exception:
+        return fallback if fallback is not None else {}
+
+
+def csv_values(value):
+    return [v.strip() for v in str(value or "").split(",") if v.strip()]
+
+
+def chunk_text(text, size=1600):
+    clean = re.sub(r"\s+", " ", text or "").strip()
+    if not clean:
+        return []
+    return [clean[i : i + size] for i in range(0, len(clean), size)]
+
+
+def row_dict(row):
+    return dict(row) if row else None
+
+
 def module_key(path_or_key):
     return str(path_or_key or "").strip().lstrip("/")
 
@@ -399,6 +421,22 @@ create table if not exists knowledge_items(
 """
         )
         conn.execute("create index if not exists idx_knowledge_category on knowledge_items(category)")
+        ensure_column(conn, "knowledge_items", "knowledge_id", "knowledge_id text")
+        ensure_column(conn, "knowledge_items", "source_id", "source_id text")
+        ensure_column(conn, "knowledge_items", "source_file_id", "source_file_id integer")
+        ensure_column(conn, "knowledge_items", "object_type", "object_type text")
+        ensure_column(conn, "knowledge_items", "object_id", "object_id integer")
+        ensure_column(conn, "knowledge_items", "summary", "summary text")
+        ensure_column(conn, "knowledge_items", "keywords", "keywords text")
+        ensure_column(conn, "knowledge_items", "status", "status text not null default 'draft'")
+        ensure_column(conn, "knowledge_items", "visibility", "visibility text not null default 'public_internal'")
+        ensure_column(conn, "knowledge_items", "human_summary", "human_summary text")
+        ensure_column(conn, "knowledge_items", "auto_tags", "auto_tags text")
+        ensure_column(conn, "knowledge_items", "manual_tags", "manual_tags text")
+        ensure_column(conn, "knowledge_items", "embedding_status", "embedding_status text not null default 'pending'")
+        conn.execute("create index if not exists idx_knowledge_status on knowledge_items(status)")
+        conn.execute("create index if not exists idx_knowledge_object on knowledge_items(object_type, object_id)")
+        conn.execute("create index if not exists idx_knowledge_visibility on knowledge_items(visibility)")
         conn.execute(
             """
 create table if not exists uploaded_files(
@@ -420,6 +458,39 @@ create table if not exists uploaded_files(
 )
 """
         )
+        conn.execute(
+            """
+create table if not exists knowledge_chunks(
+ id integer primary key autoincrement,
+ chunk_id text unique,
+ knowledge_id integer not null,
+ document_id integer,
+ chunk_index integer not null,
+ chunk_text text,
+ token_count integer not null default 0,
+ page_number integer,
+ section_title text,
+ embedding_status text not null default 'pending',
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_chunks_knowledge on knowledge_chunks(knowledge_id)")
+        conn.execute(
+            """
+create table if not exists knowledge_query_history(
+ id integer primary key autoincrement,
+ user_id integer,
+ question text not null,
+ scope text,
+ related_object_type text,
+ related_object_id integer,
+ answer_json text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_query_history_user on knowledge_query_history(user_id, created_at)")
         conn.execute(
             """
 create table if not exists activity_log(
@@ -585,7 +656,7 @@ class App(BaseHTTPRequestHandler):
             return self.ai_ceo(user)
         if path == "/ai-store-manager":
             return self.ai_store_manager(user)
-        if path == "/ai-query":
+        if path in ("/ai-query", "/knowledge/query"):
             return self.ai_assistant(user)
         if path == "/agents":
             return self.agents(user)
@@ -600,6 +671,8 @@ class App(BaseHTTPRequestHandler):
         if path == "/content-center":
             return self.module_page(user, "/content")
         if path == "/knowledge":
+            return self.knowledge(user)
+        if path == "/knowledge/dashboard":
             return self.knowledge(user)
         if path == "/inventory":
             return self.inventory(user)
@@ -625,6 +698,8 @@ class App(BaseHTTPRequestHandler):
             return self.knowledge_form(user)
         if path == "/api/dashboard/summary":
             return self.json_out(load_summary())
+        if path.startswith("/api/knowledge"):
+            return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
             return self.sap_api_placeholder(user, path)
         if path == "/":
@@ -635,6 +710,8 @@ class App(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path.startswith("/api/knowledge"):
+            return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
             return self.json_out({"ok": False, "message": U(r"\u63a5\u53e3\u5df2\u9884\u7559\uff0c\u4e0b\u4e00\u6b65\u63a5\u5165 AI \u548c\u77e5\u8bc6\u5e93\u6570\u636e\u3002")}, code=501)
         if path == "/login":
@@ -778,6 +855,108 @@ class App(BaseHTTPRequestHandler):
     def record_allowed(self, user, module):
         data = MODULES.get("/" + module_key(module))
         return bool(data and self.can_open(user, data[2]))
+
+    def can_view_knowledge(self, user, row):
+        if not user or not row:
+            return False
+        visibility = row["visibility"] if "visibility" in row.keys() else "public_internal"
+        if visibility == "public_internal":
+            return True
+        if visibility == "manager_only":
+            return user["role"] in ("boss", "admin", "store_manager")
+        if visibility == "finance_only":
+            return user["role"] in ("boss", "admin", "finance")
+        if visibility == "owner_only":
+            return int(row["created_by"] or 0) == int(user["id"])
+        if visibility == "restricted":
+            return user["role"] in ("boss", "admin")
+        return user["role"] in ("boss", "admin")
+
+    def knowledge_to_json(self, row, include_body=True):
+        data = row_dict(row) or {}
+        result = {
+            "id": data.get("id"),
+            "knowledge_id": data.get("knowledge_id") or f"KB-{data.get('id')}",
+            "title": data.get("title"),
+            "content": data.get("body") if include_body else None,
+            "source_type": data.get("source_type"),
+            "source_id": data.get("source_id"),
+            "source_file_id": data.get("source_file_id"),
+            "object_type": data.get("object_type"),
+            "object_id": data.get("object_id"),
+            "summary": data.get("summary") or data.get("ai_summary"),
+            "human_summary": data.get("human_summary"),
+            "keywords": data.get("keywords"),
+            "tags": data.get("tags"),
+            "auto_tags": data.get("auto_tags"),
+            "manual_tags": data.get("manual_tags"),
+            "status": data.get("status") or "draft",
+            "visibility": data.get("visibility") or "public_internal",
+            "embedding_status": data.get("embedding_status") or "pending",
+            "created_by": data.get("created_by"),
+            "created_at": data.get("created_at"),
+            "updated_at": data.get("updated_at"),
+        }
+        if not include_body:
+            result.pop("content", None)
+        return result
+
+    def create_chunks(self, conn, knowledge_id, document_id, text, now):
+        conn.execute("delete from knowledge_chunks where knowledge_id=?", (knowledge_id,))
+        chunks = chunk_text(text)
+        for idx, part in enumerate(chunks):
+            conn.execute(
+                "insert into knowledge_chunks(chunk_id,knowledge_id,document_id,chunk_index,chunk_text,token_count,embedding_status,created_at) values(?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, knowledge_id, document_id, idx, part, max(1, len(part) // 2), "pending", now),
+            )
+        return len(chunks)
+
+    def knowledge_status_text(self, row):
+        status = (row["status"] if row and "status" in row.keys() else "") or "draft"
+        labels = {
+            "draft": U(r"\u8349\u7a3f"),
+            "uploaded": U(r"\u5df2\u4e0a\u4f20"),
+            "parsed": U(r"\u89e3\u6790\u5b8c\u6210"),
+            "summarized": U(r"\u7b49\u5f85 AI \u6458\u8981\u751f\u6210"),
+            "embedded": U(r"\u7b49\u5f85\u5411\u91cf\u5316"),
+            "ready": U(r"\u53ef\u7528\u4e8e AI \u67e5\u8be2"),
+            "failed": U(r"\u5904\u7406\u5931\u8d25"),
+        }
+        return labels.get(status, status)
+
+    def build_ai_answer(self, question, scope, rows):
+        citations = []
+        for row in rows[:5]:
+            citations.append(
+                {
+                    "knowledge_id": row["knowledge_id"] or f"KB-{row['id']}",
+                    "title": row["title"],
+                    "status": row["status"] or "draft",
+                    "source_type": row["source_type"],
+                    "url": f"/knowledge/view?id={row['id']}",
+                }
+            )
+        if citations:
+            answer = U(r"AI \u67e5\u8be2\u4e2d\u5fc3\u5df2\u627e\u5230\u76f8\u5173\u77e5\u8bc6\u6761\u76ee\u3002\u5f53\u524d\u7248\u672c\u53ea\u505a\u68c0\u7d22\u548c\u5f15\u7528\u51c6\u5907\uff0c\u4e0d\u751f\u6210\u672a\u7ecf\u9a8c\u8bc1\u7684\u7ecf\u8425\u7ed3\u8bba\u3002")
+            confidence = "retrieval_ready"
+        else:
+            answer = U(r"AI \u67e5\u8be2\u4e2d\u5fc3\u5df2\u5efa\u7acb\u3002\u5f53\u524d\u7b49\u5f85\u63a5\u5165\u66f4\u591a\u77e5\u8bc6\u5e93\u5185\u5bb9\u3001SAP \u6570\u636e\u548c\u5927\u6a21\u578b API\u3002")
+            confidence = "no_internal_hit"
+        return {
+            "answer": answer,
+            "confidence": confidence,
+            "cited_documents": citations,
+            "cited_chunks": [],
+            "cited_sap_records": [],
+            "related_objects": [],
+            "generated_at": ts(),
+            "model_name": os.environ.get("AI_MODEL_NAME", "not_connected"),
+            "limitations": [
+                U(r"\u672a\u7f16\u9020 SAP \u6570\u636e\u6216\u7ecf\u8425\u7ed3\u8bba\u3002"),
+                U(r"\u5411\u91cf\u68c0\u7d22\u548c\u771f\u6b63\u5927\u6a21\u578b\u56de\u7b54\u5c06\u5728\u540e\u7eed\u63a5\u5165\u3002"),
+                U(r"\u7b54\u6848\u9700\u4f9d\u636e\u5f15\u7528\u6765\u6e90\u590d\u6838\u3002"),
+            ],
+        }
 
     def placeholder(self, user, title, text):
         user = self.require_login(user)
@@ -1039,12 +1218,16 @@ class App(BaseHTTPRequestHandler):
         if not user:
             return
         module_opts = "".join('<option value="{}">{}</option>'.format(module_key(k), esc(v[0])) for k, v in MODULES.items())
+        object_opts = "".join('<option value="{}">{}</option>'.format(module_key(k), esc(v[0])) for k, v in MODULES.items())
         body = f"""
 <div class="panel form">
   <h2>{U(r'\u6587\u4ef6\u4e0a\u4f20\u4e0e\u81ea\u52a8\u5f52\u6863')}</h2>
   <form method="post" action="/upload" enctype="multipart/form-data">
     <label>{U(r'\u6587\u4ef6')}</label><input name="file" type="file" required>
     <label>{U(r'\u5f52\u5c5e\u6a21\u5757')}</label><select name="module"><option value="knowledge">{U(r'\u77e5\u8bc6\u4e2d\u5fc3')}</option>{module_opts}</select>
+    <label>{U(r'\u5173\u8054\u5bf9\u8c61\u7c7b\u578b')}</label><select name="object_type"><option value="">{U(r'\u6682\u4e0d\u5173\u8054')}</option>{object_opts}</select>
+    <label>{U(r'\u5173\u8054\u5bf9\u8c61 ID')}</label><input name="object_id" placeholder="{U(r'\u53ef\u9009\uff1a\u6863\u6848 ID')}">
+    <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="public_internal">{U(r'\u516c\u53f8\u5185\u90e8')}</option><option value="manager_only">{U(r'\u7ba1\u7406\u5c42')}</option><option value="finance_only">{U(r'\u8d22\u52a1')}</option><option value="owner_only">{U(r'\u4ec5\u521b\u5efa\u4eba')}</option><option value="restricted">{U(r'\u8001\u677f/\u7ba1\u7406\u5458')}</option></select>
     <label>{U(r'\u6240\u5c5e\u5206\u7c7b')}</label><input name="category" placeholder="01_公司制度 / 02_产品资料 / 07_库存采购">
     <label>{U(r'\u8865\u5145\u8bf4\u660e')}</label><textarea name="description"></textarea>
     <p><button>{U(r'\u4e0a\u4f20\u5e76\u81ea\u52a8\u5165\u5e93')}</button></p>
@@ -1064,6 +1247,11 @@ class App(BaseHTTPRequestHandler):
         module = module_key(form.getfirst("module", "knowledge"))
         category = form.getfirst("category", "").strip()
         description = form.getfirst("description", "").strip()
+        object_type = module_key(form.getfirst("object_type", ""))
+        object_id = form.getfirst("object_id", "").strip()
+        visibility = form.getfirst("visibility", "public_internal")
+        if visibility not in ("public_internal", "manager_only", "finance_only", "owner_only", "restricted"):
+            visibility = "public_internal"
         folder = Path(UPLOAD_DIR) / module
         folder.mkdir(parents=True, exist_ok=True)
         saved = uuid.uuid4().hex + Path(original).suffix.lower()
@@ -1073,19 +1261,49 @@ class App(BaseHTTPRequestHandler):
         extracted = extract_file_text(str(path), original)
         combined = "\n".join([original, description, extracted])
         category = category or classify_text(combined)
-        summary = summarize_text(combined)
+        summary = summarize_text(extracted or description)
         tags = extract_tags(combined)
+        status = "parsed" if extracted else "uploaded"
+        knowledge_code = "KB-" + uuid.uuid4().hex[:12]
         now = ts()
         with db() as conn:
             kcur = conn.execute(
-                "insert into knowledge_items(title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
-                (original, category, tags, extracted or description, summary, U(r"\u6587\u4ef6\u4e0a\u4f20"), original, user["id"], now, now),
+                """insert into knowledge_items(
+ title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at,
+ knowledge_id,source_id,object_type,object_id,summary,keywords,status,visibility,auto_tags,manual_tags,embedding_status
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    original,
+                    category,
+                    tags,
+                    extracted or description,
+                    summary if extracted else U(r"\u7b49\u5f85 AI \u6458\u8981\u751f\u6210"),
+                    "document",
+                    original,
+                    user["id"],
+                    now,
+                    now,
+                    knowledge_code,
+                    saved,
+                    object_type,
+                    int(object_id) if object_id.isdigit() else None,
+                    summary,
+                    tags,
+                    status,
+                    visibility,
+                    tags,
+                    "",
+                    "pending",
+                ),
             )
             kid = kcur.lastrowid
-            conn.execute(
+            fcur = conn.execute(
                 "insert into uploaded_files(original_name,saved_name,path,mime,size,category,description,extracted_text,knowledge_id,created_by,created_at) values(?,?,?,?,?,?,?,?,?,?,?)",
                 (original, saved, str(path), mimetypes.guess_type(original)[0], len(data), category, description, extracted, kid, user["id"], now),
             )
+            fid = fcur.lastrowid
+            conn.execute("update knowledge_items set source_file_id=? where id=?", (fid, kid))
+            self.create_chunks(conn, kid, fid, extracted, now)
         self.log_action(user, "file_upload", "knowledge", kid, original)
         return self.redir(f"/knowledge/view?id={kid}")
 
@@ -1093,6 +1311,7 @@ class App(BaseHTTPRequestHandler):
         user = self.require_login(user)
         if not user:
             return
+        object_opts = "".join('<option value="{}">{}</option>'.format(module_key(k), esc(v[0])) for k, v in MODULES.items())
         body = f"""
 <div class="panel form">
   <h2>{U(r'\u65b0\u5efa\u77e5\u8bc6')}</h2>
@@ -1100,6 +1319,9 @@ class App(BaseHTTPRequestHandler):
     <label>{U(r'\u6807\u9898')}</label><input name="title" required>
     <label>{U(r'\u5206\u7c7b')}</label><input name="category" placeholder="01_公司制度">
     <label>{U(r'\u6807\u7b7e')}</label><input name="tags">
+    <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="public_internal">{U(r'\u516c\u53f8\u5185\u90e8')}</option><option value="manager_only">{U(r'\u7ba1\u7406\u5c42')}</option><option value="finance_only">{U(r'\u8d22\u52a1')}</option><option value="owner_only">{U(r'\u4ec5\u521b\u5efa\u4eba')}</option><option value="restricted">{U(r'\u8001\u677f/\u7ba1\u7406\u5458')}</option></select>
+    <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><select name="object_type"><option value="">{U(r'\u6682\u4e0d\u5173\u8054')}</option>{object_opts}</select>
+    <label>{U(r'\u5173\u8054\u5bf9\u8c61 ID')}</label><input name="object_id" placeholder="{U(r'\u53ef\u9009\uff1a\u6863\u6848 ID')}">
     <label>{U(r'\u6b63\u6587')}</label><textarea name="body" required></textarea>
     <p><button>{T['save']}</button></p>
   </form>
@@ -1113,13 +1335,46 @@ class App(BaseHTTPRequestHandler):
         form = self.form()
         body = form.get("body", "")
         category = form.get("category", "").strip() or classify_text(body)
+        visibility = form.get("visibility", "public_internal")
+        if visibility not in ("public_internal", "manager_only", "finance_only", "owner_only", "restricted"):
+            visibility = "public_internal"
+        object_type = module_key(form.get("object_type", ""))
+        object_id = form.get("object_id", "").strip()
+        tags = form.get("tags", "") or extract_tags(body)
+        summary = summarize_text(body)
         now = ts()
         with db() as conn:
             cur = conn.execute(
-                "insert into knowledge_items(title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
-                (form.get("title", "").strip(), category, form.get("tags", "") or extract_tags(body), body, summarize_text(body), U(r"\u624b\u52a8\u5f55\u5165"), "", user["id"], now, now),
+                """insert into knowledge_items(
+ title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at,
+ knowledge_id,source_id,object_type,object_id,summary,keywords,status,visibility,auto_tags,manual_tags,embedding_status
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    form.get("title", "").strip(),
+                    category,
+                    tags,
+                    body,
+                    summary,
+                    "note",
+                    "",
+                    user["id"],
+                    now,
+                    now,
+                    "KB-" + uuid.uuid4().hex[:12],
+                    "",
+                    object_type,
+                    int(object_id) if object_id.isdigit() else None,
+                    summary,
+                    tags,
+                    "ready" if body.strip() else "draft",
+                    visibility,
+                    tags,
+                    "",
+                    "pending",
+                ),
             )
             kid = cur.lastrowid
+            self.create_chunks(conn, kid, None, body, now)
         self.log_action(user, "knowledge_create", "knowledge", kid, form.get("title", ""))
         return self.redir(f"/knowledge/view?id={kid}")
 
@@ -1650,6 +1905,288 @@ class App(BaseHTTPRequestHandler):
         ]
         cards = "".join(self.card(name, desc + U(r"\u3002\u72b6\u6001\uff1a\u6846\u67b6\u5df2\u5c31\u7eea\uff0cAPI \u9884\u7559\u3002"), "/ai-query", "btn", True) for name, desc in agent_defs)
         self.out(layout(U(r"AI \u667a\u80fd\u4f53\u4e2d\u5fc3"), '<div class="grid">' + cards + "</div>", user=user, wide=True))
+
+    def knowledge(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+        source_type = parse_qs(urlparse(self.path).query).get("source_type", [""])[0].strip()
+        where = []
+        params = []
+        if q:
+            like = "%" + q + "%"
+            where.append("(title like ? or body like ? or summary like ? or keywords like ? or tags like ?)")
+            params += [like, like, like, like, like]
+        if source_type:
+            where.append("source_type=?")
+            params.append(source_type)
+        sql = "select * from knowledge_items"
+        if where:
+            sql += " where " + " and ".join(where)
+        sql += " order by updated_at desc limit 80"
+        with db() as conn:
+            all_rows = conn.execute(sql, params).fetchall()
+            total = conn.execute("select count(*) c from knowledge_items").fetchone()["c"]
+            waiting = conn.execute("select count(*) c from knowledge_items where status in ('uploaded','draft','summarized')").fetchone()["c"]
+            ready = conn.execute("select count(*) c from knowledge_items where status in ('ready','parsed')").fetchone()["c"]
+            failed = conn.execute("select count(*) c from knowledge_items where status='failed'").fetchone()["c"]
+            by_source = conn.execute("select coalesce(source_type,'unknown') name, count(*) c from knowledge_items group by source_type order by c desc limit 8").fetchall()
+        rows = [r for r in all_rows if self.can_view_knowledge(user, r)]
+        cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div><a class='btn full' href='/knowledge/view?id={}'>{}</a></div>".format(
+                esc(row["title"]),
+                esc((row["summary"] or row["ai_summary"] or U(r"\u7b49\u5f85 AI \u6458\u8981\u751f\u6210"))[:180]),
+                esc(row["source_type"]),
+                esc(self.knowledge_status_text(row)),
+                esc(row["tags"]),
+                row["id"],
+                U(r"\u67e5\u770b"),
+            )
+            for row in rows
+        )
+        if not cards:
+            cards = "<div class='panel'><p class='small'>{}</p></div>".format(U(r"\u6682\u65e0\u77e5\u8bc6\u6761\u76ee\uff0c\u53ef\u4ee5\u5148\u4e0a\u4f20\u6587\u4ef6\u6216\u65b0\u5efa\u77e5\u8bc6\u3002"))
+        source_pills = "".join('<span class="pill">{} {}</span>'.format(esc(r["name"]), r["c"]) for r in by_source)
+        body = f"""
+<div class="panel">
+  <h2>{U(r'\u77e5\u8bc6\u5f15\u64ce\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'\u8fd9\u91cc\u662f FoxBrain \u7684\u4f01\u4e1a\u957f\u671f\u8bb0\u5fc6\uff1a\u6587\u6863\u3001\u5236\u5ea6\u3001\u5408\u540c\u3001SAP \u6458\u8981\u3001\u57f9\u8bad\u548c AI \u95ee\u7b54\u90fd\u4f1a\u6c89\u6dc0\u5230\u8fd9\u91cc\u3002')}</p>
+  <div class="inline"><a class="btn" href="/upload">{U(r'\u4e0a\u4f20\u6587\u4ef6')}</a><a class="btn green" href="/knowledge/new">{U(r'\u65b0\u5efa\u77e5\u8bc6')}</a><a class="btn dark" href="/ai-query">{U(r'AI \u67e5\u8be2')}</a><a class="btn orange" href="/web-search">{U(r'\u5916\u7f51\u4fdd\u5b58')}</a></div>
+</div>
+<div class="metrics">
+  {self.metric(U(r'\u77e5\u8bc6\u603b\u6570'), total, U(r'\u5168\u90e8\u6761\u76ee'))}
+  {self.metric(U(r'\u7b49\u5f85\u5904\u7406'), waiting, U(r'\u89e3\u6790/\u6458\u8981/\u5411\u91cf'))}
+  {self.metric(U(r'\u53ef AI \u67e5\u8be2'), ready, U(r'\u5df2\u89e3\u6790\u6216\u5c31\u7eea'))}
+  {self.metric(U(r'\u5904\u7406\u5931\u8d25'), failed, U(r'\u9700\u4eba\u5de5\u590d\u6838'))}
+</div>
+<div class="panel">
+  <form method="get" action="/knowledge">
+    <label>{U(r'\u77e5\u8bc6\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u6807\u9898\u3001\u6b63\u6587\u3001\u6458\u8981\u3001\u5173\u952e\u8bcd\u3001\u6807\u7b7e')}">
+    <label>{U(r'\u6765\u6e90\u7c7b\u578b')}</label><input name="source_type" value="{esc(source_type)}" placeholder="document / note / web / sap_report">
+    <p><button>{U(r'\u641c\u7d22')}</button></p>
+  </form>
+  <div>{source_pills}</div>
+</div>
+<div class="grid">{cards}</div>"""
+        self.out(layout(U(r"\u77e5\u8bc6\u5f15\u64ce\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def knowledge_view(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        kid = parse_qs(urlparse(self.path).query).get("id", [""])[0]
+        with db() as conn:
+            row = conn.execute("select * from knowledge_items where id=?", (kid,)).fetchone()
+            chunks = conn.execute("select * from knowledge_chunks where knowledge_id=? order by chunk_index limit 8", (kid,)).fetchall()
+        if not row or not self.can_view_knowledge(user, row):
+            return self.redir("/knowledge")
+        chunk_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(c["chunk_index"] + 1, esc(c["embedding_status"]), esc(summarize_text(c["chunk_text"], 90)))
+            for c in chunks
+        )
+        if not chunk_rows:
+            chunk_rows = '<tr><td colspan="3" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u5207\u7247\uff1a\u6587\u4ef6\u8fd8\u5728\u7b49\u5f85\u89e3\u6790\uff0c\u6216\u6ca1\u6709\u63d0\u53d6\u5230\u53ef\u7528\u6587\u672c\u3002"))
+        summary_text = row["summary"] or row["ai_summary"] or U(r"\u7b49\u5f85 AI \u6458\u8981\u751f\u6210")
+        pipeline = [
+            U(r"\u5143\u6570\u636e\u5df2\u4fdd\u5b58"),
+            self.knowledge_status_text(row),
+            U(r"\u5173\u952e\u8bcd\uff1a") + (row["keywords"] or row["tags"] or ""),
+            U(r"\u5411\u91cf\u5316\u72b6\u6001\uff1a") + (row["embedding_status"] or "pending"),
+            U(r"\u53ef\u89c1\u8303\u56f4\uff1a") + (row["visibility"] or "public_internal"),
+        ]
+        relation_text = ""
+        if row["object_type"]:
+            relation_text = f"{row['object_type']} #{row['object_id'] or ''}"
+        body = f"""
+<div class="panel">
+  <h2>{esc(row['title'])}</h2>
+  <p class="small">{esc(row['knowledge_id'] or ('KB-' + str(row['id'])))} · {esc(row['category'])} · {esc(row['source_type'])} · {esc(row['source_ref'])}</p>
+  <div class="inline"><span class="pill">{esc(self.knowledge_status_text(row))}</span><span class="pill">{esc(row['visibility'])}</span><span class="pill">{esc(row['embedding_status'])}</span></div>
+  <h2>{U(r'\u6458\u8981')}</h2><p>{esc(summary_text)}</p>
+  <h2>{U(r'\u77e5\u8bc6\u7ba1\u7ebf')}</h2>{self.bullets(pipeline)}
+  <h2>{U(r'\u5173\u8054\u5bf9\u8c61')}</h2><p>{esc(relation_text or U(r'\u6682\u65e0\u5173\u8054\u5bf9\u8c61'))}</p>
+  <h2>{U(r'\u6b63\u6587')}</h2><p>{esc(row['body'])}</p>
+  <p><a class="btn" href="/ai-query">{U(r'\u7528 AI \u67e5\u8be2')}</a> <a class="btn gray" href="/knowledge">{U(r'\u8fd4\u56de')}</a></p>
+</div>
+<div class="panel"><h2>{U(r'\u6587\u6863\u5207\u7247')}</h2><table><thead><tr><th>#</th><th>{U(r'\u5411\u91cf\u72b6\u6001')}</th><th>{U(r'\u7247\u6bb5')}</th></tr></thead><tbody>{chunk_rows}</tbody></table></div>"""
+        self.out(layout(row["title"], body, user=user, wide=True))
+
+    def ai_assistant(self, user, answer_data=None, question="", refs=None):
+        user = self.require_login(user)
+        if not user:
+            return
+        answer_data = answer_data or self.build_ai_answer("", "all", [])
+        citations = answer_data.get("cited_documents", [])
+        citation_html = "".join(
+            "<li><a href='{}'>{}</a> <span class='small'>{} · {}</span></li>".format(esc(c["url"]), esc(c["title"]), esc(c["knowledge_id"]), esc(c["status"]))
+            for c in citations
+        )
+        if not citation_html:
+            citation_html = "<li>{}</li>".format(U(r"\u6682\u65e0\u5f15\u7528\u6765\u6e90\u3002"))
+        limits = self.bullets(answer_data.get("limitations", []))
+        examples = [
+            U(r"\u5357\u5c71\u5e97\u79df\u8d41\u5408\u540c\u5728\u54ea\u91cc\uff1f"),
+            U(r"KAILAS \u57f9\u8bad\u8d44\u6599\u6709\u54ea\u4e9b\uff1f"),
+            U(r"Osprey \u5e93\u5b58\u5206\u6790\u6709\u6ca1\u6709\u8d44\u6599\uff1f"),
+            U(r"\u6700\u8fd1 30 \u5929\u54ea\u4e9b\u95e8\u5e97\u9700\u8981\u5173\u6ce8\uff1f"),
+        ]
+        scope_opts = "".join("<option value='{}'>{}</option>".format(k, esc(v)) for k, v in {
+            "all": U(r"\u5168\u516c\u53f8"),
+            "stores": U(r"\u95e8\u5e97"),
+            "employees": U(r"\u5458\u5de5"),
+            "brands": U(r"\u54c1\u724c"),
+            "products": U(r"\u4ea7\u54c1"),
+            "suppliers": U(r"\u4f9b\u5e94\u5546"),
+            "members": U(r"\u987e\u5ba2"),
+            "documents": U(r"\u6587\u4ef6"),
+            "sap": "SAP",
+        }.items())
+        body = f"""
+<div class="panel form">
+  <h2>{U(r'AI \u67e5\u8be2\u4e2d\u5fc3 V1')}</h2>
+  <p class="small">{U(r'\u5f53\u524d\u7248\u672c\u5148\u505a\u77e5\u8bc6\u68c0\u7d22\u3001\u5f15\u7528\u7ed3\u6784\u548c\u5386\u53f2\u7559\u75d5\uff0c\u4e0d\u7f16\u9020\u7ecf\u8425\u7ed3\u8bba\u3002')}</p>
+  <form method="post" action="/ai-query">
+    <label>{U(r'\u95ee\u9898')}</label><textarea name="question" required>{esc(question)}</textarea>
+    <label>{U(r'\u8303\u56f4')}</label><select name="scope">{scope_opts}</select>
+    <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><input name="related_object" placeholder="stores:1 / brands:2 / documents">
+    <p><button>{U(r'\u63d0\u95ee')}</button></p>
+  </form>
+  <h2>{U(r'\u793a\u4f8b\u95ee\u9898')}</h2>{self.bullets(examples)}
+</div>
+<div class="panel">
+  <h2>{U(r'AI \u56de\u7b54')}</h2><p>{esc(answer_data.get('answer'))}</p>
+  <p class="small">{U(r'\u7f6e\u4fe1\u72b6\u6001')}：{esc(answer_data.get('confidence'))} · {U(r'\u6a21\u578b')}：{esc(answer_data.get('model_name'))}</p>
+  <h2>{U(r'\u5f15\u7528\u6765\u6e90')}</h2><ul class="list">{citation_html}</ul>
+  <h2>{U(r'\u5c40\u9650\u8bf4\u660e')}</h2>{limits}
+</div>"""
+        self.out(layout(U(r"AI \u67e5\u8be2\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def ai_assistant_post(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        question = form.get("question", "").strip()
+        scope = form.get("scope", "all")
+        terms = [w for w in re.split(r"\s+", question) if w][:6]
+        rows = []
+        with db() as conn:
+            for term in terms or [question]:
+                like = "%" + term + "%"
+                hit_rows = conn.execute(
+                    "select * from knowledge_items where title like ? or body like ? or summary like ? or keywords like ? or tags like ? order by updated_at desc limit 10",
+                    (like, like, like, like, like),
+                ).fetchall()
+                rows.extend([r for r in hit_rows if self.can_view_knowledge(user, r)])
+            seen = {}
+            for row in rows:
+                seen[row["id"]] = row
+            rows = list(seen.values())[:10]
+            answer_data = self.build_ai_answer(question, scope, rows)
+            conn.execute(
+                "insert into knowledge_query_history(user_id,question,scope,related_object_type,related_object_id,answer_json,created_at) values(?,?,?,?,?,?,?)",
+                (user["id"], question, scope, "", None, json.dumps(answer_data, ensure_ascii=False), ts()),
+            )
+        self.log_action(user, "ai_query", "knowledge", None, question)
+        return self.ai_assistant(user, answer_data, question)
+
+    def api_knowledge_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/knowledge", "/api/knowledge/search"):
+            query = parse_qs(urlparse(self.path).query)
+            q = query.get("q", [""])[0].strip()
+            params = []
+            sql = "select * from knowledge_items"
+            if q:
+                like = "%" + q + "%"
+                sql += " where title like ? or body like ? or summary like ? or keywords like ? or tags like ?"
+                params = [like, like, like, like, like]
+            sql += " order by updated_at desc limit 100"
+            with db() as conn:
+                rows = [r for r in conn.execute(sql, params).fetchall() if self.can_view_knowledge(user, r)]
+            return self.json_out({"ok": True, "items": [self.knowledge_to_json(r, include_body=False) for r in rows]})
+        if path == "/api/knowledge/chunks":
+            kid = parse_qs(urlparse(self.path).query).get("knowledge_id", [""])[0]
+            with db() as conn:
+                row = conn.execute("select * from knowledge_items where id=?", (kid,)).fetchone()
+                chunks = conn.execute("select * from knowledge_chunks where knowledge_id=? order by chunk_index", (kid,)).fetchall()
+            if not row or not self.can_view_knowledge(user, row):
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "chunks": [row_dict(c) for c in chunks]})
+        if path == "/api/knowledge/query-history":
+            with db() as conn:
+                rows = conn.execute("select * from knowledge_query_history where user_id=? order by created_at desc limit 50", (user["id"],)).fetchall()
+            return self.json_out({"ok": True, "history": [row_dict(r) for r in rows]})
+        m = re.match(r"^/api/knowledge/(\d+)$", path)
+        if m:
+            with db() as conn:
+                row = conn.execute("select * from knowledge_items where id=?", (m.group(1),)).fetchone()
+            if not row or not self.can_view_knowledge(user, row):
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "item": self.knowledge_to_json(row)})
+        return self.json_out({"ok": False, "message": "unknown knowledge api"}, code=404)
+
+    def api_knowledge_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/knowledge", "/api/knowledge/from-document"):
+            form = self.form()
+            title = form.get("title", "").strip() or U(r"\u672a\u547d\u540d\u77e5\u8bc6")
+            content = form.get("content", "").strip()
+            visibility = form.get("visibility", "public_internal")
+            if visibility not in ("public_internal", "manager_only", "finance_only", "owner_only", "restricted"):
+                visibility = "public_internal"
+            now = ts()
+            with db() as conn:
+                cur = conn.execute(
+                    """insert into knowledge_items(
+ title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at,
+ knowledge_id,source_id,object_type,object_id,summary,keywords,status,visibility,auto_tags,manual_tags,embedding_status
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        title,
+                        form.get("category", "").strip() or classify_text(content),
+                        form.get("tags", "").strip() or extract_tags(content),
+                        content,
+                        summarize_text(content) if content else U(r"\u7b49\u5f85 AI \u6458\u8981\u751f\u6210"),
+                        form.get("source_type", "note"),
+                        form.get("source_ref", ""),
+                        user["id"],
+                        now,
+                        now,
+                        "KB-" + uuid.uuid4().hex[:12],
+                        form.get("source_id", ""),
+                        module_key(form.get("object_type", "")),
+                        int(form.get("object_id")) if str(form.get("object_id", "")).isdigit() else None,
+                        summarize_text(content),
+                        form.get("keywords", "").strip() or extract_tags(content),
+                        "ready" if content else "draft",
+                        visibility,
+                        extract_tags(content),
+                        form.get("manual_tags", ""),
+                        "pending",
+                    ),
+                )
+                kid = cur.lastrowid
+                self.create_chunks(conn, kid, None, content, now)
+            return self.json_out({"ok": True, "item": {"id": kid, "url": f"/knowledge/view?id={kid}"}})
+        if path == "/api/knowledge/query":
+            form = self.form()
+            question = form.get("question", "").strip()
+            scope = form.get("scope", "all")
+            terms = [w for w in re.split(r"\s+", question) if w][:6]
+            rows = []
+            with db() as conn:
+                for term in terms or [question]:
+                    like = "%" + term + "%"
+                    rows.extend(conn.execute("select * from knowledge_items where title like ? or body like ? or summary like ? or keywords like ? or tags like ? limit 10", (like, like, like, like, like)).fetchall())
+                rows = [r for r in rows if self.can_view_knowledge(user, r)]
+                answer_data = self.build_ai_answer(question, scope, rows)
+                conn.execute("insert into knowledge_query_history(user_id,question,scope,answer_json,created_at) values(?,?,?,?,?)", (user["id"], question, scope, json.dumps(answer_data, ensure_ascii=False), ts()))
+            return self.json_out({"ok": True, "result": answer_data})
+        return self.json_out({"ok": False, "message": "unknown knowledge api"}, code=404)
 
 
 if __name__ == "__main__":
