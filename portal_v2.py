@@ -755,6 +755,88 @@ create table if not exists graph_risks(
         )
         conn.execute("create index if not exists idx_graph_risks_type on graph_risks(risk_type)")
         conn.execute("create index if not exists idx_graph_risks_level on graph_risks(level)")
+        conn.execute(
+            """
+create table if not exists agent_roles(
+ id integer primary key autoincrement,
+ agent_id text unique,
+ agent_name text not null,
+ agent_role text not null,
+ description text,
+ responsibilities text,
+ tools text,
+ knowledge_scope text,
+ memory_scope text,
+ permission_scope text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_agent_roles_status on agent_roles(status)")
+        conn.execute(
+            """
+create table if not exists agent_tasks(
+ id integer primary key autoincrement,
+ agent_task_id text unique,
+ title text not null,
+ description text,
+ assigned_agent_id integer,
+ requested_by integer,
+ related_object_type text,
+ related_object_id integer,
+ input_context text,
+ expected_output text,
+ status text not null default 'draft',
+ priority text not null default 'normal',
+ due_at text,
+ result_summary text,
+ human_review_status text not null default 'pending',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_agent_tasks_status on agent_tasks(status)")
+        conn.execute("create index if not exists idx_agent_tasks_agent on agent_tasks(assigned_agent_id)")
+        conn.execute(
+            """
+create table if not exists agent_discussions(
+ id integer primary key autoincrement,
+ discussion_id text unique,
+ topic text not null,
+ initiator_agent_id integer,
+ participating_agents text,
+ context_objects text,
+ messages text,
+ conclusion text,
+ recommended_actions text,
+ human_review_status text not null default 'pending',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_agent_discussions_review on agent_discussions(human_review_status)")
+        conn.execute(
+            """
+create table if not exists agent_tools(
+ id integer primary key autoincrement,
+ tool_id text unique,
+ tool_name text not null,
+ description text,
+ input_schema text,
+ output_schema text,
+ permission_required text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_agent_tools_status on agent_tools(status)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -886,6 +968,8 @@ class App(BaseHTTPRequestHandler):
             return self.ai_assistant(user)
         if path == "/agents":
             return self.agents(user)
+        if path == "/agents/collaboration":
+            return self.agent_collaboration(user)
         if path == "/sap-sync":
             return self.sap_sync(user)
         if path == "/documents":
@@ -956,6 +1040,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_memory_get(user, path)
         if path.startswith("/api/graph"):
             return self.api_graph_get(user, path)
+        if path.startswith("/api/agents"):
+            return self.api_agents_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
@@ -992,6 +1078,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_memory_post(self.current_user(), path)
         if path.startswith("/api/graph"):
             return self.api_graph_post(self.current_user(), path)
+        if path.startswith("/api/agents"):
+            return self.api_agents_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
@@ -1030,6 +1118,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_memory_post(self.current_user(), path)
         if path.startswith("/api/graph"):
             return self.api_graph_post(self.current_user(), path)
+        if path.startswith("/api/agents"):
+            return self.api_agents_post(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -1903,6 +1993,7 @@ class App(BaseHTTPRequestHandler):
             self.card(U(r"AI \u81ea\u52a8\u5316"), U(r"\u6d41\u7a0b\u6a21\u677f\u3001\u89e6\u53d1\u5668\u3001AI \u52a8\u4f5c\u3001\u6267\u884c\u5386\u53f2\u548c\u901a\u77e5\u4e2d\u5fc3\u3002"), "/automation", "btn", can_manager),
             self.card(U(r"AI \u8bb0\u5fc6\u4e2d\u5fc3"), U(r"\u957f\u671f\u7ecf\u8425\u539f\u5219\u3001\u51b3\u7b56\u3001\u504f\u597d\u3001\u5b9a\u4ef7\u548c\u98ce\u9669\u8bb0\u5fc6\u3002"), "/memory", "btn", True),
             self.card(U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31"), U(r"\u8fde\u63a5\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u77e5\u8bc6\u3001\u8bb0\u5fc6\u3001\u4efb\u52a1\u548c\u98ce\u9669\u3002"), "/graph", "btn green", can_manager),
+            self.card(U(r"\u591a\u667a\u80fd\u4f53\u534f\u540c"), U(r"AI CEO\u3001CFO\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u7b49\u667a\u80fd\u4f53\u534f\u540c\u5206\u6790\u3002"), "/agents/collaboration", "btn", can_manager),
             self.card(U(r"\u7cfb\u7edf\u7ba1\u7406"), U(r"\u5ba1\u6838\u5458\u5de5\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002"), "/admin", "btn dark", can_admin),
         ]
         info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
@@ -2780,7 +2871,8 @@ class App(BaseHTTPRequestHandler):
         checks["automation_engine_status"] = "ready"
         checks["memory_engine_status"] = "ready"
         checks["knowledge_graph_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task008", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["multi_agent_engine_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task009", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -3507,6 +3599,196 @@ class App(BaseHTTPRequestHandler):
             self.log_action(user, "graph_risk_created", "graph_risk", cur.lastrowid, form.get("title", ""))
             return self.json_out({"ok": True, "risk_id": cur.lastrowid})
         return self.json_out({"ok": False, "message": "unknown graph api"}, code=404)
+
+    def can_view_agents(self, user):
+        return bool(user)
+
+    def can_manage_agents(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "store_manager"))
+
+    def seed_agent_roles(self, conn):
+        now = ts()
+        agents = [
+            ("AI CEO", U(r"AI \u603b\u7ecf\u7406"), U(r"\u7efc\u5408\u5224\u65ad\u3001\u4efb\u52a1\u5206\u89e3\u3001\u8de8\u90e8\u95e8\u534f\u540c\u548c\u6700\u7ec8\u5efa\u8bae\u3002"), "knowledge,memory,graph,tasks,sap"),
+            ("AI CFO", U(r"AI \u8d22\u52a1\u603b\u76d1"), U(r"\u5229\u6da6\u3001\u73b0\u91d1\u6d41\u3001\u8fd4\u70b9\u3001\u8d39\u7528\u548c\u98ce\u9669\u8bc4\u4f30\u3002"), "sap,finance,memory"),
+            ("AI COO", U(r"AI \u8fd0\u8425\u603b\u76d1"), U(r"\u95e8\u5e97\u6267\u884c\u3001\u6d41\u7a0b\u3001\u4efb\u52a1\u548c\u81ea\u52a8\u5316\u3002"), "tasks,automation,graph"),
+            ("AI Store Manager", U(r"AI \u95e8\u5e97\u7ecf\u7406"), U(r"\u95e8\u5e97\u9500\u552e\u3001\u5458\u5de5\u3001\u4f1a\u5458\u548c\u6267\u884c\u5efa\u8bae\u3002"), "stores,tasks,knowledge"),
+            ("AI Brand Manager", U(r"AI \u54c1\u724c\u7ecf\u7406"), U(r"\u54c1\u724c\u7b56\u7565\u3001\u4ef7\u683c\u4f53\u7cfb\u3001\u5e93\u5b58\u548c\u6e20\u9053\u98ce\u9669\u3002"), "brands,research,memory,graph"),
+            ("AI Inventory Manager", U(r"AI \u5e93\u5b58\u7ecf\u7406"), U(r"\u5e93\u5b58\u538b\u529b\u3001\u6ede\u9500\u3001\u8c03\u62e8\u548c\u6e05\u8d27\u5efa\u8bae\u3002"), "inventory,sap,tasks"),
+            ("AI Purchasing Manager", U(r"AI \u91c7\u8d2d\u7ecf\u7406"), U(r"\u91c7\u8d2d\u3001\u8865\u8d27\u3001\u4f9b\u5e94\u5546\u548c\u8d26\u671f\u3002"), "suppliers,inventory,workflow"),
+            ("AI Marketing Manager", U(r"AI \u8425\u9500\u7ecf\u7406"), U(r"\u5185\u5bb9\u3001\u6d3b\u52a8\u3001\u54c1\u724c\u4f20\u64ad\u548c\u7d20\u6750\u3002"), "content,knowledge,research"),
+            ("AI Training Manager", U(r"AI \u57f9\u8bad\u7ecf\u7406"), U(r"\u57f9\u8bad\u8bfe\u7a0b\u3001\u5458\u5de5\u6210\u957f\u548c\u77e5\u8bc6\u590d\u7528\u3002"), "employees,knowledge,tasks"),
+            ("AI Customer Service", U(r"AI \u5ba2\u670d"), U(r"\u987e\u5ba2\u95ee\u9898\u3001\u552e\u540e\u3001\u4f1a\u5458\u7ef4\u62a4\u548c\u8bdd\u672f\u3002"), "members,knowledge"),
+            ("AI Secretary", U(r"AI \u79d8\u4e66"), U(r"\u4f1a\u8bae\u7eaa\u8981\u3001\u4efb\u52a1\u62c6\u89e3\u3001\u63d0\u9192\u548c\u8bb0\u5f55\u3002"), "tasks,memory,automation"),
+            ("AI Risk Officer", U(r"AI \u98ce\u9669\u5b98"), U(r"\u5b9a\u4ef7\u3001\u5e93\u5b58\u3001\u5408\u540c\u3001\u4f9b\u5e94\u5546\u548c\u73b0\u91d1\u6d41\u98ce\u9669\u3002"), "graph,risk,memory"),
+        ]
+        for name, role, desc, scope in agents:
+            if not conn.execute("select id from agent_roles where agent_name=?", (name,)).fetchone():
+                conn.execute(
+                    "insert into agent_roles(agent_id,agent_name,agent_role,description,responsibilities,tools,knowledge_scope,memory_scope,permission_scope,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("AG-" + uuid.uuid4().hex[:10], name, role, desc, desc, scope, scope, scope, "role_based", "active", now, now),
+                )
+        tools = [
+            ("Search Knowledge", U(r"\u641c\u7d22\u77e5\u8bc6\u5e93"), "query", "citations", "view_knowledge"),
+            ("Search Research", U(r"\u641c\u7d22\u7814\u7a76\u7ed3\u679c"), "query", "sources", "view_research"),
+            ("Search Memory", U(r"\u641c\u7d22\u5df2\u5ba1\u6838\u8bb0\u5fc6"), "query", "memories", "view_memory"),
+            ("Query SAP Analysis", U(r"\u67e5\u8be2 SAP \u5206\u6790\u6458\u8981"), "query", "metrics", "view_sap"),
+            ("Query Graph", U(r"\u67e5\u8be2\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31"), "query", "relations", "view_graph"),
+            ("Create Task", U(r"\u521b\u5efa\u4efb\u52a1\uff0c\u9700\u4eba\u5de5\u786e\u8ba4"), "task", "task_id", "approve_agent_action"),
+            ("Create Report", U(r"\u751f\u6210\u62a5\u544a\u8349\u7a3f\uff0c\u9700\u4eba\u5de5\u5ba1\u6838"), "context", "report", "approve_agent_action"),
+            ("Add Timeline", U(r"\u5199\u5165\u65f6\u95f4\u8f74\uff0c\u9700\u4eba\u5de5\u5ba1\u6838"), "event", "timeline_id", "approve_agent_action"),
+            ("Draft Content", U(r"\u751f\u6210\u5185\u5bb9\u8349\u7a3f"), "brief", "draft", "create_content"),
+            ("Generate Summary", U(r"\u751f\u6210\u6458\u8981"), "text", "summary", "view_knowledge"),
+        ]
+        for name, desc, input_schema, output_schema, perm in tools:
+            if not conn.execute("select id from agent_tools where tool_name=?", (name,)).fetchone():
+                conn.execute(
+                    "insert into agent_tools(tool_id,tool_name,description,input_schema,output_schema,permission_required,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                    ("TOOL-" + uuid.uuid4().hex[:10], name, desc, input_schema, output_schema, perm, "active", now, now),
+                )
+
+    def agent_summary(self):
+        with db() as conn:
+            self.seed_agent_roles(conn)
+            roles = conn.execute("select * from agent_roles order by id").fetchall()
+            tasks = conn.execute("select * from agent_tasks order by updated_at desc limit 50").fetchall()
+            discussions = conn.execute("select * from agent_discussions order by updated_at desc limit 30").fetchall()
+            tools = conn.execute("select * from agent_tools order by id").fetchall()
+        return {"roles": roles, "tasks": tasks, "discussions": discussions, "tools": tools}
+
+    def safe_agent_output(self, agent_name, focus):
+        return {
+            "summary": U(r"\u7f3a\u5c11\u6570\u636e\uff0c\u65e0\u6cd5\u5f97\u51fa\u7ed3\u8bba\u3002"),
+            "evidence": [],
+            "assumptions": [U(r"\u5f53\u524d\u4ec5\u4f7f\u7528\u5df2\u63a5\u5165\u7684\u77e5\u8bc6\u3001\u8bb0\u5fc6\u3001\u56fe\u8c31\u548c SAP \u6458\u8981\u3002")],
+            "risks": [U(r"\u4e0d\u80fd\u4f2a\u9020 SAP \u6570\u636e\u6216\u5916\u90e8\u4e8b\u5b9e\u3002")],
+            "recommended_action": U(r"\u8bf7\u5148\u8865\u5145\u771f\u5b9e\u6570\u636e\u6216\u4e0a\u4f20\u76f8\u5173\u8d44\u6599\u3002"),
+            "confidence": "insufficient_data",
+            "related_objects": [],
+            "need_human_decision": True,
+            "next_task_suggestion": focus,
+            "agent": agent_name,
+        }
+
+    def agent_collaboration(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        data = self.agent_summary()
+        role_cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{}</p></div><span class='pill'>{}</span></div>".format(
+                esc(r["agent_name"]), esc(r["description"]), esc(r["knowledge_scope"]), esc(r["status"])
+            )
+            for r in data["roles"]
+        )
+        task_cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div></div>".format(
+                esc(t["title"]), esc(t["description"]), esc(t["status"]), esc(t["priority"]), esc(t["human_review_status"])
+            )
+            for t in data["tasks"][:8]
+        ) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u667a\u80fd\u4f53\u4efb\u52a1\u3002")))
+        discussion_items = [d["topic"] + " · " + d["human_review_status"] for d in data["discussions"]] or [U(r"\u6682\u65e0\u667a\u80fd\u4f53\u8ba8\u8bba\u3002")]
+        tool_items = [t["tool_name"] + " · " + t["permission_required"] for t in data["tools"]]
+        body = f"""
+<div class="panel">
+  <h2>{U(r'\u591a\u667a\u80fd\u4f53\u534f\u540c\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'AI CEO \u63a5\u6536\u95ee\u9898\uff0c\u518d\u5206\u914d CFO\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u7814\u7a76\u3001\u95e8\u5e97\u7b49\u667a\u80fd\u4f53\u5206\u6790\uff0c\u6700\u540e\u7531\u4eba\u5de5\u5ba1\u6838\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u667a\u80fd\u4f53'), len(data['roles']), U(r'\u89d2\u8272'))}{self.metric(U(r'\u4efb\u52a1'), len(data['tasks']), U(r'\u5f85\u5ba1\u6838'))}{self.metric(U(r'\u8ba8\u8bba'), len(data['discussions']), U(r'\u534f\u540c'))}{self.metric(U(r'\u5de5\u5177'), len(data['tools']), U(r'\u6ce8\u518c'))}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u521b\u5efa\u667a\u80fd\u4f53\u4efb\u52a1')}</h2>
+    <form method="post" action="/api/agents/tasks">
+      <label>{U(r'\u4efb\u52a1\u6807\u9898')}</label><input name="title" required>
+      <label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea>
+      <label>{U(r'\u6307\u6d3e\u667a\u80fd\u4f53 ID')}</label><input name="assigned_agent_id" placeholder="1">
+      <label>{U(r'\u671f\u671b\u8f93\u51fa')}</label><textarea name="expected_output" placeholder="Summary / Evidence / Risks / Recommended action"></textarea>
+      <p><button>{U(r'\u521b\u5efa\u5f85\u5ba1\u6838\u4efb\u52a1')}</button></p>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>{U(r'Osprey \u591a\u667a\u80fd\u4f53\u573a\u666f')}</h2>
+    {self.bullets([U(r'AI CEO\uff1a\u7efc\u5408\u5224\u65ad'), U(r'AI CFO\uff1a\u5229\u6da6\u4e0e\u8fd4\u70b9\u98ce\u9669'), U(r'AI \u5e93\u5b58\u7ecf\u7406\uff1a\u5e93\u5b58\u538b\u529b'), U(r'AI \u54c1\u724c\u7ecf\u7406\uff1a\u54c1\u724c\u4ef7\u683c\u5f62\u8c61'), U(r'AI \u7814\u7a76\u5458\uff1a\u5916\u90e8\u5e02\u573a\u4ef7\u683c')])}
+    <form method="post" action="/api/agents/scenarios/osprey-pricing"><button class="dark">{U(r'\u751f\u6210\u573a\u666f\u5360\u4f4d JSON')}</button></form>
+  </div>
+</div>
+<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u56e2\u961f')}</h2><div class="grid">{role_cards}</div></div>
+<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u4efb\u52a1')}</h2><div class="grid">{task_cards}</div></div>
+<div class="split"><div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u8ba8\u8bba')}</h2>{self.bullets(discussion_items)}</div><div class="panel"><h2>{U(r'\u5de5\u5177\u6ce8\u518c\u8868')}</h2>{self.bullets(tool_items)}</div></div>
+<div class="panel"><h2>{U(r'\u4eba\u5de5\u5ba1\u6279\u95f8\u95e8')}</h2>{self.bullets([U(r'\u521b\u5efa\u5206\u914d\u7ed9\u5458\u5de5\u7684\u4efb\u52a1\u9700\u8981\u5ba1\u6838'), U(r'\u5ba1\u6838\u5916\u90e8\u77e5\u8bc6\u9700\u8981\u4eba\u5de5\u786e\u8ba4'), U(r'\u4fee\u6539\u8bb0\u5fc6\u3001\u5b9a\u4ef7\u89c4\u5219\u3001\u53d1\u9001\u901a\u77e5\u3001\u53d1\u5e03\u5185\u5bb9\u90fd\u9700\u8981\u4eba\u5de5\u5ba1\u6838')])}</div>"""
+        self.out(layout(U(r"\u591a\u667a\u80fd\u4f53\u534f\u540c"), body, user=user, wide=True))
+
+    def api_agents_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        data = self.agent_summary()
+        if path == "/api/agents/collaboration":
+            return self.json_out({"ok": True, "summary": {"roles": len(data["roles"]), "tasks": len(data["tasks"]), "discussions": len(data["discussions"]), "tools": len(data["tools"])}})
+        if path == "/api/agents/roles":
+            return self.json_out({"ok": True, "roles": [row_dict(r) for r in data["roles"]]})
+        if path == "/api/agents/tasks":
+            return self.json_out({"ok": True, "tasks": [row_dict(r) for r in data["tasks"]]})
+        if path == "/api/agents/discussions":
+            return self.json_out({"ok": True, "discussions": [row_dict(r) for r in data["discussions"]]})
+        if path == "/api/agents/tools":
+            return self.json_out({"ok": True, "tools": [row_dict(r) for r in data["tools"]]})
+        return self.json_out({"ok": False, "message": "unknown agents api"}, code=404)
+
+    def api_agents_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        form = self.form()
+        now = ts()
+        if path == "/api/agents/roles":
+            if not self.can_manage_agents(user):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            with db() as conn:
+                cur = conn.execute("insert into agent_roles(agent_id,agent_name,agent_role,description,responsibilities,tools,knowledge_scope,memory_scope,permission_scope,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)", ("AG-" + uuid.uuid4().hex[:10], form.get("agent_name", "AI Agent"), form.get("agent_role", ""), form.get("description", ""), form.get("responsibilities", ""), form.get("tools", ""), form.get("knowledge_scope", ""), form.get("memory_scope", ""), form.get("permission_scope", "role_based"), form.get("status", "active"), now, now))
+            self.log_action(user, "agent_role_created", "agent", cur.lastrowid, form.get("agent_name", ""))
+            return self.json_out({"ok": True, "agent_id": cur.lastrowid})
+        if path == "/api/agents/tasks":
+            with db() as conn:
+                cur = conn.execute("insert into agent_tasks(agent_task_id,title,description,assigned_agent_id,requested_by,related_object_type,related_object_id,input_context,expected_output,status,priority,due_at,result_summary,human_review_status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("AT-" + uuid.uuid4().hex[:10], form.get("title", U(r"\u672a\u547d\u540d\u667a\u80fd\u4f53\u4efb\u52a1")), form.get("description", ""), int(form.get("assigned_agent_id")) if str(form.get("assigned_agent_id", "")).isdigit() else None, user["id"], form.get("related_object_type", ""), int(form.get("related_object_id")) if str(form.get("related_object_id", "")).isdigit() else None, form.get("input_context", ""), form.get("expected_output", ""), "queued", form.get("priority", "normal"), form.get("due_at", ""), U(r"\u7f3a\u5c11\u6570\u636e\uff0c\u65e0\u6cd5\u5f97\u51fa\u7ed3\u8bba\u3002"), "pending", now, now))
+            self.log_action(user, "agent_task_created", "agent_task", cur.lastrowid, form.get("title", ""))
+            return self.json_out({"ok": True, "agent_task_id": cur.lastrowid})
+        m = re.match(r"^/api/agents/tasks/(\d+)/(approve|reject)$", path)
+        if m:
+            if not self.can_manage_agents(user):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            status = "approved" if m.group(2) == "approve" else "rejected"
+            with db() as conn:
+                conn.execute("update agent_tasks set human_review_status=?, updated_at=? where id=?", (status, now, m.group(1)))
+            self.log_action(user, "agent_task_" + m.group(2), "agent_task", m.group(1), "")
+            return self.json_out({"ok": True})
+        if path == "/api/agents/discussions":
+            with db() as conn:
+                cur = conn.execute("insert into agent_discussions(discussion_id,topic,initiator_agent_id,participating_agents,context_objects,messages,conclusion,recommended_actions,human_review_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)", ("DISC-" + uuid.uuid4().hex[:10], form.get("topic", U(r"\u672a\u547d\u540d\u8ba8\u8bba")), int(form.get("initiator_agent_id")) if str(form.get("initiator_agent_id", "")).isdigit() else None, form.get("participating_agents", ""), form.get("context_objects", ""), "[]", U(r"\u7f3a\u5c11\u6570\u636e\uff0c\u65e0\u6cd5\u5f97\u51fa\u7ed3\u8bba\u3002"), form.get("recommended_actions", ""), "pending", user["id"], now, now))
+            self.log_action(user, "agent_discussion_created", "agent_discussion", cur.lastrowid, form.get("topic", ""))
+            return self.json_out({"ok": True, "discussion_id": cur.lastrowid})
+        if path == "/api/agents/tools":
+            if not self.can_manage_agents(user):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            with db() as conn:
+                cur = conn.execute("insert into agent_tools(tool_id,tool_name,description,input_schema,output_schema,permission_required,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", ("TOOL-" + uuid.uuid4().hex[:10], form.get("tool_name", "Tool"), form.get("description", ""), form.get("input_schema", ""), form.get("output_schema", ""), form.get("permission_required", ""), form.get("status", "active"), now, now))
+            self.log_action(user, "agent_tool_registered", "agent_tool", cur.lastrowid, form.get("tool_name", ""))
+            return self.json_out({"ok": True, "tool_id": cur.lastrowid})
+        if path == "/api/agents/scenarios/osprey-pricing":
+            scenario = {
+                "topic": U(r"Osprey \u662f\u5426\u7ee7\u7eed 59 \u6298\u9500\u552e\uff1f"),
+                "agents": {
+                    "AI CEO": self.safe_agent_output("AI CEO", U(r"\u9700\u8981\u7efc\u5408\u5224\u65ad")),
+                    "AI CFO": self.safe_agent_output("AI CFO", U(r"\u9700\u8981\u771f\u5b9e\u5229\u6da6\u548c\u8fd4\u70b9\u6570\u636e")),
+                    "AI Inventory Manager": self.safe_agent_output("AI Inventory Manager", U(r"\u9700\u8981\u5e93\u5b58\u91d1\u989d\u548c\u5e93\u9f84\u6570\u636e")),
+                    "AI Brand Manager": self.safe_agent_output("AI Brand Manager", U(r"\u9700\u8981\u54c1\u724c\u4ef7\u683c\u5f62\u8c61\u5224\u65ad")),
+                    "AI Research Agent": self.safe_agent_output("AI Research Agent", U(r"\u9700\u8981\u5df2\u5ba1\u6838\u5916\u90e8\u5e02\u573a\u8d44\u6599")),
+                    "AI Store Manager": self.safe_agent_output("AI Store Manager", U(r"\u9700\u8981\u95e8\u5e97\u6267\u884c\u53cd\u9988")),
+                },
+                "human_review_status": "pending",
+                "note": U(r"\u8fd9\u662f\u591a\u667a\u80fd\u4f53\u534f\u540c\u6a21\u677f\uff0c\u4e0d\u4ee3\u8868\u771f\u5b9e\u7ecf\u8425\u7ed3\u8bba\u3002"),
+            }
+            self.log_action(user, "agent_recommendation_generated", "agent_scenario", None, "osprey-pricing")
+            return self.json_out({"ok": True, "scenario": scenario})
+        return self.json_out({"ok": False, "message": "unknown agents api"}, code=404)
 
 
 if __name__ == "__main__":

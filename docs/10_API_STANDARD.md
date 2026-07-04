@@ -95,6 +95,23 @@ New memories default to `pending_review`. AI must not create approved permanent 
 
 Graph APIs must not invent relationships, risk values or financial facts.
 
+## Task009 Multi-Agent API
+
+- `GET /api/agents/collaboration`
+- `GET /api/agents/roles`
+- `POST /api/agents/roles`
+- `GET /api/agents/tasks`
+- `POST /api/agents/tasks`
+- `POST /api/agents/tasks/{id}/approve`
+- `POST /api/agents/tasks/{id}/reject`
+- `GET /api/agents/discussions`
+- `POST /api/agents/discussions`
+- `GET /api/agents/tools`
+- `POST /api/agents/tools`
+- `POST /api/agents/scenarios/osprey-pricing`
+
+Agent APIs must not fake conclusions. Business-changing actions require human review.
+
 ## Future API
 
 - `POST /api/files/parse`

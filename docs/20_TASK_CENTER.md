@@ -42,3 +42,7 @@ AI Suggestion -> Create Task -> Assign Owner -> Set Due Date -> Track Progress -
 - 企业微信提醒
 - n8n 自动分发
 - 门店任务看板
+
+## Task009 Agent Tasks
+
+Agent tasks are separate from employee tasks. They represent AI analysis or recommendation work and require human review before changing business state or creating employee-facing tasks.

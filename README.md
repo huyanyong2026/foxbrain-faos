@@ -117,6 +117,18 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Osprey Risk Graph placeholder
 - Health check now reports knowledge graph status
 
+## V4 Task009 Completed
+
+- Multi-Agent Collaboration Center
+- Agent Role model
+- Agent Task model
+- Agent Discussion model
+- Tool Registry
+- Human Approval Gate
+- Agent Output Standard
+- Osprey multi-agent scenario template
+- Health check now reports multi-agent engine status
+
 ## V4 Routes
 
 - `/`
@@ -139,6 +151,7 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/memory`
 - `/decisions`
 - `/graph`
+- `/agents/collaboration`
 - `/system/health`
 - `/agents`
 - `/workflow`
@@ -165,6 +178,10 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `GET /api/graph/entities`
 - `GET /api/graph/relationships`
 - `GET /api/graph/risk-map`
+- `GET /api/agents/collaboration`
+- `GET /api/agents/roles`
+- `GET /api/agents/tasks`
+- `GET /api/agents/tools`
 
 ## Security
 

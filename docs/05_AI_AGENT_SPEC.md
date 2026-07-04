@@ -59,3 +59,17 @@ AI 智能体后续回答问题时，应优先参考已审核记忆：
 - 已采纳或已拒绝的 AI 建议
 
 未经审核的记忆不能作为正式结论使用。
+
+## Task009 Multi-Agent Collaboration
+
+AI agents now have structured enterprise roles and can collaborate through:
+
+- Agent tasks
+- Agent discussions
+- Tool registry
+- Knowledge context
+- Memory context
+- Knowledge graph context
+- Human review gates
+
+No agent may execute a business-changing action without human approval.
