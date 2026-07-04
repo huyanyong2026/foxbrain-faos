@@ -955,6 +955,95 @@ create table if not exists report_schedules(
 """
         )
         conn.execute("create index if not exists idx_report_schedules_enabled on report_schedules(enabled)")
+        conn.execute(
+            """
+create table if not exists content_drafts(
+ id integer primary key autoincrement,
+ content_id text unique,
+ title text not null,
+ content_type text not null default 'article',
+ topic text,
+ body text,
+ summary text,
+ target_platforms text,
+ status text not null default 'draft',
+ campaign_id integer,
+ related_object_type text,
+ related_object_id integer,
+ source_type text,
+ source_id text,
+ created_by integer,
+ reviewed_by integer,
+ reviewed_at integer,
+ review_notes text,
+ compliance_status text,
+ scheduled_at integer,
+ published_at integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_content_drafts_status on content_drafts(status)")
+        conn.execute("create index if not exists idx_content_drafts_type on content_drafts(content_type)")
+        conn.execute(
+            """
+create table if not exists content_platform_versions(
+ id integer primary key autoincrement,
+ version_id text unique,
+ content_id integer not null,
+ platform text not null,
+ title text,
+ body text,
+ hashtags text,
+ media_requirements text,
+ length_limit text,
+ tone text,
+ status text not null default 'draft',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_content_versions_content on content_platform_versions(content_id)")
+        conn.execute("create index if not exists idx_content_versions_platform on content_platform_versions(platform)")
+        conn.execute(
+            """
+create table if not exists content_campaigns(
+ id integer primary key autoincrement,
+ campaign_id text unique,
+ campaign_name text not null,
+ campaign_type text,
+ start_date text,
+ end_date text,
+ target_stores text,
+ target_brands text,
+ target_products text,
+ goal text,
+ budget text,
+ status text not null default 'draft',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_content_campaigns_status on content_campaigns(status)")
+        conn.execute(
+            """
+create table if not exists content_publish_queue(
+ id integer primary key autoincrement,
+ queue_id text unique,
+ content_version_id integer,
+ platform text,
+ scheduled_at integer,
+ status text not null default 'queued',
+ error_message text,
+ published_url text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_content_queue_status on content_publish_queue(status)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -1125,8 +1214,8 @@ class App(BaseHTTPRequestHandler):
             return self.graph_center(user)
         if path == "/system/health":
             return self.system_health(user)
-        if path == "/content-center":
-            return self.module_page(user, "/content")
+        if path in ("/content", "/content-center"):
+            return self.content_center(user)
         if path == "/knowledge":
             return self.knowledge(user)
         if path == "/knowledge/dashboard":
@@ -1169,6 +1258,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_jarvis_get(user, path)
         if path.startswith("/api/reports") or path.startswith("/api/report-templates") or path.startswith("/api/report-schedules"):
             return self.api_reports_get(user, path)
+        if path.startswith("/api/content"):
+            return self.api_content_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
@@ -1191,6 +1282,8 @@ class App(BaseHTTPRequestHandler):
             return self.jarvis_action_post()
         if path == "/reports/save":
             return self.report_save()
+        if path == "/content/save":
+            return self.content_save()
         if path == "/automation/save":
             return self.automation_save()
         if path == "/workflows/save":
@@ -1217,6 +1310,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_jarvis_post(self.current_user(), path)
         if path.startswith("/api/reports") or path.startswith("/api/report-templates") or path.startswith("/api/report-schedules"):
             return self.api_reports_post(self.current_user(), path)
+        if path.startswith("/api/content"):
+            return self.api_content_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
@@ -1259,6 +1354,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_agents_post(self.current_user(), path)
         if path.startswith("/api/reports"):
             return self.api_reports_put(self.current_user(), path)
+        if path.startswith("/api/content"):
+            return self.api_content_put(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -3015,7 +3112,8 @@ class App(BaseHTTPRequestHandler):
         checks["multi_agent_engine_status"] = "ready"
         checks["jarvis_status"] = "ready"
         checks["reporting_engine_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task011", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["content_engine_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task012", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -3933,6 +4031,220 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": True, "scenario": scenario})
         return self.json_out({"ok": False, "message": "unknown agents api"}, code=404)
 
+    def can_manage_content(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "store_manager", "employee", "purchasing"))
+
+    def can_review_content(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "store_manager"))
+
+    def content_platform_rules(self):
+        return {
+            "wechat_official": {"tone": U(r"\u5b8c\u6574\u3001\u4e13\u4e1a\u3001\u6545\u4e8b\u5316"), "length_limit": "1200-2500", "media": U(r"\u9996\u56fe\u3001\u4ea7\u54c1\u56fe\u3001\u95e8\u5e97\u56fe")},
+            "xiaohongshu": {"tone": U(r"\u771f\u5b9e\u3001\u79cd\u8349\u3001\u77ed\u53e5\u3001\u6807\u7b7e"), "length_limit": "300-800", "media": U(r"6-9 \u5f20\u771f\u5b9e\u56fe\u7247")},
+            "douyin": {"tone": U(r"\u77ed\u89c6\u9891\u811a\u672c\u3001\u5f00\u5934 3 \u79d2\u94a9\u5b50"), "length_limit": "15-60s", "media": U(r"\u7ad6\u7248\u89c6\u9891")},
+            "wechat_channels": {"tone": U(r"\u54c1\u724c\u611f\u3001\u6d3b\u52a8\u611f\u3001\u4fe1\u4efb\u611f"), "length_limit": "30-90s", "media": U(r"\u7ad6\u7248\u89c6\u9891")},
+            "website": {"tone": U(r"\u6b63\u5f0f\u3001\u54c1\u724c\u5316\u3001SEO \u53cb\u597d"), "length_limit": "800-2000", "media": U(r"\u4ea7\u54c1\u56fe\u3001\u54c1\u724c\u56fe")},
+            "instagram": {"tone": U(r"\u82f1\u6587\u6216\u53cc\u8bed\u9884\u7559"), "length_limit": "150-500", "media": U(r"\u65b9\u56fe\u6216\u7ad6\u56fe")},
+            "tiktok": {"tone": U(r"\u82f1\u6587\u6216\u53cc\u8bed\u77ed\u89c6\u9891\u9884\u7559"), "length_limit": "15-60s", "media": U(r"\u7ad6\u7248\u89c6\u9891")},
+        }
+
+    def content_skeleton(self, title, content_type, topic, platforms):
+        title = title or U(r"AI \u5185\u5bb9\u8349\u7a3f")
+        sections = [
+            U(r"\u9009\u9898\uff1a") + (topic or title),
+            U(r"\u6838\u5fc3\u4fe1\u606f\uff1a\u7b49\u5f85\u63a5\u5165\u771f\u5b9e\u4ea7\u54c1\u3001\u54c1\u724c\u6216\u95e8\u5e97\u8d44\u6599\u3002"),
+            U(r"\u5185\u5bb9\u7ed3\u6784\uff1a\u5f00\u5934\u5438\u5f15 -> \u771f\u5b9e\u4fe1\u606f -> \u573a\u666f\u4ef7\u503c -> \u884c\u52a8\u5efa\u8bae\u3002"),
+            U(r"\u5ba1\u6838\u63d0\u9192\uff1a\u53d1\u5e03\u524d\u5fc5\u987b\u6838\u5bf9\u4ef7\u683c\u3001\u5e93\u5b58\u3001\u6d3b\u52a8\u3001\u54c1\u724c\u6743\u76ca\u548c\u4ea7\u54c1\u53c2\u6570\u3002"),
+        ]
+        if "osprey" in (topic or title).lower():
+            sections += [U(r"Osprey \u6c9f\u901a\u6a21\u677f\uff1a\u6e05\u8d27\u4f46\u4e0d\u4f24\u54c1\u724c\uff0c\u4e0d\u505a\u865a\u5047\u627f\u8bfa\u3002")]
+        if "vafox" in (topic or title).lower():
+            sections += [U(r"VAFOX \u6a21\u677f\uff1a\u89c1\u5c71\u89c1\u5df1\u3001\u54c1\u724c\u6545\u4e8b\u3001\u95e8\u5e97\u4f53\u9a8c\u3002")]
+        return "\n".join(sections), U(r"AI \u5185\u5bb9\u751f\u6210\u6846\u67b6\u5df2\u5efa\u7acb\uff0c\u7b49\u5f85\u63a5\u5165\u5927\u6a21\u578b API\u3002")
+
+    def create_content_versions(self, conn, content_id, title, body, platforms):
+        now = ts()
+        rules = self.content_platform_rules()
+        created = []
+        for platform in csv_values(platforms) or ["wechat_official", "xiaohongshu", "douyin"]:
+            rule = rules.get(platform, {"tone": U(r"\u901a\u7528\u8349\u7a3f"), "length_limit": "", "media": ""})
+            cur = conn.execute(
+                "insert into content_platform_versions(version_id,content_id,platform,title,body,hashtags,media_requirements,length_limit,tone,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("VER-" + uuid.uuid4().hex[:10], content_id, platform, title, body, "#VAFOX #FireFox", rule["media"], rule["length_limit"], rule["tone"], "draft", now, now),
+            )
+            created.append(cur.lastrowid)
+        return created
+
+    def content_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_manage_content(user):
+            return self.dashboard(user)
+        with db() as conn:
+            drafts = conn.execute("select * from content_drafts order by updated_at desc limit 80").fetchall()
+            campaigns = conn.execute("select * from content_campaigns order by updated_at desc limit 30").fetchall()
+            queue = conn.execute("select * from content_publish_queue order by created_at desc limit 20").fetchall()
+        counts = {status: len([d for d in drafts if d["status"] == status]) for status in ("draft", "pending_review", "approved", "scheduled", "published")}
+        cards = ""
+        for d in drafts:
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div><div class='inline'><form method='post' action='/api/content/{}/generate'><button>{}</button></form><form method='post' action='/api/content/{}/submit-review'><button class='orange'>{}</button></form><form method='post' action='/api/content/{}/approve'><button class='green'>{}</button></form></div></div>".format(
+                esc(d["title"]), esc(summarize_text(d["summary"] or d["body"], 130)), esc(d["content_type"]), esc(d["target_platforms"]), esc(d["status"]), d["id"], U(r"\u751f\u6210"), d["id"], U(r"\u63d0\u5ba1"), d["id"], U(r"\u901a\u8fc7")
+            )
+        if not cards:
+            cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u5185\u5bb9\u8349\u7a3f\uff0c\u53ef\u5148\u4ece\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u95e8\u5e97\u6545\u4e8b\u521b\u5efa\u3002")))
+        campaign_items = [c["campaign_name"] + " 路 " + (c["campaign_type"] or "") + " 路 " + c["status"] for c in campaigns] or [U(r"\u6682\u65e0\u6d3b\u52a8\u3002")]
+        queue_items = [q["platform"] + " 路 " + q["status"] for q in queue] or [U(r"\u53d1\u5e03\u63a5\u53e3\u9884\u7559\uff0c\u5f53\u524d\u4ec5\u652f\u6301\u8349\u7a3f\u4e0e\u5bfc\u51fa\u3002")]
+        body = f"""
+<div class="panel">
+  <h2>{U(r'\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce')}</h2>
+  <p class="small">{U(r'\u628a\u77e5\u8bc6\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u95e8\u5e97\u6545\u4e8b\u548c AI \u5206\u6790\u8f6c\u6210\u591a\u5e73\u53f0\u5185\u5bb9\u8349\u7a3f\u3002\u6682\u4e0d\u81ea\u52a8\u53d1\u5e03\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u8349\u7a3f'), counts.get('draft',0), U(r'\u53ef\u7f16\u8f91'))}{self.metric(U(r'\u5f85\u5ba1'), counts.get('pending_review',0), U(r'\u9700\u5ba1\u6838'))}{self.metric(U(r'\u5df2\u901a\u8fc7'), counts.get('approved',0), U(r'\u53ef\u6392\u671f'))}{self.metric(U(r'\u5df2\u6392\u671f'), counts.get('scheduled',0), U(r'\u5f85\u53d1\u5e03'))}{self.metric(U(r'\u5df2\u53d1\u5e03'), counts.get('published',0), U(r'\u624b\u52a8\u8bb0\u5f55'))}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u65b0\u5efa\u5185\u5bb9\u8349\u7a3f')}</h2>
+    <form method="post" action="/content/save">
+      <label>{U(r'\u6807\u9898')}</label><input name="title" required>
+      <label>{U(r'\u5185\u5bb9\u7c7b\u578b')}</label><select name="content_type"><option value="article">article</option><option value="short_video_script">short_video_script</option><option value="xiaohongshu_note">xiaohongshu_note</option><option value="product_story">product_story</option><option value="store_story">store_story</option><option value="campaign_post">campaign_post</option><option value="brand_introduction">brand_introduction</option></select>
+      <label>{U(r'\u9009\u9898')}</label><input name="topic">
+      <label>{U(r'\u76ee\u6807\u5e73\u53f0')}</label><input name="target_platforms" value="wechat_official,xiaohongshu,douyin">
+      <label>{U(r'\u4eba\u5de5\u8f93\u5165')}</label><textarea name="body"></textarea>
+      <p><button>{U(r'\u4fdd\u5b58\u5e76\u751f\u6210\u5e73\u53f0\u7248\u672c')}</button></p>
+    </form>
+  </div>
+  <div class="panel"><h2>{U(r'\u5185\u5bb9\u65e5\u5386')}</h2>{self.bullets([U(r'\u4eca\u5929\uff1a\u68c0\u67e5\u5f85\u5ba1\u6838\u8349\u7a3f'), U(r'\u672c\u5468\uff1a\u5b89\u6392\u54c1\u724c\u548c\u95e8\u5e97\u5185\u5bb9'), U(r'\u672c\u6708\uff1a\u56f4\u7ed5\u6d3b\u52a8\u548c\u65b0\u54c1\u505a\u6392\u671f')])}</div>
+</div>
+<div class="panel"><h2>{U(r'\u5185\u5bb9\u8349\u7a3f')}</h2><div class="grid">{cards}</div></div>
+<div class="split"><div class="panel"><h2>{U(r'\u6d3b\u52a8')}</h2>{self.bullets(campaign_items)}</div><div class="panel"><h2>{U(r'\u53d1\u5e03\u961f\u5217')}</h2>{self.bullets(queue_items)}</div></div>
+<div class="panel"><h2>{U(r'\u4e13\u7528\u6a21\u677f')}</h2>{self.bullets([U(r'Osprey \u6c9f\u901a\u6a21\u677f\uff1a\u987e\u5ba2\u8bdd\u672f\u3001\u95e8\u5e97\u8bdd\u672f\u3001\u5c0f\u7ea2\u4e66\u65b9\u5411\u3001\u4f1a\u5458\u6d3b\u52a8'), U(r'VAFOX \u6a21\u677f\uff1a\u54c1\u724c\u6545\u4e8b\u3001\u89c1\u5c71\u89c1\u5df1\u7406\u5ff5\u3001\u5b98\u7f51\u4ecb\u7ecd\u3001\u89c6\u9891\u53f7\u811a\u672c')])}</div>"""
+        self.out(layout(U(r"\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce"), body, user=user, wide=True))
+
+    def content_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_content(user):
+            return self.redir("/")
+        form = self.form()
+        title = form.get("title", "").strip()
+        if not title:
+            return self.redir("/content")
+        body, summary = self.content_skeleton(title, form.get("content_type", "article"), form.get("topic", ""), form.get("target_platforms", ""))
+        if form.get("body", "").strip():
+            body = form.get("body", "").strip() + "\n\n" + body
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                "insert into content_drafts(content_id,title,content_type,topic,body,summary,target_platforms,status,related_object_type,related_object_id,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("CNT-" + uuid.uuid4().hex[:10], title, form.get("content_type", "article"), form.get("topic", ""), body, summary, form.get("target_platforms", ""), "ai_generated", form.get("related_object_type", ""), int(form.get("related_object_id")) if str(form.get("related_object_id", "")).isdigit() else None, form.get("source_type", "manual"), form.get("source_id", ""), user["id"], now, now),
+            )
+            self.create_content_versions(conn, cur.lastrowid, title, body, form.get("target_platforms", ""))
+        self.log_action(user, "content_created", "content", cur.lastrowid, title)
+        return self.redir("/content")
+
+    def content_to_export(self, row, fmt="markdown"):
+        if fmt == "html":
+            return {"format": "html", "content": "<!doctype html><meta charset='utf-8'><h1>{}</h1><p>{}</p><pre>{}</pre>".format(esc(row["title"]), esc(row["summary"]), esc(row["body"]))}
+        if fmt == "text":
+            return {"format": "text", "content": row["title"] + "\n\n" + (row["body"] or "")}
+        return {"format": "markdown", "content": "# {}\n\n{}\n\n{}".format(row["title"], row["summary"] or "", row["body"] or "")}
+
+    def api_content_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_content(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        with db() as conn:
+            if path == "/api/content":
+                rows = conn.execute("select * from content_drafts order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "content": [row_dict(r) for r in rows]})
+            m = re.match(r"^/api/content/(\d+)$", path)
+            if m:
+                row = conn.execute("select * from content_drafts where id=?", (m.group(1),)).fetchone()
+                versions = conn.execute("select * from content_platform_versions where content_id=? order by platform", (m.group(1),)).fetchall()
+                return self.json_out({"ok": bool(row), "content": row_dict(row), "versions": [row_dict(v) for v in versions]} if row else {"ok": False, "message": "not found"}, code=200 if row else 404)
+            if path == "/api/content/calendar":
+                rows = conn.execute("select * from content_drafts where scheduled_at is not null order by scheduled_at limit 100").fetchall()
+                return self.json_out({"ok": True, "calendar": [row_dict(r) for r in rows]})
+            if path == "/api/content/campaigns":
+                rows = conn.execute("select * from content_campaigns order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "campaigns": [row_dict(r) for r in rows]})
+            if path == "/api/content/platform-versions":
+                rows = conn.execute("select * from content_platform_versions order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "versions": [row_dict(r) for r in rows]})
+            if path == "/api/content/publish-queue":
+                rows = conn.execute("select * from content_publish_queue order by created_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "queue": [row_dict(r) for r in rows], "message": U(r"\u53d1\u5e03\u63a5\u53e3\u9884\u7559\uff0c\u5f53\u524d\u4ec5\u652f\u6301\u8349\u7a3f\u4e0e\u5bfc\u51fa\u3002")})
+        return self.json_out({"ok": False, "message": "unknown content api"}, code=404)
+
+    def api_content_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_content(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        form = self.form()
+        now = ts()
+        if path == "/api/content":
+            title = form.get("title", U(r"AI \u5185\u5bb9\u8349\u7a3f"))
+            body, summary = self.content_skeleton(title, form.get("content_type", "article"), form.get("topic", ""), form.get("target_platforms", ""))
+            with db() as conn:
+                cur = conn.execute("insert into content_drafts(content_id,title,content_type,topic,body,summary,target_platforms,status,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("CNT-" + uuid.uuid4().hex[:10], title, form.get("content_type", "article"), form.get("topic", ""), body, summary, form.get("target_platforms", ""), "ai_generated", form.get("source_type", "api"), form.get("source_id", ""), user["id"], now, now))
+                self.create_content_versions(conn, cur.lastrowid, title, body, form.get("target_platforms", ""))
+            self.log_action(user, "content_created", "content", cur.lastrowid, title)
+            return self.json_out({"ok": True, "content_id": cur.lastrowid})
+        m = re.match(r"^/api/content/(\d+)/(generate|submit-review|approve|reject|archive|schedule)$", path)
+        if m:
+            cid, action = m.group(1), m.group(2)
+            with db() as conn:
+                row = conn.execute("select * from content_drafts where id=?", (cid,)).fetchone()
+                if not row:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                if action == "generate":
+                    body, summary = self.content_skeleton(row["title"], row["content_type"], row["topic"], row["target_platforms"])
+                    conn.execute("update content_drafts set body=?, summary=?, status='ai_generated', updated_at=? where id=?", (body, summary, now, cid))
+                    self.create_content_versions(conn, cid, row["title"], body, row["target_platforms"])
+                    self.log_action(user, "content_generated", "content", cid, row["title"])
+                    return self.json_out({"ok": True, "body": body, "summary": summary})
+                status_map = {"submit-review": "pending_review", "approve": "approved", "reject": "rejected", "archive": "archived", "schedule": "scheduled"}
+                if action in ("approve", "reject") and not self.can_review_content(user):
+                    return self.json_out({"ok": False, "message": "no permission"}, code=403)
+                status = status_map[action]
+                conn.execute("update content_drafts set status=?, reviewed_by=?, reviewed_at=?, review_notes=?, compliance_status=?, scheduled_at=coalesce(?,scheduled_at), updated_at=? where id=?", (status, user["id"] if action in ("approve", "reject") else row["reviewed_by"], now if action in ("approve", "reject") else row["reviewed_at"], form.get("review_notes", ""), form.get("compliance_status", "pending"), int(form.get("scheduled_at")) if str(form.get("scheduled_at", "")).isdigit() else None, now, cid))
+            self.log_action(user, "content_" + action, "content", cid, "")
+            return self.json_out({"ok": True, "status": status})
+        if path == "/api/content/campaigns":
+            with db() as conn:
+                cur = conn.execute("insert into content_campaigns(campaign_id,campaign_name,campaign_type,start_date,end_date,target_stores,target_brands,target_products,goal,budget,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("CAM-" + uuid.uuid4().hex[:10], form.get("campaign_name", U(r"\u672a\u547d\u540d\u6d3b\u52a8")), form.get("campaign_type", ""), form.get("start_date", ""), form.get("end_date", ""), form.get("target_stores", ""), form.get("target_brands", ""), form.get("target_products", ""), form.get("goal", ""), form.get("budget", ""), form.get("status", "draft"), now, now))
+            self.log_action(user, "campaign_created", "campaign", cur.lastrowid, form.get("campaign_name", ""))
+            return self.json_out({"ok": True, "campaign_id": cur.lastrowid})
+        if path == "/api/content/platform-versions":
+            with db() as conn:
+                cur = conn.execute("insert into content_platform_versions(version_id,content_id,platform,title,body,hashtags,media_requirements,length_limit,tone,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)", ("VER-" + uuid.uuid4().hex[:10], int(form.get("content_id")) if str(form.get("content_id", "")).isdigit() else 0, form.get("platform", "wechat_official"), form.get("title", ""), form.get("body", ""), form.get("hashtags", ""), form.get("media_requirements", ""), form.get("length_limit", ""), form.get("tone", ""), form.get("status", "draft"), now, now))
+            return self.json_out({"ok": True, "version_id": cur.lastrowid})
+        if path == "/api/content/export":
+            with db() as conn:
+                row = conn.execute("select * from content_drafts where id=?", (form.get("content_id", ""),)).fetchone()
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            self.log_action(user, "content_exported", "content", row["id"], form.get("format", "markdown"))
+            return self.json_out({"ok": True, "export": self.content_to_export(row, form.get("format", "markdown")), "copy_placeholder": True})
+        return self.json_out({"ok": False, "message": "unknown content api"}, code=404)
+
+    def api_content_put(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_content(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        m = re.match(r"^/api/content/(\d+)$", path)
+        if not m:
+            return self.json_out({"ok": False, "message": "unknown content api"}, code=404)
+        form = self.form()
+        with db() as conn:
+            conn.execute("update content_drafts set title=coalesce(?,title), topic=coalesce(?,topic), body=coalesce(?,body), summary=coalesce(?,summary), target_platforms=coalesce(?,target_platforms), status=coalesce(?,status), updated_at=? where id=?", (form.get("title"), form.get("topic"), form.get("body"), form.get("summary"), form.get("target_platforms"), form.get("status"), ts(), m.group(1)))
+        self.log_action(user, "content_updated", "content", m.group(1), "")
+        return self.json_out({"ok": True})
+
     def can_manage_reports(self, user):
         return bool(user and user["role"] in ("boss", "admin", "store_manager", "finance", "purchasing"))
 
@@ -4273,6 +4585,11 @@ class App(BaseHTTPRequestHandler):
             result["success"] = False
             result["limitations"].append(U(r"\u5916\u90e8\u7814\u7a76\u5f15\u64ce\u5df2\u9884\u7559\uff0c\u672a\u914d\u7f6e\u5b9e\u65f6\u641c\u7d22 API \u65f6\u4e0d\u81ea\u52a8\u7f16\u9020\u5916\u90e8\u4e8b\u5b9e\u3002"))
             result["next_actions"].append({"label": U(r"\u6253\u5f00\u5916\u7f51\u641c\u7d22\u5b58\u77e5\u8bc6\u5e93"), "url": "/web-search"})
+        if intent == "content_generation":
+            body, summary = self.content_skeleton(U(r"Jarvis \u5185\u5bb9\u8349\u7a3f"), "article", question, "wechat_official,xiaohongshu,douyin")
+            result["data"]["content_skeleton"] = {"body": body, "summary": summary, "platforms": ["wechat_official", "xiaohongshu", "douyin"]}
+            result["sources"].append({"type": "content_engine", "title": U(r"\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce"), "url": "/content"})
+            result["next_actions"].append({"label": U(r"\u6253\u5f00\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce"), "url": "/content"})
         if not result["sources"]:
             result["limitations"].append(U(r"\u6682\u65e0\u53ef\u5f15\u7528\u6765\u6e90\u3002"))
         return result

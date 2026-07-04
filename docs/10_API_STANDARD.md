@@ -146,6 +146,28 @@ Jarvis must not invent SAP data, finance results, customer facts, market news, o
 
 Report APIs create AI drafts. A report is not official until an authorized user approves it.
 
+## Task012 Content Publishing API
+
+- `GET /api/content`
+- `POST /api/content`
+- `GET /api/content/{id}`
+- `PUT /api/content/{id}`
+- `POST /api/content/{id}/generate`
+- `POST /api/content/{id}/submit-review`
+- `POST /api/content/{id}/approve`
+- `POST /api/content/{id}/reject`
+- `POST /api/content/{id}/archive`
+- `POST /api/content/{id}/schedule`
+- `GET /api/content/calendar`
+- `GET /api/content/campaigns`
+- `POST /api/content/campaigns`
+- `GET /api/content/platform-versions`
+- `POST /api/content/platform-versions`
+- `GET /api/content/publish-queue`
+- `POST /api/content/export`
+
+Content APIs produce drafts and platform versions. V1 does not publish automatically.
+
 ## Future API
 
 - `POST /api/files/parse`

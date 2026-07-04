@@ -88,3 +88,14 @@ Jarvis responsibilities:
 - Hand off complex questions to Multi-Agent Collaboration when needed.
 
 Jarvis V1 uses keyword routing. Later versions can replace routing and response generation with Dify, DeepSeek, OpenAI or another approved model while keeping the same safety and citation payload.
+
+## Task012 Content Agents
+
+Content-related agents may draft platform-specific copy, video scripts, product stories, store stories and campaign posts.
+
+They must follow these rules:
+
+- Use only provided product, brand, store, knowledge, report or memory context.
+- Do not invent prices, promotions, product specs or brand claims.
+- Public content requires human review before scheduling or publishing.
+- Platform-specific output should be stored as Content Platform Versions.

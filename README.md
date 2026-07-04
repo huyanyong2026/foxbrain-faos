@@ -153,11 +153,25 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - n8n-ready scheduled report model
 - Health check now reports Reporting Engine status
 
+## V4 Task012 Completed
+
+- Content Publishing Engine
+- Content drafts, platform versions, campaigns and publish queue models
+- AI content generator placeholder
+- Review flow for public content
+- Content calendar API
+- Osprey communication template
+- VAFOX brand content template
+- Markdown, text and HTML export framework
+- Jarvis content-generation integration
+- Health check now reports Content Engine status
+
 ## V4 Routes
 
 - `/`
 - `/jarvis`
 - `/reports`
+- `/content`
 - `/business-overview`
 - `/stores`
 - `/employees`
@@ -230,6 +244,21 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `POST /api/report-templates`
 - `GET /api/report-schedules`
 - `POST /api/report-schedules`
+- `GET /api/content`
+- `POST /api/content`
+- `GET /api/content/{id}`
+- `PUT /api/content/{id}`
+- `POST /api/content/{id}/generate`
+- `POST /api/content/{id}/submit-review`
+- `POST /api/content/{id}/approve`
+- `POST /api/content/{id}/reject`
+- `GET /api/content/calendar`
+- `GET /api/content/campaigns`
+- `POST /api/content/campaigns`
+- `GET /api/content/platform-versions`
+- `POST /api/content/platform-versions`
+- `GET /api/content/publish-queue`
+- `POST /api/content/export`
 
 ## Security
 

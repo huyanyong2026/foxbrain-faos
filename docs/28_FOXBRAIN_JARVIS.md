@@ -111,3 +111,9 @@ The Jarvis page is mobile-first:
 Jarvis can hand `report_generation` intent to the Reporting Engine.
 
 The handoff keeps the same safety rule: Jarvis may generate a draft report structure, but the official report status is controlled by the Reporting Engine review flow.
+
+## Task012 Content Integration
+
+Jarvis can recognize `content_generation` prompts and hand them to the Content Publishing Engine.
+
+Jarvis returns a safe content skeleton when no large-model API is configured. It must not invent product facts, prices, promotion rules or brand claims.
