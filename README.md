@@ -94,6 +94,17 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Automation APIs
 - Health check now reports automation engine status
 
+## V4 Task007 Completed
+
+- AI Memory Center
+- Memory review flow
+- User preference system
+- Decision Memory page
+- Memory search
+- Memory APIs
+- AI CEO memory context placeholder
+- Health check now reports memory engine status
+
 ## V4 Routes
 
 - `/`
@@ -113,6 +124,8 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/brands/osprey-risk`
 - `/tasks`
 - `/automation`
+- `/memory`
+- `/decisions`
 - `/system/health`
 - `/agents`
 - `/workflow`
@@ -132,6 +145,9 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `GET /api/automation`
 - `GET /api/workflows`
 - `GET /api/notifications`
+- `GET /api/memory`
+- `GET /api/preferences`
+- `GET /api/decisions`
 
 ## Security
 

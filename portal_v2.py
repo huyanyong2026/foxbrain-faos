@@ -636,6 +636,71 @@ create table if not exists notifications(
 """
         )
         conn.execute("create index if not exists idx_notifications_status on notifications(status)")
+        conn.execute(
+            """
+create table if not exists memories(
+ id integer primary key autoincrement,
+ memory_id text unique,
+ title text not null,
+ content text,
+ memory_type text not null default 'company_principle',
+ object_type text,
+ object_id integer,
+ source_type text,
+ source_id text,
+ importance text not null default 'normal',
+ confidence text not null default 'medium',
+ visibility text not null default 'manager_only',
+ status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null,
+ expires_at integer
+)
+"""
+        )
+        conn.execute("create index if not exists idx_memories_type on memories(memory_type)")
+        conn.execute("create index if not exists idx_memories_status on memories(status)")
+        conn.execute("create index if not exists idx_memories_visibility on memories(visibility)")
+        conn.execute(
+            """
+create table if not exists user_preferences(
+ id integer primary key autoincrement,
+ preference_id text unique,
+ user_id integer not null,
+ key text not null,
+ value text,
+ scope text not null default 'user',
+ created_at integer not null,
+ updated_at integer not null,
+ unique(user_id,key,scope)
+)
+"""
+        )
+        conn.execute("create index if not exists idx_preferences_user on user_preferences(user_id)")
+        conn.execute(
+            """
+create table if not exists decision_memories(
+ id integer primary key autoincrement,
+ decision_id text unique,
+ decision_title text not null,
+ decision_context text,
+ options_considered text,
+ selected_option text,
+ reason text,
+ risks text,
+ owner text,
+ decision_date text,
+ related_objects text,
+ follow_up_task text,
+ memory_id integer,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_decision_memories_date on decision_memories(decision_date)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -789,6 +854,12 @@ class App(BaseHTTPRequestHandler):
             return self.task_center(user)
         if path == "/automation":
             return self.automation_center(user)
+        if path == "/memory":
+            return self.memory_center(user)
+        if path == "/memory/view":
+            return self.memory_view(user)
+        if path == "/decisions":
+            return self.decision_memory(user)
         if path == "/system/health":
             return self.system_health(user)
         if path == "/content-center":
@@ -825,6 +896,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_task005_get(user, path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
             return self.api_automation_get(user, path)
+        if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
+            return self.api_memory_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
@@ -845,10 +918,20 @@ class App(BaseHTTPRequestHandler):
             return self.automation_save()
         if path == "/workflows/save":
             return self.workflow_template_save()
+        if path == "/memory/save":
+            return self.memory_save()
+        if path == "/memory/action":
+            return self.memory_action()
+        if path == "/preferences/save":
+            return self.preference_save()
+        if path == "/decisions/save":
+            return self.decision_save()
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
             return self.api_automation_post(self.current_user(), path)
+        if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
+            return self.api_memory_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
@@ -883,6 +966,8 @@ class App(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
+        if path.startswith("/api/memory") or path.startswith("/api/preferences"):
+            return self.api_memory_post(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -1754,6 +1839,7 @@ class App(BaseHTTPRequestHandler):
             self.card(U(r"AI \u667a\u80fd\u4f53\u67e5\u8be2"), U(r"\u4f18\u5148\u67e5\u5185\u90e8\u77e5\u8bc6\u5e93\uff0c\u4e0d\u8db3\u65f6\u518d\u63a5\u5916\u7f51\u641c\u7d22\u3002"), "/ai-assistant", "btn", True),
             self.card(U(r"\u4efb\u52a1\u4e2d\u5fc3"), U(r"\u4eca\u65e5\u5f85\u529e\u3001\u95e8\u5e97\u4efb\u52a1\u3001\u81ea\u52a8\u5316\u4efb\u52a1\u548c\u8ddf\u8fdb\u63d0\u9192\u3002"), "/tasks", "btn", True),
             self.card(U(r"AI \u81ea\u52a8\u5316"), U(r"\u6d41\u7a0b\u6a21\u677f\u3001\u89e6\u53d1\u5668\u3001AI \u52a8\u4f5c\u3001\u6267\u884c\u5386\u53f2\u548c\u901a\u77e5\u4e2d\u5fc3\u3002"), "/automation", "btn", can_manager),
+            self.card(U(r"AI \u8bb0\u5fc6\u4e2d\u5fc3"), U(r"\u957f\u671f\u7ecf\u8425\u539f\u5219\u3001\u51b3\u7b56\u3001\u504f\u597d\u3001\u5b9a\u4ef7\u548c\u98ce\u9669\u8bb0\u5fc6\u3002"), "/memory", "btn", True),
             self.card(U(r"\u7cfb\u7edf\u7ba1\u7406"), U(r"\u5ba1\u6838\u5458\u5de5\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002"), "/admin", "btn dark", can_admin),
         ]
         info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
@@ -2426,6 +2512,11 @@ class App(BaseHTTPRequestHandler):
             ]
         )
         default_wait = [data["empty_message"]]
+        with db() as conn:
+            memory_rows = conn.execute("select * from memories where status='approved' order by case importance when 'critical' then 0 when 'high' then 1 else 2 end, updated_at desc limit 6").fetchall()
+        memory_refs = [m["title"] + " · " + m["memory_type"] for m in memory_rows if self.can_view_memory(user, m)]
+        if not memory_refs:
+            memory_refs = [U(r"\u6682\u65e0\u5df2\u5ba1\u6838\u8bb0\u5fc6\uff0cAI \u603b\u7ecf\u7406\u5c06\u5728\u51b3\u7b56\u548c\u539f\u5219\u5ba1\u6838\u540e\u5f15\u7528\u3002")]
         risk_items = [
             U(r"\u95e8\u5e97\u5f02\u5e38\uff1a\u7b49\u5f85\u95e8\u5e97\u9500\u552e\u3001\u6bdb\u5229\u548c\u5e93\u5b58\u6570\u636e\u5b8c\u6574\u540e\u5224\u65ad\u3002"),
             U(r"\u54c1\u724c\u5f02\u5e38\uff1a\u7b49\u5f85\u54c1\u724c\u7ef4\u5ea6 SAP \u5206\u6790\u63a5\u5165\u3002"),
@@ -2445,6 +2536,7 @@ class App(BaseHTTPRequestHandler):
   <div class="panel"><h2>{U(r'\u4eca\u65e5\u91cd\u70b9\u4efb\u52a1')}</h2>{self.bullets(data['todos'] or [U(r'\u53ef\u4ece AI \u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u5e76\u5206\u914d\u8d23\u4efb\u4eba\u3002')])}<p><a class="btn" href="/tasks">{U(r'\u8fdb\u5165\u4efb\u52a1\u4e2d\u5fc3')}</a></p></div>
   <div class="panel"><h2>{U(r'\u5916\u90e8\u7814\u7a76\u63d0\u9192')}</h2>{self.bullets([U(r'\u7814\u7a76\u5f15\u64ce\u5df2\u9884\u7559\uff0c\u5916\u90e8\u4fe1\u606f\u9700\u5ba1\u6838\u540e\u624d\u80fd\u5165\u5e93\u3002'), U(r'\u672a\u914d\u7f6e\u5916\u90e8\u641c\u7d22 API \u65f6\u4e0d\u81ea\u52a8\u6293\u53d6\u65b0\u95fb\u3002')])}</div>
 </div>
+<div class="panel"><h2>{U(r'AI \u603b\u7ecf\u7406\u53c2\u8003\u8bb0\u5fc6')}</h2>{self.bullets(memory_refs)}<p><a class="btn" href="/memory">{U(r'\u8fdb\u5165\u8bb0\u5fc6\u4e2d\u5fc3')}</a></p></div>
 <div class="panel">
   <h2>{U(r'AI \u5efa\u8bae')}</h2>
   {self.bullets([U(r'\u5148\u5b8c\u5584 SAP B1 \u6bcf\u65e5 2:00 \u540c\u6b65\u7a33\u5b9a\u6027\u3002'), U(r'\u628a Osprey \u4ef7\u683c\u98ce\u9669\u653e\u5165\u4e13\u9898\u8ddf\u8e2a\u3002'), U(r'\u628a\u91cd\u70b9\u7ecf\u8425\u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u907f\u514d\u53ea\u770b\u4e0d\u505a\u3002')])}
@@ -2623,7 +2715,8 @@ class App(BaseHTTPRequestHandler):
         checks["knowledge_engine_status"] = "ready"
         checks["research_engine_status"] = "placeholder"
         checks["automation_engine_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task006", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["memory_engine_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task007", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -2833,6 +2926,310 @@ class App(BaseHTTPRequestHandler):
                 )
             return self.json_out({"ok": True, "workflow_template_id": cur.lastrowid})
         return self.json_out({"ok": False, "message": "unknown automation api"}, code=404)
+
+    def can_view_memory(self, user, row):
+        if not user or not row:
+            return False
+        visibility = row["visibility"] if "visibility" in row.keys() else "manager_only"
+        if visibility == "public_internal":
+            return True
+        if visibility == "manager_only":
+            return user["role"] in ("boss", "admin", "store_manager")
+        if visibility == "owner_only":
+            return int(row["created_by"] or 0) == int(user["id"])
+        if visibility == "finance_only":
+            return user["role"] in ("boss", "admin", "finance")
+        if visibility == "restricted":
+            return user["role"] in ("boss", "admin")
+        return user["role"] in ("boss", "admin")
+
+    def can_approve_memory(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "store_manager"))
+
+    def memory_to_json(self, row):
+        return row_dict(row) or {}
+
+    def memory_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        qd = parse_qs(urlparse(self.path).query)
+        q = qd.get("q", [""])[0].strip()
+        memory_type = qd.get("type", [""])[0].strip()
+        status = qd.get("status", [""])[0].strip()
+        where, params = [], []
+        if q:
+            like = "%" + q + "%"
+            where.append("(title like ? or content like ? or memory_type like ?)")
+            params += [like, like, like]
+        if memory_type:
+            where.append("memory_type=?")
+            params.append(memory_type)
+        if status:
+            where.append("status=?")
+            params.append(status)
+        sql = "select * from memories"
+        if where:
+            sql += " where " + " and ".join(where)
+        sql += " order by case status when 'pending_review' then 0 when 'approved' then 1 else 2 end, updated_at desc limit 100"
+        with db() as conn:
+            rows = [r for r in conn.execute(sql, params).fetchall() if self.can_view_memory(user, r)]
+            prefs = conn.execute("select * from user_preferences where user_id=? order by updated_at desc limit 20", (user["id"],)).fetchall()
+            decisions = conn.execute("select * from decision_memories order by updated_at desc limit 8").fetchall()
+            counts = {
+                "total": conn.execute("select count(*) c from memories").fetchone()["c"],
+                "pending": conn.execute("select count(*) c from memories where status='pending_review'").fetchone()["c"],
+                "approved": conn.execute("select count(*) c from memories where status='approved'").fetchone()["c"],
+                "archived": conn.execute("select count(*) c from memories where status='archived'").fetchone()["c"],
+            }
+        type_opts = [
+            "company_principle", "user_preference", "business_decision", "pricing_rule", "brand_strategy",
+            "store_strategy", "supplier_risk", "customer_insight", "ai_suggestion", "rejected_suggestion",
+        ]
+        cards = ""
+        for row in rows:
+            action = ""
+            if self.can_approve_memory(user) and row["status"] == "pending_review":
+                action = f"<form method='post' action='/memory/action'><input type='hidden' name='id' value='{row['id']}'><button name='action' value='approve'>{U(r'审核通过')}</button><button class='gray' name='action' value='reject'>{U(r'拒绝')}</button></form>"
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {} · {}</p></div><a class='btn full' href='/memory/view?id={}'>{}</a>{}</div>".format(
+                esc(row["title"]), esc(summarize_text(row["content"], 160)), esc(row["memory_type"]), esc(row["importance"]), esc(row["status"]), esc(dt(row["updated_at"])), row["id"], U(r"查看"), action
+            )
+        if not cards:
+            cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u8bb0\u5fc6\uff0cAI \u6216\u7ba1\u7406\u8005\u53ef\u5148\u521b\u5efa\u5f85\u5ba1\u6838\u8bb0\u5fc6\u3002")))
+        pref_items = [f"{p['key']}: {p['value']} ({p['scope']})" for p in prefs] or [U(r"\u6682\u65e0\u504f\u597d\u8bbe\u7f6e\u3002")]
+        decision_items = [d["decision_title"] + " · " + (d["decision_date"] or "") for d in decisions] or [U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")]
+        body = f"""
+<div class="panel">
+  <h2>{U(r'AI \u8bb0\u5fc6\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'\u8fd9\u91cc\u4fdd\u5b58\u957f\u671f\u7ecf\u8425\u539f\u5219\u3001\u7528\u6237\u504f\u597d\u3001\u51b3\u7b56\u3001\u5b9a\u4ef7\u89c4\u5219\u548c\u98ce\u9669\u5224\u65ad\u3002AI \u4e0d\u4f1a\u672a\u7ecf\u5ba1\u6838\u81ea\u52a8\u5199\u5165\u6c38\u4e45\u8bb0\u5fc6\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u8bb0\u5fc6\u603b\u6570'), counts['total'], U(r'\u5168\u90e8'))}{self.metric(U(r'\u5f85\u5ba1\u6838'), counts['pending'], U(r'\u9700\u590d\u6838'))}{self.metric(U(r'\u5df2\u901a\u8fc7'), counts['approved'], U(r'AI \u53ef\u53c2\u8003'))}{self.metric(U(r'\u5df2\u5f52\u6863'), counts['archived'], U(r'\u5386\u53f2'))}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u65b0\u5efa\u5f85\u5ba1\u6838\u8bb0\u5fc6')}</h2>
+    <form method="post" action="/memory/save">
+      <label>{U(r'\u6807\u9898')}</label><input name="title" required>
+      <label>{U(r'\u5185\u5bb9')}</label><textarea name="content"></textarea>
+      <label>{U(r'\u8bb0\u5fc6\u7c7b\u578b')}</label><select name="memory_type">{''.join('<option value="{}">{}</option>'.format(esc(x), esc(x)) for x in type_opts)}</select>
+      <label>{U(r'\u91cd\u8981\u6027')}</label><select name="importance"><option value="normal">normal</option><option value="high">high</option><option value="critical">critical</option><option value="low">low</option></select>
+      <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="manager_only">manager_only</option><option value="public_internal">public_internal</option><option value="owner_only">owner_only</option><option value="finance_only">finance_only</option><option value="restricted">restricted</option></select>
+      <p><button>{U(r'\u4fdd\u5b58\u5f85\u5ba1\u6838\u8bb0\u5fc6')}</button></p>
+    </form>
+  </div>
+  <div class="panel form">
+    <h2>{U(r'\u7528\u6237\u504f\u597d')}</h2>
+    <form method="post" action="/preferences/save">
+      <label>Key</label><input name="key" placeholder="dashboard_style / ai_response_style / risk_tolerance" required>
+      <label>Value</label><input name="value" required>
+      <label>Scope</label><input name="scope" value="user">
+      <p><button>{U(r'\u4fdd\u5b58\u504f\u597d')}</button></p>
+    </form>
+    {self.bullets(pref_items)}
+  </div>
+</div>
+<div class="panel">
+  <form method="get" action="/memory">
+    <label>{U(r'\u641c\u7d22\u8bb0\u5fc6')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u6807\u9898\u3001\u5185\u5bb9\u3001\u7c7b\u578b')}">
+    <label>{U(r'\u7c7b\u578b')}</label><input name="type" value="{esc(memory_type)}">
+    <label>{U(r'\u72b6\u6001')}</label><input name="status" value="{esc(status)}" placeholder="pending_review / approved / archived">
+    <p><button>{U(r'\u641c\u7d22')}</button></p>
+  </form>
+</div>
+<div class="grid">{cards}</div>
+<div class="split"><div class="panel"><h2>{U(r'\u51b3\u7b56\u8bb0\u5fc6')}</h2>{self.bullets(decision_items)}<p><a class="btn" href="/decisions">{U(r'\u65b0\u589e\u51b3\u7b56')}</a></p></div><div class="panel"><h2>{U(r'AI \u603b\u7ecf\u7406\u53c2\u8003\u8bb0\u5fc6')}</h2>{self.bullets([U(r'\u6700\u8fd1\u91cd\u8981\u51b3\u7b56'), U(r'\u5f53\u524d\u7ecf\u8425\u539f\u5219'), U(r'\u98ce\u9669\u504f\u597d'), U(r'\u54c1\u724c\u7b56\u7565'), U(r'\u5b9a\u4ef7\u539f\u5219')])}</div></div>"""
+        self.out(layout(U(r"AI \u8bb0\u5fc6\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def memory_view(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        mid = parse_qs(urlparse(self.path).query).get("id", [""])[0]
+        with db() as conn:
+            row = conn.execute("select * from memories where id=?", (mid,)).fetchone()
+        if not row or not self.can_view_memory(user, row):
+            return self.redir("/memory")
+        body = f"""
+<div class="panel">
+  <h2>{esc(row['title'])}</h2>
+  <p class="small">{esc(row['memory_id'])} · {esc(row['memory_type'])} · {esc(row['importance'])} · {esc(row['confidence'])} · {esc(row['status'])}</p>
+  <p>{esc(row['content'])}</p>
+  <h2>{U(r'\u5173\u8054\u5bf9\u8c61')}</h2><p>{esc(row['object_type'] or U(r'\u6682\u65e0'))} {esc(row['object_id'] or '')}</p>
+  <p><a class="btn gray" href="/memory">{U(r'\u8fd4\u56de')}</a></p>
+</div>"""
+        self.out(layout(row["title"], body, user=user, wide=True))
+
+    def memory_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        title = form.get("title", "").strip()
+        if not title:
+            return self.redir("/memory")
+        visibility = form.get("visibility", "manager_only")
+        if visibility not in ("public_internal", "manager_only", "owner_only", "finance_only", "restricted"):
+            visibility = "manager_only"
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                "insert into memories(memory_id,title,content,memory_type,object_type,object_id,source_type,source_id,importance,confidence,visibility,status,created_by,created_at,updated_at,expires_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("MEM-" + uuid.uuid4().hex[:10], title, form.get("content", ""), form.get("memory_type", "company_principle"), module_key(form.get("object_type", "")), int(form.get("object_id")) if str(form.get("object_id", "")).isdigit() else None, form.get("source_type", "manual"), form.get("source_id", ""), form.get("importance", "normal"), form.get("confidence", "medium"), visibility, "pending_review", user["id"], now, now, None),
+            )
+        self.log_action(user, "memory_create", "memory", cur.lastrowid, title)
+        return self.redir("/memory")
+
+    def memory_action(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_approve_memory(user):
+            return self.redir("/memory")
+        form = self.form()
+        action = form.get("action", "")
+        status_map = {"approve": "approved", "reject": "archived", "archive": "archived", "expire": "expired"}
+        status = status_map.get(action)
+        if status:
+            with db() as conn:
+                conn.execute("update memories set status=?, updated_at=? where id=?", (status, ts(), form.get("id")))
+            self.log_action(user, "memory_" + action, "memory", form.get("id"), "")
+        return self.redir("/memory")
+
+    def preference_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        key = form.get("key", "").strip()
+        if not key:
+            return self.redir("/memory")
+        scope = form.get("scope", "user") or "user"
+        now = ts()
+        with db() as conn:
+            conn.execute(
+                "insert into user_preferences(preference_id,user_id,key,value,scope,created_at,updated_at) values(?,?,?,?,?,?,?) on conflict(user_id,key,scope) do update set value=excluded.value, updated_at=excluded.updated_at",
+                ("PREF-" + uuid.uuid4().hex[:10], user["id"], key, form.get("value", ""), scope, now, now),
+            )
+        self.log_action(user, "preference_changed", "preference", None, key)
+        return self.redir("/memory")
+
+    def decision_memory(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.role_can_manage(user):
+            return self.dashboard(user)
+        with db() as conn:
+            rows = conn.execute("select * from decision_memories order by updated_at desc limit 50").fetchall()
+        cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {}</p></div></div>".format(esc(r["decision_title"]), esc(r["reason"]), esc(r["owner"]), esc(r["decision_date"])) for r in rows)
+        if not cards:
+            cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")))
+        body = f"""
+<div class="panel form">
+  <h2>{U(r'\u51b3\u7b56\u8bb0\u5fc6')}</h2>
+  <form method="post" action="/decisions/save">
+    <label>{U(r'\u51b3\u7b56\u6807\u9898')}</label><input name="decision_title" required>
+    <label>{U(r'\u51b3\u7b56\u80cc\u666f')}</label><textarea name="decision_context"></textarea>
+    <label>{U(r'\u8003\u8651\u8fc7\u7684\u9009\u9879')}</label><textarea name="options_considered"></textarea>
+    <label>{U(r'\u9009\u62e9\u65b9\u6848')}</label><input name="selected_option">
+    <label>{U(r'\u539f\u56e0')}</label><textarea name="reason"></textarea>
+    <label>{U(r'\u98ce\u9669')}</label><textarea name="risks"></textarea>
+    <label>{U(r'\u8d1f\u8d23\u4eba')}</label><input name="owner" value="{esc(user['name'])}">
+    <label>{U(r'\u51b3\u7b56\u65e5\u671f')}</label><input name="decision_date" placeholder="2026-07-04">
+    <label>{U(r'\u540e\u7eed\u4efb\u52a1')}</label><input name="follow_up_task">
+    <p><button>{U(r'\u4fdd\u5b58\u51b3\u7b56')}</button></p>
+  </form>
+</div>
+<div class="grid">{cards}</div>"""
+        self.out(layout(U(r"\u51b3\u7b56\u8bb0\u5fc6"), body, user=user, wide=True))
+
+    def decision_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.role_can_manage(user):
+            return self.redir("/")
+        form = self.form()
+        title = form.get("decision_title", "").strip()
+        if not title:
+            return self.redir("/decisions")
+        now = ts()
+        with db() as conn:
+            mem = conn.execute(
+                "insert into memories(memory_id,title,content,memory_type,source_type,importance,confidence,visibility,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("MEM-" + uuid.uuid4().hex[:10], title, form.get("reason", ""), "business_decision", "decision", "high", "medium", "manager_only", "pending_review", user["id"], now, now),
+            )
+            conn.execute(
+                "insert into decision_memories(decision_id,decision_title,decision_context,options_considered,selected_option,reason,risks,owner,decision_date,related_objects,follow_up_task,memory_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("DEC-" + uuid.uuid4().hex[:10], title, form.get("decision_context", ""), form.get("options_considered", ""), form.get("selected_option", ""), form.get("reason", ""), form.get("risks", ""), form.get("owner", user["name"]), form.get("decision_date", ""), form.get("related_objects", ""), form.get("follow_up_task", ""), mem.lastrowid, user["id"], now, now),
+            )
+        self.log_action(user, "decision_created", "decision", None, title)
+        return self.redir("/decisions")
+
+    def api_memory_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/memory":
+            with db() as conn:
+                rows = [r for r in conn.execute("select * from memories order by updated_at desc limit 100").fetchall() if self.can_view_memory(user, r)]
+            return self.json_out({"ok": True, "memories": [self.memory_to_json(r) for r in rows]})
+        m = re.match(r"^/api/memory/(\d+)$", path)
+        if m:
+            with db() as conn:
+                row = conn.execute("select * from memories where id=?", (m.group(1),)).fetchone()
+            if not row or not self.can_view_memory(user, row):
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "memory": self.memory_to_json(row)})
+        if path == "/api/preferences":
+            with db() as conn:
+                rows = conn.execute("select * from user_preferences where user_id=? order by updated_at desc", (user["id"],)).fetchall()
+            return self.json_out({"ok": True, "preferences": [row_dict(r) for r in rows]})
+        if path == "/api/decisions":
+            if not self.role_can_manage(user):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            with db() as conn:
+                rows = conn.execute("select * from decision_memories order by updated_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "decisions": [row_dict(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown memory api"}, code=404)
+
+    def api_memory_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        form = self.form()
+        now = ts()
+        if path == "/api/memory":
+            title = form.get("title", "").strip() or U(r"\u672a\u547d\u540d\u8bb0\u5fc6")
+            with db() as conn:
+                cur = conn.execute(
+                    "insert into memories(memory_id,title,content,memory_type,source_type,source_id,importance,confidence,visibility,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("MEM-" + uuid.uuid4().hex[:10], title, form.get("content", ""), form.get("memory_type", "company_principle"), form.get("source_type", "api"), form.get("source_id", ""), form.get("importance", "normal"), form.get("confidence", "medium"), form.get("visibility", "manager_only"), "pending_review", user["id"], now, now),
+                )
+            return self.json_out({"ok": True, "memory_id": cur.lastrowid})
+        m = re.match(r"^/api/memory/(\d+)/(approve|reject|archive)$", path)
+        if m:
+            if not self.can_approve_memory(user):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            status = {"approve": "approved", "reject": "archived", "archive": "archived"}[m.group(2)]
+            with db() as conn:
+                conn.execute("update memories set status=?, updated_at=? where id=?", (status, now, m.group(1)))
+            return self.json_out({"ok": True})
+        if path == "/api/preferences":
+            key = form.get("key", "").strip()
+            if not key:
+                return self.json_out({"ok": False, "message": "key required"}, code=400)
+            scope = form.get("scope", "user")
+            with db() as conn:
+                conn.execute("insert into user_preferences(preference_id,user_id,key,value,scope,created_at,updated_at) values(?,?,?,?,?,?,?) on conflict(user_id,key,scope) do update set value=excluded.value, updated_at=excluded.updated_at", ("PREF-" + uuid.uuid4().hex[:10], user["id"], key, form.get("value", ""), scope, now, now))
+            return self.json_out({"ok": True})
+        if path == "/api/decisions":
+            if not self.role_can_manage(user):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            with db() as conn:
+                cur = conn.execute(
+                    "insert into decision_memories(decision_id,decision_title,decision_context,options_considered,selected_option,reason,risks,owner,decision_date,related_objects,follow_up_task,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("DEC-" + uuid.uuid4().hex[:10], form.get("decision_title", U(r"\u672a\u547d\u540d\u51b3\u7b56")), form.get("decision_context", ""), form.get("options_considered", ""), form.get("selected_option", ""), form.get("reason", ""), form.get("risks", ""), form.get("owner", user["name"]), form.get("decision_date", ""), form.get("related_objects", ""), form.get("follow_up_task", ""), user["id"], now, now),
+                )
+            return self.json_out({"ok": True, "decision_id": cur.lastrowid})
+        return self.json_out({"ok": False, "message": "unknown memory api"}, code=404)
 
 
 if __name__ == "__main__":

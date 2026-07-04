@@ -64,6 +64,21 @@
 
 Automation APIs return safe placeholders when n8n, Dify, Enterprise WeChat, SMS, or SAP event triggers are not configured.
 
+## Task007 Memory API
+
+- `GET /api/memory`
+- `POST /api/memory`
+- `GET /api/memory/{id}`
+- `POST /api/memory/{id}/approve`
+- `POST /api/memory/{id}/reject`
+- `POST /api/memory/{id}/archive`
+- `GET /api/preferences`
+- `POST /api/preferences`
+- `GET /api/decisions`
+- `POST /api/decisions`
+
+New memories default to `pending_review`. AI must not create approved permanent memory without human review.
+
 ## Future API
 
 - `POST /api/files/parse`
