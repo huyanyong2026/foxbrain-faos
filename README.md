@@ -166,11 +166,26 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Jarvis content-generation integration
 - Health check now reports Content Engine status
 
+## V4 Task013 Completed
+
+- Mobile Field Operation Center
+- Field submission model
+- Photo upload flow for mobile
+- Store notes, product photos, customer feedback, inventory issues and competitor observations
+- Mobile task view and completion
+- Mobile review center
+- Convert mobile submissions to tasks or knowledge drafts
+- Enterprise WeChat placeholder
+- Health check now reports Mobile Field Engine status
+
 ## V4 Routes
 
 - `/`
 - `/jarvis`
 - `/reports`
+- `/mobile`
+- `/mobile/tasks`
+- `/mobile/review`
 - `/content`
 - `/business-overview`
 - `/stores`
@@ -259,6 +274,18 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `POST /api/content/platform-versions`
 - `GET /api/content/publish-queue`
 - `POST /api/content/export`
+- `GET /api/mobile`
+- `GET /api/mobile/tasks`
+- `POST /api/mobile/submissions`
+- `GET /api/mobile/submissions`
+- `GET /api/mobile/submissions/{id}`
+- `PUT /api/mobile/submissions/{id}`
+- `POST /api/mobile/submissions/{id}/approve`
+- `POST /api/mobile/submissions/{id}/reject`
+- `POST /api/mobile/submissions/{id}/convert-to-task`
+- `POST /api/mobile/submissions/{id}/convert-to-knowledge`
+- `GET /api/mobile/notifications`
+- `GET /api/wecom/status`
 
 ## Security
 

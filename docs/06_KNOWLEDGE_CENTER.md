@@ -56,3 +56,13 @@ AI 查询中心 V1 返回引用准备结构，不编造经营结论。
 Knowledge items can become graph entities. If a knowledge item has `object_type` and `object_id`, the graph engine can create a `documented_by` relationship to the related archive object.
 
 The graph engine must not infer unsupported facts from document text until a reviewed extraction workflow exists.
+
+## Task013 Mobile Knowledge Feed
+
+Employees can submit notes, photos, customer questions, product information, store experience and training notes from `/mobile`.
+
+Mobile submissions do not become official knowledge directly. A manager must review them first and then convert them to Knowledge Items.
+
+Flow:
+
+Mobile Submission -> Pending Review -> Convert to Knowledge -> Knowledge Item Draft -> Search / AI Query / Timeline

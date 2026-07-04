@@ -56,3 +56,16 @@ Flow:
 Jarvis question -> Intent router -> Suggested action -> Human confirmation -> Task Center execution
 
 In V1, Jarvis records the suggested action and requires a manager, boss or admin to confirm/cancel. This prevents accidental task creation from casual chat.
+
+## Task013 Mobile Task View
+
+Store employees can open `/mobile/tasks` on a phone to see and complete assigned tasks.
+
+Mobile completion can include:
+
+- Completion note
+- Result photo
+- Timeline event
+- Audit log
+
+Managers can convert reviewed mobile submissions into employee-facing tasks.

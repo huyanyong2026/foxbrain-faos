@@ -168,6 +168,23 @@ Report APIs create AI drafts. A report is not official until an authorized user 
 
 Content APIs produce drafts and platform versions. V1 does not publish automatically.
 
+## Task013 Mobile Field Operation API
+
+- `GET /api/mobile`
+- `GET /api/mobile/tasks`
+- `POST /api/mobile/submissions`
+- `GET /api/mobile/submissions`
+- `GET /api/mobile/submissions/{id}`
+- `PUT /api/mobile/submissions/{id}`
+- `POST /api/mobile/submissions/{id}/approve`
+- `POST /api/mobile/submissions/{id}/reject`
+- `POST /api/mobile/submissions/{id}/convert-to-task`
+- `POST /api/mobile/submissions/{id}/convert-to-knowledge`
+- `GET /api/mobile/notifications`
+- `GET /api/wecom/status`
+
+Mobile submissions are pending evidence until reviewed. Enterprise WeChat APIs are placeholders until credentials are configured in the environment.
+
 ## Future API
 
 - `POST /api/files/parse`

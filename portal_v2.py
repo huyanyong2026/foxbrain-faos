@@ -1044,6 +1044,34 @@ create table if not exists content_publish_queue(
 """
         )
         conn.execute("create index if not exists idx_content_queue_status on content_publish_queue(status)")
+        conn.execute(
+            """
+create table if not exists field_submissions(
+ id integer primary key autoincrement,
+ submission_id text unique,
+ submission_type text not null,
+ title text not null,
+ content text,
+ store_id text,
+ employee_id integer,
+ related_object_type text,
+ related_object_id integer,
+ photos text,
+ attachments text,
+ tags text,
+ status text not null default 'submitted',
+ reviewed_by integer,
+ reviewed_at integer,
+ review_notes text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_field_submissions_type on field_submissions(submission_type)")
+        conn.execute("create index if not exists idx_field_submissions_status on field_submissions(status)")
+        conn.execute("create index if not exists idx_field_submissions_user on field_submissions(created_by, created_at)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -1200,6 +1228,12 @@ class App(BaseHTTPRequestHandler):
             return self.osprey_risk(user)
         if path == "/tasks":
             return self.task_center(user)
+        if path == "/mobile":
+            return self.mobile_center(user)
+        if path == "/mobile/tasks":
+            return self.mobile_tasks(user)
+        if path == "/mobile/review":
+            return self.mobile_review(user)
         if path == "/reports":
             return self.report_center(user)
         if path == "/automation":
@@ -1260,6 +1294,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_reports_get(user, path)
         if path.startswith("/api/content"):
             return self.api_content_get(user, path)
+        if path.startswith("/api/mobile") or path.startswith("/api/wecom"):
+            return self.api_mobile_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
@@ -1284,6 +1320,10 @@ class App(BaseHTTPRequestHandler):
             return self.report_save()
         if path == "/content/save":
             return self.content_save()
+        if path == "/mobile/submissions/save":
+            return self.mobile_submission_save()
+        if path == "/mobile/tasks/complete":
+            return self.mobile_task_complete()
         if path == "/automation/save":
             return self.automation_save()
         if path == "/workflows/save":
@@ -1312,6 +1352,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_reports_post(self.current_user(), path)
         if path.startswith("/api/content"):
             return self.api_content_post(self.current_user(), path)
+        if path.startswith("/api/mobile") or path.startswith("/api/wecom"):
+            return self.api_mobile_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
@@ -1356,6 +1398,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_reports_put(self.current_user(), path)
         if path.startswith("/api/content"):
             return self.api_content_put(self.current_user(), path)
+        if path.startswith("/api/mobile"):
+            return self.api_mobile_put(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -2226,6 +2270,7 @@ class App(BaseHTTPRequestHandler):
             self.card(U(r"\u77e5\u8bc6\u4e2d\u5fc3"), U(r"\u516c\u53f8\u5236\u5ea6\u3001SOP\u3001\u57f9\u8bad\u3001\u4ea7\u54c1\u8d44\u6599\u548c AI \u5f00\u53d1\u6587\u6863\u3002"), "/knowledge", "btn red", True),
             self.card(U(r"AI \u667a\u80fd\u4f53\u67e5\u8be2"), U(r"\u4f18\u5148\u67e5\u5185\u90e8\u77e5\u8bc6\u5e93\uff0c\u4e0d\u8db3\u65f6\u518d\u63a5\u5916\u7f51\u641c\u7d22\u3002"), "/ai-assistant", "btn", True),
             self.card(U(r"\u4efb\u52a1\u4e2d\u5fc3"), U(r"\u4eca\u65e5\u5f85\u529e\u3001\u95e8\u5e97\u4efb\u52a1\u3001\u81ea\u52a8\u5316\u4efb\u52a1\u548c\u8ddf\u8fdb\u63d0\u9192\u3002"), "/tasks", "btn", True),
+            self.card(U(r"\u624b\u673a\u4e00\u7ebf\u8fd0\u8425"), U(r"\u5458\u5de5\u624b\u673a\u62cd\u7167\u3001\u63d0\u4ea4\u95e8\u5e97\u8bb0\u5f55\u3001\u987e\u5ba2\u53cd\u9988\u3001\u5e93\u5b58\u95ee\u9898\u548c\u7ade\u54c1\u89c2\u5bdf\u3002"), "/mobile", "btn green", True),
             self.card(U(r"\u62a5\u544a\u4e2d\u5fc3"), U(r"AI \u65e5\u62a5\u3001\u5468\u62a5\u3001\u6708\u62a5\u3001\u95e8\u5e97\u62a5\u544a\u548c\u5e93\u5b58\u98ce\u9669\u62a5\u544a\u8349\u7a3f\u3002"), "/reports", "btn orange", can_manager),
             self.card(U(r"AI \u81ea\u52a8\u5316"), U(r"\u6d41\u7a0b\u6a21\u677f\u3001\u89e6\u53d1\u5668\u3001AI \u52a8\u4f5c\u3001\u6267\u884c\u5386\u53f2\u548c\u901a\u77e5\u4e2d\u5fc3\u3002"), "/automation", "btn", can_manager),
             self.card(U(r"AI \u8bb0\u5fc6\u4e2d\u5fc3"), U(r"\u957f\u671f\u7ecf\u8425\u539f\u5219\u3001\u51b3\u7b56\u3001\u504f\u597d\u3001\u5b9a\u4ef7\u548c\u98ce\u9669\u8bb0\u5fc6\u3002"), "/memory", "btn", True),
@@ -3113,7 +3158,9 @@ class App(BaseHTTPRequestHandler):
         checks["jarvis_status"] = "ready"
         checks["reporting_engine_status"] = "ready"
         checks["content_engine_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task012", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["mobile_field_engine_status"] = "ready"
+        checks["enterprise_wechat_status"] = "placeholder"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task013", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -4030,6 +4077,259 @@ class App(BaseHTTPRequestHandler):
             self.log_action(user, "agent_recommendation_generated", "agent_scenario", None, "osprey-pricing")
             return self.json_out({"ok": True, "scenario": scenario})
         return self.json_out({"ok": False, "message": "unknown agents api"}, code=404)
+
+    def can_use_mobile(self, user):
+        return bool(user)
+
+    def can_review_mobile(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "store_manager"))
+
+    def mobile_submission_types(self):
+        return [
+            ("store_note", U(r"\u95e8\u5e97\u8bb0\u5f55")),
+            ("product_photo", U(r"\u4ea7\u54c1\u7167\u7247")),
+            ("customer_feedback", U(r"\u987e\u5ba2\u53cd\u9988")),
+            ("inventory_issue", U(r"\u5e93\u5b58\u95ee\u9898")),
+            ("competitor_price", U(r"\u7ade\u54c1\u89c2\u5bdf")),
+            ("event_record", U(r"\u6d3b\u52a8\u8bb0\u5f55")),
+            ("training_note", U(r"\u57f9\u8bad\u7b14\u8bb0")),
+            ("repair_issue", U(r"\u7ef4\u4fee\u95ee\u9898")),
+            ("knowledge_feed", U(r"\u5582\u77e5\u8bc6\u5e93")),
+        ]
+
+    def save_mobile_files(self, form):
+        saved = []
+        folder = Path(UPLOAD_DIR) / "mobile"
+        folder.mkdir(parents=True, exist_ok=True)
+        fields = form["photos"] if "photos" in form else []
+        if not isinstance(fields, list):
+            fields = [fields]
+        for item in fields:
+            if not getattr(item, "filename", ""):
+                continue
+            original = Path(item.filename).name
+            safe_name = uuid.uuid4().hex + "_" + re.sub(r"[^A-Za-z0-9._-]", "_", original)
+            path = folder / safe_name
+            data = item.file.read()
+            path.write_bytes(data)
+            saved.append({"original_name": original, "saved_name": safe_name, "path": str(path), "size": len(data)})
+        return saved
+
+    def mobile_center(self, user, msg=""):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            my = conn.execute("select * from field_submissions where created_by=? order by created_at desc limit 8", (user["id"],)).fetchall()
+            notices = conn.execute("select * from notifications where recipient_user_id is null or recipient_user_id=? order by created_at desc limit 6", (user["id"],)).fetchall()
+            tasks = conn.execute("select * from tasks where status!='done' and (owner=? or owner='' or owner is null) order by updated_at desc limit 6", (user["name"],)).fetchall()
+        type_options = "".join("<option value='{}'>{}</option>".format(k, esc(v)) for k, v in self.mobile_submission_types())
+        quick_cards = "".join([
+            self.card(U(r"\u4eca\u65e5\u4efb\u52a1"), U(r"\u67e5\u770b\u81ea\u5df1\u7684\u4efb\u52a1\uff0c\u5b8c\u6210\u540e\u4e0a\u4f20\u7ed3\u679c\u8bf4\u660e\u3002"), "/mobile/tasks", "btn", True),
+            self.card(U(r"\u62cd\u7167\u4e0a\u4f20"), U(r"\u95e8\u5e97\u3001\u4ea7\u54c1\u3001\u6d3b\u52a8\u3001\u5e93\u5b58\u95ee\u9898\u90fd\u53ef\u4ee5\u76f4\u63a5\u624b\u673a\u63d0\u4ea4\u3002"), "#mobile-form", "btn green", True),
+            self.card(U(r"AI \u95ee\u7b54"), U(r"\u624b\u673a\u76f4\u63a5\u95ee Jarvis\uff0c\u67e5\u77e5\u8bc6\u3001\u4efb\u52a1\u548c\u95e8\u5e97\u6267\u884c\u3002"), "/jarvis", "btn", True),
+            self.card(U(r"\u6211\u7684\u63d0\u4ea4"), U(r"\u67e5\u770b\u81ea\u5df1\u63d0\u4ea4\u7684\u95e8\u5e97\u8bb0\u5f55\u3001\u987e\u5ba2\u53cd\u9988\u548c\u5e93\u5b58\u95ee\u9898\u3002"), "#my-submissions", "btn orange", True),
+        ])
+        task_items = [t["title"] + " · " + t["status"] for t in tasks] or [U(r"\u6682\u65e0\u672a\u5b8c\u6210\u4efb\u52a1\u3002")]
+        notice_items = [n["title"] + " · " + n["status"] for n in notices] or [U(r"\u6682\u65e0\u901a\u77e5\u3002")]
+        sub_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {}</p></div></div>".format(esc(s["title"]), esc(summarize_text(s["content"], 120)), esc(s["submission_type"]), esc(s["status"])) for s in my) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u63d0\u4ea4\u3002")))
+        body = f"""
+<div class="panel"><h2>{U(r'\u624b\u673a\u4e00\u7ebf\u8fd0\u8425\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ed9\u95e8\u5e97\u5458\u5de5\u7528\uff1a\u62cd\u7167\u3001\u8bb0\u5f55\u3001\u53cd\u9988\u3001\u63d0\u4ea4\u95ee\u9898\u3001\u5b8c\u6210\u4efb\u52a1\u3002')}</p></div>
+<div class="grid">{quick_cards}</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u4eca\u65e5\u4efb\u52a1')}</h2>{self.bullets(task_items)}<p><a class="btn" href="/mobile/tasks">{U(r'\u6253\u5f00\u4efb\u52a1')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u6211\u7684\u901a\u77e5')}</h2>{self.bullets(notice_items)}</div>
+</div>
+<div id="mobile-form" class="panel form">
+  <h2>{U(r'\u4e00\u7ebf\u63d0\u4ea4')}</h2>
+  <form method="post" action="/mobile/submissions/save" enctype="multipart/form-data">
+    <label>{U(r'\u7c7b\u578b')}</label><select name="submission_type">{type_options}</select>
+    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
+    <label>{U(r'\u95e8\u5e97')}</label><input name="store_id" value="{esc(user['store'])}" placeholder="{U(r'\u5357\u5c71\u5e97 / \u632f\u5174\u5e97 / \u822a\u82d1\u5e97')}">
+    <label>{U(r'\u5185\u5bb9')}</label><textarea name="content" placeholder="{U(r'\u4eca\u5929\u60c5\u51b5\u3001\u987e\u5ba2\u53cd\u9988\u3001\u5e93\u5b58\u95ee\u9898\u3001\u7ade\u54c1\u89c2\u5bdf\u7b49')}"></textarea>
+    <label>{U(r'\u6807\u7b7e')}</label><input name="tags" placeholder="KAILAS,Osprey,inventory">
+    <label>{U(r'\u7167\u7247')}</label><input name="photos" type="file" accept="image/*" multiple>
+    <p><button>{U(r'\u63d0\u4ea4')}</button></p>
+  </form>
+</div>
+<div id="my-submissions" class="panel"><h2>{U(r'\u6211\u7684\u63d0\u4ea4')}</h2><div class="grid">{sub_cards}</div></div>
+<div class="panel"><h2>{U(r'\u4f01\u4e1a\u5fae\u4fe1')}</h2>{self.empty_state(U(r'\u4f01\u4e1a\u5fae\u4fe1\u767b\u5f55\u3001\u4efb\u52a1\u901a\u77e5\u548c\u6d88\u606f\u63a5\u6536\u5df2\u9884\u7559\uff0c\u4e0d\u5728\u4ee3\u7801\u4e2d\u5199\u5165\u5bc6\u94a5\u3002'))}</div>"""
+        self.out(layout(U(r"\u624b\u673a\u4e00\u7ebf\u8fd0\u8425"), body, user=user, msg=msg, wide=True))
+
+    def mobile_submission_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.multipart()
+        submission_type = form.getfirst("submission_type", "store_note")
+        title = form.getfirst("title", "").strip()
+        if not title:
+            return self.mobile_center(user, U(r"\u8bf7\u586b\u5199\u6807\u9898\u3002"))
+        photos = self.save_mobile_files(form)
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                "insert into field_submissions(submission_id,submission_type,title,content,store_id,employee_id,related_object_type,related_object_id,photos,attachments,tags,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("FS-" + uuid.uuid4().hex[:10], submission_type, title, form.getfirst("content", ""), form.getfirst("store_id", user["store"]), user["id"], form.getfirst("related_object_type", ""), int(form.getfirst("related_object_id", "0")) if form.getfirst("related_object_id", "").isdigit() else None, json.dumps(photos, ensure_ascii=False), "[]", form.getfirst("tags", ""), "pending_review", user["id"], now, now),
+            )
+        self.log_action(user, "mobile_submission_created", "field_submission", cur.lastrowid, title)
+        return self.redir("/mobile")
+
+    def mobile_tasks(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from tasks where owner=? or owner='' or owner is null order by status='done', updated_at desc limit 80", (user["name"],)).fetchall()
+        cards = ""
+        for row in rows:
+            done = row["status"] == "done"
+            action = "" if done else f"""
+<form method="post" action="/mobile/tasks/complete" enctype="multipart/form-data">
+  <input type="hidden" name="id" value="{row['id']}">
+  <label>{U(r'\u5b8c\u6210\u8bf4\u660e')}</label><textarea name="completion_note"></textarea>
+  <label>{U(r'\u7ed3\u679c\u7167\u7247')}</label><input name="photos" type="file" accept="image/*" multiple>
+  <p><button>{U(r'\u6807\u8bb0\u5b8c\u6210')}</button></p>
+</form>"""
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div>{}</div>".format(esc(row["title"]), esc(row["description"]), esc(row["priority"]), esc(row["status"]), esc(row["due_date"]), action)
+        if not cards:
+            cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u4efb\u52a1\u3002")))
+        self.out(layout(U(r"\u624b\u673a\u4efb\u52a1"), "<div class='panel'><h2>{}</h2><p class='small'>{}</p></div><div class='grid'>{}</div>".format(U(r"\u6211\u7684\u4efb\u52a1"), U(r"\u5458\u5de5\u53ef\u4ee5\u624b\u673a\u5b8c\u6210\u4efb\u52a1\u5e76\u4e0a\u4f20\u7ed3\u679c\u7167\u7247\u3002"), cards), user=user, wide=True))
+
+    def mobile_task_complete(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.multipart()
+        tid = form.getfirst("id", "")
+        note = form.getfirst("completion_note", "")
+        photos = self.save_mobile_files(form)
+        with db() as conn:
+            conn.execute("update tasks set status='done', updated_at=? where id=?", (ts(), tid))
+            conn.execute("insert into timeline_events(target_type,target_id,title,body,created_by,created_at) values(?,?,?,?,?,?)", ("task", int(tid) if str(tid).isdigit() else 0, U(r"\u624b\u673a\u5b8c\u6210\u4efb\u52a1"), note + "\n" + json.dumps(photos, ensure_ascii=False), user["id"], ts()))
+        self.log_action(user, "mobile_task_completed", "task", tid, note)
+        return self.redir("/mobile/tasks")
+
+    def mobile_review(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_review_mobile(user):
+            return self.dashboard(user)
+        with db() as conn:
+            rows = conn.execute("select * from field_submissions order by status='pending_review' desc, updated_at desc limit 100").fetchall()
+        cards = ""
+        for r in rows:
+            cards += """
+<div class="card">
+  <div><h2>{}</h2><p>{}</p><p class="small">{} · {} · {}</p></div>
+  <div class="inline">
+    <form method="post" action="/api/mobile/submissions/{}/approve"><button class="green">{}</button></form>
+    <form method="post" action="/api/mobile/submissions/{}/reject"><button class="gray">{}</button></form>
+    <form method="post" action="/api/mobile/submissions/{}/convert-to-task"><button>{}</button></form>
+    <form method="post" action="/api/mobile/submissions/{}/convert-to-knowledge"><button class="orange">{}</button></form>
+  </div>
+</div>""".format(esc(r["title"]), esc(summarize_text(r["content"], 150)), esc(r["submission_type"]), esc(r["store_id"]), esc(r["status"]), r["id"], U(r"\u901a\u8fc7"), r["id"], U(r"\u9a73\u56de"), r["id"], U(r"\u8f6c\u4efb\u52a1"), r["id"], U(r"\u8f6c\u77e5\u8bc6"))
+        if not cards:
+            cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u5f85\u5ba1\u6838\u63d0\u4ea4\u3002")))
+        self.out(layout(U(r"\u4e00\u7ebf\u63d0\u4ea4\u5ba1\u6838"), "<div class='panel'><h2>{}</h2></div><div class='grid'>{}</div>".format(U(r"\u5ba1\u6838\u4e2d\u5fc3"), cards), user=user, wide=True))
+
+    def mobile_submission_action(self, user, sid, action, form=None):
+        if not user:
+            return {"ok": False, "message": "login required"}, 401
+        if action in ("approve", "reject", "convert-to-task", "convert-to-knowledge") and not self.can_review_mobile(user):
+            return {"ok": False, "message": "no permission"}, 403
+        now = ts()
+        with db() as conn:
+            row = conn.execute("select * from field_submissions where id=?", (sid,)).fetchone()
+            if not row:
+                return {"ok": False, "message": "not found"}, 404
+            if action in ("approve", "reject"):
+                status = "approved" if action == "approve" else "rejected"
+                conn.execute("update field_submissions set status=?, reviewed_by=?, reviewed_at=?, review_notes=?, updated_at=? where id=?", (status, user["id"], now, (form or {}).get("review_notes", ""), now, sid))
+                self.log_action(user, "mobile_submission_" + action, "field_submission", sid, row["title"])
+                return {"ok": True, "status": status}, 200
+            if action == "convert-to-task":
+                cur = conn.execute(
+                    "insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("TASK-" + uuid.uuid4().hex[:10], row["title"], row["content"], "", "field_submission", row["id"], "normal", "todo", "", "mobile_submission", row["submission_id"], user["id"], now, now),
+                )
+                conn.execute("update field_submissions set status='converted_to_task', reviewed_by=?, reviewed_at=?, updated_at=? where id=?", (user["id"], now, now, sid))
+                self.log_action(user, "mobile_submission_to_task", "task", cur.lastrowid, row["title"])
+                return {"ok": True, "task_id": cur.lastrowid}, 200
+            if action == "convert-to-knowledge":
+                cur = conn.execute(
+                    "insert into knowledge_items(title,category,tags,body,ai_summary,source_type,source_ref,approved,created_by,created_at,updated_at,summary,status,visibility) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (row["title"], classify_text(row["content"]), row["tags"], row["content"], summarize_text(row["content"]), "mobile_submission", row["submission_id"], 0, user["id"], now, now, summarize_text(row["content"]), "draft", "manager_only"),
+                )
+                conn.execute("update field_submissions set status='converted_to_knowledge', reviewed_by=?, reviewed_at=?, updated_at=? where id=?", (user["id"], now, now, sid))
+                self.log_action(user, "mobile_submission_to_knowledge", "knowledge", cur.lastrowid, row["title"])
+                return {"ok": True, "knowledge_id": cur.lastrowid}, 200
+        return {"ok": False, "message": "unknown action"}, 404
+
+    def api_mobile_get(self, user, path):
+        if path == "/api/wecom/status":
+            return self.json_out({"ok": True, "status": "placeholder", "configured": False, "message": U(r"\u4f01\u4e1a\u5fae\u4fe1\u96c6\u6210\u5df2\u9884\u7559\uff0c\u9700\u5728 .env \u914d\u7f6e\u5bc6\u94a5\u3002")})
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/mobile":
+            return self.json_out({"ok": True, "routes": ["/mobile", "/mobile/tasks", "/mobile/review"], "wecom": "placeholder"})
+        if path == "/api/mobile/tasks":
+            with db() as conn:
+                rows = conn.execute("select * from tasks where owner=? or owner='' or owner is null order by updated_at desc limit 100", (user["name"],)).fetchall()
+            return self.json_out({"ok": True, "tasks": [row_dict(r) for r in rows]})
+        if path == "/api/mobile/submissions":
+            with db() as conn:
+                if self.can_review_mobile(user):
+                    rows = conn.execute("select * from field_submissions order by updated_at desc limit 100").fetchall()
+                else:
+                    rows = conn.execute("select * from field_submissions where created_by=? order by updated_at desc limit 100", (user["id"],)).fetchall()
+            return self.json_out({"ok": True, "submissions": [row_dict(r) for r in rows]})
+        m = re.match(r"^/api/mobile/submissions/(\d+)$", path)
+        if m:
+            with db() as conn:
+                row = conn.execute("select * from field_submissions where id=?", (m.group(1),)).fetchone()
+            if not row or (not self.can_review_mobile(user) and int(row["created_by"] or 0) != int(user["id"])):
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "submission": row_dict(row)})
+        if path == "/api/mobile/notifications":
+            with db() as conn:
+                rows = conn.execute("select * from notifications where recipient_user_id is null or recipient_user_id=? order by created_at desc limit 50", (user["id"],)).fetchall()
+            return self.json_out({"ok": True, "notifications": [row_dict(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown mobile api"}, code=404)
+
+    def api_mobile_post(self, user, path):
+        if path.startswith("/api/wecom"):
+            return self.json_out({"ok": False, "message": U(r"\u4f01\u4e1a\u5fae\u4fe1\u5199\u5165\u63a5\u53e3\u5df2\u9884\u7559\uff0c\u672a\u914d\u7f6e\u5bc6\u94a5\u65f6\u4e0d\u6267\u884c\u3002")}, code=501)
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/mobile/submissions":
+            form = self.form()
+            now = ts()
+            with db() as conn:
+                cur = conn.execute("insert into field_submissions(submission_id,submission_type,title,content,store_id,employee_id,related_object_type,related_object_id,photos,attachments,tags,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("FS-" + uuid.uuid4().hex[:10], form.get("submission_type", "store_note"), form.get("title", U(r"\u672a\u547d\u540d\u63d0\u4ea4")), form.get("content", ""), form.get("store_id", user["store"]), user["id"], form.get("related_object_type", ""), int(form.get("related_object_id")) if str(form.get("related_object_id", "")).isdigit() else None, form.get("photos", "[]"), form.get("attachments", "[]"), form.get("tags", ""), "pending_review", user["id"], now, now))
+            self.log_action(user, "mobile_submission_created", "field_submission", cur.lastrowid, form.get("title", ""))
+            return self.json_out({"ok": True, "submission_id": cur.lastrowid})
+        m = re.match(r"^/api/mobile/submissions/(\d+)/(approve|reject|convert-to-task|convert-to-knowledge)$", path)
+        if m:
+            result, code = self.mobile_submission_action(user, m.group(1), m.group(2), self.form())
+            return self.json_out(result, code=code)
+        return self.json_out({"ok": False, "message": "unknown mobile api"}, code=404)
+
+    def api_mobile_put(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        m = re.match(r"^/api/mobile/submissions/(\d+)$", path)
+        if not m:
+            return self.json_out({"ok": False, "message": "unknown mobile api"}, code=404)
+        form = self.form()
+        with db() as conn:
+            row = conn.execute("select * from field_submissions where id=?", (m.group(1),)).fetchone()
+            if not row or (not self.can_review_mobile(user) and int(row["created_by"] or 0) != int(user["id"])):
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            conn.execute("update field_submissions set title=coalesce(?,title), content=coalesce(?,content), tags=coalesce(?,tags), status=coalesce(?,status), updated_at=? where id=?", (form.get("title"), form.get("content"), form.get("tags"), form.get("status") if self.can_review_mobile(user) else None, ts(), m.group(1)))
+        self.log_action(user, "mobile_submission_updated", "field_submission", m.group(1), "")
+        return self.json_out({"ok": True})
 
     def can_manage_content(self, user):
         return bool(user and user["role"] in ("boss", "admin", "store_manager", "employee", "purchasing"))
