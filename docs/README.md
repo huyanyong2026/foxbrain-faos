@@ -33,6 +33,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [26_RISK_MAP.md](26_RISK_MAP.md)
 - [27_MULTI_AGENT_COLLABORATION.md](27_MULTI_AGENT_COLLABORATION.md)
 - [28_FOXBRAIN_JARVIS.md](28_FOXBRAIN_JARVIS.md)
+- [29_REPORTING_ENGINE.md](29_REPORTING_ENGINE.md)
 
 ## Codex Tasks
 
@@ -44,6 +45,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task008 Knowledge Graph](CODEX_TASKS/Task008_Knowledge_Graph.md)
 - [Task009 Multi-Agent Collaboration](CODEX_TASKS/Task009_Multi_Agent_Collaboration.md)
 - [Task010 FoxBrain Jarvis](CODEX_TASKS/Task010_FoxBrain_Jarvis.md)
+- [Task011 Reporting Engine](CODEX_TASKS/Task011_Reporting_Engine.md)
 
 Future tasks should use folders:
 

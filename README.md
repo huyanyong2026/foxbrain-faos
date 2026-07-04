@@ -142,10 +142,22 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Voice input placeholder
 - Health check now reports Jarvis status
 
+## V4 Task011 Completed
+
+- Reporting Engine and Report Center
+- Report, report template and report schedule models
+- Default report templates
+- Draft generation framework
+- Human review flow for approve, reject and archive
+- Markdown and HTML export payloads
+- n8n-ready scheduled report model
+- Health check now reports Reporting Engine status
+
 ## V4 Routes
 
 - `/`
 - `/jarvis`
+- `/reports`
 - `/business-overview`
 - `/stores`
 - `/employees`
@@ -205,6 +217,19 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `POST /api/jarvis/route-intent`
 - `POST /api/jarvis/action/confirm`
 - `POST /api/jarvis/report`
+- `GET /api/reports`
+- `POST /api/reports`
+- `GET /api/reports/{id}`
+- `PUT /api/reports/{id}`
+- `POST /api/reports/{id}/generate`
+- `POST /api/reports/{id}/approve`
+- `POST /api/reports/{id}/reject`
+- `POST /api/reports/{id}/archive`
+- `POST /api/reports/{id}/export`
+- `GET /api/report-templates`
+- `POST /api/report-templates`
+- `GET /api/report-schedules`
+- `POST /api/report-schedules`
 
 ## Security
 

@@ -128,6 +128,24 @@ Jarvis APIs return citation-ready payloads with `intent`, `answer`, `confidence`
 
 Jarvis must not invent SAP data, finance results, customer facts, market news, or official reports. Important actions require human confirmation.
 
+## Task011 Reporting Engine API
+
+- `GET /api/reports`
+- `POST /api/reports`
+- `GET /api/reports/{id}`
+- `PUT /api/reports/{id}`
+- `POST /api/reports/{id}/generate`
+- `POST /api/reports/{id}/approve`
+- `POST /api/reports/{id}/reject`
+- `POST /api/reports/{id}/archive`
+- `POST /api/reports/{id}/export`
+- `GET /api/report-templates`
+- `POST /api/report-templates`
+- `GET /api/report-schedules`
+- `POST /api/report-schedules`
+
+Report APIs create AI drafts. A report is not official until an authorized user approves it.
+
 ## Future API
 
 - `POST /api/files/parse`

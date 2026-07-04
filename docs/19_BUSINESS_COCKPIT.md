@@ -36,3 +36,9 @@
 - 员工表现
 - 现金流风险
 - AI 自动诊断
+
+## Task011 Reporting Engine
+
+The Business Cockpit is one of the main structured inputs for report drafts.
+
+Report output must keep the same data principle as the cockpit: show waiting/empty state when real SAP B1 or reviewed internal data is not available.

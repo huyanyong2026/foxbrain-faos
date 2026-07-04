@@ -32,3 +32,9 @@
 - 接入 Dify 生成自然语言建议
 - 结合 Research Engine 输出外部市场提醒
 - 将 AI 建议一键转任务
+
+## Task011 Reporting Engine
+
+The AI CEO Daily Briefing can be reused as the default data source and structure for the CEO Daily Report template.
+
+Daily report drafts still require human review before becoming official.

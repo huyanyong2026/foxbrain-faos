@@ -888,6 +888,73 @@ create table if not exists jarvis_action_confirmations(
 """
         )
         conn.execute("create index if not exists idx_jarvis_actions_status on jarvis_action_confirmations(status)")
+        conn.execute(
+            """
+create table if not exists reports(
+ id integer primary key autoincrement,
+ report_id text unique,
+ title text not null,
+ report_type text not null,
+ date_range_start text,
+ date_range_end text,
+ object_type text,
+ object_id integer,
+ status text not null default 'draft',
+ summary text,
+ key_findings text,
+ risks text,
+ opportunities text,
+ recommended_actions text,
+ data_sources text,
+ cited_documents text,
+ cited_research text,
+ cited_memory text,
+ cited_sap_records text,
+ generated_by integer,
+ reviewed_by integer,
+ reviewed_at integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_reports_type on reports(report_type)")
+        conn.execute("create index if not exists idx_reports_status on reports(status)")
+        conn.execute(
+            """
+create table if not exists report_templates(
+ id integer primary key autoincrement,
+ template_id text unique,
+ template_name text not null,
+ report_type text not null,
+ description text,
+ sections text,
+ required_sources text,
+ default_date_range text,
+ visibility text not null default 'manager_only',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_report_templates_type on report_templates(report_type)")
+        conn.execute(
+            """
+create table if not exists report_schedules(
+ id integer primary key autoincrement,
+ schedule_id text unique,
+ report_template_id integer,
+ frequency text not null default 'daily',
+ recipients text,
+ enabled integer not null default 1,
+ last_run_at integer,
+ next_run_at integer,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_report_schedules_enabled on report_schedules(enabled)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -1044,6 +1111,8 @@ class App(BaseHTTPRequestHandler):
             return self.osprey_risk(user)
         if path == "/tasks":
             return self.task_center(user)
+        if path == "/reports":
+            return self.report_center(user)
         if path == "/automation":
             return self.automation_center(user)
         if path == "/memory":
@@ -1098,6 +1167,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_agents_get(user, path)
         if path.startswith("/api/jarvis"):
             return self.api_jarvis_get(user, path)
+        if path.startswith("/api/reports") or path.startswith("/api/report-templates") or path.startswith("/api/report-schedules"):
+            return self.api_reports_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
@@ -1118,6 +1189,8 @@ class App(BaseHTTPRequestHandler):
             return self.jarvis_message_post()
         if path == "/jarvis/action":
             return self.jarvis_action_post()
+        if path == "/reports/save":
+            return self.report_save()
         if path == "/automation/save":
             return self.automation_save()
         if path == "/workflows/save":
@@ -1142,6 +1215,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_agents_post(self.current_user(), path)
         if path.startswith("/api/jarvis"):
             return self.api_jarvis_post(self.current_user(), path)
+        if path.startswith("/api/reports") or path.startswith("/api/report-templates") or path.startswith("/api/report-schedules"):
+            return self.api_reports_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
@@ -1182,6 +1257,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_graph_post(self.current_user(), path)
         if path.startswith("/api/agents"):
             return self.api_agents_post(self.current_user(), path)
+        if path.startswith("/api/reports"):
+            return self.api_reports_put(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -2052,6 +2129,7 @@ class App(BaseHTTPRequestHandler):
             self.card(U(r"\u77e5\u8bc6\u4e2d\u5fc3"), U(r"\u516c\u53f8\u5236\u5ea6\u3001SOP\u3001\u57f9\u8bad\u3001\u4ea7\u54c1\u8d44\u6599\u548c AI \u5f00\u53d1\u6587\u6863\u3002"), "/knowledge", "btn red", True),
             self.card(U(r"AI \u667a\u80fd\u4f53\u67e5\u8be2"), U(r"\u4f18\u5148\u67e5\u5185\u90e8\u77e5\u8bc6\u5e93\uff0c\u4e0d\u8db3\u65f6\u518d\u63a5\u5916\u7f51\u641c\u7d22\u3002"), "/ai-assistant", "btn", True),
             self.card(U(r"\u4efb\u52a1\u4e2d\u5fc3"), U(r"\u4eca\u65e5\u5f85\u529e\u3001\u95e8\u5e97\u4efb\u52a1\u3001\u81ea\u52a8\u5316\u4efb\u52a1\u548c\u8ddf\u8fdb\u63d0\u9192\u3002"), "/tasks", "btn", True),
+            self.card(U(r"\u62a5\u544a\u4e2d\u5fc3"), U(r"AI \u65e5\u62a5\u3001\u5468\u62a5\u3001\u6708\u62a5\u3001\u95e8\u5e97\u62a5\u544a\u548c\u5e93\u5b58\u98ce\u9669\u62a5\u544a\u8349\u7a3f\u3002"), "/reports", "btn orange", can_manager),
             self.card(U(r"AI \u81ea\u52a8\u5316"), U(r"\u6d41\u7a0b\u6a21\u677f\u3001\u89e6\u53d1\u5668\u3001AI \u52a8\u4f5c\u3001\u6267\u884c\u5386\u53f2\u548c\u901a\u77e5\u4e2d\u5fc3\u3002"), "/automation", "btn", can_manager),
             self.card(U(r"AI \u8bb0\u5fc6\u4e2d\u5fc3"), U(r"\u957f\u671f\u7ecf\u8425\u539f\u5219\u3001\u51b3\u7b56\u3001\u504f\u597d\u3001\u5b9a\u4ef7\u548c\u98ce\u9669\u8bb0\u5fc6\u3002"), "/memory", "btn", True),
             self.card(U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31"), U(r"\u8fde\u63a5\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u77e5\u8bc6\u3001\u8bb0\u5fc6\u3001\u4efb\u52a1\u548c\u98ce\u9669\u3002"), "/graph", "btn green", can_manager),
@@ -2936,7 +3014,8 @@ class App(BaseHTTPRequestHandler):
         checks["knowledge_graph_status"] = "ready"
         checks["multi_agent_engine_status"] = "ready"
         checks["jarvis_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task010", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["reporting_engine_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task011", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -3853,6 +3932,230 @@ class App(BaseHTTPRequestHandler):
             self.log_action(user, "agent_recommendation_generated", "agent_scenario", None, "osprey-pricing")
             return self.json_out({"ok": True, "scenario": scenario})
         return self.json_out({"ok": False, "message": "unknown agents api"}, code=404)
+
+    def can_manage_reports(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "store_manager", "finance", "purchasing"))
+
+    def seed_report_templates(self, conn):
+        now = ts()
+        templates = [
+            ("TPL-CEO-DAILY", U(r"AI \u603b\u7ecf\u7406\u65e5\u62a5"), "ceo_daily", U(r"\u6bcf\u65e5\u7ecf\u8425\u6458\u8981\u3001\u98ce\u9669\u548c\u5efa\u8bae\u3002")),
+            ("TPL-WEEKLY", U(r"\u5468\u5ea6\u7ecf\u8425\u62a5\u544a"), "weekly_business", U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u4efb\u52a1\u548c\u98ce\u9669\u5468\u62a5\u3002")),
+            ("TPL-MONTHLY", U(r"\u6708\u5ea6\u7ecf\u8425\u62a5\u544a"), "monthly_business", U(r"\u6708\u5ea6\u7ecf\u8425\u590d\u76d8\u548c\u4e0b\u6708\u8ba1\u5212\u3002")),
+            ("TPL-STORE", U(r"\u95e8\u5e97\u62a5\u544a"), "store", U(r"\u95e8\u5e97\u9500\u552e\u3001\u4efb\u52a1\u3001\u4f1a\u5458\u548c\u5e93\u5b58\u63d0\u9192\u3002")),
+            ("TPL-BRAND", U(r"\u54c1\u724c\u62a5\u544a"), "brand", U(r"\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u548c\u7b56\u7565\u3002")),
+            ("TPL-INVENTORY", U(r"\u5e93\u5b58\u98ce\u9669\u62a5\u544a"), "inventory_risk", U(r"\u5e93\u5b58\u538b\u529b\u3001\u6ede\u9500\u548c\u6e05\u8d27\u5efa\u8bae\u3002")),
+            ("TPL-RESEARCH", U(r"\u5916\u90e8\u7814\u7a76\u62a5\u544a"), "research", U(r"\u5916\u90e8\u7814\u7a76\u6458\u8981\u548c\u5185\u90e8\u5e94\u5bf9\u5efa\u8bae\u3002")),
+            ("TPL-OSPREY", U(r"Osprey \u4ef7\u683c\u98ce\u9669\u62a5\u544a"), "osprey_pricing_risk", U(r"Osprey \u6298\u6263\u3001\u8fd4\u70b9\u3001\u6bdb\u5229\u548c\u54c1\u724c\u98ce\u9669\u4e13\u9879\u3002")),
+            ("TPL-TASKS", U(r"\u4efb\u52a1\u6267\u884c\u62a5\u544a"), "task_execution", U(r"\u4efb\u52a1\u5b8c\u6210\u3001\u5ef6\u8bef\u3001\u98ce\u9669\u548c\u8d23\u4efb\u8ddf\u8fdb\u3002")),
+        ]
+        sections = [U(r"\u6458\u8981"), U(r"\u5173\u952e\u53d1\u73b0"), U(r"\u98ce\u9669"), U(r"\u673a\u4f1a"), U(r"\u5efa\u8bae\u52a8\u4f5c"), U(r"\u5f15\u7528\u6765\u6e90")]
+        sources = ["sap_summary", "knowledge", "memory", "tasks", "graph"]
+        for template_id, name, report_type, desc in templates:
+            if not conn.execute("select id from report_templates where template_id=?", (template_id,)).fetchone():
+                conn.execute(
+                    "insert into report_templates(template_id,template_name,report_type,description,sections,required_sources,default_date_range,visibility,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (template_id, name, report_type, desc, json.dumps(sections, ensure_ascii=False), json.dumps(sources, ensure_ascii=False), "yesterday", "manager_only", now, now),
+                )
+
+    def report_draft_payload(self, user, report_type, title="", object_type="", object_id=None):
+        cockpit = self.cockpit_data()
+        m = cockpit["metrics"]
+        limitations = []
+        if not cockpit["has_data"]:
+            limitations.append(cockpit["empty_message"])
+        summary = U(r"\u8fd9\u662f AI \u751f\u6210\u7684\u62a5\u544a\u8349\u7a3f\uff0c\u9700\u8981\u4eba\u5de5\u5ba1\u6838\u540e\u624d\u80fd\u4f5c\u4e3a\u6b63\u5f0f\u62a5\u544a\u3002")
+        findings = [
+            U(r"\u6628\u65e5\u9500\u552e\uff1a") + money(m.get("yesterday_sales")),
+            U(r"\u672c\u6708\u9500\u552e\uff1a") + money(m.get("month_sales")),
+            U(r"\u5b8c\u6210\u7387\uff1a") + pct(m.get("completion_rate")),
+            U(r"\u5e93\u5b58\u91d1\u989d\uff1a") + money(m.get("inventory_amount")),
+        ]
+        risks = cockpit["ai_suggestions"][:3] or limitations or [U(r"\u6682\u65e0\u53ef\u5f15\u7528\u98ce\u9669\uff0c\u7b49\u5f85 SAP B1 \u6216\u77e5\u8bc6\u6570\u636e\u8865\u5145\u3002")]
+        actions = cockpit["todos"][:5] or [U(r"\u5efa\u8bae\u5148\u5b8c\u5584\u6570\u636e\u540c\u6b65\u548c\u4efb\u52a1\u8ddf\u8fdb\u3002")]
+        return {
+            "title": title or U(r"AI \u62a5\u544a\u8349\u7a3f"),
+            "report_type": report_type,
+            "summary": summary,
+            "key_findings": findings,
+            "risks": risks,
+            "opportunities": [U(r"\u53ef\u7ed3\u5408\u77e5\u8bc6\u5e93\u3001\u8bb0\u5fc6\u548c\u56fe\u8c31\u7ee7\u7eed\u8865\u5f3a\u5206\u6790\u3002")],
+            "recommended_actions": actions,
+            "data_sources": ["sap_summary", "business_cockpit", "tasks", "memory", "knowledge_graph"],
+            "cited_sap_records": [{"title": U(r"SAP B1 \u540c\u6b65\u6458\u8981"), "url": "/sap-sync"}],
+            "limitations": limitations,
+            "object_type": object_type,
+            "object_id": object_id,
+        }
+
+    def report_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_manage_reports(user):
+            return self.dashboard(user)
+        with db() as conn:
+            self.seed_report_templates(conn)
+            templates = conn.execute("select * from report_templates order by id").fetchall()
+            reports = conn.execute("select * from reports order by updated_at desc limit 80").fetchall()
+            schedules = conn.execute("select * from report_schedules order by created_at desc limit 20").fetchall()
+        template_options = "".join("<option value='{}'>{}</option>".format(esc(t["report_type"]), esc(t["template_name"])) for t in templates)
+        report_cards = ""
+        for r in reports:
+            report_cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div><div class='inline'><form method='post' action='/api/reports/{}/generate'><button>{}</button></form><form method='post' action='/api/reports/{}/approve'><button class='green'>{}</button></form><form method='post' action='/api/reports/{}/reject'><button class='gray'>{}</button></form></div></div>".format(
+                esc(r["title"]), esc(summarize_text(r["summary"], 120)), esc(r["report_type"]), esc(r["status"]), esc(dt(r["updated_at"])), r["id"], U(r"\u751f\u6210"), r["id"], U(r"\u901a\u8fc7"), r["id"], U(r"\u9a73\u56de")
+            )
+        if not report_cards:
+            report_cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u62a5\u544a\uff0c\u53ef\u5148\u751f\u6210 AI \u65e5\u62a5\u8349\u7a3f\u3002")))
+        template_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {}</p></div></div>".format(esc(t["template_name"]), esc(t["description"]), esc(t["report_type"]), esc(t["default_date_range"])) for t in templates)
+        schedule_items = [f"{s['frequency']} 路 {s['recipients']} 路 {'enabled' if s['enabled'] else 'disabled'}" for s in schedules] or [U(r"\u6682\u65e0\u5b9a\u65f6\u62a5\u544a\u3002")]
+        body = f"""
+<div class="panel">
+  <h2>{U(r'\u62a5\u544a\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'AI \u62a5\u544a\u53ea\u662f\u8349\u7a3f\uff0c\u672a\u7ecf\u5ba1\u6838\u4e0d\u662f\u6b63\u5f0f\u62a5\u544a\u3002')}</p>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u65b0\u5efa\u62a5\u544a\u8349\u7a3f')}</h2>
+    <form method="post" action="/reports/save">
+      <label>{U(r'\u62a5\u544a\u6807\u9898')}</label><input name="title" required>
+      <label>{U(r'\u62a5\u544a\u7c7b\u578b')}</label><select name="report_type">{template_options}</select>
+      <label>{U(r'\u5f00\u59cb\u65e5\u671f')}</label><input name="date_range_start" placeholder="2026-07-01">
+      <label>{U(r'\u7ed3\u675f\u65e5\u671f')}</label><input name="date_range_end" placeholder="2026-07-04">
+      <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><input name="object_type" placeholder="store / brand / inventory"><input name="object_id" placeholder="ID">
+      <p><button>{U(r'\u4fdd\u5b58\u5e76\u751f\u6210\u8349\u7a3f')}</button></p>
+    </form>
+  </div>
+  <div class="panel"><h2>{U(r'\u5b9a\u65f6\u62a5\u544a')}</h2>{self.bullets(schedule_items)}<p class="small">{U(r'\u540e\u7eed\u7531 n8n \u5728\u6bcf\u65e5 2:00 SAP \u540c\u6b65\u540e\u81ea\u52a8\u751f\u6210\u3002')}</p></div>
+</div>
+<div class="panel"><h2>{U(r'\u62a5\u544a\u5217\u8868')}</h2><div class="grid">{report_cards}</div></div>
+<div class="panel"><h2>{U(r'\u9ed8\u8ba4\u6a21\u677f')}</h2><div class="grid">{template_cards}</div></div>"""
+        self.out(layout(U(r"\u62a5\u544a\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def report_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_reports(user):
+            return self.redir("/")
+        form = self.form()
+        title = form.get("title", "").strip()
+        if not title:
+            return self.redir("/reports")
+        payload = self.report_draft_payload(user, form.get("report_type", "ceo_daily"), title, form.get("object_type", ""), int(form.get("object_id")) if str(form.get("object_id", "")).isdigit() else None)
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                "insert into reports(report_id,title,report_type,date_range_start,date_range_end,object_type,object_id,status,summary,key_findings,risks,opportunities,recommended_actions,data_sources,cited_documents,cited_research,cited_memory,cited_sap_records,generated_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("RPT-" + uuid.uuid4().hex[:10], title, payload["report_type"], form.get("date_range_start", ""), form.get("date_range_end", ""), payload["object_type"], payload["object_id"], "draft", payload["summary"], json.dumps(payload["key_findings"], ensure_ascii=False), json.dumps(payload["risks"], ensure_ascii=False), json.dumps(payload["opportunities"], ensure_ascii=False), json.dumps(payload["recommended_actions"], ensure_ascii=False), json.dumps(payload["data_sources"], ensure_ascii=False), "[]", "[]", "[]", json.dumps(payload["cited_sap_records"], ensure_ascii=False), user["id"], now, now),
+            )
+        self.log_action(user, "report_created", "report", cur.lastrowid, title)
+        return self.redir("/reports")
+
+    def export_report_payload(self, row, fmt):
+        sections = {
+            "summary": row["summary"],
+            "key_findings": safe_json(row["key_findings"], []),
+            "risks": safe_json(row["risks"], []),
+            "opportunities": safe_json(row["opportunities"], []),
+            "recommended_actions": safe_json(row["recommended_actions"], []),
+        }
+        if fmt == "html":
+            body = "<h1>{}</h1><p>{}</p>".format(esc(row["title"]), esc(sections["summary"]))
+            for key in ("key_findings", "risks", "opportunities", "recommended_actions"):
+                body += "<h2>{}</h2>{}".format(esc(key), self.bullets(sections[key]))
+            return {"format": "html", "content": "<!doctype html><meta charset='utf-8'>" + body}
+        lines = ["# " + row["title"], "", sections["summary"], ""]
+        for key in ("key_findings", "risks", "opportunities", "recommended_actions"):
+            lines += ["## " + key, ""]
+            lines += ["- " + str(x) for x in sections[key]]
+            lines.append("")
+        return {"format": "markdown", "content": "\n".join(lines)}
+
+    def api_reports_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_reports(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        with db() as conn:
+            self.seed_report_templates(conn)
+            if path == "/api/reports":
+                rows = conn.execute("select * from reports order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "reports": [row_dict(r) for r in rows]})
+            m = re.match(r"^/api/reports/(\d+)$", path)
+            if m:
+                row = conn.execute("select * from reports where id=?", (m.group(1),)).fetchone()
+                return self.json_out({"ok": bool(row), "report": row_dict(row)} if row else {"ok": False, "message": "not found"}, code=200 if row else 404)
+            if path == "/api/report-templates":
+                rows = conn.execute("select * from report_templates order by id").fetchall()
+                return self.json_out({"ok": True, "templates": [row_dict(r) for r in rows]})
+            if path == "/api/report-schedules":
+                rows = conn.execute("select * from report_schedules order by created_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "schedules": [row_dict(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown reports api"}, code=404)
+
+    def api_reports_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_reports(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        form = self.form()
+        now = ts()
+        if path == "/api/reports":
+            payload = self.report_draft_payload(user, form.get("report_type", "ceo_daily"), form.get("title", U(r"AI \u62a5\u544a\u8349\u7a3f")), form.get("object_type", ""), int(form.get("object_id")) if str(form.get("object_id", "")).isdigit() else None)
+            with db() as conn:
+                cur = conn.execute(
+                    "insert into reports(report_id,title,report_type,date_range_start,date_range_end,object_type,object_id,status,summary,key_findings,risks,opportunities,recommended_actions,data_sources,cited_documents,cited_research,cited_memory,cited_sap_records,generated_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("RPT-" + uuid.uuid4().hex[:10], payload["title"], payload["report_type"], form.get("date_range_start", ""), form.get("date_range_end", ""), payload["object_type"], payload["object_id"], "draft", payload["summary"], json.dumps(payload["key_findings"], ensure_ascii=False), json.dumps(payload["risks"], ensure_ascii=False), json.dumps(payload["opportunities"], ensure_ascii=False), json.dumps(payload["recommended_actions"], ensure_ascii=False), json.dumps(payload["data_sources"], ensure_ascii=False), "[]", "[]", "[]", json.dumps(payload["cited_sap_records"], ensure_ascii=False), user["id"], now, now),
+                )
+            self.log_action(user, "report_created", "report", cur.lastrowid, payload["title"])
+            return self.json_out({"ok": True, "report_id": cur.lastrowid, "report": payload})
+        m = re.match(r"^/api/reports/(\d+)/(generate|approve|reject|archive|export)$", path)
+        if m:
+            rid, action = m.group(1), m.group(2)
+            with db() as conn:
+                row = conn.execute("select * from reports where id=?", (rid,)).fetchone()
+                if not row:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                if action == "generate":
+                    payload = self.report_draft_payload(user, row["report_type"], row["title"], row["object_type"], row["object_id"])
+                    conn.execute("update reports set summary=?, key_findings=?, risks=?, opportunities=?, recommended_actions=?, data_sources=?, cited_sap_records=?, status='draft', updated_at=? where id=?", (payload["summary"], json.dumps(payload["key_findings"], ensure_ascii=False), json.dumps(payload["risks"], ensure_ascii=False), json.dumps(payload["opportunities"], ensure_ascii=False), json.dumps(payload["recommended_actions"], ensure_ascii=False), json.dumps(payload["data_sources"], ensure_ascii=False), json.dumps(payload["cited_sap_records"], ensure_ascii=False), now, rid))
+                    self.log_action(user, "report_generated", "report", rid, row["title"])
+                    return self.json_out({"ok": True, "report": payload})
+                if action in ("approve", "reject", "archive"):
+                    status = {"approve": "approved", "reject": "rejected", "archive": "archived"}[action]
+                    conn.execute("update reports set status=?, reviewed_by=?, reviewed_at=?, updated_at=? where id=?", (status, user["id"], now, now, rid))
+                    self.log_action(user, "report_" + action, "report", rid, row["title"])
+                    return self.json_out({"ok": True, "status": status})
+                if action == "export":
+                    fmt = form.get("format", "markdown")
+                    return self.json_out({"ok": True, "export": self.export_report_payload(row, fmt)})
+        if path == "/api/report-templates":
+            with db() as conn:
+                cur = conn.execute("insert into report_templates(template_id,template_name,report_type,description,sections,required_sources,default_date_range,visibility,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)", ("TPL-" + uuid.uuid4().hex[:10], form.get("template_name", U(r"\u672a\u547d\u540d\u6a21\u677f")), form.get("report_type", "custom"), form.get("description", ""), json.dumps(csv_values(form.get("sections", "")), ensure_ascii=False), json.dumps(csv_values(form.get("required_sources", "")), ensure_ascii=False), form.get("default_date_range", "yesterday"), form.get("visibility", "manager_only"), now, now))
+            return self.json_out({"ok": True, "template_id": cur.lastrowid})
+        if path == "/api/report-schedules":
+            with db() as conn:
+                cur = conn.execute("insert into report_schedules(schedule_id,report_template_id,frequency,recipients,enabled,last_run_at,next_run_at,created_by,created_at) values(?,?,?,?,?,?,?,?,?)", ("SCH-" + uuid.uuid4().hex[:10], int(form.get("report_template_id")) if str(form.get("report_template_id", "")).isdigit() else None, form.get("frequency", "daily"), form.get("recipients", ""), 1 if form.get("enabled", "1") != "0" else 0, None, None, user["id"], now))
+            return self.json_out({"ok": True, "schedule_id": cur.lastrowid})
+        return self.json_out({"ok": False, "message": "unknown reports api"}, code=404)
+
+    def api_reports_put(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_reports(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        m = re.match(r"^/api/reports/(\d+)$", path)
+        if not m:
+            return self.json_out({"ok": False, "message": "unknown reports api"}, code=404)
+        form = self.form()
+        with db() as conn:
+            conn.execute(
+                "update reports set title=coalesce(?,title), summary=coalesce(?,summary), key_findings=coalesce(?,key_findings), risks=coalesce(?,risks), opportunities=coalesce(?,opportunities), recommended_actions=coalesce(?,recommended_actions), status=coalesce(?,status), updated_at=? where id=?",
+                (form.get("title"), form.get("summary"), form.get("key_findings"), form.get("risks"), form.get("opportunities"), form.get("recommended_actions"), form.get("status"), ts(), m.group(1)),
+            )
+        self.log_action(user, "report_updated", "report", m.group(1), "")
+        return self.json_out({"ok": True})
 
     def can_use_jarvis(self, user):
         return bool(user and user["status"] == "approved")

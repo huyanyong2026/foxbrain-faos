@@ -105,3 +105,9 @@ The Jarvis page is mobile-first:
 - No fake SAP, finance, customer or market facts.
 - Restricted data must follow role permissions.
 - Reports generated in V1 are drafts/placeholders until reviewed.
+
+## Task011 Reporting Integration
+
+Jarvis can hand `report_generation` intent to the Reporting Engine.
+
+The handoff keeps the same safety rule: Jarvis may generate a draft report structure, but the official report status is controlled by the Reporting Engine review flow.
