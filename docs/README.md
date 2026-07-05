@@ -45,6 +45,9 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [38_FINANCE_PROFIT_ENGINE.md](38_FINANCE_PROFIT_ENGINE.md)
 - [39_REBATE_ANALYSIS.md](39_REBATE_ANALYSIS.md)
 - [40_DISCOUNT_IMPACT_MODEL.md](40_DISCOUNT_IMPACT_MODEL.md)
+- [41_HR_PERFORMANCE_ENGINE.md](41_HR_PERFORMANCE_ENGINE.md)
+- [42_INCENTIVE_ENGINE.md](42_INCENTIVE_ENGINE.md)
+- [43_RECRUITMENT_ENGINE.md](43_RECRUITMENT_ENGINE.md)
 
 ## Codex Tasks
 
@@ -63,6 +66,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task015 Brand Growth Product Portfolio](CODEX_TASKS/Task015_Brand_Growth_Product_Portfolio.md)
 - [Task016 Inventory Purchasing Decision](CODEX_TASKS/Task016_Inventory_Purchasing_Decision.md)
 - [Task017 Finance Profit Decision](CODEX_TASKS/Task017_Finance_Profit_Decision.md)
+- [Task018 HR Performance Incentive](CODEX_TASKS/Task018_HR_Performance_Incentive.md)
 
 Future tasks should use folders:
 

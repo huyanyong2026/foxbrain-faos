@@ -233,6 +233,19 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Finance task generation endpoint
 - Health check now reports Finance Profit Engine status
 
+## V4 Task018 Completed
+
+- HR Performance and Incentive Engine
+- HR center route
+- Employee performance model
+- Incentive plan model
+- Store break-even incentive template
+- Training and growth record models
+- Recruitment candidate model
+- AI employee evaluation placeholder
+- HR task generation endpoint
+- Health check now reports HR Performance Engine status
+
 ## V4 Routes
 
 - `/`
@@ -248,6 +261,7 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/finance`
 - `/finance/store-profit`
 - `/finance/brand-profit`
+- `/hr`
 - `/content`
 - `/business-overview`
 - `/stores`
@@ -404,6 +418,21 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `POST /api/finance/discount-calculate`
 - `POST /api/finance/break-even-calculate`
 - `POST /api/finance/create-task`
+- `GET /api/hr`
+- `GET /api/hr/performance`
+- `POST /api/hr/performance`
+- `GET /api/hr/incentive-plans`
+- `POST /api/hr/incentive-plans`
+- `PUT /api/hr/incentive-plans/{id}`
+- `POST /api/hr/incentive-plans/{id}/calculate`
+- `GET /api/hr/training`
+- `POST /api/hr/training`
+- `GET /api/hr/growth-records`
+- `POST /api/hr/growth-records`
+- `GET /api/hr/candidates`
+- `POST /api/hr/candidates`
+- `GET /api/hr/ai-evaluation`
+- `POST /api/hr/create-task`
 
 ## Security
 

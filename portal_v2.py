@@ -1472,6 +1472,118 @@ create table if not exists finance_rebates(
 """
         )
         conn.execute("create index if not exists idx_finance_rebates_brand on finance_rebates(brand_id, status)")
+        conn.execute(
+            """
+create table if not exists hr_performance_records(
+ id integer primary key autoincrement,
+ performance_id text unique,
+ employee_id text,
+ store_id text,
+ period_start text,
+ period_end text,
+ sales_amount real not null default 0,
+ gross_profit real not null default 0,
+ gross_margin real not null default 0,
+ tasks_completed integer not null default 0,
+ customer_feedback_score real not null default 0,
+ content_submissions integer not null default 0,
+ training_completed integer not null default 0,
+ attendance_status text,
+ manager_review text,
+ ai_evaluation text,
+ status text not null default 'draft',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_hr_performance_employee on hr_performance_records(employee_id, store_id, status)")
+        conn.execute(
+            """
+create table if not exists hr_incentive_plans(
+ id integer primary key autoincrement,
+ incentive_plan_id text unique,
+ plan_name text not null,
+ plan_type text,
+ store_id text,
+ employee_id text,
+ start_date text,
+ end_date text,
+ rule_description text,
+ calculation_method text,
+ target_sales real not null default 0,
+ target_gross_profit real not null default 0,
+ target_margin_rate real not null default 0,
+ bonus_pool_rate real not null default 0,
+ individual_weight real not null default 0,
+ team_weight real not null default 0,
+ break_even_sales real not null default 0,
+ break_even_gross_profit real not null default 0,
+ fixed_expenses real not null default 0,
+ incentive_pool_rate real not null default 0,
+ individual_allocation_rate real not null default 0,
+ team_allocation_rate real not null default 0,
+ carry_forward_rule text,
+ notes text,
+ status text not null default 'draft',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_hr_incentive_plans_type on hr_incentive_plans(plan_type, status)")
+        conn.execute(
+            """
+create table if not exists hr_training_records(
+ id integer primary key autoincrement,
+ training_id text unique,
+ employee_id text,
+ training_title text not null,
+ training_type text,
+ date text,
+ result text,
+ certificate text,
+ notes text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_hr_training_employee on hr_training_records(employee_id, date)")
+        conn.execute(
+            """
+create table if not exists hr_growth_records(
+ id integer primary key autoincrement,
+ growth_id text unique,
+ employee_id text,
+ title text not null,
+ description text,
+ date text,
+ related_store text,
+ related_task text,
+ related_performance text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_hr_growth_employee on hr_growth_records(employee_id, date)")
+        conn.execute(
+            """
+create table if not exists hr_candidates(
+ id integer primary key autoincrement,
+ candidate_id text unique,
+ name text not null,
+ phone text,
+ target_position text,
+ resume_file text,
+ interview_status text,
+ evaluation text,
+ next_step text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_hr_candidates_status on hr_candidates(interview_status)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -1624,6 +1736,8 @@ class App(BaseHTTPRequestHandler):
             return self.finance_store_profit(user)
         if path == "/finance/brand-profit":
             return self.finance_brand_profit(user)
+        if path == "/hr":
+            return self.hr_center(user)
         if path == "/stores/operations":
             return self.store_operations(user)
         if path == "/store-growth":
@@ -1696,6 +1810,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_inventory_decision_get(user, path)
         if path.startswith("/api/finance"):
             return self.api_finance_get(user, path)
+        if path.startswith("/api/hr"):
+            return self.api_hr_get(user, path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_get(user, path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -1780,6 +1896,16 @@ class App(BaseHTTPRequestHandler):
             return self.finance_expense_save()
         if path == "/finance/rebates/save":
             return self.finance_rebate_save()
+        if path == "/hr/performance/save":
+            return self.hr_performance_save()
+        if path == "/hr/incentive-plans/save":
+            return self.hr_incentive_plan_save()
+        if path == "/hr/training/save":
+            return self.hr_training_save()
+        if path == "/hr/growth-records/save":
+            return self.hr_growth_save()
+        if path == "/hr/candidates/save":
+            return self.hr_candidate_save()
         if path == "/automation/save":
             return self.automation_save()
         if path == "/workflows/save":
@@ -1796,6 +1922,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_inventory_decision_post(self.current_user(), path)
         if path.startswith("/api/finance"):
             return self.api_finance_post(self.current_user(), path)
+        if path.startswith("/api/hr"):
+            return self.api_hr_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -1804,6 +1932,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_memory_post(self.current_user(), path)
         if path.startswith("/api/graph"):
             return self.api_graph_post(self.current_user(), path)
+        if path.startswith("/api/hr"):
+            return self.api_hr_put(self.current_user(), path)
         if path.startswith("/api/agents"):
             return self.api_agents_post(self.current_user(), path)
         if path.startswith("/api/jarvis"):
@@ -3729,6 +3859,194 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": True, "task_id": cur.lastrowid})
         return self.json_out({"ok": False, "message": U(r"\u8bf7\u4f7f\u7528\u9875\u9762\u8868\u5355\u6216\u6307\u5b9a\u7684\u8bd5\u7b97 API\u3002")}, code=501)
 
+    def can_view_hr(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "finance", "store_manager"))
+
+    def can_manage_hr(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "finance", "store_manager"))
+
+    def hr_empty(self):
+        return U(r"\u7b49\u5f85 SAP B1 / \u4efb\u52a1\u4e2d\u5fc3 / \u4eba\u4e8b\u6863\u6848\u6570\u636e\u540c\u6b65\u540e\u751f\u6210\u771f\u5b9e\u7ee9\u6548\u548c\u85aa\u916c\u6fc0\u52b1\u5206\u6790\u3002")
+
+    def hr_overview_payload(self):
+        with db() as conn:
+            performance = [row_dict(r) for r in conn.execute("select * from hr_performance_records order by updated_at desc limit 20").fetchall()]
+            plans = [row_dict(r) for r in conn.execute("select * from hr_incentive_plans order by updated_at desc limit 20").fetchall()]
+            training = [row_dict(r) for r in conn.execute("select * from hr_training_records order by created_at desc limit 20").fetchall()]
+            growth = [row_dict(r) for r in conn.execute("select * from hr_growth_records order by created_at desc limit 20").fetchall()]
+            candidates = [row_dict(r) for r in conn.execute("select * from hr_candidates order by created_at desc limit 20").fetchall()]
+        return {"ok": True, "empty_message": self.hr_empty(), "performance": performance, "incentive_plans": plans, "training": training, "growth_records": growth, "candidate_count": len(candidates), "candidates": candidates}
+
+    def hr_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_hr(user):
+            return self.dashboard(user)
+        data = self.hr_overview_payload()
+        metrics = "".join([
+            self.metric(U(r"\u7ee9\u6548\u8bb0\u5f55"), money(len(data["performance"])), U(r"\u9700\u771f\u5b9e\u6570\u636e\u5ba1\u6838")),
+            self.metric(U(r"\u6fc0\u52b1\u65b9\u6848"), money(len(data["incentive_plans"])), U(r"\u53ef\u7f16\u8f91\u89c4\u5219")),
+            self.metric(U(r"\u57f9\u8bad\u8bb0\u5f55"), money(len(data["training"])), U(r"\u5458\u5de5\u6210\u957f")),
+            self.metric(U(r"\u5019\u9009\u4eba"), money(data["candidate_count"]), U(r"\u62db\u8058\u6d41\u7a0b")),
+        ])
+        perf_items = [r["employee_id"] + " · " + r["store_id"] + " · " + money(r["sales_amount"]) for r in data["performance"]] or [self.hr_empty()]
+        plan_items = [r["plan_name"] + " · " + (r["plan_type"] or "") + " · " + r["status"] for r in data["incentive_plans"]] or [U(r"\u6682\u65e0\u6fc0\u52b1\u65b9\u6848\u3002")]
+        training_items = [r["employee_id"] + " · " + r["training_title"] for r in data["training"]] or [U(r"\u6682\u65e0\u57f9\u8bad\u8bb0\u5f55\u3002")]
+        body = f"""
+<div class="panel"><h2>{U(r'\u4eba\u4e8b\u7ee9\u6548\u4e0e\u6fc0\u52b1\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ba1\u7406\u5458\u5de5\u6863\u6848\u3001\u95e8\u5e97\u7ee9\u6548\u3001\u6fc0\u52b1\u65b9\u6848\u3001\u57f9\u8bad\u6210\u957f\u548c\u62db\u8058\u8ddf\u8fdb\u3002\u4e0d\u81ea\u52a8\u751f\u6210\u6700\u7ec8\u4eba\u4e8b\u51b3\u7b56\u3002')}</p><div class="metrics">{metrics}</div></div>
+<div class="grid">
+  {self.card(U(r'\u5458\u5de5\u7ee9\u6548'), U(r'\u9500\u552e\u3001\u6bdb\u5229\u3001\u4efb\u52a1\u3001\u57f9\u8bad\u3001\u5ba2\u6237\u53cd\u9988\u548c AI \u8bc4\u4ef7\u3002'), '#performance-form', 'btn', True)}
+  {self.card(U(r'\u6fc0\u52b1\u65b9\u6848'), U(r'\u4e2a\u4eba\u5956\u91d1\u3001\u56e2\u961f\u5956\u91d1\u3001\u95e8\u5e97\u76c8\u4e8f\u5e73\u8861\u6fc0\u52b1\u6a21\u677f\u3002'), '#plan-form', 'btn green', True)}
+  {self.card(U(r'\u62db\u8058\u4e0e\u5165\u804c'), U(r'\u5019\u9009\u4eba\u3001\u9762\u8bd5\u8bb0\u5f55\u3001offer \u72b6\u6001\u548c\u5165\u804c\u4efb\u52a1\u3002'), '#candidate-form', 'btn orange', True)}
+</div>
+<div class="split"><div class="panel"><h2>{U(r'\u5458\u5de5\u7ee9\u6548')}</h2>{self.bullets(perf_items)}</div><div class="panel"><h2>{U(r'\u6fc0\u52b1\u65b9\u6848')}</h2>{self.bullets(plan_items)}</div></div>
+<div class="split"><div class="panel"><h2>{U(r'\u57f9\u8bad\u6210\u957f')}</h2>{self.bullets(training_items)}</div><div class="panel"><h2>{U(r'AI \u5458\u5de5\u8bc4\u4ef7')}</h2>{self.empty_state(U(r'\u4ec5\u751f\u6210\u53d1\u5c55\u5efa\u8bae\u548c\u98ce\u9669\u63d0\u9192\uff0c\u4e0d\u505a\u6700\u7ec8\u4eba\u4e8b\u51b3\u7b56\u3002'))}</div></div>
+<div class="split">
+  <div id="performance-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u7ee9\u6548')}</h2><form method="post" action="/hr/performance/save"><label>{U(r'\u5458\u5de5 ID')}</label><input name="employee_id"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u9500\u552e\u989d')}</label><input name="sales_amount"><label>{U(r'\u6bdb\u5229')}</label><input name="gross_profit"><label>{U(r'\u5df2\u5b8c\u6210\u4efb\u52a1')}</label><input name="tasks_completed"><label>{U(r'\u7ba1\u7406\u8005\u8bc4\u4ef7')}</label><textarea name="manager_review"></textarea><p><button>{U(r'\u4fdd\u5b58\u7ee9\u6548')}</button></p></form></div>
+  <div id="plan-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u6fc0\u52b1\u65b9\u6848')}</h2><form method="post" action="/hr/incentive-plans/save"><label>{U(r'\u65b9\u6848\u540d\u79f0')}</label><input name="plan_name"><label>{U(r'\u65b9\u6848\u7c7b\u578b')}</label><input name="plan_type" placeholder="team_sales_bonus"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u5956\u91d1\u6c60\u6bd4\u7387')}</label><input name="bonus_pool_rate" placeholder="0.30"><label>{U(r'\u89c4\u5219\u8bf4\u660e')}</label><textarea name="rule_description"></textarea><p><button>{U(r'\u4fdd\u5b58\u65b9\u6848')}</button></p></form></div>
+</div>
+<div class="split">
+  <div class="panel form"><h2>{U(r'\u57f9\u8bad\u8bb0\u5f55')}</h2><form method="post" action="/hr/training/save"><label>{U(r'\u5458\u5de5 ID')}</label><input name="employee_id"><label>{U(r'\u57f9\u8bad\u6807\u9898')}</label><input name="training_title"><label>{U(r'\u7ed3\u679c')}</label><input name="result"><p><button>{U(r'\u4fdd\u5b58\u57f9\u8bad')}</button></p></form></div>
+  <div id="candidate-form" class="panel form"><h2>{U(r'\u5019\u9009\u4eba')}</h2><form method="post" action="/hr/candidates/save"><label>{U(r'\u59d3\u540d')}</label><input name="name"><label>{U(r'\u624b\u673a')}</label><input name="phone"><label>{U(r'\u76ee\u6807\u5c97\u4f4d')}</label><input name="target_position"><label>{U(r'\u4e0b\u4e00\u6b65')}</label><textarea name="next_step"></textarea><p><button>{U(r'\u4fdd\u5b58\u5019\u9009\u4eba')}</button></p></form></div>
+</div>"""
+        self.out(layout(U(r"\u4eba\u4e8b\u7ee9\u6548\u6fc0\u52b1"), body, user=user, wide=True))
+
+    def hr_performance_score(self, form):
+        sales = self.finance_number(form, "sales_amount")
+        gross_profit = self.finance_number(form, "gross_profit")
+        tasks = self.finance_number(form, "tasks_completed")
+        training = self.finance_number(form, "training_completed")
+        feedback = self.finance_number(form, "customer_feedback_score")
+        score = min(100, sales / 1000 + gross_profit / 500 + tasks * 3 + training * 5 + feedback * 10)
+        risk_flags = []
+        if sales <= 0:
+            risk_flags.append("sales_missing")
+        if tasks <= 0:
+            risk_flags.append("task_data_missing")
+        return {"performance_score": round(score, 2), "bonus_estimate": 0, "ai_evaluation": self.hr_empty(), "risk_flags": risk_flags}
+
+    def hr_incentive_calculate_payload(self, form):
+        actual_gross_profit = self.finance_number(form, "actual_gross_profit")
+        break_even_gross_profit = self.finance_number(form, "break_even_gross_profit")
+        pool_rate = self.finance_number(form, "incentive_pool_rate") or self.finance_number(form, "bonus_pool_rate") or 0.30
+        individual_rate = self.finance_number(form, "individual_allocation_rate") or 0.20
+        team_rate = self.finance_number(form, "team_allocation_rate") or 0.10
+        incremental = max(0, actual_gross_profit - break_even_gross_profit)
+        pool = incremental * pool_rate
+        return {"incremental_gross_profit": incremental, "incentive_pool": pool, "individual_pool": incremental * individual_rate, "team_pool": incremental * team_rate, "note": U(r"\u8bd5\u7b97\u4ec5\u4f5c\u65b9\u6848\u8ba8\u8bba\uff0c\u4e0d\u4ee3\u8868\u6700\u7ec8\u85aa\u916c\u53d1\u653e\u3002")}
+
+    def hr_insert(self, table, cols, defaults, action, target_type):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_hr(user):
+            return self.redir("/")
+        form = self.form()
+        vals = [defaults.get(c, form.get(c, "")) for c in cols]
+        with db() as conn:
+            cur = conn.execute(f"insert into {table}({','.join(cols)}) values({','.join('?' for _ in cols)})", vals)
+        self.log_action(user, action, target_type, cur.lastrowid, "")
+        return self.redir("/hr")
+
+    def hr_performance_save(self):
+        form = self.form()
+        now = ts()
+        sales = self.finance_number(form, "sales_amount")
+        gross_profit = self.finance_number(form, "gross_profit")
+        gross_margin = gross_profit / sales if sales else 0
+        return self.hr_insert("hr_performance_records", ["performance_id","employee_id","store_id","period_start","period_end","sales_amount","gross_profit","gross_margin","tasks_completed","customer_feedback_score","content_submissions","training_completed","attendance_status","manager_review","ai_evaluation","status","created_at","updated_at"], {"performance_id":"HP-"+uuid.uuid4().hex[:10],"sales_amount":sales,"gross_profit":gross_profit,"gross_margin":gross_margin,"tasks_completed":int(self.finance_number(form,"tasks_completed")),"customer_feedback_score":self.finance_number(form,"customer_feedback_score"),"content_submissions":int(self.finance_number(form,"content_submissions")),"training_completed":int(self.finance_number(form,"training_completed")),"ai_evaluation":self.hr_empty(),"status":"draft","created_at":now,"updated_at":now}, "hr_performance_created", "hr_performance")
+
+    def hr_incentive_plan_save(self):
+        user = self.current_user()
+        now = ts()
+        form = self.form()
+        return self.hr_insert("hr_incentive_plans", ["incentive_plan_id","plan_name","plan_type","store_id","employee_id","start_date","end_date","rule_description","calculation_method","target_sales","target_gross_profit","target_margin_rate","bonus_pool_rate","individual_weight","team_weight","break_even_sales","break_even_gross_profit","fixed_expenses","incentive_pool_rate","individual_allocation_rate","team_allocation_rate","carry_forward_rule","notes","status","created_by","created_at","updated_at"], {"incentive_plan_id":"IP-"+uuid.uuid4().hex[:10],"target_sales":self.finance_number(form,"target_sales"),"target_gross_profit":self.finance_number(form,"target_gross_profit"),"target_margin_rate":self.finance_number(form,"target_margin_rate"),"bonus_pool_rate":self.finance_number(form,"bonus_pool_rate"),"individual_weight":self.finance_number(form,"individual_weight"),"team_weight":self.finance_number(form,"team_weight"),"break_even_sales":self.finance_number(form,"break_even_sales"),"break_even_gross_profit":self.finance_number(form,"break_even_gross_profit"),"fixed_expenses":self.finance_number(form,"fixed_expenses"),"incentive_pool_rate":self.finance_number(form,"incentive_pool_rate"),"individual_allocation_rate":self.finance_number(form,"individual_allocation_rate"),"team_allocation_rate":self.finance_number(form,"team_allocation_rate"),"status":"draft","created_by":user["id"] if user else None,"created_at":now,"updated_at":now}, "hr_incentive_plan_created", "hr_incentive_plan")
+
+    def hr_training_save(self):
+        now = ts()
+        return self.hr_insert("hr_training_records", ["training_id","employee_id","training_title","training_type","date","result","certificate","notes","created_at"], {"training_id":"HT-"+uuid.uuid4().hex[:10],"created_at":now}, "hr_training_created", "hr_training")
+
+    def hr_growth_save(self):
+        now = ts()
+        return self.hr_insert("hr_growth_records", ["growth_id","employee_id","title","description","date","related_store","related_task","related_performance","created_at"], {"growth_id":"HG-"+uuid.uuid4().hex[:10],"created_at":now}, "hr_growth_created", "hr_growth")
+
+    def hr_candidate_save(self):
+        now = ts()
+        return self.hr_insert("hr_candidates", ["candidate_id","name","phone","target_position","resume_file","interview_status","evaluation","next_step","created_at"], {"candidate_id":"HC-"+uuid.uuid4().hex[:10],"interview_status":"new","created_at":now}, "hr_candidate_created", "hr_candidate")
+
+    def api_hr_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_view_hr(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/hr":
+            return self.json_out(self.hr_overview_payload())
+        table_map = {"/api/hr/performance": ("hr_performance_records", "performance"), "/api/hr/incentive-plans": ("hr_incentive_plans", "incentive_plans"), "/api/hr/training": ("hr_training_records", "training"), "/api/hr/growth-records": ("hr_growth_records", "growth_records"), "/api/hr/candidates": ("hr_candidates", "candidates")}
+        if path in table_map:
+            table, key = table_map[path]
+            with db() as conn:
+                rows = conn.execute(f"select * from {table} order by id desc limit 100").fetchall()
+            return self.json_out({"ok": True, key: [row_dict(r) for r in rows], "empty_message": self.hr_empty()})
+        if path == "/api/hr/ai-evaluation":
+            return self.json_out({"ok": True, "evaluation": {"strengths": [], "risks": [], "suggested_development_path": self.hr_empty(), "human_review_required": True}})
+        return self.json_out({"ok": False, "message": "unknown hr api"}, code=404)
+
+    def api_hr_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_hr(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        form = self.form()
+        now = ts()
+        if path == "/api/hr/performance":
+            sales = self.finance_number(form, "sales_amount")
+            gross_profit = self.finance_number(form, "gross_profit")
+            gross_margin = gross_profit / sales if sales else 0
+            with db() as conn:
+                cur = conn.execute("insert into hr_performance_records(performance_id,employee_id,store_id,period_start,period_end,sales_amount,gross_profit,gross_margin,tasks_completed,customer_feedback_score,content_submissions,training_completed,attendance_status,manager_review,ai_evaluation,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("HP-"+uuid.uuid4().hex[:10], form.get("employee_id",""), form.get("store_id",""), form.get("period_start",""), form.get("period_end",""), sales, gross_profit, gross_margin, int(self.finance_number(form,"tasks_completed")), self.finance_number(form,"customer_feedback_score"), int(self.finance_number(form,"content_submissions")), int(self.finance_number(form,"training_completed")), form.get("attendance_status",""), form.get("manager_review",""), self.hr_empty(), "draft", now, now))
+            self.log_action(user, "hr_performance_created", "hr_performance", cur.lastrowid, "")
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path == "/api/hr/incentive-plans":
+            with db() as conn:
+                cur = conn.execute("insert into hr_incentive_plans(incentive_plan_id,plan_name,plan_type,store_id,employee_id,start_date,end_date,rule_description,calculation_method,target_sales,target_gross_profit,target_margin_rate,bonus_pool_rate,individual_weight,team_weight,break_even_sales,break_even_gross_profit,fixed_expenses,incentive_pool_rate,individual_allocation_rate,team_allocation_rate,carry_forward_rule,notes,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("IP-"+uuid.uuid4().hex[:10], form.get("plan_name",U(r"\u672a\u547d\u540d\u6fc0\u52b1\u65b9\u6848")), form.get("plan_type",""), form.get("store_id",""), form.get("employee_id",""), form.get("start_date",""), form.get("end_date",""), form.get("rule_description",""), form.get("calculation_method",""), self.finance_number(form,"target_sales"), self.finance_number(form,"target_gross_profit"), self.finance_number(form,"target_margin_rate"), self.finance_number(form,"bonus_pool_rate"), self.finance_number(form,"individual_weight"), self.finance_number(form,"team_weight"), self.finance_number(form,"break_even_sales"), self.finance_number(form,"break_even_gross_profit"), self.finance_number(form,"fixed_expenses"), self.finance_number(form,"incentive_pool_rate"), self.finance_number(form,"individual_allocation_rate"), self.finance_number(form,"team_allocation_rate"), form.get("carry_forward_rule",""), form.get("notes",""), "draft", user["id"], now, now))
+            self.log_action(user, "hr_incentive_plan_created", "hr_incentive_plan", cur.lastrowid, "")
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path == "/api/hr/training":
+            with db() as conn:
+                cur = conn.execute("insert into hr_training_records(training_id,employee_id,training_title,training_type,date,result,certificate,notes,created_at) values(?,?,?,?,?,?,?,?,?)", ("HT-"+uuid.uuid4().hex[:10], form.get("employee_id",""), form.get("training_title",U(r"\u672a\u547d\u540d\u57f9\u8bad")), form.get("training_type",""), form.get("date",""), form.get("result",""), form.get("certificate",""), form.get("notes",""), now))
+            self.log_action(user, "hr_training_created", "hr_training", cur.lastrowid, "")
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path == "/api/hr/growth-records":
+            with db() as conn:
+                cur = conn.execute("insert into hr_growth_records(growth_id,employee_id,title,description,date,related_store,related_task,related_performance,created_at) values(?,?,?,?,?,?,?,?,?)", ("HG-"+uuid.uuid4().hex[:10], form.get("employee_id",""), form.get("title",U(r"\u5458\u5de5\u6210\u957f\u8bb0\u5f55")), form.get("description",""), form.get("date",""), form.get("related_store",""), form.get("related_task",""), form.get("related_performance",""), now))
+            self.log_action(user, "hr_growth_created", "hr_growth", cur.lastrowid, "")
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path == "/api/hr/candidates":
+            with db() as conn:
+                cur = conn.execute("insert into hr_candidates(candidate_id,name,phone,target_position,resume_file,interview_status,evaluation,next_step,created_at) values(?,?,?,?,?,?,?,?,?)", ("HC-"+uuid.uuid4().hex[:10], form.get("name",U(r"\u672a\u547d\u540d\u5019\u9009\u4eba")), form.get("phone",""), form.get("target_position",""), form.get("resume_file",""), form.get("interview_status","new"), form.get("evaluation",""), form.get("next_step",""), now))
+            self.log_action(user, "hr_candidate_created", "hr_candidate", cur.lastrowid, "")
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path.endswith("/calculate"):
+            result = self.hr_incentive_calculate_payload(form)
+            self.log_action(user, "hr_incentive_calculated", "hr_incentive", None, "")
+            return self.json_out({"ok": True, "result": result})
+        if path == "/api/hr/create-task":
+            with db() as conn:
+                cur = conn.execute("insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("TASK-" + uuid.uuid4().hex[:10], form.get("title", U(r"\u4eba\u4e8b\u7ee9\u6548\u8ddf\u8fdb")), form.get("description", ""), form.get("owner", user["name"]), "hr", None, form.get("priority", "normal"), "todo", form.get("due_date", ""), "hr", form.get("source_id", ""), user["id"], now, now))
+            self.log_action(user, "hr_task_generated", "task", cur.lastrowid, form.get("title", ""))
+            return self.json_out({"ok": True, "task_id": cur.lastrowid})
+        return self.json_out({"ok": False, "message": U(r"\u8bf7\u4f7f\u7528\u9875\u9762\u8868\u5355\u586b\u5199\u8be6\u7ec6\u5b57\u6bb5\uff0cAPI \u5199\u5165\u5df2\u9884\u7559\u3002")}, code=501)
+
+    def api_hr_put(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_hr(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path.startswith("/api/hr/incentive-plans/"):
+            return self.json_out({"ok": True, "message": U(r"\u6fc0\u52b1\u65b9\u6848\u66f4\u65b0 API \u5df2\u9884\u7559\uff0cV1 \u8bf7\u901a\u8fc7\u65b0\u5efa\u65b9\u6848\u4fdd\u7559\u7248\u672c\u3002")})
+        return self.json_out({"ok": False, "message": "unknown hr update api"}, code=404)
+
     def store_operations(self, user):
         user = self.require_login(user)
         if not user:
@@ -3881,7 +4199,8 @@ class App(BaseHTTPRequestHandler):
         checks["brand_growth_engine_status"] = "ready"
         checks["inventory_decision_engine_status"] = "ready"
         checks["finance_profit_engine_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task017", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["hr_performance_engine_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task018", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())

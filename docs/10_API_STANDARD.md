@@ -261,6 +261,26 @@ Inventory purchasing APIs create review suggestions only. They do not execute pu
 
 Finance APIs must not invent financial data. Calculators return scenario estimates only.
 
+## Task018 HR Performance Incentive API
+
+- `GET /api/hr`
+- `GET /api/hr/performance`
+- `POST /api/hr/performance`
+- `GET /api/hr/incentive-plans`
+- `POST /api/hr/incentive-plans`
+- `PUT /api/hr/incentive-plans/{id}`
+- `POST /api/hr/incentive-plans/{id}/calculate`
+- `GET /api/hr/training`
+- `POST /api/hr/training`
+- `GET /api/hr/growth-records`
+- `POST /api/hr/growth-records`
+- `GET /api/hr/candidates`
+- `POST /api/hr/candidates`
+- `GET /api/hr/ai-evaluation`
+- `POST /api/hr/create-task`
+
+HR APIs must not invent salary or performance facts. AI evaluation is advisory and requires human review.
+
 ## Future API
 
 - `POST /api/files/parse`
