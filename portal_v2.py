@@ -289,7 +289,7 @@ def load_summary():
         ],
         "todos": [
             U(r"\u786e\u8ba4\u4ed3\u5e93\u4ee3\u7801 8001\u30018002\u30018003\u30018014 \u5bf9\u5e94\u7684\u95e8\u5e97\u540d\u79f0\u3002"),
-            U(r"\u68c0\u67e5 SAP B1 \u51cc\u6668 2:00 \u81ea\u52a8\u540c\u6b65\u7ed3\u679c\u3002"),
+            U(r"\u68c0\u67e5 SAP B1 \u6bcf\u665a 22:00 \u81ea\u52a8\u540c\u6b65\u7ed3\u679c\u3002"),
             U(r"\u4e3a AI \u603b\u7ecf\u7406\u63a5\u5165\u6570\u636e\u67e5\u8be2\u5de5\u5177\u3002"),
         ],
     }
@@ -3397,7 +3397,7 @@ class App(BaseHTTPRequestHandler):
                 self.metric(U(r"\u672c\u6708\u6bdb\u5229"), U(r"\uffe5") + money(summary.get("month_gross_profit")), U(r"\u6628\u65e5\u6bdb\u5229\u7387 ") + pct(summary.get("yesterday_gross_margin"))),
                 self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), U(r"\uffe5") + money(summary.get("inventory_amount")), U(r"\u98ce\u9669\u6570\u91cf ") + money(summary.get("risk_count"))),
                 self.metric(U(r"\u4f1a\u5458"), U(r"\u5f85\u63a5\u5165"), U(r"\u540e\u7eed\u4ece SAP/Dify \u8865\u5145")),
-                self.metric(U(r"\u6570\u636e\u65e5\u671f"), summary.get("data_date"), U(r"\u6bcf\u65e5 2:00 \u81ea\u52a8\u540c\u6b65")),
+                self.metric(U(r"\u6570\u636e\u65e5\u671f"), summary.get("data_date"), U(r"\u6bcf\u665a 22:00 \u81ea\u52a8\u540c\u6b65")),
             ]
         )
         body = f"""
@@ -3488,7 +3488,7 @@ class App(BaseHTTPRequestHandler):
   <div class="metrics">
     {self.metric(U(r'\u5e93\u5b58\u91d1\u989d'), U(r'\uffe5') + money(summary.get('inventory_amount')), U(r'SAP B1'))}
     {self.metric(U(r'\u98ce\u9669\u6570\u91cf'), money(summary.get('risk_count')), U(r'\u9700\u8ddf\u8fdb'))}
-    {self.metric(U(r'\u6570\u636e\u65e5\u671f'), summary.get('data_date'), U(r'\u6bcf\u65e5 2:00'))}
+    {self.metric(U(r'\u6570\u636e\u65e5\u671f'), summary.get('data_date'), U(r'\u6bcf\u665a 22:00'))}
   </div>
   <p><a class="btn dark" href="/wiki/firefox-hq/sap-b1">{U(r'\u67e5\u770b SAP B1 \u540c\u6b65\u8bf4\u660e')}</a></p>
 </div>"""
@@ -4377,7 +4377,7 @@ class App(BaseHTTPRequestHandler):
 <div class="panel"><h2>{U(r'AI \u603b\u7ecf\u7406\u53c2\u8003\u8bb0\u5fc6')}</h2>{self.bullets(memory_refs)}<p><a class="btn" href="/memory">{U(r'\u8fdb\u5165\u8bb0\u5fc6\u4e2d\u5fc3')}</a></p></div>
 <div class="panel">
   <h2>{U(r'AI \u5efa\u8bae')}</h2>
-  {self.bullets([U(r'\u5148\u5b8c\u5584 SAP B1 \u6bcf\u65e5 2:00 \u540c\u6b65\u7a33\u5b9a\u6027\u3002'), U(r'\u628a Osprey \u4ef7\u683c\u98ce\u9669\u653e\u5165\u4e13\u9898\u8ddf\u8e2a\u3002'), U(r'\u628a\u91cd\u70b9\u7ecf\u8425\u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u907f\u514d\u53ea\u770b\u4e0d\u505a\u3002')])}
+  {self.bullets([U(r'\u5148\u5b8c\u5584 SAP B1 \u6bcf\u665a 22:00 \u540c\u6b65\u7a33\u5b9a\u6027\u3002'), U(r'\u628a Osprey \u4ef7\u683c\u98ce\u9669\u653e\u5165\u4e13\u9898\u8ddf\u8e2a\u3002'), U(r'\u628a\u91cd\u70b9\u7ecf\u8425\u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u907f\u514d\u53ea\u770b\u4e0d\u505a\u3002')])}
   <p><a class="btn dark" href="/business-overview">{U(r'\u6253\u5f00\u7ecf\u8425\u9a7e\u9a76\u8231')}</a></p>
 </div>"""
         self.out(layout(U(r"AI \u603b\u7ecf\u7406\u65e5\u62a5"), body, user=user, wide=True))
@@ -10071,7 +10071,7 @@ class App(BaseHTTPRequestHandler):
       <p><button>{U(r'\u4fdd\u5b58\u5e76\u751f\u6210\u8349\u7a3f')}</button></p>
     </form>
   </div>
-  <div class="panel"><h2>{U(r'\u5b9a\u65f6\u62a5\u544a')}</h2>{self.bullets(schedule_items)}<p class="small">{U(r'\u540e\u7eed\u7531 n8n \u5728\u6bcf\u65e5 2:00 SAP \u540c\u6b65\u540e\u81ea\u52a8\u751f\u6210\u3002')}</p></div>
+  <div class="panel"><h2>{U(r'\u5b9a\u65f6\u62a5\u544a')}</h2>{self.bullets(schedule_items)}<p class="small">{U(r'\u540e\u7eed\u7531 n8n \u5728\u6bcf\u665a 22:00 SAP \u540c\u6b65\u540e\u81ea\u52a8\u751f\u6210\u3002')}</p></div>
 </div>
 <div class="panel"><h2>{U(r'\u62a5\u544a\u5217\u8868')}</h2><div class="grid">{report_cards}</div></div>
 <div class="panel"><h2>{U(r'\u9ed8\u8ba4\u6a21\u677f')}</h2><div class="grid">{template_cards}</div></div>"""

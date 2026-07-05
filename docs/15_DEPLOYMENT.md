@@ -18,7 +18,7 @@ Default address:
 - systemd service management
 - Nginx or Caddy HTTPS reverse proxy
 - `.env` / `portal.env` for real configuration
-- Scheduled SAP B1 sync, normally once per day at 2:00
+- Scheduled SAP B1 sync, normally once per day at 22:00
 
 ## Task005 Health Check
 

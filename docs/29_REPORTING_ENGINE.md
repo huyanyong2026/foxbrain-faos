@@ -106,4 +106,4 @@ Recommended sections:
 - No fake SAP, finance, inventory, customer or market facts.
 - Drafts must cite available sources.
 - Official reports require human review.
-- Scheduled reports are prepared for n8n execution after the daily 2:00 SAP sync.
+- Scheduled reports are prepared for n8n execution after the daily 22:00 SAP sync.
