@@ -10,7 +10,7 @@ usernames, and passwords in `.env` on the server only.
 - Source: SAP B1 SQL Server
 - Target: local PostgreSQL snapshot database
 - Consumer: FoxBrain portal, Dify, n8n, and AI reporting jobs
-- Schedule: daily automatic sync, recommended at 02:00
+- Schedule: daily automatic sync at 22:00
 
 ## Synced Data Areas
 
