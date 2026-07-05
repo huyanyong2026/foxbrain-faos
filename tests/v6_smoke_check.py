@@ -108,6 +108,12 @@ def test_enterprise_pack_routes_present():
         "/api/data-quality/monitor",
         "/api/insights/engine",
         "/api/trends",
+        "/api/digital-twin/framework",
+        "/api/digital-twin/entities",
+        "/api/digital-twin/relationships",
+        "/api/digital-twin/state-history",
+        "/api/digital-twin/simulation",
+        "/api/digital-twin/visualization",
     ]:
         assert route in portal
 
@@ -280,6 +286,25 @@ def test_pack_data_intelligence_present():
         assert phrase in portal
 
 
+def test_pack_digital_twin_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "digital_twin_entity_registry_payload",
+        "digital_twin_relationship_service_payload",
+        "digital_twin_state_engine_payload",
+        "digital_twin_simulation_payload",
+        "digital_twin_visualization_payload",
+        "digital_twin_framework_payload",
+        "digital_twin_get",
+        "simulation_must_not_modify_production_data",
+        "read_only_twin_and_sandboxed_simulations_never_modify_production_data",
+        "relationships_should_be_queryable_versioned_and_traceable_to_source",
+        "snapshots_are_append_only_and_never_overwrite_production_data",
+        "brain_simulation_uses_digital_twin_sandbox_and_never_modifies_production_data",
+    ]:
+        assert phrase in portal
+
+
 def test_production_deployment_files_present():
     for file_name in [
         "Dockerfile",
@@ -317,6 +342,7 @@ def test_enterprise_pack_docs_present():
         "docs/120_ENTERPRISE_PACK_11_SECURITY_GOVERNANCE.md",
         "docs/121_ENTERPRISE_PACK_12_SDK_MARKETPLACE.md",
         "docs/122_ENTERPRISE_PACK_13_DATA_INTELLIGENCE.md",
+        "docs/123_ENTERPRISE_PACK_14_DIGITAL_TWIN.md",
         "docs/SDK_EXTENSION_STANDARD.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
@@ -331,5 +357,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task050_Pack11_Security_Governance.md",
         "docs/CODEX_TASKS/Task051_Pack12_SDK_Marketplace.md",
         "docs/CODEX_TASKS/Task052_Pack13_Data_Intelligence.md",
+        "docs/CODEX_TASKS/Task053_Pack14_Digital_Twin.md",
     ]:
         assert (ROOT / doc).exists()

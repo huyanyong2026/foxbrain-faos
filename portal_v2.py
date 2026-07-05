@@ -5201,17 +5201,21 @@ class App(BaseHTTPRequestHandler):
         }
 
     def brain_simulation_payload(self, user):
+        twin = self.digital_twin_simulation_payload(user)
         return {
             "ok": True,
             "service": "simulation_framework",
             "supported_scenarios": ["price_change", "inventory_clearance", "store_growth", "cash_flow_pressure", "brand_mix"],
+            "digital_twin_sandbox": twin,
             "approval_required_for": ["price_change", "finance_payment", "contract_execution", "sap_write_back"],
             "sample": {
                 "scenario": "price_change",
                 "status": "draft_only",
                 "basis": [{"source": "agent_approval_policy", "field": "required_for"}],
                 "human_review_required": True,
+                "writes_to_production": False,
             },
+            "production_write_policy": "brain_simulation_uses_digital_twin_sandbox_and_never_modifies_production_data",
         }
 
     def brain_ai_council_payload(self, user):
@@ -6050,6 +6054,10 @@ class App(BaseHTTPRequestHandler):
         checks["insight_engine_status"] = "evidence_required"
         checks["data_quality_monitor_status"] = "active_contract"
         checks["trend_api_status"] = "documented"
+        checks["enterprise_pack_14_digital_twin_status"] = "framework_ready"
+        checks["digital_twin_simulation_status"] = "sandbox_read_only"
+        checks["digital_twin_state_engine_status"] = "history_supported"
+        checks["digital_twin_relationship_service_status"] = "queryable_versioned"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7310,7 +7318,7 @@ class App(BaseHTTPRequestHandler):
             "/agents/marketplace": ("Agent Marketplace", "Internal digital employees and reusable agent templates.", ["Recommended agents", "Custom agents", "Template library", "Approval flow"], "/api/agents/marketplace", "Task027"),
             "/agents/builder": ("Custom Agent Builder", "Create agents with scope, tools, memory, permissions and approval policy.", ["Name and role", "Responsibilities", "Knowledge scope", "Tools", "Permissions", "Test prompt"], "/api/agents/builder/options", "Task027"),
             "/agents/sandbox": ("Agent Testing Sandbox", "Test an agent safely before activation.", ["Selected agent", "Planned tools", "Context scope", "Safety warning", "Placeholder answer"], "/api/agents/sandbox", "Task027"),
-            "/digital-twin": ("Enterprise Digital Twin", "Decision simulation layer for stores, brands, inventory, finance and agents.", ["Company snapshot", "Scenario simulation", "Decision comparison", "Agent opinions"], "/api/digital-twin", "Task028"),
+            "/digital-twin": ("Enterprise Digital Twin", "Sandboxed enterprise twin for entities, relationships, historical state and simulation.", ["Twin registry", "Relationship service", "State history", "Simulation sandbox", "Graph and timeline"], "/api/digital-twin/framework", "Task053"),
             "/decision-center": ("Decision Center", "Daily operating score, risk warning, purchase advice, clearance advice and action list.", ["Today operation", "Risk warning", "Purchase advice", "Clearance advice", "Action list", "History reports"], "/api/decisions", "V5"),
             "/ai-memory": ("AI Memory Center", "Long-term company memory for strategy, decisions, projects and boss intent.", ["Long-term memory", "Pending memory", "Approved memory", "Related objects", "Memory logs"], "/api/memory", "V5"),
             "/web-research-center": ("Web Research Center", "Public web research intake with source URL, summary and human review.", ["Search task", "Source URL", "Summary", "Review queue", "Save to knowledge"], "/api/knowledge", "V5"),
@@ -7427,6 +7435,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": True, "sources": self.v5_data_sources()})
         if path.startswith("/api/data-intelligence") or path.startswith("/api/kpi") or path.startswith("/api/insights") or path.startswith("/api/trends") or path.startswith("/api/data-quality/monitor"):
             return self.json_out(self.data_intelligence_get(user, path))
+        if path.startswith("/api/digital-twin"):
+            return self.json_out(self.digital_twin_get(user, path))
         if path.startswith("/api/data-catalog"):
             return self.json_out({"ok": True, "datasets": self.v5_data_catalog()})
         if path.startswith("/api/data-quality"):
@@ -7619,6 +7629,133 @@ class App(BaseHTTPRequestHandler):
         if path.startswith("/api/trends"):
             return self.trend_api_payload(user)
         return {"ok": False, "message": "unknown data intelligence api", "path": path}
+
+    def digital_twin_entity_registry_payload(self):
+        return {
+            "ok": True,
+            "service": "digital_twin_entity_registry",
+            "core_entities": [
+                {"entity": "Company", "source": "system", "state_scope": "enterprise", "versioned": True},
+                {"entity": "Store", "source": "sap_b1_and_archive", "state_scope": "operations", "versioned": True},
+                {"entity": "Employee", "source": "hr_and_user_archive", "state_scope": "organization", "versioned": True},
+                {"entity": "Customer", "source": "crm_and_member_archive", "state_scope": "customer", "versioned": True},
+                {"entity": "Product", "source": "sap_b1_and_product_archive", "state_scope": "merchandise", "versioned": True},
+                {"entity": "Supplier", "source": "sap_b1_and_supplier_archive", "state_scope": "supply_chain", "versioned": True},
+                {"entity": "Warehouse", "source": "sap_b1_inventory", "state_scope": "inventory", "versioned": True},
+                {"entity": "Contract", "source": "knowledge_and_document_center", "state_scope": "legal", "versioned": True},
+            ],
+            "rule": "digital_twin_entities_are_read_models_and_do_not_modify_production_records",
+        }
+
+    def digital_twin_relationship_service_payload(self):
+        return {
+            "ok": True,
+            "service": "digital_twin_relationship_service",
+            "queryable": True,
+            "versioned": True,
+            "relationships": [
+                {"from": "Company", "to": "Store", "type": "owns_or_operates", "source": "archive_store"},
+                {"from": "Store", "to": "Employee", "type": "staffed_by", "source": "hr_and_users"},
+                {"from": "Store", "to": "Customer", "type": "serves", "source": "crm_members"},
+                {"from": "Store", "to": "Product", "type": "sells", "source": "sap_b1_sales"},
+                {"from": "Product", "to": "Supplier", "type": "supplied_by", "source": "sap_b1_purchase"},
+                {"from": "Product", "to": "Warehouse", "type": "stored_in", "source": "sap_b1_inventory"},
+                {"from": "Supplier", "to": "Contract", "type": "governed_by", "source": "knowledge_documents"},
+                {"from": "AI Agent", "to": "Decision", "type": "drafts_recommendation_for", "source": "agent_audit"},
+            ],
+            "rule": "relationships_should_be_queryable_versioned_and_traceable_to_source",
+        }
+
+    def digital_twin_state_engine_payload(self, user):
+        metrics = self.unified_metrics_service_payload(user)
+        sap = self.sap_sync_status_payload()
+        return {
+            "ok": True,
+            "service": "digital_twin_state_engine",
+            "tracks": ["current_state", "historical_snapshots", "change_history", "synchronization_status"],
+            "current_state": {
+                "company": {"metric_source": "unified_metrics_service", "data_date": metrics["metric_values"].get("data_date", "")},
+                "sap": {"freshness": sap["freshness"], "last_sync_time": sap["last_sync_time"], "last_status": sap["last_status"]},
+                "knowledge": {"source": "knowledge_platform", "status": "ready"},
+                "agents": {"source": "agent_registry", "status": "ready"},
+            },
+            "history_policy": "snapshots_are_append_only_and_never_overwrite_production_data",
+            "snapshot_examples": [
+                {"snapshot_id": "DT-SNAP-current", "source": "unified_metrics_service", "status": "available"},
+                {"snapshot_id": "DT-SNAP-after-nightly-sap-sync", "source": "sap_b1", "status": "scheduled"},
+            ],
+        }
+
+    def digital_twin_simulation_payload(self, user):
+        metrics = self.unified_metrics_service_payload(user)
+        return {
+            "ok": True,
+            "service": "digital_twin_simulation_sandbox",
+            "environment": "isolated_simulation_environment",
+            "production_write_policy": "simulation_must_not_modify_production_data",
+            "allowed_scenarios": ["store_relocation", "promotion_planning", "inventory_allocation", "staffing_changes"],
+            "inputs": {
+                "sap": self.sap_sync_status_payload(),
+                "data_intelligence": {"metric_values": metrics["metric_values"], "lineage": metrics["lineage"]},
+                "knowledge_platform": self.knowledge_retrieval_contract_payload()["retrieval_contract"],
+                "ai_agents": self.agent_runtime_contract_payload()["runtime_contract"],
+            },
+            "sample_scenario": {
+                "scenario_id": "SIM-store-relocation-draft",
+                "scenario_type": "store_relocation",
+                "status": "draft_only",
+                "basis": [{"source": "unified_metrics_service", "field": "store_ranking"}, {"source": "knowledge_platform", "field": "contract_and_location_notes"}],
+                "writes_to_production": False,
+                "human_review_required": True,
+            },
+            "approval_rule": "simulation_outputs_can_inform_decisions_but_execution_requires_human_approval",
+        }
+
+    def digital_twin_visualization_payload(self):
+        return {
+            "ok": True,
+            "service": "digital_twin_visualization_model",
+            "views": [
+                {"view": "graph", "purpose": "enterprise_relationships", "endpoint": "/api/digital-twin/relationships"},
+                {"view": "timeline", "purpose": "historical_state_and_change_history", "endpoint": "/api/digital-twin/state-history"},
+                {"view": "scenario_compare", "purpose": "compare_simulation_results", "endpoint": "/api/digital-twin/simulation"},
+            ],
+            "rule": "visualizations_show_source_and_state_version_for_management_review",
+        }
+
+    def digital_twin_framework_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "enterprise_digital_twin",
+            "purpose": "safe_operating_model_for_analysis_simulation_and_decision_support",
+            "production_write_policy": "read_only_twin_and_sandboxed_simulations_never_modify_production_data",
+            "collaboration": {
+                "sap": "/api/sap/sync/connector",
+                "knowledge": "/api/knowledge/retrieval-contract",
+                "ai_agents": "/api/agents/runtime-contract",
+                "data_intelligence": "/api/data-intelligence/framework",
+            },
+            "entity_registry": self.digital_twin_entity_registry_payload()["core_entities"],
+            "relationships": self.digital_twin_relationship_service_payload()["relationships"],
+            "state_engine": self.digital_twin_state_engine_payload(user),
+            "simulation": self.digital_twin_simulation_payload(user),
+            "visualization": self.digital_twin_visualization_payload(),
+        }
+
+    def digital_twin_get(self, user, path):
+        if path in ("/api/digital-twin", "/api/digital-twin/framework"):
+            return self.digital_twin_framework_payload(user)
+        if path in ("/api/digital-twin/entities", "/api/digital-twin/registry"):
+            return self.digital_twin_entity_registry_payload()
+        if path == "/api/digital-twin/relationships":
+            return self.digital_twin_relationship_service_payload()
+        if path in ("/api/digital-twin/state", "/api/digital-twin/state-history"):
+            return self.digital_twin_state_engine_payload(user)
+        if path in ("/api/digital-twin/simulation", "/api/digital-twin/sandbox"):
+            return self.digital_twin_simulation_payload(user)
+        if path == "/api/digital-twin/visualization":
+            return self.digital_twin_visualization_payload()
+        return {"ok": False, "message": "unknown digital twin api", "path": path}
 
     def v5_data_catalog(self):
         return [

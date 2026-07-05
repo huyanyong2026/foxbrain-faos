@@ -28,6 +28,7 @@
 - Pack 11 security governance: RBAC, audit export, data classification, backup recovery governance and approval controls.
 - Pack 12 SDK marketplace: plugin-first extension design, versioned SDK contracts, marketplace registry and backward compatibility guarantees.
 - Pack 13 data intelligence: unified KPI catalog, metrics service, data quality monitoring, trend APIs and evidence-based AI insights.
+- Pack 14 digital twin: enterprise entity model, relationship graph, historical state engine, sandbox simulation and visualization contracts.
 - Replace placeholder worker jobs with real knowledge indexing and report generation.
 - Add SAP incremental sync conflict detection.
 - Add structured tests for key API routes.

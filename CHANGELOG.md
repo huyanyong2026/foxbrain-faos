@@ -30,3 +30,5 @@
 - SDK and marketplace APIs now expose versioned extension contracts and default human approval for high-risk plugin actions.
 - Integrated Pack 13 unified data intelligence layer with KPI catalog, metrics service, canonical data model, quality monitor, trend API and evidence-based insight engine.
 - Dashboard KPI and Enterprise Brain decision contracts now reference the unified metrics service to prevent inconsistent KPI calculations.
+- Integrated Pack 14 enterprise digital twin framework with entity registry, relationship service, state history, simulation sandbox and visualization contracts.
+- Enterprise Brain simulation now uses the digital twin sandbox and explicitly blocks production data modification.
