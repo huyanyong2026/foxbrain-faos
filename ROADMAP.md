@@ -15,9 +15,9 @@
 
 ## V6 Next Tasks
 
+- Foundation Pack 01 alignment: repository standards, environment configuration, structured logging, authentication, authorization, agent registry, SAP connector abstraction, knowledge service, workflow scheduler, CI/CD, tests and documentation.
 - Replace placeholder worker jobs with real knowledge indexing and report generation.
 - Add SAP incremental sync conflict detection.
 - Add structured tests for key API routes.
 - Split the current single-file portal into modules when safe.
 - Add production monitoring and alert channels.
-

@@ -28,3 +28,10 @@ FoxBrain is currently a cloud-deployable Python portal with Docker Compose infra
 
 AI can draft and suggest. Sensitive business actions require human approval.
 
+## Enterprise Pack 01 Principles
+
+- SAP remains the authoritative ERP system of record.
+- FoxBrain provides AI, knowledge management and orchestration around SAP.
+- Architecture should evolve toward modular services without breaking the current portal.
+- Security by design, mobile-first and AI-first.
+- Documentation, tests and deployment scripts must move with code changes.

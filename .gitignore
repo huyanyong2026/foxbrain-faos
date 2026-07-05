@@ -10,6 +10,7 @@ __pycache__/
 .DS_Store
 *.log
 .codex_tmp_paramiko/
+.codex_import/
 latest_summary.json
 foxbrain-v4-docs-clean-*/
 foxbrain-v4-docs-clean-*.zip

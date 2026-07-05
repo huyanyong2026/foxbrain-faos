@@ -6,4 +6,4 @@
 - Added worker visibility to `healthcheck.sh`.
 - Updated `/api/health` to expose V6 worker job schedule and app version.
 - Preserved existing login, V5 pages, SAP sync and cloud deployment behavior.
-
+- Imported FoxBrain OS Enterprise Pack 01 as the foundation engineering standard and aligned roadmap/docs.

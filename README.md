@@ -391,6 +391,10 @@ Top-level documents:
 - `OPERATIONS.md`
 - `BACKUP_RESTORE.md`
 
+## Enterprise Pack 01
+
+`FoxBrain_OS_Enterprise_Pack_01.zip` has been reviewed and aligned into the repository documentation. It confirms the foundation principles: SAP is the system of record, FoxBrain provides AI/knowledge/orchestration, and every change should preserve existing functionality while improving modularity, tests, deployment and documentation.
+
 ## V4 Routes
 
 - `/`
