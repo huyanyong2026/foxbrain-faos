@@ -35,6 +35,7 @@ After deployment, FoxBrain runs on the cloud server. Your personal computer can 
 - Pack 14: enterprise digital twin framework for connected entities, historical state, sandbox simulation and decision support.
 - Pack 15: enterprise decision engine for explainable recommendations, risk scoring, opportunity discovery and approval gates.
 - Pack 16: AI Strategy Center for OKRs, strategic models, scenario comparison, expansion planning and strategy dashboard.
+- Pack 17: FoxBrain University for learning catalog, role-based paths, AI Tutor, certification and knowledge feedback.
 
 The Pack 02 through Pack 09 implementation is additive. Existing login, mobile pages, cloud deployment, SAP sync status, knowledge pages, agent center pages, dashboard pages, automation pages and memory pages are preserved.
 
@@ -122,6 +123,13 @@ The Pack 02 through Pack 09 implementation is additive. Existing login, mobile p
 - `/api/strategy-center/expansion-analysis`
 - `/api/strategy-center/brand-product-strategy`
 - `/api/strategy-center/dashboard`
+- `/api/university/framework`
+- `/api/university/catalog`
+- `/api/university/learning-paths`
+- `/api/university/ai-tutor`
+- `/api/university/certification`
+- `/api/university/progress`
+- `/api/university/knowledge-feedback`
 
 ## Core Modules
 

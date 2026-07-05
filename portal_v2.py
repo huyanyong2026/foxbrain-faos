@@ -2164,7 +2164,7 @@ class App(BaseHTTPRequestHandler):
             return self.api_brand_growth_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
-        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/strategy-center", "/api/digital-twin", "/api/decision-engine", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
+        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/strategy-center", "/api/university", "/api/learning", "/api/digital-twin", "/api/decision-engine", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
             return self.api_v5_get(user, path)
         if path.startswith("/api/sap/"):
             return self.sap_api_placeholder(user, path)
@@ -6069,6 +6069,11 @@ class App(BaseHTTPRequestHandler):
         checks["strategy_okr_status"] = "kpi_linked"
         checks["strategy_scenario_comparison_status"] = "digital_twin_sandbox"
         checks["strategy_recommendation_status"] = "explainable_and_consistent"
+        checks["enterprise_pack_17_university_status"] = "framework_ready"
+        checks["learning_path_status"] = "role_based"
+        checks["ai_tutor_status"] = "knowledge_connected"
+        checks["certification_status"] = "tracked_not_permission_granting"
+        checks["learning_permission_policy_status"] = "manager_rules_only"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7338,6 +7343,7 @@ class App(BaseHTTPRequestHandler):
             "/system/permissions": ("Permission Matrix", "Role, module, action and sensitive data permission adapter.", ["Roles", "Modules", "Actions", "Sensitive scopes", "AI scopes"], "/api/kernel/permissions", "Task030"),
             "/data-fabric": ("AI Data Fabric", "Unified data catalog, freshness, lineage, quality and AI readiness.", ["Data sources", "Catalog", "Lineage", "Quality", "AI-ready data", "Sensitive data"], "/api/data-fabric", "Task031"),
             "/data-intelligence": ("Data Intelligence", "Unified KPI and data service for dashboards, AI agents and decision engines.", ["Unified metrics", "KPI catalog", "Insight engine", "Data quality", "Trend APIs"], "/api/data-intelligence/framework", "Task052"),
+            "/university": ("FoxBrain University", "Enterprise learning center with role paths, AI Tutor, certification and knowledge feedback.", ["Learning catalog", "Role paths", "AI Tutor", "Certification", "Progress", "Knowledge feedback"], "/api/university/framework", "Task056"),
             "/system/apps": ("App Platform", "Built-in app registry and future plugin architecture.", ["Installed apps", "Available apps", "Permissions", "Settings", "Health", "Events"], "/api/apps", "Task032"),
             "/system/apps/developer": ("App Developer Guide", "Manifest, permission, event bus and data fabric rules for future apps.", ["Manifest", "Routes", "Permissions", "Events", "Settings", "Security"], "/api/apps/developer/template", "Task032"),
             "/integrations": ("Integration Hub", "Safe connector registry for SAP, AI providers, search, messaging and webhooks.", ["Connectors", "Credential status", "Sync jobs", "Webhooks", "AI providers", "Search providers"], "/api/integrations", "Task033"),
@@ -7453,6 +7459,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(self.decision_engine_get(user, path))
         if path.startswith("/api/strategy-center"):
             return self.json_out(self.strategy_center_get(user, path))
+        if path.startswith("/api/university") or path.startswith("/api/learning"):
+            return self.json_out(self.university_get(user, path))
         if path.startswith("/api/data-catalog"):
             return self.json_out({"ok": True, "datasets": self.v5_data_catalog()})
         if path.startswith("/api/data-quality"):
@@ -8014,6 +8022,134 @@ class App(BaseHTTPRequestHandler):
         if path in ("/api/strategy-center/dashboard", "/api/strategy-center/strategy-dashboard"):
             return self.strategy_dashboard_payload(user)
         return {"ok": False, "message": "unknown strategy center api", "path": path}
+
+    def university_learning_catalog_payload(self):
+        return {
+            "ok": True,
+            "service": "university_learning_catalog",
+            "course_types": ["courses", "documents", "videos", "quizzes", "assessments", "ai_tutoring"],
+            "knowledge_sources": ["/api/knowledge/platform", "/api/knowledge/retrieval-contract", "/api/documents", "/api/memory/framework"],
+            "catalog": [
+                {"course_id": "UNI-STORE-001", "title": "Store Daily Operation Basics", "track": "Store Manager", "source": "knowledge_platform", "required_for": ["store_manager"]},
+                {"course_id": "UNI-SALES-001", "title": "Product Selling Script and Customer Follow-up", "track": "Sales", "source": "knowledge_platform", "required_for": ["employee"]},
+                {"course_id": "UNI-FIN-001", "title": "Finance Process and Payment Approval", "track": "Finance", "source": "knowledge_platform", "required_for": ["finance"]},
+                {"course_id": "UNI-PUR-001", "title": "Purchasing and Supplier Risk Basics", "track": "Purchasing", "source": "knowledge_platform", "required_for": ["purchasing"]},
+                {"course_id": "UNI-AI-001", "title": "How to Use FoxBrain AI Safely", "track": "All Roles", "source": "knowledge_platform", "required_for": ["boss", "admin", "store_manager", "employee", "finance", "purchasing"]},
+            ],
+            "rule": "learning_catalog_is_generated_from_enterprise_knowledge_and_training_materials",
+        }
+
+    def university_learning_paths_payload(self, user):
+        role = user["role"]
+        tracks = {
+            "boss": ["CEO", "AI Strategy", "Decision Review", "Financial Risk"],
+            "admin": ["System Admin", "Security Governance", "User Management", "Data Governance"],
+            "store_manager": ["Store Manager", "Sales Coaching", "Inventory Risk", "Customer Growth"],
+            "employee": ["Sales", "Customer Service", "Product Knowledge", "Mobile Field Work"],
+            "finance": ["Finance", "Payment Approval", "Cash Flow", "Audit"],
+            "purchasing": ["Purchasing", "Supplier Risk", "Brand Product Strategy", "Inventory Turnover"],
+        }
+        path = tracks.get(role, tracks["employee"])
+        return {
+            "ok": True,
+            "service": "role_based_learning_path",
+            "role": role,
+            "tracks": ["CEO", "Store Manager", "Sales", "Finance", "HR", "Purchasing", "Customer Service"],
+            "recommended_path": [{"step": idx + 1, "track": name, "source": "knowledge_platform", "status": "recommended"} for idx, name in enumerate(path)],
+            "personalization_inputs": ["role", "store", "completed_training", "knowledge_questions", "manager_feedback"],
+            "rule": "learning_paths_are_recommendations_and_do_not_change_business_permissions_automatically",
+        }
+
+    def university_ai_tutor_payload(self, user):
+        return {
+            "ok": True,
+            "service": "ai_tutor_interface",
+            "tutor": "FoxBrain AI Tutor",
+            "connected_sources": {
+                "knowledge": "/api/knowledge/retrieval-contract",
+                "learning_path": "/api/university/learning-paths",
+                "training_records": "/api/hr/training",
+                "employee_growth": "/api/hr/growth-records",
+            },
+            "personalized_suggestions": [
+                {"topic": "today_learning_focus", "suggestion": "Review the first unfinished role-based course.", "basis": [{"source": "role_based_learning_path", "field": "recommended_path"}]},
+                {"topic": "knowledge_gap", "suggestion": "Ask AI Tutor when SOP or product knowledge is unclear.", "basis": [{"source": "knowledge_feedback", "field": "missing_knowledge"}]},
+            ],
+            "guardrails": ["cite_knowledge_sources", "do_not_invent_policy", "do_not_grant_permissions", "manager_review_for_growth_actions"],
+        }
+
+    def university_certification_payload(self, user):
+        return {
+            "ok": True,
+            "service": "certification_tracking",
+            "tracks": ["required_learning", "progress", "exam_results", "skill_badges", "renewal_reminders"],
+            "sample_certifications": [
+                {"cert_id": "CERT-SALES-001", "name": "Sales Foundation", "status": "available", "renewal": "annual"},
+                {"cert_id": "CERT-STORE-001", "name": "Store Manager Foundation", "status": "available", "renewal": "annual"},
+                {"cert_id": "CERT-AI-001", "name": "FoxBrain AI Safe Use", "status": "available", "renewal": "annual"},
+            ],
+            "permission_policy": "certification_results_can_support_employee_growth_but_must_not_automatically_change_business_permissions",
+            "approval_rule": "role_or_permission_changes_require_manager_or_admin_rule",
+        }
+
+    def university_progress_payload(self, user):
+        training = []
+        try:
+            with db() as conn:
+                training = [row_dict(r) for r in conn.execute("select * from hr_training_records order by created_at desc limit 20").fetchall()]
+        except Exception:
+            training = []
+        return {
+            "ok": True,
+            "service": "learning_progress_dashboard",
+            "user": {"id": user["id"], "role": user["role"], "store": user["store"]},
+            "progress_sources": ["hr_training_records", "certification_tracking", "ai_tutor_sessions", "knowledge_feedback"],
+            "recent_training": training,
+            "summary": {"completed": len(training), "in_progress": 0, "recommended": len(self.university_learning_paths_payload(user)["recommended_path"])},
+            "growth_policy": "learning_results_may_inform_employee_growth_but_do_not_auto_affect_business_permissions",
+        }
+
+    def university_knowledge_feedback_payload(self):
+        return {
+            "ok": True,
+            "service": "knowledge_feedback_loop",
+            "captures": ["questions_asked", "missing_knowledge", "suggested_improvements", "content_quality_ratings"],
+            "feedback_flow": ["ai_tutor_question", "detect_missing_knowledge", "create_knowledge_improvement_task", "manager_review", "publish_to_knowledge_platform"],
+            "knowledge_platform_endpoint": "/api/knowledge/platform",
+            "rule": "learning_questions_improve_knowledge_base_after_review_not_direct_publish",
+        }
+
+    def foxbrain_university_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "foxbrain_university",
+            "purpose": "enterprise_learning_and_capability_development_platform",
+            "knowledge_integration": "enterprise_knowledge_platform_and_learning_center_are_bidirectionally_connected",
+            "catalog": self.university_learning_catalog_payload(),
+            "learning_paths": self.university_learning_paths_payload(user),
+            "ai_tutor": self.university_ai_tutor_payload(user),
+            "certification": self.university_certification_payload(user),
+            "progress": self.university_progress_payload(user),
+            "knowledge_feedback": self.university_knowledge_feedback_payload(),
+            "permission_boundary": "learning_results_never_auto_grant_business_permissions_manager_rules_decide",
+        }
+
+    def university_get(self, user, path):
+        if path in ("/api/university", "/api/university/framework", "/api/learning"):
+            return self.foxbrain_university_payload(user)
+        if path in ("/api/university/catalog", "/api/learning/catalog"):
+            return self.university_learning_catalog_payload()
+        if path in ("/api/university/learning-paths", "/api/learning/paths"):
+            return self.university_learning_paths_payload(user)
+        if path in ("/api/university/ai-tutor", "/api/learning/ai-tutor"):
+            return self.university_ai_tutor_payload(user)
+        if path in ("/api/university/certification", "/api/learning/certification"):
+            return self.university_certification_payload(user)
+        if path in ("/api/university/progress", "/api/learning/progress"):
+            return self.university_progress_payload(user)
+        if path in ("/api/university/knowledge-feedback", "/api/learning/knowledge-feedback"):
+            return self.university_knowledge_feedback_payload()
+        return {"ok": False, "message": "unknown university api", "path": path}
 
     def v5_data_catalog(self):
         return [

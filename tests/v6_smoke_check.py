@@ -126,6 +126,13 @@ def test_enterprise_pack_routes_present():
         "/api/strategy-center/expansion-analysis",
         "/api/strategy-center/brand-product-strategy",
         "/api/strategy-center/dashboard",
+        "/api/university/framework",
+        "/api/university/catalog",
+        "/api/university/learning-paths",
+        "/api/university/ai-tutor",
+        "/api/university/certification",
+        "/api/university/progress",
+        "/api/university/knowledge-feedback",
     ]:
         assert route in portal
 
@@ -356,6 +363,26 @@ def test_pack_ai_strategy_center_present():
         assert phrase in portal
 
 
+def test_pack_foxbrain_university_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "foxbrain_university_payload",
+        "university_learning_catalog_payload",
+        "university_learning_paths_payload",
+        "university_ai_tutor_payload",
+        "university_certification_payload",
+        "university_progress_payload",
+        "university_knowledge_feedback_payload",
+        "university_get",
+        "enterprise_knowledge_platform_and_learning_center_are_bidirectionally_connected",
+        "learning_paths_are_recommendations_and_do_not_change_business_permissions_automatically",
+        "certification_results_can_support_employee_growth_but_must_not_automatically_change_business_permissions",
+        "learning_results_never_auto_grant_business_permissions_manager_rules_decide",
+        "learning_questions_improve_knowledge_base_after_review_not_direct_publish",
+    ]:
+        assert phrase in portal
+
+
 def test_production_deployment_files_present():
     for file_name in [
         "Dockerfile",
@@ -396,6 +423,7 @@ def test_enterprise_pack_docs_present():
         "docs/123_ENTERPRISE_PACK_14_DIGITAL_TWIN.md",
         "docs/124_ENTERPRISE_PACK_15_DECISION_ENGINE.md",
         "docs/125_ENTERPRISE_PACK_16_AI_STRATEGY_CENTER.md",
+        "docs/126_ENTERPRISE_PACK_17_FOXBRAIN_UNIVERSITY.md",
         "docs/SDK_EXTENSION_STANDARD.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
@@ -413,5 +441,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task053_Pack14_Digital_Twin.md",
         "docs/CODEX_TASKS/Task054_Pack15_Decision_Engine.md",
         "docs/CODEX_TASKS/Task055_Pack16_AI_Strategy_Center.md",
+        "docs/CODEX_TASKS/Task056_Pack17_FoxBrain_University.md",
     ]:
         assert (ROOT / doc).exists()

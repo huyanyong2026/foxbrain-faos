@@ -36,3 +36,5 @@
 - Enterprise Brain decision output now uses the decision engine and requires evidence, risk score and confidence for business recommendations.
 - Integrated Pack 16 AI Strategy Center with KPI-linked OKRs, strategy models, scenario comparison, expansion analysis and strategy dashboard.
 - Strategy analysis now aligns with Data Intelligence, Digital Twin and Enterprise Decision Engine contracts.
+- Integrated Pack 17 FoxBrain University with learning catalog, role-based paths, AI Tutor, certification, progress dashboard and knowledge feedback.
+- Learning outcomes now support employee growth while explicitly avoiding automatic business permission changes.
