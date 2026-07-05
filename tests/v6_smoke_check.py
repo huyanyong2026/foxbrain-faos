@@ -72,6 +72,13 @@ def test_enterprise_pack_routes_present():
         "/api/portal/messages",
         "/api/portal/tasks",
         "/api/portal/responsive",
+        "/api/memory/framework",
+        "/api/memory/repository",
+        "/api/memory/governance",
+        "/api/memory/timeline",
+        "/api/memory/retrieval",
+        "/api/memory/decision-history",
+        "/api/memory/ai-contract",
     ]:
         assert route in portal
 
@@ -155,6 +162,23 @@ def test_pack_mobile_portal_present():
     assert '"/portal"' in portal
 
 
+def test_pack_enterprise_memory_present():
+    portal = read("portal_v2.py")
+    for field in ["owner", "tags", "access_level", "retention_policy", "version"]:
+        assert f'"memories", "{field}"' in portal
+    for phrase in [
+        "enterprise_memory_repository_payload",
+        "enterprise_memory_governance_payload",
+        "enterprise_memory_timeline_payload",
+        "enterprise_memory_retrieval_payload",
+        "enterprise_decision_history_payload",
+        "enterprise_memory_ai_contract_payload",
+        "permission_filter_before_agent_context",
+        "agent_answers_must_cite_memory_id_or_source",
+    ]:
+        assert phrase in portal
+
+
 def test_enterprise_pack_docs_present():
     for doc in [
         "docs/110_ENTERPRISE_PACK_01.md",
@@ -165,6 +189,7 @@ def test_enterprise_pack_docs_present():
         "docs/115_ENTERPRISE_PACK_06_AUTOMATION.md",
         "docs/116_ENTERPRISE_PACK_07_ENTERPRISE_BRAIN.md",
         "docs/117_ENTERPRISE_PACK_08_MOBILE_PORTAL.md",
+        "docs/118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
         "docs/CODEX_TASKS/Task042_Pack03_Knowledge_Platform.md",
         "docs/CODEX_TASKS/Task043_Pack04_AI_Agent_Framework.md",
@@ -172,5 +197,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task045_Pack06_Automation_Framework.md",
         "docs/CODEX_TASKS/Task046_Pack07_Enterprise_Brain.md",
         "docs/CODEX_TASKS/Task047_Pack08_Mobile_Portal.md",
+        "docs/CODEX_TASKS/Task048_Pack09_Enterprise_Memory.md",
     ]:
         assert (ROOT / doc).exists()

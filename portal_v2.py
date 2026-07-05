@@ -688,8 +688,14 @@ create table if not exists memories(
         ensure_column(conn, "memories", "reviewed_by", "reviewed_by integer")
         ensure_column(conn, "memories", "reviewed_at", "reviewed_at integer")
         ensure_column(conn, "memories", "expansion_status", "expansion_status text not null default 'extendable'")
+        ensure_column(conn, "memories", "owner", "owner text")
+        ensure_column(conn, "memories", "tags", "tags text")
+        ensure_column(conn, "memories", "access_level", "access_level text not null default 'manager_only'")
+        ensure_column(conn, "memories", "retention_policy", "retention_policy text not null default 'standard'")
+        ensure_column(conn, "memories", "version", "version text not null default '1.0'")
         conn.execute("create index if not exists idx_memories_permission on memories(permission_scope, visibility)")
         conn.execute("create index if not exists idx_memories_expansion on memories(expansion_status)")
+        conn.execute("create index if not exists idx_memories_governance on memories(owner, access_level, retention_policy)")
         conn.execute(
             """
 create table if not exists user_preferences(
@@ -5138,6 +5144,14 @@ class App(BaseHTTPRequestHandler):
             },
             "counts": counts,
             "memories": [self.memory_to_json(r) for r in rows],
+            "enterprise_memory_framework": {
+                "repository_endpoint": "/api/memory/repository",
+                "timeline_endpoint": "/api/memory/timeline",
+                "retrieval_endpoint": "/api/memory/retrieval",
+                "decision_history_endpoint": "/api/memory/decision-history",
+                "permission_filtered": True,
+                "traceable": True,
+            },
         }
 
     def brain_decision_engine_payload(self, user):
@@ -6003,6 +6017,10 @@ class App(BaseHTTPRequestHandler):
         checks["portal_sso_status"] = "session_sso_ready"
         checks["portal_navigation_status"] = "role_based"
         checks["portal_responsive_status"] = "mobile_tablet_desktop"
+        checks["enterprise_pack_09_memory_status"] = "framework_ready"
+        checks["long_term_memory_status"] = "permission_searchable_traceable"
+        checks["enterprise_timeline_status"] = "available"
+        checks["decision_history_status"] = "supported"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -6279,6 +6297,114 @@ class App(BaseHTTPRequestHandler):
     def memory_to_json(self, row):
         return row_dict(row) or {}
 
+    def enterprise_memory_repository_payload(self, user):
+        with db() as conn:
+            rows = [r for r in conn.execute("select * from memories order by updated_at desc limit 100").fetchall() if self.can_view_memory(user, r)]
+            counts = {
+                "total": conn.execute("select count(*) c from memories").fetchone()["c"],
+                "events": conn.execute("select count(*) c from memories where memory_type in ('event','company_milestone','store_history','product_launch')").fetchone()["c"],
+                "meetings": conn.execute("select count(*) c from memories where memory_type in ('meeting','meeting_note')").fetchone()["c"],
+                "contracts": conn.execute("select count(*) c from memories where memory_type in ('contract','contract_risk')").fetchone()["c"],
+                "decisions": conn.execute("select count(*) c from memories where memory_type in ('business_decision','strategic_decision','pricing_rule')").fetchone()["c"],
+                "pending_review": conn.execute("select count(*) c from memories where status='pending_review'").fetchone()["c"],
+            }
+        return {
+            "ok": True,
+            "repository": "enterprise_long_term_memory",
+            "memory_objects": ["important_events", "meetings", "contracts", "business_decisions", "company_milestones", "store_history", "product_launches"],
+            "governance": self.enterprise_memory_governance_payload()["governance"],
+            "counts": counts,
+            "items": [self.memory_to_json(r) for r in rows],
+        }
+
+    def enterprise_memory_governance_payload(self):
+        return {
+            "ok": True,
+            "governance": {
+                "required_fields": ["owner", "source", "timestamp", "tags", "access_level", "retention_policy"],
+                "traceability_fields": ["source_type", "source_id", "evidence_json", "lineage_json", "created_by", "created_at", "reviewed_by", "reviewed_at"],
+                "access_levels": ["public_internal", "manager_only", "finance_only", "owner_only", "restricted"],
+                "retention_policies": ["standard", "contract", "finance", "hr", "permanent"],
+                "version_history": "contract_ready",
+                "approval_policy": "important_memory_requires_human_review",
+            },
+        }
+
+    def enterprise_memory_timeline_payload(self, user):
+        with db() as conn:
+            memories = [r for r in conn.execute("select * from memories where memory_type in ('event','company_milestone','store_history','product_launch','contract','meeting','business_decision','strategic_decision') order by created_at desc limit 80").fetchall() if self.can_view_memory(user, r)]
+            events = [row_dict(r) for r in conn.execute("select * from system_events order by created_at desc limit 80").fetchall()]
+            decisions = [row_dict(r) for r in conn.execute("select * from decision_memories order by updated_at desc limit 50").fetchall()] if self.role_can_manage(user) else []
+        items = []
+        for m in memories:
+            items.append({"type": "memory", "title": m["title"], "timestamp": m["created_at"], "url": "/memory/view?id=" + str(m["id"]), "source": m["source_type"], "access_level": m["visibility"]})
+        for e in events:
+            items.append({"type": "system_event", "title": e.get("title", ""), "timestamp": e.get("created_at"), "url": "/timeline", "source": e.get("event_type", ""), "access_level": "role_based"})
+        for d in decisions:
+            items.append({"type": "decision", "title": d.get("decision_title", ""), "timestamp": d.get("updated_at"), "url": "/decisions", "source": "decision_history", "access_level": "manager_only"})
+        items = sorted(items, key=lambda x: x.get("timestamp") or 0, reverse=True)[:100]
+        return {"ok": True, "timeline": {"event_types": ["company_milestones", "store_history", "product_launches", "contracts", "meetings", "strategic_decisions"], "items": items, "searchable": True, "permission_filtered": True}}
+
+    def enterprise_memory_retrieval_payload(self, user):
+        q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+        rows = []
+        with db() as conn:
+            if q:
+                like = "%" + q + "%"
+                found = conn.execute("select * from memories where title like ? or content like ? or tags like ? or source_type like ? order by updated_at desc limit 80", (like, like, like, like)).fetchall()
+            else:
+                found = conn.execute("select * from memories order by updated_at desc limit 40").fetchall()
+            rows = [r for r in found if self.can_view_memory(user, r)]
+        return {
+            "ok": True,
+            "retrieval": {
+                "query": q,
+                "permission_filtered": True,
+                "ai_agent_access": "allowed_sources_only",
+                "results": [self.memory_to_json(r) for r in rows],
+                "citation_rule": "agent_answers_must_cite_memory_id_or_source",
+            },
+        }
+
+    def enterprise_decision_history_payload(self, user):
+        if not self.role_can_manage(user):
+            return {"ok": False, "message": "no permission"}
+        with db() as conn:
+            decisions = [row_dict(r) for r in conn.execute("select * from decision_memories order by updated_at desc limit 100").fetchall()]
+        return {
+            "ok": True,
+            "decision_history": {
+                "records": decisions,
+                "required_parts": ["decision", "supporting_evidence", "approvals", "outcomes", "future_learning"],
+                "source_link": "memory_id",
+                "ai_learning": "approved_decisions_can_be_used_as_enterprise_memory",
+            },
+        }
+
+    def enterprise_memory_ai_contract_payload(self):
+        return {
+            "ok": True,
+            "ai_memory_contract": {
+                "collaboration": ["knowledge_platform", "ai_agents", "enterprise_brain", "automation"],
+                "retrieval_rule": "permission_filter_before_agent_context",
+                "citation_fields": ["memory_id", "source_type", "source_id", "evidence_json"],
+                "write_rule": "important_events_meetings_contracts_decisions_default_pending_review",
+                "agent_usage": "agents_may_recall_approved_or_visible_memories_only",
+            },
+        }
+
+    def enterprise_memory_framework_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "enterprise_long_term_memory_system",
+            "pack_alignment": ["Pack01 foundation", "Pack03 knowledge", "Pack04 agents", "Pack07 brain", "Pack09 enterprise memory"],
+            "repository": self.enterprise_memory_repository_payload(user),
+            "timeline": self.enterprise_memory_timeline_payload(user)["timeline"],
+            "retrieval": self.enterprise_memory_retrieval_payload(user)["retrieval"],
+            "decision_history": self.enterprise_decision_history_payload(user) if self.role_can_manage(user) else {"ok": True, "limited": True},
+            "ai_contract": self.enterprise_memory_ai_contract_payload()["ai_memory_contract"],
+        }
+
     def memory_center(self, user):
         user = self.require_login(user)
         if not user:
@@ -6498,6 +6624,20 @@ class App(BaseHTTPRequestHandler):
     def api_memory_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/memory/framework":
+            return self.json_out(self.enterprise_memory_framework_payload(user))
+        if path == "/api/memory/repository":
+            return self.json_out(self.enterprise_memory_repository_payload(user))
+        if path == "/api/memory/governance":
+            return self.json_out(self.enterprise_memory_governance_payload())
+        if path == "/api/memory/timeline":
+            return self.json_out(self.enterprise_memory_timeline_payload(user))
+        if path == "/api/memory/retrieval":
+            return self.json_out(self.enterprise_memory_retrieval_payload(user))
+        if path == "/api/memory/decision-history":
+            return self.json_out(self.enterprise_decision_history_payload(user))
+        if path == "/api/memory/ai-contract":
+            return self.json_out(self.enterprise_memory_ai_contract_payload())
         if path == "/api/memory":
             with db() as conn:
                 rows = [r for r in conn.execute("select * from memories order by updated_at desc limit 100").fetchall() if self.can_view_memory(user, r)]

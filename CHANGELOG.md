@@ -20,3 +20,5 @@
 - AI recommendation contracts now require data or knowledge basis and preserve human approval for high-risk decisions.
 - Integrated Pack 08 unified enterprise portal with SSO contract, role navigation, shared components, message center and task center.
 - Added `/portal` as the unified mobile-first portal entry for phone, tablet and desktop.
+- Integrated Pack 09 enterprise memory framework with governed long-term memory, timeline, permission-aware retrieval and decision history contracts.
+- Enterprise Brain memory service now links to the enterprise memory repository, timeline, retrieval and decision history endpoints.
