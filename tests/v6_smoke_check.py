@@ -114,6 +114,11 @@ def test_enterprise_pack_routes_present():
         "/api/digital-twin/state-history",
         "/api/digital-twin/simulation",
         "/api/digital-twin/visualization",
+        "/api/decision-engine/framework",
+        "/api/decision-engine/risk-scoring",
+        "/api/decision-engine/opportunities",
+        "/api/decision-engine/recommendations",
+        "/api/decision-engine/approval-gate",
     ]:
         assert route in portal
 
@@ -305,6 +310,26 @@ def test_pack_digital_twin_present():
         assert phrase in portal
 
 
+def test_pack_decision_engine_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "enterprise_decision_engine_payload",
+        "decision_risk_scoring_payload",
+        "decision_opportunity_engine_payload",
+        "explainable_recommendations_payload",
+        "decision_approval_gate_payload",
+        "decision_engine_get",
+        "all_business_recommendations_must_show_basis_risk_score_and_confidence",
+        "each_decision_risk_score_must_include_rationale_and_evidence",
+        "high_risk_decision_actions_must_enter_human_approval_and_must_not_auto_execute",
+        "decision_engine_can_recommend_and_request_approval_but_must_not_auto_execute_high_risk_actions",
+        "must_use_unified_data_model",
+        "must_use_unified_kpi_catalog",
+        "must_use_enterprise_knowledge",
+    ]:
+        assert phrase in portal
+
+
 def test_production_deployment_files_present():
     for file_name in [
         "Dockerfile",
@@ -343,6 +368,7 @@ def test_enterprise_pack_docs_present():
         "docs/121_ENTERPRISE_PACK_12_SDK_MARKETPLACE.md",
         "docs/122_ENTERPRISE_PACK_13_DATA_INTELLIGENCE.md",
         "docs/123_ENTERPRISE_PACK_14_DIGITAL_TWIN.md",
+        "docs/124_ENTERPRISE_PACK_15_DECISION_ENGINE.md",
         "docs/SDK_EXTENSION_STANDARD.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
@@ -358,5 +384,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task051_Pack12_SDK_Marketplace.md",
         "docs/CODEX_TASKS/Task052_Pack13_Data_Intelligence.md",
         "docs/CODEX_TASKS/Task053_Pack14_Digital_Twin.md",
+        "docs/CODEX_TASKS/Task054_Pack15_Decision_Engine.md",
     ]:
         assert (ROOT / doc).exists()

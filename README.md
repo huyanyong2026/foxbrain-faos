@@ -33,6 +33,7 @@ After deployment, FoxBrain runs on the cloud server. Your personal computer can 
 - Pack 12: SDK marketplace foundation for plugin design, versioned extension APIs and backward compatibility.
 - Pack 13: unified data intelligence layer for KPI catalog, metrics service, data quality, trend APIs and evidence-based insights.
 - Pack 14: enterprise digital twin framework for connected entities, historical state, sandbox simulation and decision support.
+- Pack 15: enterprise decision engine for explainable recommendations, risk scoring, opportunity discovery and approval gates.
 
 The Pack 02 through Pack 09 implementation is additive. Existing login, mobile pages, cloud deployment, SAP sync status, knowledge pages, agent center pages, dashboard pages, automation pages and memory pages are preserved.
 
@@ -108,6 +109,11 @@ The Pack 02 through Pack 09 implementation is additive. Existing login, mobile p
 - `/api/digital-twin/state-history`
 - `/api/digital-twin/simulation`
 - `/api/digital-twin/visualization`
+- `/api/decision-engine/framework`
+- `/api/decision-engine/risk-scoring`
+- `/api/decision-engine/opportunities`
+- `/api/decision-engine/recommendations`
+- `/api/decision-engine/approval-gate`
 
 ## Core Modules
 

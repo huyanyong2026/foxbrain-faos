@@ -2164,7 +2164,7 @@ class App(BaseHTTPRequestHandler):
             return self.api_brand_growth_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
-        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
+        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/decision-engine", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
             return self.api_v5_get(user, path)
         if path.startswith("/api/sap/"):
             return self.sap_api_placeholder(user, path)
@@ -5164,6 +5164,7 @@ class App(BaseHTTPRequestHandler):
         recommendations = self.dashboard_recommendation_service_payload(user)
         unified_metrics = self.unified_metrics_service_payload(user)
         insights = self.insight_engine_payload(user)
+        decision_engine = self.enterprise_decision_engine_payload(user)
         knowledge_contract = self.knowledge_retrieval_contract_payload()["retrieval_contract"]
         return {
             "ok": True,
@@ -5171,12 +5172,13 @@ class App(BaseHTTPRequestHandler):
             "inputs": ["unified_metrics_service", "kpi_catalog", "insight_engine", "knowledge_platform", "enterprise_memory", "ai_agents", "dashboard_alerts"],
             "recommendation_rule": "all_ai_recommendations_must_cite_data_or_knowledge_basis",
             "data_rule": "dashboard_agent_and_decision_engine_kpis_must_come_from_unified_metrics_service",
+            "decision_engine": decision_engine,
             "approval_policy": self.agent_approval_policy_payload()["approval"],
             "retrieval_contract": knowledge_contract,
             "unified_metrics": unified_metrics,
             "insights": insights["insights"],
             "business_context": dashboard["business_data"],
-            "recommendations": recommendations["recommendations"],
+            "recommendations": decision_engine["recommendations"] + recommendations["recommendations"],
             "limitations": dashboard.get("sync_status", {}).get("warning", ""),
         }
 
@@ -6058,6 +6060,11 @@ class App(BaseHTTPRequestHandler):
         checks["digital_twin_simulation_status"] = "sandbox_read_only"
         checks["digital_twin_state_engine_status"] = "history_supported"
         checks["digital_twin_relationship_service_status"] = "queryable_versioned"
+        checks["enterprise_pack_15_decision_engine_status"] = "framework_ready"
+        checks["decision_risk_scoring_status"] = "rationale_required"
+        checks["decision_opportunity_engine_status"] = "contract_ready"
+        checks["explainable_recommendation_status"] = "evidence_risk_confidence_required"
+        checks["decision_approval_gate_status"] = "high_risk_manual_approval_only"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7319,7 +7326,7 @@ class App(BaseHTTPRequestHandler):
             "/agents/builder": ("Custom Agent Builder", "Create agents with scope, tools, memory, permissions and approval policy.", ["Name and role", "Responsibilities", "Knowledge scope", "Tools", "Permissions", "Test prompt"], "/api/agents/builder/options", "Task027"),
             "/agents/sandbox": ("Agent Testing Sandbox", "Test an agent safely before activation.", ["Selected agent", "Planned tools", "Context scope", "Safety warning", "Placeholder answer"], "/api/agents/sandbox", "Task027"),
             "/digital-twin": ("Enterprise Digital Twin", "Sandboxed enterprise twin for entities, relationships, historical state and simulation.", ["Twin registry", "Relationship service", "State history", "Simulation sandbox", "Graph and timeline"], "/api/digital-twin/framework", "Task053"),
-            "/decision-center": ("Decision Center", "Daily operating score, risk warning, purchase advice, clearance advice and action list.", ["Today operation", "Risk warning", "Purchase advice", "Clearance advice", "Action list", "History reports"], "/api/decisions", "V5"),
+            "/decision-center": ("Enterprise Decision Engine", "Explainable decisions with unified data, KPI, knowledge, risk scoring and approval gates.", ["Decision engine", "Risk scoring", "Opportunities", "Explainable recommendations", "Approval gate"], "/api/decision-engine/framework", "Task054"),
             "/ai-memory": ("AI Memory Center", "Long-term company memory for strategy, decisions, projects and boss intent.", ["Long-term memory", "Pending memory", "Approved memory", "Related objects", "Memory logs"], "/api/memory", "V5"),
             "/web-research-center": ("Web Research Center", "Public web research intake with source URL, summary and human review.", ["Search task", "Source URL", "Summary", "Review queue", "Save to knowledge"], "/api/knowledge", "V5"),
             "/system/kernel": ("FoxBrain Core Kernel", "Central kernel for modules, objects, events, permissions, tools and health.", ["Module registry", "Object registry", "Event bus", "AI context", "Tool registry", "Health"], "/api/kernel", "Task030"),
@@ -7437,6 +7444,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(self.data_intelligence_get(user, path))
         if path.startswith("/api/digital-twin"):
             return self.json_out(self.digital_twin_get(user, path))
+        if path.startswith("/api/decision-engine"):
+            return self.json_out(self.decision_engine_get(user, path))
         if path.startswith("/api/data-catalog"):
             return self.json_out({"ok": True, "datasets": self.v5_data_catalog()})
         if path.startswith("/api/data-quality"):
@@ -7756,6 +7765,124 @@ class App(BaseHTTPRequestHandler):
         if path == "/api/digital-twin/visualization":
             return self.digital_twin_visualization_payload()
         return {"ok": False, "message": "unknown digital twin api", "path": path}
+
+    def decision_risk_scoring_payload(self, user):
+        metrics = self.unified_metrics_service_payload(user)
+        m = metrics["metric_values"]
+        quality = self.data_quality_monitor_payload()
+        risk_inputs = [
+            {"risk": "inventory", "score": 70 if (m.get("risk_count") or 0) else 35, "rationale": "Inventory risk score uses unified risk_count and inventory amount.", "evidence": [{"source": "unified_metrics_service", "field": "risk_count", "value": m.get("risk_count", 0)}, {"source": "unified_metrics_service", "field": "inventory_amount", "value": m.get("inventory_amount", 0)}]},
+            {"risk": "cash_flow", "score": 55, "rationale": "Cash flow score remains medium until finance cash flow sync is complete.", "evidence": [{"source": "kpi_catalog", "field": "cash_flow"}, {"source": "data_quality_monitor", "field": "finance_sync", "value": "pending"}]},
+            {"risk": "supplier_concentration", "score": 45, "rationale": "Supplier concentration requires supplier and product relationship data.", "evidence": [{"source": "digital_twin_relationship_service", "field": "Product.supplied_by.Supplier"}]},
+            {"risk": "customer_churn", "score": 40, "rationale": "Customer churn needs customer activity and membership campaign data.", "evidence": [{"source": "unified_data_model", "field": "Customer"}]},
+            {"risk": "margin_anomaly", "score": 60 if (m.get("gross_margin") or 0) == 0 else 35, "rationale": "Margin anomaly compares gross margin against expected KPI availability.", "evidence": [{"source": "unified_metrics_service", "field": "gross_margin", "value": m.get("gross_margin", 0)}]},
+        ]
+        overall = max(item["score"] for item in risk_inputs)
+        return {
+            "ok": True,
+            "service": "decision_risk_scoring_service",
+            "overall_risk_score": overall,
+            "risk_level": "high" if overall >= 70 else ("medium" if overall >= 50 else "low"),
+            "scores": risk_inputs,
+            "data_quality": quality["checks"],
+            "rule": "each_decision_risk_score_must_include_rationale_and_evidence",
+        }
+
+    def decision_opportunity_engine_payload(self, user):
+        metrics = self.unified_metrics_service_payload(user)
+        insights = self.insight_engine_payload(user)
+        opportunities = [
+            {"opportunity_id": "OP-replenishment", "type": "replenishment", "title": "Review replenishment for high-performing SKUs.", "basis": [{"source": "kpi_catalog", "field": "sell_through_rate"}, {"source": "digital_twin", "field": "Product-Store relationship"}], "confidence": 0.58, "approval_required": True},
+            {"opportunity_id": "OP-transfers", "type": "transfers", "title": "Check store transfer opportunities before markdown.", "basis": [{"source": "unified_metrics_service", "field": "inventory_amount", "value": metrics["metric_values"].get("inventory_amount", 0)}], "confidence": 0.62, "approval_required": True},
+            {"opportunity_id": "OP-promotions", "type": "promotions", "title": "Create promotion candidates after margin and inventory review.", "basis": [{"source": "insight_engine", "field": "insights", "value": [i["insight_id"] for i in insights["insights"]]}], "confidence": 0.55, "approval_required": True},
+            {"opportunity_id": "OP-membership", "type": "membership_campaigns", "title": "Prepare member campaign based on customer growth KPI.", "basis": [{"source": "kpi_catalog", "field": "customer_growth"}], "confidence": 0.52, "approval_required": False},
+            {"opportunity_id": "OP-procurement", "type": "procurement_optimization", "title": "Use supplier concentration and inventory turnover before future orders.", "basis": [{"source": "decision_risk_scoring_service", "field": "supplier_concentration"}, {"source": "kpi_catalog", "field": "inventory_turnover"}], "confidence": 0.57, "approval_required": True},
+        ]
+        return {"ok": True, "service": "decision_opportunity_engine", "opportunities": opportunities, "rule": "opportunities_are_drafts_until_reviewed_by_manager"}
+
+    def decision_approval_gate_payload(self):
+        high_risk_actions = ["price_adjustment", "contract_change", "financial_payment", "external_publish", "sap_write_back", "hr_action", "customer_data_export"]
+        return {
+            "ok": True,
+            "service": "decision_approval_gate",
+            "high_risk_actions": high_risk_actions,
+            "execution_rule": "high_risk_decision_actions_must_enter_human_approval_and_must_not_auto_execute",
+            "approval_sources": {
+                "agent": "/api/agents/approval-policy",
+                "automation": "/api/automation/approval-policy",
+                "security": "/api/security/approval-governance",
+            },
+            "default_status": "pending_approval",
+        }
+
+    def explainable_recommendations_payload(self, user):
+        risk = self.decision_risk_scoring_payload(user)
+        opportunities = self.decision_opportunity_engine_payload(user)["opportunities"]
+        knowledge_contract = self.knowledge_retrieval_contract_payload()["retrieval_contract"]
+        recommendations = []
+        for idx, item in enumerate(opportunities[:3], 1):
+            score = risk["overall_risk_score"] if item["approval_required"] else 35
+            recommendations.append({
+                "recommendation_id": f"DEC-{idx:03d}",
+                "title": item["title"],
+                "suggested_action": item["type"],
+                "data_source": ["unified_data_model", "unified_kpi_catalog", "unified_metrics_service"],
+                "knowledge_source": {"citation_fields": knowledge_contract["citation_fields"], "source_endpoint": "/api/knowledge/retrieval-contract"},
+                "rule_or_model": "decision_rules_v1 + risk_scoring_v1 + opportunity_engine_v1",
+                "supporting_evidence": item["basis"],
+                "risk_score": score,
+                "risk_level": "high" if score >= 70 else ("medium" if score >= 50 else "low"),
+                "confidence": item["confidence"],
+                "confidence_label": "medium" if item["confidence"] >= 0.55 else "low",
+                "approval_required": item["approval_required"] or score >= 50,
+                "execution_status": "draft_only_pending_human_review" if item["approval_required"] or score >= 50 else "advisory_only",
+            })
+        return {
+            "ok": True,
+            "service": "explainable_recommendation_engine",
+            "recommendations": recommendations,
+            "required_fields": ["data_source", "rule_or_model", "confidence", "supporting_evidence", "risk_score", "approval_required"],
+            "rule": "all_business_recommendations_must_show_basis_risk_score_and_confidence",
+        }
+
+    def enterprise_decision_engine_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "enterprise_decision_engine",
+            "inputs": {
+                "sap": "/api/sap/sync/connector",
+                "knowledge_platform": "/api/knowledge/retrieval-contract",
+                "data_intelligence": "/api/data-intelligence/framework",
+                "enterprise_memory": "/api/memory/framework",
+                "digital_twin": "/api/digital-twin/framework",
+            },
+            "decision_rules": {
+                "must_use_unified_data_model": True,
+                "must_use_unified_kpi_catalog": True,
+                "must_use_enterprise_knowledge": True,
+                "must_show_evidence": True,
+                "must_show_risk_score": True,
+                "must_show_confidence": True,
+            },
+            "risk_scoring": self.decision_risk_scoring_payload(user),
+            "opportunity_engine": self.decision_opportunity_engine_payload(user),
+            "recommendations": self.explainable_recommendations_payload(user)["recommendations"],
+            "approval_gate": self.decision_approval_gate_payload(),
+            "execution_policy": "decision_engine_can_recommend_and_request_approval_but_must_not_auto_execute_high_risk_actions",
+        }
+
+    def decision_engine_get(self, user, path):
+        if path in ("/api/decision-engine", "/api/decision-engine/framework"):
+            return self.enterprise_decision_engine_payload(user)
+        if path in ("/api/decision-engine/risk-scoring", "/api/decision-engine/risks"):
+            return self.decision_risk_scoring_payload(user)
+        if path in ("/api/decision-engine/opportunities", "/api/decision-engine/opportunity-engine"):
+            return self.decision_opportunity_engine_payload(user)
+        if path in ("/api/decision-engine/recommendations", "/api/decision-engine/explainable-recommendations"):
+            return self.explainable_recommendations_payload(user)
+        if path in ("/api/decision-engine/approval-gate", "/api/decision-engine/approval"):
+            return self.decision_approval_gate_payload()
+        return {"ok": False, "message": "unknown decision engine api", "path": path}
 
     def v5_data_catalog(self):
         return [

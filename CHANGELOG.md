@@ -32,3 +32,5 @@
 - Dashboard KPI and Enterprise Brain decision contracts now reference the unified metrics service to prevent inconsistent KPI calculations.
 - Integrated Pack 14 enterprise digital twin framework with entity registry, relationship service, state history, simulation sandbox and visualization contracts.
 - Enterprise Brain simulation now uses the digital twin sandbox and explicitly blocks production data modification.
+- Integrated Pack 15 Enterprise Decision Engine with risk scoring, opportunity discovery, explainable recommendations and approval gates.
+- Enterprise Brain decision output now uses the decision engine and requires evidence, risk score and confidence for business recommendations.
