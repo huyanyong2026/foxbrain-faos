@@ -26,3 +26,5 @@
 - Added release readiness docs and local validation coverage before further feature development.
 - Integrated Pack 11 security governance with RBAC, audit, data governance, backup recovery and approval governance contracts.
 - Security APIs now expose traceability rules for AI operations, workflow approvals and system configuration changes.
+- Integrated Pack 12 SDK marketplace framework with plugin manifest, extension points, marketplace registry, lifecycle and compatibility contracts.
+- SDK and marketplace APIs now expose versioned extension contracts and default human approval for high-risk plugin actions.

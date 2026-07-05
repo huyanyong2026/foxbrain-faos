@@ -74,6 +74,8 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md](118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md)
 - [119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md](119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md)
 - [120_ENTERPRISE_PACK_11_SECURITY_GOVERNANCE.md](120_ENTERPRISE_PACK_11_SECURITY_GOVERNANCE.md)
+- [121_ENTERPRISE_PACK_12_SDK_MARKETPLACE.md](121_ENTERPRISE_PACK_12_SDK_MARKETPLACE.md)
+- [SDK_EXTENSION_STANDARD.md](SDK_EXTENSION_STANDARD.md)
 - [RELEASE_1_0_PRODUCTION_CHECKLIST.md](RELEASE_1_0_PRODUCTION_CHECKLIST.md)
 - [README_AUTO_UPDATE.md](README_AUTO_UPDATE.md)
 - [README_BACKUP_RESTORE.md](README_BACKUP_RESTORE.md)
@@ -114,6 +116,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task048 Pack09 Enterprise Memory](CODEX_TASKS/Task048_Pack09_Enterprise_Memory.md)
 - [Task049 Pack10 Release Production](CODEX_TASKS/Task049_Pack10_Release_Production.md)
 - [Task050 Pack11 Security Governance](CODEX_TASKS/Task050_Pack11_Security_Governance.md)
+- [Task051 Pack12 SDK Marketplace](CODEX_TASKS/Task051_Pack12_SDK_Marketplace.md)
 
 Future tasks should use folders:
 

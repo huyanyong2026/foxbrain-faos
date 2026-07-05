@@ -30,6 +30,7 @@ After deployment, FoxBrain runs on the cloud server. Your personal computer can 
 - Pack 09: enterprise long-term memory system for events, meetings, contracts and decisions with permission-aware retrieval.
 - Pack 10: Release 1.0 production readiness for stability, deployment, monitoring and rollback.
 - Pack 11: unified security governance for RBAC, audit, data governance, backup recovery and approval controls.
+- Pack 12: SDK marketplace foundation for plugin design, versioned extension APIs and backward compatibility.
 
 The Pack 02 through Pack 09 implementation is additive. Existing login, mobile pages, cloud deployment, SAP sync status, knowledge pages, agent center pages, dashboard pages, automation pages and memory pages are preserved.
 
@@ -84,6 +85,14 @@ The Pack 02 through Pack 09 implementation is additive. Existing login, mobile p
 - `/api/security/data-governance`
 - `/api/security/backup-recovery`
 - `/api/security/approval-governance`
+- `/api/sdk/framework`
+- `/api/sdk/manifest-schema`
+- `/api/sdk/extension-points`
+- `/api/sdk/versioning`
+- `/api/sdk/backward-compatibility`
+- `/api/extensions/contracts`
+- `/api/extensions/registry`
+- `/api/marketplace/apps`
 
 ## Core Modules
 

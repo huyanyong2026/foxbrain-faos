@@ -2164,7 +2164,7 @@ class App(BaseHTTPRequestHandler):
             return self.api_brand_growth_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
-        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/kernel", "/api/data-fabric", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
+        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/kernel", "/api/data-fabric", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
             return self.api_v5_get(user, path)
         if path.startswith("/api/sap/"):
             return self.sap_api_placeholder(user, path)
@@ -4982,6 +4982,7 @@ class App(BaseHTTPRequestHandler):
             ("tasks", U(r"\u4efb\u52a1"), "/tasks", "execution", "employee"),
             ("workflow", U(r"\u5de5\u4f5c\u6d41"), "/workflow", "execution", "store_manager"),
             ("automation", U(r"\u81ea\u52a8\u5316"), "/automation", "execution", "admin"),
+            ("sdk_marketplace", "SDK Marketplace", "/system/apps", "system", "admin"),
             ("mobile", U(r"\u79fb\u52a8\u5916\u52e4"), "/mobile", "execution", "employee"),
             ("settings", U(r"\u8bbe\u7f6e"), "/settings", "system", "admin"),
             ("boss_workspace", U(r"\u8001\u677f\u5de5\u4f5c\u53f0"), "/boss", "system", "boss"),
@@ -6031,6 +6032,10 @@ class App(BaseHTTPRequestHandler):
         checks["audit_compliance_status"] = "activity_log_exportable"
         checks["data_governance_status"] = "classification_and_retention_ready"
         checks["backup_recovery_governance_status"] = "scheduled_and_documented"
+        checks["enterprise_pack_12_sdk_marketplace_status"] = "framework_ready"
+        checks["sdk_status"] = "versioned_contract_ready"
+        checks["plugin_marketplace_status"] = "registry_ready"
+        checks["extension_compatibility_status"] = "backward_compatible_contract"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7305,6 +7310,9 @@ class App(BaseHTTPRequestHandler):
             "/operations": ("Operations Reliability", "Backup, restore, logs, uptime, maintenance and release operations.", ["Backup status", "Restore plan", "Logs", "Errors", "Uptime", "Maintenance"], "/api/operations", "Task035"),
             "/operations/release": ("Release Checklist", "Safe release checklist for cloud deployment.", ["Pull code", "Run tests", "Restart service", "Check health", "Check login"], "/api/operations/release-checklist", "Task035"),
             "/operations/rollback": ("Rollback Checklist", "Recovery checklist when a release fails.", ["Identify version", "Restore backup", "Restart", "Verify health", "Record incident"], "/api/operations/rollback-checklist", "Task035"),
+            "/sdk": ("SDK Center", "Versioned SDK, plugin manifest schema, extension points and backward compatibility rules.", ["SDK overview", "Manifest schema", "Extension API", "Compatibility", "Developer docs"], "/api/sdk/framework", "Task051"),
+            "/sdk/extensions": ("Extension API", "Stable extension APIs for authentication, knowledge, SAP, workflow, notifications and AI tools.", ["Auth API", "Knowledge API", "SAP API", "Workflow API", "Notification API", "AI Tool API"], "/api/extensions/contracts", "Task051"),
+            "/marketplace": ("Marketplace", "Internal plugin marketplace for agents, dashboards, reports, workflow packs, SAP extensions and knowledge connectors.", ["AI agents", "Dashboards", "Reports", "Workflow packs", "SAP extensions", "Knowledge connectors"], "/api/marketplace/apps", "Task051"),
             "/product": ("Productization Center", "Versioning, onboarding, help, feature flags and production readiness.", ["Version info", "Release notes", "Feature flags", "Onboarding", "Help center", "Feedback"], "/api/product", "Task036"),
             "/product/releases": ("Release Notes", "Task history and known issues.", ["Cloud edition", "Task023-038", "Known issues", "Upgrade notes"], "/api/product/releases", "Task036"),
             "/onboarding": ("User Onboarding", "Role-based first steps for boss, manager, employee and admin.", ["Boss", "Manager", "Employee", "Admin"], "/api/onboarding", "Task036"),
@@ -7412,6 +7420,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_security_get(path)
         if path.startswith("/api/operations"):
             return self.json_out(self.v5_operations_payload())
+        if path.startswith("/api/sdk") or path.startswith("/api/extensions") or path.startswith("/api/marketplace"):
+            return self.json_out(self.sdk_platform_get(user, path))
         if path.startswith("/api/product") or path.startswith("/api/help") or path.startswith("/api/onboarding") or path.startswith("/api/feedback"):
             return self.json_out(self.v5_product_payload(path))
         if path.startswith("/api/action"):
@@ -7463,6 +7473,149 @@ class App(BaseHTTPRequestHandler):
     def v5_data_quality(self):
         sap = self.sap_sync_status_payload()
         return [{"check": "sap_freshness", "status": sap["freshness"]}, {"check": "secret_exposure", "status": "no_secrets_returned"}, {"check": "ai_citation", "status": "source_required"}]
+
+    def sdk_platform_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "FoxBrain OS Extension Platform",
+            "sdk_version": "1.0.0",
+            "api_version": "v1",
+            "stability": "core_stable_extensions_pluggable",
+            "design_principles": [
+                "new_capabilities_prefer_plugins_before_core_changes",
+                "stable_public_contract_before_implementation",
+                "least_privilege_permissions",
+                "audit_every_extension_action",
+                "high_risk_actions_require_human_approval",
+            ],
+            "extension_points": self.sdk_extension_points_payload()["extension_points"],
+            "manifest_schema_endpoint": "/api/sdk/manifest-schema",
+            "compatibility_endpoint": "/api/sdk/backward-compatibility",
+            "marketplace_endpoint": "/api/marketplace/apps",
+            "developer_role": user["role"],
+        }
+
+    def sdk_manifest_schema_payload(self):
+        return {
+            "ok": True,
+            "plugin_manifest": {
+                "schema_version": "1.0",
+                "required_fields": ["plugin_id", "name", "version", "sdk_version", "category", "entrypoints", "permissions", "compatibility"],
+                "optional_fields": ["description", "author", "dependencies", "settings_schema", "approval_policy", "audit_events", "release_notes"],
+                "version_rule": "semantic_versioning_required",
+                "permission_rule": "declare_minimum_permissions_only",
+                "secret_rule": "secrets_must_reference_env_or_vault_never_manifest_plaintext",
+                "approval_rule": "price_contract_finance_hr_and_external_publish_actions_default_to_human_approval",
+            },
+            "example": {
+                "plugin_id": "foxbrain.sap.margin-alert",
+                "name": "SAP Margin Alert",
+                "version": "1.0.0",
+                "sdk_version": ">=1.0,<2.0",
+                "category": "SAP Extensions",
+                "entrypoints": {"api": "/api/extensions/sap-margin-alert", "ui": "/marketplace/sap-margin-alert"},
+                "permissions": ["sap.read.sales", "dashboard.write.alerts"],
+                "compatibility": {"min_core": "V6", "api": "v1"},
+                "approval_policy": {"risk_level": "medium", "human_approval_required": False},
+            },
+        }
+
+    def sdk_extension_points_payload(self):
+        return {
+            "ok": True,
+            "extension_points": [
+                {"key": "auth", "name": "Authentication", "api_prefix": "/api/extensions/auth", "status": "contract_ready", "risk": "high"},
+                {"key": "knowledge", "name": "Knowledge", "api_prefix": "/api/extensions/knowledge", "status": "contract_ready", "risk": "medium"},
+                {"key": "sap", "name": "SAP Integration", "api_prefix": "/api/extensions/sap", "status": "contract_ready", "risk": "high"},
+                {"key": "workflow", "name": "Workflow", "api_prefix": "/api/extensions/workflow", "status": "contract_ready", "risk": "high"},
+                {"key": "notifications", "name": "Notifications", "api_prefix": "/api/extensions/notifications", "status": "contract_ready", "risk": "medium"},
+                {"key": "ai_tools", "name": "AI Tools", "api_prefix": "/api/extensions/ai-tools", "status": "contract_ready", "risk": "high"},
+                {"key": "dashboard", "name": "Dashboard Components", "api_prefix": "/api/extensions/dashboard", "status": "contract_ready", "risk": "medium"},
+            ],
+            "security": "all_extension_calls_pass_rbac_audit_and_approval_policy",
+        }
+
+    def sdk_versioning_payload(self):
+        return {
+            "ok": True,
+            "version_management": {
+                "sdk_version": "1.0.0",
+                "api_prefix": "/api/sdk",
+                "semantic_versioning": True,
+                "breaking_change_policy": "major_version_only",
+                "minor_version_policy": "additive_fields_and_optional_capabilities_only",
+                "patch_policy": "bugfix_no_contract_change",
+                "deprecation_notice": "minimum_90_days_before_removal",
+                "compatibility_matrix": [
+                    {"core": "V6", "sdk": "1.x", "status": "supported"},
+                    {"core": "future_V7", "sdk": "1.x", "status": "backward_compatibility_required"},
+                ],
+            }
+        }
+
+    def sdk_backward_compatibility_payload(self):
+        return {
+            "ok": True,
+            "backward_compatibility": {
+                "contract": "existing_plugin_contracts_must_continue_to_work_across_minor_and_patch_releases",
+                "migration_policy": "provide_migration_notes_and_adapter_layer_for_major_changes",
+                "data_policy": "plugin_data_migrations_must_be_reversible_or_backed_up",
+                "api_policy": "responses_may_add_optional_fields_but_must_not_remove_existing_fields_in_same_major_version",
+                "test_policy": "plugin_contract_tests_required_before_release",
+            },
+            "high_risk_default": "manual_review_required_before_extension_can_modify_price_contract_finance_or_external_publish_data",
+        }
+
+    def sdk_marketplace_payload(self, user):
+        role = user["role"]
+        install_allowed = role in ("boss", "admin")
+        apps = [
+            {"plugin_id": "foxbrain.agent.store-coach", "name": "AI Store Coach", "category": "AI Agents", "version": "1.0.0", "status": "available", "risk_level": "medium", "install_allowed": install_allowed},
+            {"plugin_id": "foxbrain.dashboard.gross-margin", "name": "Gross Margin Dashboard", "category": "Dashboards", "version": "1.0.0", "status": "available", "risk_level": "medium", "install_allowed": install_allowed},
+            {"plugin_id": "foxbrain.report.morning-brief", "name": "Morning Brief Report", "category": "Reports", "version": "1.0.0", "status": "available", "risk_level": "low", "install_allowed": install_allowed},
+            {"plugin_id": "foxbrain.workflow.approval-pack", "name": "Approval Workflow Pack", "category": "Workflow Packs", "version": "1.0.0", "status": "available", "risk_level": "high", "install_allowed": install_allowed},
+            {"plugin_id": "foxbrain.sap.inventory-risk", "name": "SAP Inventory Risk Extension", "category": "SAP Extensions", "version": "1.0.0", "status": "available", "risk_level": "high", "install_allowed": install_allowed},
+            {"plugin_id": "foxbrain.knowledge.brand-connector", "name": "Brand Knowledge Connector", "category": "Knowledge Connectors", "version": "1.0.0", "status": "available", "risk_level": "medium", "install_allowed": install_allowed},
+        ]
+        return {"ok": True, "marketplace": {"categories": ["AI Agents", "Dashboards", "Reports", "Workflow Packs", "SAP Extensions", "Knowledge Connectors"], "apps": apps, "install_policy": "admin_or_boss_only", "review_policy": "plugins_with_high_risk_permissions_require_manual_review"}}
+
+    def sdk_plugin_registry_payload(self, user):
+        return {
+            "ok": True,
+            "plugin_registry": {
+                "registry_status": "contract_ready",
+                "module_lifecycle": ["draft", "develop", "test", "review", "release", "monitor", "upgrade", "retire"],
+                "installed_plugins": [
+                    {"plugin_id": "foxbrain.core.knowledge", "version": "1.0.0", "status": "core", "sdk_version": "1.0.0"},
+                    {"plugin_id": "foxbrain.core.agents", "version": "1.0.0", "status": "core", "sdk_version": "1.0.0"},
+                ],
+                "dependency_validation": True,
+                "permission_declaration_required": True,
+                "audit_required": True,
+                "managed_by_role": user["role"],
+            }
+        }
+
+    def sdk_platform_get(self, user, path):
+        if path in ("/api/sdk", "/api/sdk/framework"):
+            return self.sdk_platform_payload(user)
+        if path == "/api/sdk/manifest-schema":
+            return self.sdk_manifest_schema_payload()
+        if path == "/api/sdk/extension-points":
+            return self.sdk_extension_points_payload()
+        if path == "/api/sdk/versioning":
+            return self.sdk_versioning_payload()
+        if path == "/api/sdk/backward-compatibility":
+            return self.sdk_backward_compatibility_payload()
+        if path in ("/api/extensions", "/api/extensions/contracts"):
+            payload = self.sdk_extension_points_payload()
+            payload["contracts"] = {"api_version": "v1", "auth": "rbac_session", "audit": "required", "approval": "risk_based", "backward_compatibility": True}
+            return payload
+        if path in ("/api/marketplace", "/api/marketplace/apps"):
+            return self.sdk_marketplace_payload(user)
+        if path in ("/api/extensions/registry", "/api/marketplace/registry"):
+            return self.sdk_plugin_registry_payload(user)
+        return {"ok": False, "message": "unknown sdk marketplace api", "path": path}
 
     def v5_integrations_payload(self):
         providers = ["OpenAI", "DeepSeek", "Claude", "Gemini", "Qwen"]

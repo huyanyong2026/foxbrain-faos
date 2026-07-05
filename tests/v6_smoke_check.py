@@ -93,6 +93,14 @@ def test_enterprise_pack_routes_present():
         "/api/security/data-governance",
         "/api/security/backup-recovery",
         "/api/security/approval-governance",
+        "/api/sdk/framework",
+        "/api/sdk/manifest-schema",
+        "/api/sdk/extension-points",
+        "/api/sdk/versioning",
+        "/api/sdk/backward-compatibility",
+        "/api/extensions/contracts",
+        "/api/extensions/registry",
+        "/api/marketplace/apps",
     ]:
         assert route in portal
 
@@ -226,6 +234,26 @@ def test_pack_security_governance_present():
         assert phrase in portal
 
 
+def test_pack_sdk_marketplace_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "sdk_platform_payload",
+        "sdk_manifest_schema_payload",
+        "sdk_extension_points_payload",
+        "sdk_versioning_payload",
+        "sdk_backward_compatibility_payload",
+        "sdk_marketplace_payload",
+        "sdk_plugin_registry_payload",
+        "plugin_manifest",
+        "extension_points",
+        "semantic_versioning_required",
+        "new_capabilities_prefer_plugins_before_core_changes",
+        "existing_plugin_contracts_must_continue_to_work_across_minor_and_patch_releases",
+        "manual_review_required_before_extension_can_modify_price_contract_finance_or_external_publish_data",
+    ]:
+        assert phrase in portal
+
+
 def test_production_deployment_files_present():
     for file_name in [
         "Dockerfile",
@@ -261,6 +289,8 @@ def test_enterprise_pack_docs_present():
         "docs/118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md",
         "docs/119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md",
         "docs/120_ENTERPRISE_PACK_11_SECURITY_GOVERNANCE.md",
+        "docs/121_ENTERPRISE_PACK_12_SDK_MARKETPLACE.md",
+        "docs/SDK_EXTENSION_STANDARD.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
         "docs/CODEX_TASKS/Task042_Pack03_Knowledge_Platform.md",
@@ -272,5 +302,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task048_Pack09_Enterprise_Memory.md",
         "docs/CODEX_TASKS/Task049_Pack10_Release_Production.md",
         "docs/CODEX_TASKS/Task050_Pack11_Security_Governance.md",
+        "docs/CODEX_TASKS/Task051_Pack12_SDK_Marketplace.md",
     ]:
         assert (ROOT / doc).exists()
