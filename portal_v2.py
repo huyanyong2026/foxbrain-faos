@@ -1910,12 +1910,21 @@ class App(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(fmt % args)
 
+    def security_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+        self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'")
+
     def out(self, html_text, code=200):
         body = html_text.encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.security_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -1923,7 +1932,7 @@ class App(BaseHTTPRequestHandler):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
+        self.security_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -1932,13 +1941,14 @@ class App(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Disposition", f'attachment; filename="{name}"')
-        self.send_header("Cache-Control", "no-store")
+        self.security_headers()
         self.end_headers()
         self.wfile.write(body)
 
     def redir(self, path, cookie=None):
         self.send_response(302)
         self.send_header("Location", path)
+        self.security_headers()
         if cookie:
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
@@ -8697,6 +8707,31 @@ class App(BaseHTTPRequestHandler):
             },
         }
 
+    def security_baseline_payload(self):
+        checks = [
+            {"key": "https_hsts", "status": "enabled", "evidence": "Strict-Transport-Security header"},
+            {"key": "security_headers", "status": "enabled", "evidence": "CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy"},
+            {"key": "session_cookie", "status": "enabled", "evidence": "HttpOnly, Secure, SameSite=Lax"},
+            {"key": "password_storage", "status": "enabled", "evidence": "salted password hash"},
+            {"key": "login_lockout", "status": "enabled", "evidence": "5 failures lock 15 minutes"},
+            {"key": "rbac_default_deny", "status": "enabled", "evidence": "module permission registry"},
+            {"key": "audit_log", "status": "enabled", "evidence": "activity_log"},
+            {"key": "high_risk_approval", "status": "enabled", "evidence": "price, finance, contract, SAP write-back and external publish require approval"},
+            {"key": "secrets_management", "status": "enabled", "evidence": ".env and server-only portal.env"},
+            {"key": "backup_recovery", "status": "ready", "evidence": "backup and restore scripts documented"},
+            {"key": "sap_sync", "status": self.sap_sync_status_payload()["freshness"], "evidence": "SAP data freshness and 22:00 schedule"},
+            {"key": "release_gate", "status": self.release_1_0_payload()["status"], "evidence": "FoxBrain OS 1.0 release review"},
+        ]
+        return {
+            "ok": True,
+            "security_baseline": {
+                "profile": "foxbrain_os_1_0_security_baseline",
+                "server_hardening_required": ["ufw_allow_80_443_only_public", "ssh_key_or_strong_password_policy", "fail2ban_or_rate_limit", "root_login_disabled_if_possible", "daily_backup_monitoring"],
+                "checks": checks,
+                "operator_note": "server firewall and ssh policies must be verified on the cloud host, not only in application code",
+            },
+        }
+
     def security_governance_payload(self):
         return {
             "ok": True,
@@ -8712,6 +8747,7 @@ class App(BaseHTTPRequestHandler):
             "data_governance": self.security_data_governance_payload()["data_governance"],
             "backup_recovery": self.security_backup_recovery_payload()["backup_recovery"],
             "approval_governance": self.security_approval_governance_payload()["approval_governance"],
+            "baseline": self.security_baseline_payload()["security_baseline"],
             "secrets_management": ".env_only_no_committed_secrets",
             "security_review": self.release_security_review_payload()["security_review"],
         }
@@ -8733,6 +8769,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(self.security_backup_recovery_payload())
         if path == "/api/security/approval-governance":
             return self.json_out(self.security_approval_governance_payload())
+        if path == "/api/security/baseline":
+            return self.json_out(self.security_baseline_payload())
         return self.json_out({"ok": False, "message": "unknown security api"}, code=404)
 
     def v5_operations_payload(self):

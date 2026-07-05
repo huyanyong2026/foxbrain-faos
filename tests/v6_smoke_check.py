@@ -150,6 +150,7 @@ def test_enterprise_pack_routes_present():
         "/api/product/release-1-0/modules",
         "/api/product/release-1-0/integration",
         "/api/product/architecture-review",
+        "/api/security/baseline",
     ]:
         assert route in portal
 
@@ -277,8 +278,14 @@ def test_pack_security_governance_present():
         "security_data_governance_payload",
         "security_backup_recovery_payload",
         "security_approval_governance_payload",
+        "security_baseline_payload",
         "all_ai_workflow_approval_and_system_config_changes_must_be_traceable",
         "high_risk_default",
+        "Strict-Transport-Security",
+        "Content-Security-Policy",
+        "X-Content-Type-Options",
+        "Permissions-Policy",
+        "foxbrain_os_1_0_security_baseline",
     ]:
         assert phrase in portal
 
@@ -510,6 +517,7 @@ def test_enterprise_pack_docs_present():
         "docs/129_ENTERPRISE_PACK_20_RELEASE_1_0.md",
         "docs/FoxBrain_OS_1_0_Architecture_Review_Report.md",
         "docs/OPERATIONS_RUNBOOK_1_0.md",
+        "docs/SECURITY_BASELINE_1_0.md",
         "docs/SDK_EXTENSION_STANDARD.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",

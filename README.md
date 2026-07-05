@@ -150,6 +150,7 @@ The Pack 02 through Pack 09 implementation is additive. Existing login, mobile p
 - `/api/product/release-1-0/modules`
 - `/api/product/release-1-0/integration`
 - `/api/product/architecture-review`
+- `/api/security/baseline`
 
 ## Core Modules
 
