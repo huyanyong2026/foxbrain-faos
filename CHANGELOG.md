@@ -24,3 +24,5 @@
 - Enterprise Brain memory service now links to the enterprise memory repository, timeline, retrieval and decision history endpoints.
 - Integrated Pack 10 Release 1.0 production readiness with deployment, observability, rollback, security review and production checklist contracts.
 - Added release readiness docs and local validation coverage before further feature development.
+- Integrated Pack 11 security governance with RBAC, audit, data governance, backup recovery and approval governance contracts.
+- Security APIs now expose traceability rules for AI operations, workflow approvals and system configuration changes.

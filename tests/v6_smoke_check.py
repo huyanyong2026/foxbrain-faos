@@ -85,6 +85,14 @@ def test_enterprise_pack_routes_present():
         "/api/product/rollback",
         "/api/product/security-review",
         "/api/product/production-checklist",
+        "/api/security/framework",
+        "/api/security/identity-access",
+        "/api/security/rbac",
+        "/api/security/audit",
+        "/api/security/audit-export",
+        "/api/security/data-governance",
+        "/api/security/backup-recovery",
+        "/api/security/approval-governance",
     ]:
         assert route in portal
 
@@ -201,6 +209,23 @@ def test_pack_release_production_present():
         assert phrase in portal
 
 
+def test_pack_security_governance_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "security_governance_payload",
+        "security_identity_access_payload",
+        "security_rbac_payload",
+        "security_audit_payload",
+        "security_audit_export_payload",
+        "security_data_governance_payload",
+        "security_backup_recovery_payload",
+        "security_approval_governance_payload",
+        "all_ai_workflow_approval_and_system_config_changes_must_be_traceable",
+        "high_risk_default",
+    ]:
+        assert phrase in portal
+
+
 def test_production_deployment_files_present():
     for file_name in [
         "Dockerfile",
@@ -235,6 +260,7 @@ def test_enterprise_pack_docs_present():
         "docs/117_ENTERPRISE_PACK_08_MOBILE_PORTAL.md",
         "docs/118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md",
         "docs/119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md",
+        "docs/120_ENTERPRISE_PACK_11_SECURITY_GOVERNANCE.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
         "docs/CODEX_TASKS/Task042_Pack03_Knowledge_Platform.md",
@@ -245,5 +271,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task047_Pack08_Mobile_Portal.md",
         "docs/CODEX_TASKS/Task048_Pack09_Enterprise_Memory.md",
         "docs/CODEX_TASKS/Task049_Pack10_Release_Production.md",
+        "docs/CODEX_TASKS/Task050_Pack11_Security_Governance.md",
     ]:
         assert (ROOT / doc).exists()

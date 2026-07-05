@@ -6026,6 +6026,11 @@ class App(BaseHTTPRequestHandler):
         checks["observability_status"] = "health_endpoint_ready"
         checks["rollback_status"] = "backup_restore_scripts_available"
         checks["production_readiness_status"] = "local_validation_ready"
+        checks["enterprise_pack_11_security_status"] = "framework_ready"
+        checks["rbac_status"] = "role_based_default_deny"
+        checks["audit_compliance_status"] = "activity_log_exportable"
+        checks["data_governance_status"] = "classification_and_retention_ready"
+        checks["backup_recovery_governance_status"] = "scheduled_and_documented"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7404,7 +7409,7 @@ class App(BaseHTTPRequestHandler):
         if path.startswith("/api/integrations"):
             return self.json_out(self.v5_integrations_payload())
         if path.startswith("/api/security"):
-            return self.json_out(self.v5_security_payload())
+            return self.api_security_get(path)
         if path.startswith("/api/operations"):
             return self.json_out(self.v5_operations_payload())
         if path.startswith("/api/product") or path.startswith("/api/help") or path.startswith("/api/onboarding") or path.startswith("/api/feedback"):
@@ -7465,7 +7470,150 @@ class App(BaseHTTPRequestHandler):
         return {"ok": True, "connectors": [{"name": c, "configured": c == "SAP B1", "secrets_visible": False} for c in connectors], "ai_providers": [{"name": p, "configured": bool(os.environ.get(p.upper() + "_API_KEY")), "secrets_visible": False} for p in providers], "sap": self.sap_sync_status_payload()}
 
     def v5_security_payload(self):
-        return {"ok": True, "sensitive_data": self.v5_data_catalog(), "ai_governance": ["AI cannot change prices automatically", "AI cannot approve purchasing or finance actions", "AI cannot expose secrets", "External publishing requires approval"], "alerts": [{"level": "info", "title": "Security framework active"}]}
+        return self.security_governance_payload()
+
+    def security_identity_access_payload(self):
+        return {
+            "ok": True,
+            "identity_access": {
+                "single_sign_on": "foxbrain_session",
+                "session_cookie": "fp_session",
+                "roles": [{"role": key, "label": label} for key, label in ROLES.items()],
+                "least_privilege": True,
+                "mfa_ready": True,
+                "session_management": "signed_session_cookie",
+                "user_statuses": list(STATUS.keys()),
+            },
+        }
+
+    def security_rbac_payload(self):
+        modules = []
+        for key, name, route, category, permission in self.platform_modules():
+            modules.append({
+                "module_key": key,
+                "module_name": name,
+                "route": route,
+                "category": category,
+                "permission_required": permission,
+                "allowed_roles": [role for role in ROLES if self.app_permission_status({"role": role, "store": "", "id": 0}, permission) == "allowed"],
+            })
+        return {
+            "ok": True,
+            "rbac": {
+                "model": "role_based_access_control",
+                "roles": list(ROLES.keys()),
+                "modules": modules,
+                "least_privilege": True,
+                "default_deny": True,
+                "admin_scope": "system_configuration_and_user_management",
+            },
+        }
+
+    def security_audit_payload(self):
+        with db() as conn:
+            rows = conn.execute("select * from activity_log order by created_at desc limit 100").fetchall()
+        return {
+            "ok": True,
+            "audit": {
+                "log_table": "activity_log",
+                "required_events": ["login", "data_access", "configuration_changes", "workflow_approvals", "ai_assisted_actions", "system_configuration_changes"],
+                "exportable": True,
+                "export_endpoint": "/api/security/audit-export",
+                "records": [row_dict(r) for r in rows],
+                "traceability_rule": "all_ai_workflow_approval_and_system_config_changes_must_be_traceable",
+            },
+        }
+
+    def security_audit_export_payload(self):
+        audit = self.security_audit_payload()["audit"]
+        return {
+            "ok": True,
+            "audit_report": {
+                "format": "json",
+                "generated_at": ts(),
+                "records": audit["records"],
+                "note": "CSV export can be added later; JSON report is available now for compliance review.",
+            },
+        }
+
+    def security_data_governance_payload(self):
+        return {
+            "ok": True,
+            "data_governance": {
+                "classification": ["public", "internal", "confidential", "restricted"],
+                "ownership_tracking": True,
+                "lifecycle_tracking": True,
+                "retention_policy": ["standard", "contract", "finance", "hr", "permanent"],
+                "datasets": self.v5_data_catalog(),
+                "sensitive_scopes": ["finance", "customer", "sap_sales", "sap_inventory", "contracts", "hr"],
+                "ai_access_rule": "permission_filter_before_context",
+            },
+        }
+
+    def security_backup_recovery_payload(self):
+        return {
+            "ok": True,
+            "backup_recovery": {
+                "scheduled_backups": os.environ.get("BACKUP_TIME", "03:00"),
+                "backup_script": "backup.sh",
+                "restore_script": "restore.sh",
+                "restore_validation": "required_before_production_release",
+                "disaster_recovery_plan": "documented",
+                "recovery_testing": "file_level_ready_remote_test_required",
+                "docs": ["BACKUP_RESTORE.md", "README_BACKUP_RESTORE.md", "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md"],
+            },
+        }
+
+    def security_approval_governance_payload(self):
+        return {
+            "ok": True,
+            "approval_governance": {
+                "high_risk_default": "pending_approval",
+                "required_for": ["price_changes", "financial_operations", "contract_execution", "external_publishing", "bulk_data_changes", "sap_write_back", "system_configuration_changes"],
+                "ai_policy": self.agent_approval_policy_payload()["approval"],
+                "automation_policy": self.automation_approval_policy_payload()["approval_policy"],
+                "workflow_policy": "workflow_approvals_are_audited_and_traceable",
+                "config_change_policy": "system_configuration_changes_require_admin_and_audit_log",
+            },
+        }
+
+    def security_governance_payload(self):
+        return {
+            "ok": True,
+            "platform": "security_governance",
+            "mindset": "zero_trust",
+            "identity_access": self.security_identity_access_payload()["identity_access"],
+            "rbac": self.security_rbac_payload()["rbac"],
+            "audit": {
+                "log_table": "activity_log",
+                "traceability_rule": "all_ai_workflow_approval_and_system_config_changes_must_be_traceable",
+                "export_endpoint": "/api/security/audit-export",
+            },
+            "data_governance": self.security_data_governance_payload()["data_governance"],
+            "backup_recovery": self.security_backup_recovery_payload()["backup_recovery"],
+            "approval_governance": self.security_approval_governance_payload()["approval_governance"],
+            "secrets_management": ".env_only_no_committed_secrets",
+            "security_review": self.release_security_review_payload()["security_review"],
+        }
+
+    def api_security_get(self, path):
+        if path in ("/api/security", "/api/security/framework"):
+            return self.json_out(self.security_governance_payload())
+        if path == "/api/security/identity-access":
+            return self.json_out(self.security_identity_access_payload())
+        if path == "/api/security/rbac":
+            return self.json_out(self.security_rbac_payload())
+        if path == "/api/security/audit":
+            return self.json_out(self.security_audit_payload())
+        if path == "/api/security/audit-export":
+            return self.json_out(self.security_audit_export_payload())
+        if path == "/api/security/data-governance":
+            return self.json_out(self.security_data_governance_payload())
+        if path == "/api/security/backup-recovery":
+            return self.json_out(self.security_backup_recovery_payload())
+        if path == "/api/security/approval-governance":
+            return self.json_out(self.security_approval_governance_payload())
+        return self.json_out({"ok": False, "message": "unknown security api"}, code=404)
 
     def v5_operations_payload(self):
         return {"ok": True, "backup": {"script": "backup.sh", "status": "available"}, "restore": {"script": "restore.sh", "status": "available"}, "healthcheck": {"script": "healthcheck.sh", "status": "available"}, "cloud": {"restart_policy": "always", "pc_can_be_off": True}, "sap": self.sap_sync_status_payload(), "release": self.release_readiness_payload()}
