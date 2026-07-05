@@ -50,6 +50,12 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [43_RECRUITMENT_ENGINE.md](43_RECRUITMENT_ENGINE.md)
 - [44_CUSTOMER_GROWTH_ENGINE.md](44_CUSTOMER_GROWTH_ENGINE.md)
 - [45_PRIVATE_DOMAIN_ENGINE.md](45_PRIVATE_DOMAIN_ENGINE.md)
+- [46_PLATFORM_KERNEL.md](46_PLATFORM_KERNEL.md)
+- [47_MODULE_REGISTRY.md](47_MODULE_REGISTRY.md)
+- [48_GLOBAL_SEARCH_V2.md](48_GLOBAL_SEARCH_V2.md)
+- [49_NOTIFICATION_CENTER.md](49_NOTIFICATION_CENTER.md)
+- [50_WORKSPACE_SYSTEM.md](50_WORKSPACE_SYSTEM.md)
+- [51_DECISION_RISK_CENTER.md](51_DECISION_RISK_CENTER.md)
 
 ## Codex Tasks
 
@@ -70,6 +76,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task017 Finance Profit Decision](CODEX_TASKS/Task017_Finance_Profit_Decision.md)
 - [Task018 HR Performance Incentive](CODEX_TASKS/Task018_HR_Performance_Incentive.md)
 - [Task019 Customer Membership Private Domain](CODEX_TASKS/Task019_Customer_Membership_Private_Domain.md)
+- [Task020 Systemization Platform Kernel](CODEX_TASKS/Task020_Systemization_Platform_Kernel.md)
 
 Future tasks should use folders:
 

@@ -1670,6 +1670,97 @@ create table if not exists customer_events(
 """
         )
         conn.execute("create index if not exists idx_customer_events_status on customer_events(status)")
+        conn.execute(
+            """
+create table if not exists system_modules(
+ id integer primary key autoincrement,
+ module_id text unique,
+ module_name text not null,
+ module_key text not null,
+ description text,
+ route text,
+ icon text,
+ category text,
+ status text not null default 'healthy',
+ permission_required text,
+ health_status text not null default 'healthy',
+ version text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_system_modules_category on system_modules(category, status)")
+        conn.execute(
+            """
+create table if not exists system_objects(
+ id integer primary key autoincrement,
+ object_type text unique,
+ display_name text not null,
+ plural_name text,
+ route_pattern text,
+ permission_scope text,
+ searchable integer not null default 1,
+ ai_accessible integer not null default 1,
+ timeline_enabled integer not null default 1,
+ audit_enabled integer not null default 1,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_system_objects_search on system_objects(searchable, ai_accessible)")
+        conn.execute(
+            """
+create table if not exists system_settings(
+ id integer primary key autoincrement,
+ setting_key text unique,
+ setting_value text,
+ setting_group text,
+ visibility text not null default 'admin',
+ updated_by integer,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_system_settings_group on system_settings(setting_group)")
+        conn.execute(
+            """
+create table if not exists system_risks(
+ id integer primary key autoincrement,
+ risk_id text unique,
+ title text not null,
+ risk_type text,
+ level text not null default 'unknown',
+ object_type text,
+ object_id text,
+ evidence text,
+ recommended_action text,
+ status text not null default 'new',
+ owner text,
+ due_date text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_system_risks_status on system_risks(status, level)")
+        conn.execute(
+            """
+create table if not exists system_events(
+ id integer primary key autoincrement,
+ event_id text unique,
+ event_type text not null,
+ module_key text,
+ object_type text,
+ object_id text,
+ title text not null,
+ summary text,
+ user_id integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_system_events_module on system_events(module_key, event_type)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -1826,6 +1917,24 @@ class App(BaseHTTPRequestHandler):
             return self.hr_center(user)
         if path == "/customer-growth":
             return self.customer_growth_center(user)
+        if path == "/workspace":
+            return self.workspace_center(user)
+        if path == "/boss":
+            return self.boss_workspace(user)
+        if path == "/employee-workspace":
+            return self.employee_workspace(user)
+        if path == "/settings":
+            return self.settings_center(user)
+        if path == "/system/modules":
+            return self.system_modules_page(user)
+        if path == "/system/data-readiness":
+            return self.data_readiness_page(user)
+        if path == "/notifications":
+            return self.notification_center(user)
+        if path == "/risks":
+            return self.risk_center(user)
+        if path == "/timeline":
+            return self.timeline_center(user)
         if path == "/stores/operations":
             return self.store_operations(user)
         if path == "/store-growth":
@@ -1902,6 +2011,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_hr_get(user, path)
         if path.startswith("/api/customer-growth"):
             return self.api_customer_growth_get(user, path)
+        if path.startswith("/api/system") or path.startswith("/api/search/global") or path.startswith("/api/workspace") or path.startswith("/api/boss") or path.startswith("/api/employee-workspace") or path.startswith("/api/settings") or path.startswith("/api/ai/context-packet") or path.startswith("/api/risks") or path.startswith("/api/timeline/global"):
+            return self.api_platform_get(user, path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_get(user, path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -2006,6 +2117,10 @@ class App(BaseHTTPRequestHandler):
             return self.customer_followup_save()
         if path == "/customer-growth/events/save":
             return self.customer_event_save()
+        if path == "/risks/save":
+            return self.risk_save()
+        if path == "/notifications/read":
+            return self.notification_read()
         if path == "/automation/save":
             return self.automation_save()
         if path == "/workflows/save":
@@ -2026,6 +2141,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_hr_post(self.current_user(), path)
         if path.startswith("/api/customer-growth"):
             return self.api_customer_growth_post(self.current_user(), path)
+        if path.startswith("/api/notifications") or path.startswith("/api/settings") or path.startswith("/api/risks"):
+            return self.api_platform_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -2036,6 +2153,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_graph_post(self.current_user(), path)
         if path.startswith("/api/hr"):
             return self.api_hr_put(self.current_user(), path)
+        if path.startswith("/api/settings"):
+            return self.api_platform_put(self.current_user(), path)
         if path.startswith("/api/agents"):
             return self.api_agents_post(self.current_user(), path)
         if path.startswith("/api/jarvis"):
@@ -4275,6 +4394,221 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": True, "id": cur.lastrowid})
         return self.json_out({"ok": False, "message": "unknown customer growth write api"}, code=404)
 
+    def platform_modules(self):
+        return [
+            ("ai_ceo", "AI CEO", "/ai-ceo", "ai", "boss"),
+            ("jarvis", "Jarvis", "/jarvis", "ai", "view_workspace"),
+            ("agents", "AI Agents", "/agents", "ai", "admin"),
+            ("reports", "Reports", "/reports", "ai", "boss"),
+            ("store_growth", U(r"\u95e8\u5e97\u589e\u957f"), "/store-growth", "operation", "store_manager"),
+            ("brand_growth", U(r"\u54c1\u724c\u589e\u957f"), "/brand-growth", "operation", "purchasing"),
+            ("inventory_decision", U(r"\u5e93\u5b58\u51b3\u7b56"), "/inventory-decision", "operation", "purchasing"),
+            ("finance", U(r"\u8d22\u52a1"), "/finance", "operation", "finance"),
+            ("hr", U(r"\u4eba\u4e8b\u7ee9\u6548"), "/hr", "operation", "store_manager"),
+            ("customer_growth", U(r"\u987e\u5ba2\u589e\u957f"), "/customer-growth", "operation", "employee"),
+            ("documents", U(r"\u6587\u4ef6"), "/documents", "knowledge", "employee"),
+            ("knowledge", U(r"\u77e5\u8bc6\u5e93"), "/knowledge", "knowledge", "employee"),
+            ("memory", U(r"\u8bb0\u5fc6"), "/memory", "knowledge", "store_manager"),
+            ("graph", U(r"\u5173\u7cfb\u56fe"), "/graph", "knowledge", "store_manager"),
+            ("tasks", U(r"\u4efb\u52a1"), "/tasks", "execution", "employee"),
+            ("workflow", U(r"\u5de5\u4f5c\u6d41"), "/workflow", "execution", "store_manager"),
+            ("automation", U(r"\u81ea\u52a8\u5316"), "/automation", "execution", "admin"),
+            ("mobile", U(r"\u79fb\u52a8\u5916\u52e4"), "/mobile", "execution", "employee"),
+            ("settings", U(r"\u8bbe\u7f6e"), "/settings", "system", "admin"),
+            ("audit", U(r"\u5ba1\u8ba1"), "/timeline", "system", "admin"),
+            ("health", U(r"\u5065\u5eb7"), "/system/modules", "system", "admin"),
+        ]
+
+    def platform_objects(self):
+        names = ["store","employee","brand","product","supplier","customer","document","knowledge_item","memory","task","workflow","automation","report","content","finance_record","inventory_record","hr_record","customer_segment","decision","risk","agent","graph_entity"]
+        return [{"object_type": n, "display_name": n.replace("_", " ").title(), "plural_name": n + "s", "route_pattern": "/", "permission_scope": "view_workspace", "searchable": True, "ai_accessible": True, "timeline_enabled": True, "audit_enabled": True} for n in names]
+
+    def can_view_system(self, user):
+        return bool(user and user["role"] in ("boss", "admin"))
+
+    def workspace_payload(self, user):
+        with db() as conn:
+            tasks = [row_dict(r) for r in conn.execute("select * from tasks where status!='done' order by updated_at desc limit 10").fetchall()]
+            notifications = [row_dict(r) for r in conn.execute("select * from notifications order by created_at desc limit 10").fetchall()]
+            reports = [row_dict(r) for r in conn.execute("select * from reports order by updated_at desc limit 5").fetchall()] if "reports" in {x[0] for x in conn.execute("select name from sqlite_master where type='table'").fetchall()} else []
+        return {"ok": True, "user": {"id": user["id"], "role": user["role"], "store": user["store"]}, "tasks": tasks, "notifications": notifications, "reports": reports, "empty_message": self.cockpit_data()["empty_message"]}
+
+    def workspace_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        data = self.workspace_payload(user)
+        body = f"<div class='panel'><h2>{U(r'\u6211\u7684\u5de5\u4f5c\u53f0')}</h2><p class='small'>{U(r'\u6c47\u603b\u6211\u7684\u4efb\u52a1\u3001\u901a\u77e5\u3001\u62a5\u544a\u3001AI \u5bf9\u8bdd\u548c\u5f85\u5ba1\u4e8b\u9879\u3002')}</p></div><div class='split'><div class='panel'><h2>{U(r'\u6211\u7684\u4efb\u52a1')}</h2>{self.bullets([t['title'] for t in data['tasks']] or [data['empty_message']])}</div><div class='panel'><h2>{U(r'\u6211\u7684\u901a\u77e5')}</h2>{self.bullets([n['title'] for n in data['notifications']] or [U(r'\u6682\u65e0\u901a\u77e5\u3002')])}</div></div>"
+        self.out(layout(U(r"\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
+
+    def boss_workspace(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance"):
+            return self.dashboard(user)
+        data = self.cockpit_data()
+        body = f"<div class='panel'><h2>{U(r'\u8001\u677f\u5de5\u4f5c\u53f0')}</h2><p class='small'>{U(r'AI CEO\u3001\u91cd\u70b9\u98ce\u9669\u3001\u5f85\u51b3\u7b56\u3001\u4eca\u65e5\u4efb\u52a1\u548c\u7814\u7a76\u7b80\u62a5\u3002')}</p></div><div class='split'><div class='panel'><h2>{U(r'AI CEO')}</h2>{self.bullets(data['ai_suggestions'][:5] or [data['empty_message']])}<p><a class='btn dark' href='/ai-ceo'>AI CEO</a></p></div><div class='panel'><h2>{U(r'\u98ce\u9669')}</h2>{self.bullets([U(r'\u5e93\u5b58\u3001\u8d22\u52a1\u3001\u54c1\u724c\u3001HR \u548c\u7cfb\u7edf\u98ce\u9669\u7edf\u4e00\u8fdb\u5165\u98ce\u9669\u4e2d\u5fc3\u3002')])}<p><a class='btn' href='/risks'>{U(r'\u98ce\u9669\u4e2d\u5fc3')}</a></p></div></div>"
+        self.out(layout(U(r"\u8001\u677f\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
+
+    def employee_workspace(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        body = f"<div class='panel'><h2>{U(r'\u5458\u5de5\u5de5\u4f5c\u53f0')}</h2>{self.bullets([U(r'\u4eca\u65e5\u4efb\u52a1'), U(r'\u79fb\u52a8\u63d0\u4ea4'), U(r'\u57f9\u8bad'), U(r'\u987e\u5ba2\u8ddf\u8fdb'), U(r'\u4e0a\u4f20\u77e5\u8bc6'), U(r'\u95ee AI')])}</div><div class='grid'>{self.card(U(r'\u4efb\u52a1'), U(r'\u67e5\u770b\u4eca\u65e5\u5f85\u529e'), '/tasks', 'btn', True)}{self.card(U(r'\u79fb\u52a8\u5916\u52e4'), U(r'\u4e0a\u4f20\u95e8\u5e97\u7b14\u8bb0\u548c\u56fe\u7247'), '/mobile', 'btn green', True)}{self.card(U(r'\u987e\u5ba2\u8ddf\u8fdb'), U(r'\u4f1a\u5458\u548c\u79c1\u57df\u8ddf\u8fdb'), '/customer-growth', 'btn orange', True)}</div>"
+        self.out(layout(U(r"\u5458\u5de5\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
+
+    def settings_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] != "admin":
+            return self.dashboard(user)
+        body = f"<div class='panel'><h2>{U(r'\u7cfb\u7edf\u8bbe\u7f6e')}</h2>{self.bullets([U(r'\u516c\u53f8\u8bbe\u7f6e'), U(r'\u6a21\u5757\u8bbe\u7f6e'), U(r'AI \u8bbe\u7f6e\u5360\u4f4d'), U(r'\u641c\u7d22\u8bbe\u7f6e'), U(r'\u901a\u77e5\u8bbe\u7f6e'), U(r'\u5b89\u5168\u8bbe\u7f6e'), U(r'\u96c6\u6210\u8bbe\u7f6e')])}</div>"
+        self.out(layout(U(r"\u7cfb\u7edf\u8bbe\u7f6e"), body, user=user, wide=True))
+
+    def system_modules_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_system(user):
+            return self.dashboard(user)
+        cards = "".join(self.card(name, key + " · healthy", route, "btn", True) for key, name, route, cat, perm in self.platform_modules())
+        self.out(layout(U(r"\u6a21\u5757\u5065\u5eb7"), f"<div class='grid'>{cards}</div>", user=user, wide=True))
+
+    def data_readiness_payload(self):
+        areas = ["sap_data","store_archives","employee_archives","brand_archives","product_archives","supplier_archives","customer_archives","documents","knowledge","research","memory","tasks","reports"]
+        return [{"area": a, "level": "partial" if a in ("tasks","knowledge") else "empty", "message": self.cockpit_data()["empty_message"]} for a in areas]
+
+    def data_readiness_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_system(user):
+            return self.dashboard(user)
+        self.out(layout(U(r"\u6570\u636e\u5c31\u7eea\u5ea6"), "<div class='panel'>" + self.bullets([x["area"] + " · " + x["level"] for x in self.data_readiness_payload()]) + "</div>", user=user, wide=True))
+
+    def notification_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from notifications order by created_at desc limit 80").fetchall()
+        items = [r["title"] + " · " + r["status"] for r in rows] or [U(r"\u6682\u65e0\u901a\u77e5\u3002")]
+        self.out(layout(U(r"\u901a\u77e5\u4e2d\u5fc3"), "<div class='panel'>" + self.bullets(items) + "</div>", user=user, wide=True))
+
+    def risk_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_system(user) and user["role"] not in ("finance", "purchasing", "store_manager"):
+            return self.dashboard(user)
+        with db() as conn:
+            rows = conn.execute("select * from system_risks order by updated_at desc limit 80").fetchall()
+        items = [r["title"] + " · " + r["level"] + " · " + r["status"] for r in rows] or [U(r"\u6682\u65e0\u7edf\u4e00\u98ce\u9669\u8bb0\u5f55\u3002")]
+        form = f"<div class='panel form'><h2>{U(r'\u65b0\u5efa\u98ce\u9669')}</h2><form method='post' action='/risks/save'><label>{U(r'\u6807\u9898')}</label><input name='title'><label>{U(r'\u7c7b\u578b')}</label><input name='risk_type'><label>{U(r'\u7b49\u7ea7')}</label><input name='level'><label>{U(r'\u5efa\u8bae')}</label><textarea name='recommended_action'></textarea><p><button>{U(r'\u4fdd\u5b58')}</button></p></form></div>"
+        self.out(layout(U(r"\u98ce\u9669\u4e2d\u5fc3"), "<div class='panel'>" + self.bullets(items) + "</div>" + form, user=user, wide=True))
+
+    def timeline_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            events = [row_dict(r) for r in conn.execute("select * from system_events order by created_at desc limit 80").fetchall()]
+            logs = [row_dict(r) for r in conn.execute("select * from audit_logs order by created_at desc limit 40").fetchall()] if "audit_logs" in {x[0] for x in conn.execute("select name from sqlite_master where type='table'").fetchall()} else []
+        items = [e["title"] + " · " + e["event_type"] for e in events] or [l.get("action","") + " · " + str(l.get("target_type","")) for l in logs] or [U(r"\u6682\u65e0\u5168\u5c40\u65f6\u95f4\u7ebf\u3002")]
+        self.out(layout(U(r"\u5168\u5c40\u65f6\u95f4\u7ebf"), "<div class='panel'>" + self.bullets(items) + "</div>", user=user, wide=True))
+
+    def risk_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_view_system(user) and user["role"] not in ("finance", "purchasing", "store_manager"):
+            return self.redir("/")
+        form = self.form()
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into system_risks(risk_id,title,risk_type,level,object_type,object_id,evidence,recommended_action,status,owner,due_date,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("RK-"+uuid.uuid4().hex[:10], form.get("title",U(r"\u672a\u547d\u540d\u98ce\u9669")), form.get("risk_type",""), form.get("level","unknown"), form.get("object_type",""), form.get("object_id",""), form.get("evidence",""), form.get("recommended_action",""), form.get("status","new"), form.get("owner",user["name"]), form.get("due_date",""), now, now))
+        self.log_action(user, "risk_created", "risk", cur.lastrowid, form.get("title",""))
+        return self.redir("/risks")
+
+    def notification_read(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        with db() as conn:
+            conn.execute("update notifications set status='read', read_at=? where id=?", (ts(), form.get("id","0")))
+        return self.redir("/notifications")
+
+    def ai_context_packet(self, user, question=""):
+        return {"user": {"id": user["id"], "role": user["role"], "store": user["store"]}, "permissions": [user["role"]], "question": question, "intent": "", "related_objects": [], "selected_sources": [], "knowledge_context": [], "research_context": [], "memory_context": [], "graph_context": [], "sap_context": self.cockpit_data()["metrics"], "task_context": [], "limitations": [self.cockpit_data()["empty_message"]], "timestamp": ts()}
+
+    def api_platform_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/system/modules":
+            return self.json_out({"ok": True, "modules": [{"module_key": k, "module_name": n, "route": r, "category": c, "health_status": "healthy"} for k,n,r,c,p in self.platform_modules()]})
+        if path == "/api/system/objects":
+            return self.json_out({"ok": True, "objects": self.platform_objects()})
+        if path == "/api/system/health":
+            return self.json_out(self.health_payload())
+        if path == "/api/system/data-readiness":
+            return self.json_out({"ok": True, "readiness": self.data_readiness_payload()})
+        if path == "/api/search/global":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            with db() as conn:
+                rows = conn.execute("select title,summary,tags,updated_at,id from records where title like ? or summary like ? or tags like ? order by updated_at desc limit 20", (f"%{q}%", f"%{q}%", f"%{q}%")).fetchall() if q else []
+            return self.json_out({"ok": True, "query": q, "results": [{"type": "record", "title": r["title"], "summary": r["summary"], "tags": r["tags"], "updated_at": r["updated_at"], "url": "/records/view?id="+str(r["id"])} for r in rows]})
+        if path == "/api/workspace":
+            return self.json_out(self.workspace_payload(user))
+        if path == "/api/boss":
+            return self.json_out({"ok": True, "cockpit": self.cockpit_data(), "workspace": "boss"})
+        if path == "/api/employee-workspace":
+            return self.json_out({"ok": True, "workspace": "employee", "sections": ["tasks","mobile","training","customer_followups","knowledge","ai"]})
+        if path == "/api/settings":
+            if user["role"] != "admin":
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            return self.json_out({"ok": True, "settings": [{"group": "ai", "status": "placeholder"}, {"group": "integration", "status": "env_only"}, {"group": "security", "status": "ready"}]})
+        if path == "/api/ai/context-packet":
+            q = parse_qs(urlparse(self.path).query).get("question", [""])[0]
+            self.log_action(user, "ai_context_packet_generated", "ai_context", None, q)
+            return self.json_out({"ok": True, "context_packet": self.ai_context_packet(user, q)})
+        if path == "/api/risks":
+            with db() as conn:
+                rows = conn.execute("select * from system_risks order by updated_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "risks": [row_dict(r) for r in rows]})
+        if path == "/api/timeline/global":
+            with db() as conn:
+                rows = conn.execute("select * from system_events order by created_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "events": [row_dict(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown platform api"}, code=404)
+
+    def api_platform_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        form = self.form()
+        if path.startswith("/api/notifications/") and path.endswith("/read"):
+            nid = path.strip("/").split("/")[-2]
+            with db() as conn:
+                conn.execute("update notifications set status='read', read_at=? where id=? or notification_id=?", (ts(), nid, nid))
+            self.log_action(user, "notification_read", "notification", None, nid)
+            return self.json_out({"ok": True})
+        if path == "/api/risks":
+            now = ts()
+            with db() as conn:
+                cur = conn.execute("insert into system_risks(risk_id,title,risk_type,level,object_type,object_id,evidence,recommended_action,status,owner,due_date,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("RK-"+uuid.uuid4().hex[:10], form.get("title",U(r"\u672a\u547d\u540d\u98ce\u9669")), form.get("risk_type",""), form.get("level","unknown"), form.get("object_type",""), form.get("object_id",""), form.get("evidence",""), form.get("recommended_action",""), form.get("status","new"), form.get("owner",user["name"]), form.get("due_date",""), now, now))
+            self.log_action(user, "risk_created", "risk", cur.lastrowid, form.get("title",""))
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        return self.json_out({"ok": False, "message": "unknown platform write api"}, code=404)
+
+    def api_platform_put(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if user["role"] != "admin":
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        return self.json_out({"ok": True, "message": U(r"\u7cfb\u7edf\u8bbe\u7f6e API \u5df2\u9884\u7559\uff0c\u5bc6\u94a5\u4ec5\u5141\u8bb8\u73af\u5883\u53d8\u91cf\u914d\u7f6e\u3002")})
+
     def store_operations(self, user):
         user = self.require_login(user)
         if not user:
@@ -4429,7 +4763,8 @@ class App(BaseHTTPRequestHandler):
         checks["finance_profit_engine_status"] = "ready"
         checks["hr_performance_engine_status"] = "ready"
         checks["customer_growth_engine_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task019", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["platform_kernel_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task020", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())

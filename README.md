@@ -260,6 +260,24 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Customer growth task generation endpoint
 - Health check now reports Customer Growth Engine status
 
+## V4 Task020 Completed
+
+- Unified Platform Kernel
+- Module Registry
+- Object Registry
+- Global Search V2 placeholder
+- Notification Center
+- User Workspace
+- Boss Workspace
+- Employee Workspace
+- System Settings
+- Module Health dashboard
+- Data Readiness dashboard
+- AI Context Packet
+- Risk Center
+- Global Timeline
+- Health check now reports Platform Kernel status
+
 ## V4 Routes
 
 - `/`
@@ -277,6 +295,15 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/finance/brand-profit`
 - `/hr`
 - `/customer-growth`
+- `/workspace`
+- `/boss`
+- `/employee-workspace`
+- `/settings`
+- `/system/modules`
+- `/system/data-readiness`
+- `/notifications`
+- `/risks`
+- `/timeline`
 - `/content`
 - `/business-overview`
 - `/stores`
@@ -461,6 +488,20 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `POST /api/customer-growth/events`
 - `GET /api/customer-growth/value-analysis`
 - `POST /api/customer-growth/create-task`
+- `GET /api/system/modules`
+- `GET /api/system/objects`
+- `GET /api/system/health`
+- `GET /api/system/data-readiness`
+- `GET /api/search/global`
+- `GET /api/workspace`
+- `GET /api/boss`
+- `GET /api/employee-workspace`
+- `GET /api/settings`
+- `PUT /api/settings`
+- `GET /api/ai/context-packet`
+- `GET /api/risks`
+- `POST /api/risks`
+- `GET /api/timeline/global`
 
 ## Security
 

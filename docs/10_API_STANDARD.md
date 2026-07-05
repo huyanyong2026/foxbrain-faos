@@ -299,6 +299,27 @@ HR APIs must not invent salary or performance facts. AI evaluation is advisory a
 
 Customer APIs must protect private data and must not invent customer profiles or purchase history.
 
+## Task020 Platform Kernel API
+
+- `GET /api/system/modules`
+- `GET /api/system/objects`
+- `GET /api/system/health`
+- `GET /api/system/data-readiness`
+- `GET /api/search/global`
+- `GET /api/notifications`
+- `POST /api/notifications/{id}/read`
+- `GET /api/workspace`
+- `GET /api/boss`
+- `GET /api/employee-workspace`
+- `GET /api/settings`
+- `PUT /api/settings`
+- `GET /api/ai/context-packet`
+- `GET /api/risks`
+- `POST /api/risks`
+- `GET /api/timeline/global`
+
+Platform APIs must not expose secrets or restricted details.
+
 ## Future API
 
 - `POST /api/files/parse`
