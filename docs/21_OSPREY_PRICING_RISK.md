@@ -61,3 +61,14 @@ Osprey now has a dedicated inventory decision entry:
 - `GET /api/inventory-decision/osprey`
 
 The page connects Osprey pricing, rebate, future order and inventory cash pressure into one review surface. It remains a decision-support view and must not be treated as an automatic order or markdown instruction.
+
+## Task017 Finance Integration
+
+Osprey pricing risk now connects to the Finance Profit Engine through:
+
+- Rebate analysis
+- Discount impact calculation
+- Break-even calculation
+- Osprey profit risk report placeholder
+
+The 59 discount scenario remains an input-driven calculator. It must not produce a final conclusion without real cost, sales, rebate and expense evidence.

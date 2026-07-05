@@ -1405,6 +1405,73 @@ create table if not exists purchasing_plans(
 """
         )
         conn.execute("create index if not exists idx_purchasing_plans_status on purchasing_plans(status)")
+        conn.execute(
+            """
+create table if not exists finance_profit_records(
+ id integer primary key autoincrement,
+ profit_record_id text unique,
+ object_type text,
+ object_id text,
+ date_range_start text,
+ date_range_end text,
+ revenue real not null default 0,
+ cost real not null default 0,
+ gross_profit real not null default 0,
+ gross_margin real not null default 0,
+ expenses real not null default 0,
+ net_profit real not null default 0,
+ net_margin real not null default 0,
+ rebate_amount real not null default 0,
+ rebate_adjusted_profit real not null default 0,
+ cash_occupation real not null default 0,
+ data_sources text,
+ status text not null default 'draft',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_finance_profit_object on finance_profit_records(object_type, object_id, status)")
+        conn.execute(
+            """
+create table if not exists finance_expenses(
+ id integer primary key autoincrement,
+ expense_id text unique,
+ expense_type text not null,
+ store_id text,
+ department_id text,
+ amount real not null default 0,
+ period text,
+ description text,
+ related_object_type text,
+ related_object_id text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_finance_expenses_type on finance_expenses(expense_type, period)")
+        conn.execute(
+            """
+create table if not exists finance_rebates(
+ id integer primary key autoincrement,
+ rebate_id text unique,
+ supplier_id text,
+ brand_id text,
+ period text,
+ sales_amount real not null default 0,
+ rebate_rate real not null default 0,
+ expected_rebate real not null default 0,
+ actual_rebate real not null default 0,
+ status text not null default 'expected',
+ uncertainty_level text not null default 'unknown',
+ notes text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_finance_rebates_brand on finance_rebates(brand_id, status)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -1551,6 +1618,12 @@ class App(BaseHTTPRequestHandler):
             return self.business_overview(user)
         if path == "/overview":
             return self.business_overview(user)
+        if path == "/finance":
+            return self.finance_center(user)
+        if path == "/finance/store-profit":
+            return self.finance_store_profit(user)
+        if path == "/finance/brand-profit":
+            return self.finance_brand_profit(user)
         if path == "/stores/operations":
             return self.store_operations(user)
         if path == "/store-growth":
@@ -1619,6 +1692,10 @@ class App(BaseHTTPRequestHandler):
             return self.knowledge_form(user)
         if path == "/api/dashboard/summary":
             return self.json_out(load_summary())
+        if path.startswith("/api/inventory-decision"):
+            return self.api_inventory_decision_get(user, path)
+        if path.startswith("/api/finance"):
+            return self.api_finance_get(user, path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_get(user, path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -1641,8 +1718,6 @@ class App(BaseHTTPRequestHandler):
             return self.api_store_growth_get(user, path)
         if path.startswith("/api/brand-growth"):
             return self.api_brand_growth_get(user, path)
-        if path.startswith("/api/inventory-decision"):
-            return self.api_inventory_decision_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
@@ -1699,6 +1774,12 @@ class App(BaseHTTPRequestHandler):
             return self.future_order_save()
         if path == "/inventory-decision/purchasing-plans/save":
             return self.purchasing_plan_save()
+        if path == "/finance/profit/save":
+            return self.finance_profit_save()
+        if path == "/finance/expenses/save":
+            return self.finance_expense_save()
+        if path == "/finance/rebates/save":
+            return self.finance_rebate_save()
         if path == "/automation/save":
             return self.automation_save()
         if path == "/workflows/save":
@@ -1711,6 +1792,10 @@ class App(BaseHTTPRequestHandler):
             return self.preference_save()
         if path == "/decisions/save":
             return self.decision_save()
+        if path.startswith("/api/inventory-decision"):
+            return self.api_inventory_decision_post(self.current_user(), path)
+        if path.startswith("/api/finance"):
+            return self.api_finance_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -1733,8 +1818,6 @@ class App(BaseHTTPRequestHandler):
             return self.api_store_growth_post(self.current_user(), path)
         if path.startswith("/api/brand-growth"):
             return self.api_brand_growth_post(self.current_user(), path)
-        if path.startswith("/api/inventory-decision"):
-            return self.api_inventory_decision_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
@@ -3400,6 +3483,252 @@ class App(BaseHTTPRequestHandler):
 </div>"""
         self.out(layout(U(r"\u7ecf\u8425\u9a7e\u9a76\u8231"), body, user=user, wide=True))
 
+    def can_view_finance(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "finance"))
+
+    def can_manage_finance(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "finance"))
+
+    def finance_empty(self):
+        return U(r"\u7b49\u5f85 SAP B1 \u6216\u8d22\u52a1\u6570\u636e\u540c\u6b65\u540e\u751f\u6210\u771f\u5b9e\u5229\u6da6\u548c\u73b0\u91d1\u6d41\u5206\u6790\u3002")
+
+    def finance_overview_payload(self):
+        with db() as conn:
+            profit_count = conn.execute("select count(*) c from finance_profit_records").fetchone()["c"]
+            expense_total = conn.execute("select coalesce(sum(amount),0) v from finance_expenses").fetchone()["v"]
+            rebate_expected = conn.execute("select coalesce(sum(expected_rebate),0) v from finance_rebates").fetchone()["v"]
+            rebate_actual = conn.execute("select coalesce(sum(actual_rebate),0) v from finance_rebates").fetchone()["v"]
+            recent_profit = [row_dict(r) for r in conn.execute("select * from finance_profit_records order by updated_at desc limit 10").fetchall()]
+            recent_expenses = [row_dict(r) for r in conn.execute("select * from finance_expenses order by updated_at desc limit 10").fetchall()]
+            recent_rebates = [row_dict(r) for r in conn.execute("select * from finance_rebates order by updated_at desc limit 10").fetchall()]
+        return {
+            "ok": True,
+            "empty_message": self.finance_empty(),
+            "summary": {
+                "profit_record_count": profit_count,
+                "expense_total": expense_total,
+                "expected_rebate": rebate_expected,
+                "actual_rebate": rebate_actual,
+            },
+            "profit_records": recent_profit,
+            "expenses": recent_expenses,
+            "rebates": recent_rebates,
+            "decision_sections": ["profit", "store_profit", "brand_profit", "expenses", "cashflow", "rebates", "discount_impact", "break_even"],
+        }
+
+    def finance_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_finance(user):
+            return self.dashboard(user)
+        data = self.finance_overview_payload()
+        s = data["summary"]
+        metrics = "".join([
+            self.metric(U(r"\u5229\u6da6\u8bb0\u5f55"), money(s["profit_record_count"]), U(r"\u5df2\u5efa\u7acb\u7684\u5206\u6790\u6a21\u578b")),
+            self.metric(U(r"\u8d39\u7528\u5408\u8ba1"), U(r"\uffe5") + money(s["expense_total"]), U(r"\u624b\u5de5/\u540c\u6b65\u6570\u636e")),
+            self.metric(U(r"\u9884\u671f\u8fd4\u70b9"), U(r"\uffe5") + money(s["expected_rebate"]), U(r"\u9700\u5ba1\u6838\u4e0d\u786e\u5b9a\u6027")),
+            self.metric(U(r"\u5df2\u5230\u8fd4\u70b9"), U(r"\uffe5") + money(s["actual_rebate"]), U(r"\u4ee5\u8d22\u52a1\u786e\u8ba4\u4e3a\u51c6")),
+        ])
+        profit_items = [r["object_type"] + " · " + str(r["object_id"]) + " · " + money(r["net_profit"]) for r in data["profit_records"]] or [self.finance_empty()]
+        expense_items = [r["expense_type"] + " · " + money(r["amount"]) + " · " + (r["period"] or "") for r in data["expenses"]] or [U(r"\u6682\u65e0\u8d39\u7528\u8bb0\u5f55\u3002")]
+        rebate_items = [r["brand_id"] + " · " + money(r["expected_rebate"]) + " · " + r["status"] for r in data["rebates"]] or [U(r"\u6682\u65e0\u8fd4\u70b9\u8bb0\u5f55\u3002")]
+        body = f"""
+<div class="panel"><h2>{U(r'\u8d22\u52a1\u4e0e\u5229\u6da6\u51b3\u7b56\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u5e2e\u8001\u677f\u770b\u6e05\u5229\u6da6\u3001\u8d39\u7528\u3001\u73b0\u91d1\u6d41\u3001\u8fd4\u70b9\u548c\u6298\u6263\u98ce\u9669\u3002\u65e0\u6570\u636e\u65f6\u53ea\u663e\u793a\u6a21\u677f\uff0c\u4e0d\u7f16\u9020\u8d22\u52a1\u7ed3\u8bba\u3002')}</p><div class="metrics">{metrics}</div></div>
+<div class="grid">
+  {self.card(U(r'\u95e8\u5e97\u5229\u6da6'), U(r'\u6536\u5165\u3001\u6bdb\u5229\u3001\u79df\u91d1\u3001\u5de5\u8d44\u3001\u5e93\u5b58\u5360\u7528\u548c\u51c0\u5229\u6a21\u677f\u3002'), '/finance/store-profit', 'btn green', True)}
+  {self.card(U(r'\u54c1\u724c\u5229\u6da6'), U(r'\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u6298\u6263\u3001\u8fd4\u70b9\u3001\u5e93\u5b58\u548c\u964d\u4ef7\u98ce\u9669\u3002'), '/finance/brand-profit', 'btn', True)}
+  {self.card(U(r'Osprey \u8fd4\u70b9\u98ce\u9669'), U(r'59/60/62/65 \u6298\u3001\u8fd4\u70b9\u4f9d\u8d56\u548c\u5229\u6da6\u8bd5\u7b97\u3002'), '/brands/osprey-risk', 'btn orange', True)}
+</div>
+<div class="split"><div class="panel"><h2>{U(r'\u5229\u6da6\u5206\u6790')}</h2>{self.bullets(profit_items)}</div><div class="panel"><h2>{U(r'\u8d39\u7528\u5206\u6790')}</h2>{self.bullets(expense_items)}</div></div>
+<div class="split"><div class="panel"><h2>{U(r'\u73b0\u91d1\u6d41\u89c2\u5bdf')}</h2>{self.bullets([self.finance_empty(), U(r'\u5173\u6ce8\u5e93\u5b58\u5360\u7528\u3001\u671f\u8d27\u4ed8\u6b3e\u3001\u4f9b\u5e94\u5546\u4ed8\u6b3e\u3001\u79df\u91d1\u548c\u5de5\u8d44\u538b\u529b\u3002')])}</div><div class="panel"><h2>{U(r'\u8fd4\u70b9\u5206\u6790')}</h2>{self.bullets(rebate_items)}</div></div>
+<div class="split">
+  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u5229\u6da6\u8bb0\u5f55')}</h2><form method="post" action="/finance/profit/save"><label>{U(r'\u5bf9\u8c61\u7c7b\u578b')}</label><input name="object_type" placeholder="company / store / brand / product"><label>{U(r'\u5bf9\u8c61 ID')}</label><input name="object_id"><label>{U(r'\u6536\u5165')}</label><input name="revenue"><label>{U(r'\u6210\u672c')}</label><input name="cost"><label>{U(r'\u8d39\u7528')}</label><input name="expenses"><label>{U(r'\u8fd4\u70b9')}</label><input name="rebate_amount"><p><button>{U(r'\u4fdd\u5b58\u5229\u6da6\u8bb0\u5f55')}</button></p></form></div>
+  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u8d39\u7528')}</h2><form method="post" action="/finance/expenses/save"><label>{U(r'\u8d39\u7528\u7c7b\u578b')}</label><input name="expense_type" placeholder="rent / salary / marketing"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u91d1\u989d')}</label><input name="amount"><label>{U(r'\u671f\u95f4')}</label><input name="period" placeholder="2026-07"><label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea><p><button>{U(r'\u4fdd\u5b58\u8d39\u7528')}</button></p></form></div>
+</div>"""
+        self.out(layout(U(r"\u8d22\u52a1\u5229\u6da6\u51b3\u7b56"), body, user=user, wide=True))
+
+    def finance_store_profit(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_finance(user):
+            return self.dashboard(user)
+        stores = [U(r"\u5357\u5c71\u5e97"), U(r"\u632f\u5174\u5e97"), U(r"\u822a\u82d1\u5e97"), U(r"\u91d1\u6c99\u5e97"), U(r"\u7f51\u5e97")]
+        cards = "".join(self.card(store, U(r"\u6536\u5165\u3001\u6bdb\u5229\u3001\u79df\u91d1\u3001\u6c34\u7535\u3001\u5de5\u8d44\u3001\u5e93\u5b58\u5360\u7528\u548c\u51c0\u5229\u7b49\u5f85\u6570\u636e\u63a5\u5165\u3002"), "/finance", "btn green", True) for store in stores)
+        body = f"<div class='panel'><h2>{U(r'\u95e8\u5e97\u5229\u6da6\u5206\u6790')}</h2>{self.empty_state(self.finance_empty())}</div><div class='grid'>{cards}</div>"
+        self.out(layout(U(r"\u95e8\u5e97\u5229\u6da6"), body, user=user, wide=True))
+
+    def finance_brand_profit(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_finance(user):
+            return self.dashboard(user)
+        brands = ["KAILAS", "Osprey", "Mammut", "Salomon", "Deuter", "Gregory", "VAFOX"]
+        cards = "".join(self.card(brand, U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u6298\u6263\u3001\u8fd4\u70b9\u3001\u5e93\u5b58\u5360\u7528\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u6a21\u677f\u3002"), "/brands/osprey-risk" if brand == "Osprey" else "/finance", "btn", True) for brand in brands)
+        body = f"<div class='panel'><h2>{U(r'\u54c1\u724c\u5229\u6da6\u5206\u6790')}</h2>{self.empty_state(self.finance_empty())}</div><div class='grid'>{cards}</div>"
+        self.out(layout(U(r"\u54c1\u724c\u5229\u6da6"), body, user=user, wide=True))
+
+    def finance_number(self, form, key):
+        try:
+            return float(str(form.get(key, "")).replace(",", "").strip() or 0)
+        except Exception:
+            return 0.0
+
+    def finance_profit_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_finance(user):
+            return self.redir("/")
+        form = self.form()
+        revenue = self.finance_number(form, "revenue")
+        cost = self.finance_number(form, "cost")
+        expenses = self.finance_number(form, "expenses")
+        rebate_amount = self.finance_number(form, "rebate_amount")
+        cash_occupation = self.finance_number(form, "cash_occupation")
+        gross_profit = revenue - cost
+        gross_margin = gross_profit / revenue if revenue else 0
+        net_profit = gross_profit - expenses
+        net_margin = net_profit / revenue if revenue else 0
+        rebate_adjusted_profit = net_profit + rebate_amount
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into finance_profit_records(profit_record_id,object_type,object_id,date_range_start,date_range_end,revenue,cost,gross_profit,gross_margin,expenses,net_profit,net_margin,rebate_amount,rebate_adjusted_profit,cash_occupation,data_sources,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("FP-"+uuid.uuid4().hex[:10], form.get("object_type",""), form.get("object_id",""), form.get("date_range_start",""), form.get("date_range_end",""), revenue, cost, gross_profit, gross_margin, expenses, net_profit, net_margin, rebate_amount, rebate_adjusted_profit, cash_occupation, form.get("data_sources","manual"), "draft", now, now))
+        self.log_action(user, "finance_profit_created", "finance_profit", cur.lastrowid, form.get("object_type", ""))
+        return self.redir("/finance")
+
+    def finance_expense_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_finance(user):
+            return self.redir("/")
+        form = self.form()
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into finance_expenses(expense_id,expense_type,store_id,department_id,amount,period,description,related_object_type,related_object_id,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)", ("FE-"+uuid.uuid4().hex[:10], form.get("expense_type","other"), form.get("store_id",""), form.get("department_id",""), self.finance_number(form, "amount"), form.get("period",""), form.get("description",""), form.get("related_object_type",""), form.get("related_object_id",""), now, now))
+        self.log_action(user, "finance_expense_created", "finance_expense", cur.lastrowid, form.get("expense_type", ""))
+        return self.redir("/finance")
+
+    def finance_rebate_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_finance(user):
+            return self.redir("/")
+        form = self.form()
+        sales_amount = self.finance_number(form, "sales_amount")
+        rebate_rate = self.finance_number(form, "rebate_rate")
+        expected_rebate = self.finance_number(form, "expected_rebate") or sales_amount * rebate_rate
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into finance_rebates(rebate_id,supplier_id,brand_id,period,sales_amount,rebate_rate,expected_rebate,actual_rebate,status,uncertainty_level,notes,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("FR-"+uuid.uuid4().hex[:10], form.get("supplier_id",""), form.get("brand_id",""), form.get("period",""), sales_amount, rebate_rate, expected_rebate, self.finance_number(form, "actual_rebate"), form.get("status","expected"), form.get("uncertainty_level","unknown"), form.get("notes",""), now, now))
+        self.log_action(user, "finance_rebate_created", "finance_rebate", cur.lastrowid, form.get("brand_id", ""))
+        return self.redir("/finance")
+
+    def finance_discount_payload(self, form):
+        cost_discount = self.finance_number(form, "cost_discount")
+        selling_discount = self.finance_number(form, "selling_discount")
+        rebate_rate = self.finance_number(form, "rebate_rate")
+        sales_amount = self.finance_number(form, "sales_amount") or self.finance_number(form, "expected_sales_amount")
+        inventory_amount = self.finance_number(form, "inventory_amount")
+        fixed_expense = self.finance_number(form, "fixed_expense_allocation")
+        variable_rate = self.finance_number(form, "variable_expense_rate")
+        margin_rate = selling_discount - cost_discount
+        gross_profit = sales_amount * margin_rate
+        rebate_amount = sales_amount * rebate_rate
+        variable_expense = sales_amount * variable_rate
+        net_contribution = gross_profit + rebate_amount - fixed_expense - variable_expense
+        risk_level = "high" if net_contribution < 0 else ("medium" if margin_rate + rebate_rate < 0.08 else "review")
+        return {"gross_margin": margin_rate, "gross_profit": gross_profit, "rebate_amount": rebate_amount, "rebate_adjusted_gross_profit": gross_profit + rebate_amount, "estimated_net_contribution": net_contribution, "inventory_amount": inventory_amount, "risk_level": risk_level, "note": U(r"\u8bd5\u7b97\u4ec5\u57fa\u4e8e\u8f93\u5165\u6570\u636e\uff0c\u4e0d\u4ee3\u8868\u5b9e\u9645\u8d22\u52a1\u7ed3\u8bba\u3002")}
+
+    def finance_break_even_payload(self, form):
+        fixed_expenses = self.finance_number(form, "fixed_expenses")
+        gross_margin_rate = self.finance_number(form, "gross_margin_rate")
+        target_profit = self.finance_number(form, "target_profit")
+        sales_target = self.finance_number(form, "sales_target")
+        break_even_sales = (fixed_expenses + target_profit) / gross_margin_rate if gross_margin_rate else 0
+        profit_at_current_sales = sales_target * gross_margin_rate - fixed_expenses
+        required_sales_increase = max(0, break_even_sales - sales_target)
+        warning = "high" if gross_margin_rate <= 0 or profit_at_current_sales < 0 else "review"
+        return {"break_even_sales": break_even_sales, "profit_at_current_sales": profit_at_current_sales, "required_sales_increase": required_sales_increase, "warning": warning, "note": U(r"\u76c8\u4e8f\u5e73\u8861\u8bd5\u7b97\u9700\u7ed3\u5408\u771f\u5b9e\u8d39\u7528\u548c\u6bdb\u5229\u6570\u636e\u5ba1\u6838\u3002")}
+
+    def api_finance_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_view_finance(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        with db() as conn:
+            if path == "/api/finance":
+                return self.json_out(self.finance_overview_payload())
+            if path == "/api/finance/profit":
+                rows = conn.execute("select * from finance_profit_records order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "profit_records": [row_dict(r) for r in rows], "empty_message": self.finance_empty()})
+            if path == "/api/finance/store-profit":
+                return self.json_out({"ok": True, "stores": [U(r"\u5357\u5c71\u5e97"), U(r"\u632f\u5174\u5e97"), U(r"\u822a\u82d1\u5e97"), U(r"\u91d1\u6c99\u5e97"), U(r"\u7f51\u5e97")], "empty_message": self.finance_empty()})
+            if path == "/api/finance/brand-profit":
+                return self.json_out({"ok": True, "brands": ["KAILAS", "Osprey", "Mammut", "Salomon", "Deuter", "Gregory", "VAFOX"], "empty_message": self.finance_empty()})
+            if path == "/api/finance/expenses":
+                rows = conn.execute("select * from finance_expenses order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "expenses": [row_dict(r) for r in rows]})
+            if path == "/api/finance/cashflow":
+                return self.json_out({"ok": True, "cashflow": {"cash_balance": None, "inventory_cash_occupation": self.cockpit_data()["metrics"]["inventory_amount"], "future_order_payment_pressure": None, "supplier_payment_pressure": None}, "empty_message": self.finance_empty()})
+            if path == "/api/finance/rebates":
+                rows = conn.execute("select * from finance_rebates order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, "rebates": [row_dict(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown finance api"}, code=404)
+
+    def api_finance_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_finance(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        form = self.form()
+        now = ts()
+        if path == "/api/finance/profit":
+            revenue = self.finance_number(form, "revenue")
+            cost = self.finance_number(form, "cost")
+            expenses = self.finance_number(form, "expenses")
+            rebate_amount = self.finance_number(form, "rebate_amount")
+            cash_occupation = self.finance_number(form, "cash_occupation")
+            gross_profit = revenue - cost
+            gross_margin = gross_profit / revenue if revenue else 0
+            net_profit = gross_profit - expenses
+            net_margin = net_profit / revenue if revenue else 0
+            with db() as conn:
+                cur = conn.execute("insert into finance_profit_records(profit_record_id,object_type,object_id,date_range_start,date_range_end,revenue,cost,gross_profit,gross_margin,expenses,net_profit,net_margin,rebate_amount,rebate_adjusted_profit,cash_occupation,data_sources,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("FP-"+uuid.uuid4().hex[:10], form.get("object_type",""), form.get("object_id",""), form.get("date_range_start",""), form.get("date_range_end",""), revenue, cost, gross_profit, gross_margin, expenses, net_profit, net_margin, rebate_amount, net_profit + rebate_amount, cash_occupation, form.get("data_sources","api"), "draft", now, now))
+            self.log_action(user, "finance_profit_created", "finance_profit", cur.lastrowid, form.get("object_type", ""))
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path == "/api/finance/expenses":
+            with db() as conn:
+                cur = conn.execute("insert into finance_expenses(expense_id,expense_type,store_id,department_id,amount,period,description,related_object_type,related_object_id,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)", ("FE-"+uuid.uuid4().hex[:10], form.get("expense_type","other"), form.get("store_id",""), form.get("department_id",""), self.finance_number(form, "amount"), form.get("period",""), form.get("description",""), form.get("related_object_type",""), form.get("related_object_id",""), now, now))
+            self.log_action(user, "finance_expense_created", "finance_expense", cur.lastrowid, form.get("expense_type", ""))
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path == "/api/finance/rebates":
+            sales_amount = self.finance_number(form, "sales_amount")
+            rebate_rate = self.finance_number(form, "rebate_rate")
+            expected_rebate = self.finance_number(form, "expected_rebate") or sales_amount * rebate_rate
+            with db() as conn:
+                cur = conn.execute("insert into finance_rebates(rebate_id,supplier_id,brand_id,period,sales_amount,rebate_rate,expected_rebate,actual_rebate,status,uncertainty_level,notes,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("FR-"+uuid.uuid4().hex[:10], form.get("supplier_id",""), form.get("brand_id",""), form.get("period",""), sales_amount, rebate_rate, expected_rebate, self.finance_number(form, "actual_rebate"), form.get("status","expected"), form.get("uncertainty_level","unknown"), form.get("notes",""), now, now))
+            self.log_action(user, "finance_rebate_created", "finance_rebate", cur.lastrowid, form.get("brand_id", ""))
+            return self.json_out({"ok": True, "id": cur.lastrowid})
+        if path == "/api/finance/discount-calculate":
+            result = self.finance_discount_payload(form)
+            self.log_action(user, "finance_discount_calculated", "finance_model", None, result["risk_level"])
+            return self.json_out({"ok": True, "result": result})
+        if path == "/api/finance/break-even-calculate":
+            result = self.finance_break_even_payload(form)
+            self.log_action(user, "finance_break_even_calculated", "finance_model", None, result["warning"])
+            return self.json_out({"ok": True, "result": result})
+        if path == "/api/finance/create-task":
+            with db() as conn:
+                cur = conn.execute("insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("TASK-" + uuid.uuid4().hex[:10], form.get("title", U(r"\u8d22\u52a1\u98ce\u9669\u590d\u6838")), form.get("description", ""), form.get("owner", user["name"]), "finance", None, form.get("priority", "high"), "todo", form.get("due_date", ""), "finance", form.get("source_id", ""), user["id"], now, now))
+            self.log_action(user, "finance_task_generated", "task", cur.lastrowid, form.get("title", ""))
+            return self.json_out({"ok": True, "task_id": cur.lastrowid})
+        return self.json_out({"ok": False, "message": U(r"\u8bf7\u4f7f\u7528\u9875\u9762\u8868\u5355\u6216\u6307\u5b9a\u7684\u8bd5\u7b97 API\u3002")}, code=501)
+
     def store_operations(self, user):
         user = self.require_login(user)
         if not user:
@@ -3551,7 +3880,8 @@ class App(BaseHTTPRequestHandler):
         checks["store_growth_engine_status"] = "ready"
         checks["brand_growth_engine_status"] = "ready"
         checks["inventory_decision_engine_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task016", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["finance_profit_engine_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task017", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())

@@ -243,6 +243,24 @@ Brand growth APIs return templates and empty states when real SAP, supplier or r
 
 Inventory purchasing APIs create review suggestions only. They do not execute purchase orders, stock transfers or markdowns automatically.
 
+## Task017 Finance Profit API
+
+- `GET /api/finance`
+- `GET /api/finance/profit`
+- `POST /api/finance/profit`
+- `GET /api/finance/store-profit`
+- `GET /api/finance/brand-profit`
+- `GET /api/finance/expenses`
+- `POST /api/finance/expenses`
+- `GET /api/finance/cashflow`
+- `GET /api/finance/rebates`
+- `POST /api/finance/rebates`
+- `POST /api/finance/discount-calculate`
+- `POST /api/finance/break-even-calculate`
+- `POST /api/finance/create-task`
+
+Finance APIs must not invent financial data. Calculators return scenario estimates only.
+
 ## Future API
 
 - `POST /api/files/parse`

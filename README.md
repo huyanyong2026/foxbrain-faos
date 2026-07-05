@@ -218,6 +218,21 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Inventory task generation framework
 - Health check now reports Inventory Decision Engine status
 
+## V4 Task017 Completed
+
+- Finance and Profit Decision Engine
+- Finance center upgrade
+- Store profit analysis page
+- Brand profit analysis page
+- Profit record model
+- Expense model
+- Rebate model
+- Cashflow watch placeholder
+- Discount impact calculator
+- Break-even calculator
+- Finance task generation endpoint
+- Health check now reports Finance Profit Engine status
+
 ## V4 Routes
 
 - `/`
@@ -230,6 +245,9 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/brand-growth`
 - `/inventory-decision`
 - `/brands/osprey-inventory-decision`
+- `/finance`
+- `/finance/store-profit`
+- `/finance/brand-profit`
 - `/content`
 - `/business-overview`
 - `/stores`
@@ -373,6 +391,19 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `GET /api/inventory-decision/cash-occupation`
 - `GET /api/inventory-decision/osprey`
 - `POST /api/inventory-decision/create-task`
+- `GET /api/finance`
+- `GET /api/finance/profit`
+- `POST /api/finance/profit`
+- `GET /api/finance/store-profit`
+- `GET /api/finance/brand-profit`
+- `GET /api/finance/expenses`
+- `POST /api/finance/expenses`
+- `GET /api/finance/cashflow`
+- `GET /api/finance/rebates`
+- `POST /api/finance/rebates`
+- `POST /api/finance/discount-calculate`
+- `POST /api/finance/break-even-calculate`
+- `POST /api/finance/create-task`
 
 ## Security
 
