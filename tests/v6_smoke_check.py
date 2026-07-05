@@ -58,6 +58,13 @@ def test_enterprise_pack_routes_present():
         "/api/automation/notifications",
         "/api/automation/audit",
         "/api/automation/workflow-library",
+        "/api/brain/framework",
+        "/api/brain/memory",
+        "/api/brain/decision-engine",
+        "/api/brain/forecast",
+        "/api/brain/simulation",
+        "/api/brain/ai-council",
+        "/api/brain/recommendation-contract",
     ]:
         assert route in portal
 
@@ -107,6 +114,23 @@ def test_pack_automation_framework_present():
         assert phrase in portal
 
 
+def test_pack_enterprise_brain_present():
+    portal = read("portal_v2.py")
+    for field in ["evidence_json", "lineage_json", "permission_scope", "reviewed_by", "reviewed_at", "expansion_status"]:
+        assert f'"memories", "{field}"' in portal
+    for phrase in [
+        "enterprise_brain_payload",
+        "brain_memory_service_payload",
+        "brain_decision_engine_payload",
+        "brain_forecast_payload",
+        "brain_simulation_payload",
+        "brain_ai_council_payload",
+        "all_ai_recommendations_must_cite_data_or_knowledge_basis",
+        "no_basis_rule",
+    ]:
+        assert phrase in portal
+
+
 def test_enterprise_pack_docs_present():
     for doc in [
         "docs/110_ENTERPRISE_PACK_01.md",
@@ -115,10 +139,12 @@ def test_enterprise_pack_docs_present():
         "docs/113_ENTERPRISE_PACK_04_AI_AGENTS.md",
         "docs/114_ENTERPRISE_PACK_05_DASHBOARD.md",
         "docs/115_ENTERPRISE_PACK_06_AUTOMATION.md",
+        "docs/116_ENTERPRISE_PACK_07_ENTERPRISE_BRAIN.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
         "docs/CODEX_TASKS/Task042_Pack03_Knowledge_Platform.md",
         "docs/CODEX_TASKS/Task043_Pack04_AI_Agent_Framework.md",
         "docs/CODEX_TASKS/Task044_Pack05_Dashboard_Framework.md",
         "docs/CODEX_TASKS/Task045_Pack06_Automation_Framework.md",
+        "docs/CODEX_TASKS/Task046_Pack07_Enterprise_Brain.md",
     ]:
         assert (ROOT / doc).exists()

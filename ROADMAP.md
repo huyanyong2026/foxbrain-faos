@@ -21,6 +21,7 @@
 - Pack 04 unified multi-agent framework: shared runtime, role permissions, versioned tools, memory abstraction, approval gates and audit logging for all agents.
 - Pack 05 unified dashboard framework: KPI data service, independent alert service, independent AI recommendation service and evidence-based management review.
 - Pack 06 unified automation framework: scheduler, retry policy, approval routing, notification center, audit logs and high-risk action blocking.
+- Pack 07 Enterprise Brain: permissioned enterprise memory, evidence-based decision engine, forecast/simulation contracts and AI Council skeleton.
 - Replace placeholder worker jobs with real knowledge indexing and report generation.
 - Add SAP incremental sync conflict detection.
 - Add structured tests for key API routes.

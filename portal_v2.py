@@ -682,6 +682,14 @@ create table if not exists memories(
         conn.execute("create index if not exists idx_memories_type on memories(memory_type)")
         conn.execute("create index if not exists idx_memories_status on memories(status)")
         conn.execute("create index if not exists idx_memories_visibility on memories(visibility)")
+        ensure_column(conn, "memories", "evidence_json", "evidence_json text")
+        ensure_column(conn, "memories", "lineage_json", "lineage_json text")
+        ensure_column(conn, "memories", "permission_scope", "permission_scope text not null default 'role_based'")
+        ensure_column(conn, "memories", "reviewed_by", "reviewed_by integer")
+        ensure_column(conn, "memories", "reviewed_at", "reviewed_at integer")
+        ensure_column(conn, "memories", "expansion_status", "expansion_status text not null default 'extendable'")
+        conn.execute("create index if not exists idx_memories_permission on memories(permission_scope, visibility)")
+        conn.execute("create index if not exists idx_memories_expansion on memories(expansion_status)")
         conn.execute(
             """
 create table if not exists user_preferences(
@@ -2124,6 +2132,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_task005_get(user, path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
             return self.api_automation_get(user, path)
+        if path.startswith("/api/brain"):
+            return self.api_brain_get(user, path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
             return self.api_memory_get(user, path)
         if path.startswith("/api/graph"):
@@ -5096,6 +5106,148 @@ class App(BaseHTTPRequestHandler):
     def ai_context_packet(self, user, question=""):
         return {"user": {"id": user["id"], "role": user["role"], "store": user["store"]}, "permissions": [user["role"]], "question": question, "intent": "", "related_objects": [], "selected_sources": [], "knowledge_context": [], "research_context": [], "memory_context": [], "graph_context": [], "sap_context": self.cockpit_data()["metrics"], "task_context": [], "limitations": [self.cockpit_data()["empty_message"]], "timestamp": ts()}
 
+    def brain_memory_service_payload(self, user):
+        with db() as conn:
+            rows = [r for r in conn.execute("select * from memories order by updated_at desc limit 50").fetchall() if self.can_view_memory(user, r)]
+            counts = {
+                "total": conn.execute("select count(*) c from memories").fetchone()["c"],
+                "approved": conn.execute("select count(*) c from memories where status='approved'").fetchone()["c"],
+                "pending_review": conn.execute("select count(*) c from memories where status='pending_review'").fetchone()["c"],
+            }
+        return {
+            "ok": True,
+            "service": "enterprise_memory_service",
+            "permissions": {
+                "model": "role_based_visibility",
+                "visibility_levels": ["public_internal", "manager_only", "finance_only", "owner_only", "restricted"],
+                "current_user": {"id": user["id"], "role": user["role"], "store": user["store"]},
+            },
+            "traceability": {
+                "source_fields": ["source_type", "source_id", "evidence_json", "lineage_json"],
+                "review_fields": ["status", "reviewed_by", "reviewed_at"],
+                "audit": "activity_log",
+            },
+            "growth": {
+                "expansion_status": "extendable",
+                "supported_memory_types": ["company_principle", "business_decision", "pricing_rule", "brand_strategy", "store_strategy", "supplier_risk", "customer_insight", "ai_suggestion"],
+            },
+            "counts": counts,
+            "memories": [self.memory_to_json(r) for r in rows],
+        }
+
+    def brain_decision_engine_payload(self, user):
+        dashboard = self.dashboard_service_payload(user, "ceo")
+        recommendations = self.dashboard_recommendation_service_payload(user)
+        knowledge_contract = self.knowledge_retrieval_contract_payload()["retrieval_contract"]
+        return {
+            "ok": True,
+            "service": "enterprise_decision_engine",
+            "inputs": ["sap_summary", "knowledge_platform", "enterprise_memory", "ai_agents", "dashboard_alerts"],
+            "recommendation_rule": "all_ai_recommendations_must_cite_data_or_knowledge_basis",
+            "approval_policy": self.agent_approval_policy_payload()["approval"],
+            "retrieval_contract": knowledge_contract,
+            "business_context": dashboard["business_data"],
+            "recommendations": recommendations["recommendations"],
+            "limitations": dashboard.get("sync_status", {}).get("warning", ""),
+        }
+
+    def brain_forecast_payload(self, user):
+        kpis = self.dashboard_kpi_service_payload(user)
+        return {
+            "ok": True,
+            "service": "forecast_framework",
+            "supported_forecasts": ["sales", "inventory", "cash_flow"],
+            "status": "contract_ready",
+            "inputs": {
+                "sales": kpis["kpis"]["sales"],
+                "inventory": kpis["kpis"]["inventory"],
+                "profit": kpis["kpis"]["profit"],
+            },
+            "outputs": [
+                {"name": "sales_forecast", "status": "pending_real_model", "basis": [{"source": "dashboard_kpi_service", "field": "sales"}]},
+                {"name": "inventory_forecast", "status": "pending_real_model", "basis": [{"source": "dashboard_kpi_service", "field": "inventory"}]},
+                {"name": "cash_flow_forecast", "status": "pending_real_finance_sync", "basis": [{"source": "dashboard_kpi_service", "field": "profit.cash_flow_summary"}]},
+            ],
+            "rule": "forecast_outputs_must_show_inputs_and_limitations",
+        }
+
+    def brain_simulation_payload(self, user):
+        return {
+            "ok": True,
+            "service": "simulation_framework",
+            "supported_scenarios": ["price_change", "inventory_clearance", "store_growth", "cash_flow_pressure", "brand_mix"],
+            "approval_required_for": ["price_change", "finance_payment", "contract_execution", "sap_write_back"],
+            "sample": {
+                "scenario": "price_change",
+                "status": "draft_only",
+                "basis": [{"source": "agent_approval_policy", "field": "required_for"}],
+                "human_review_required": True,
+            },
+        }
+
+    def brain_ai_council_payload(self, user):
+        agents = self.agent_summary()
+        return {
+            "ok": True,
+            "service": "ai_council",
+            "purpose": "coordinate_agents_for_consolidated_recommendations",
+            "members": ["AI CEO", "AI CFO", "AI Inventory Manager", "AI Store Manager", "AI Product Manager", "AI Customer Service"],
+            "available_agents": [row_dict(r) for r in agents["roles"]],
+            "process": ["collect_question", "retrieve_evidence", "agent_opinions", "consolidate", "show_basis", "request_human_approval_if_needed"],
+            "output_contract": {
+                "recommendation": "string",
+                "agent_opinions": "array",
+                "basis": "array",
+                "risks": "array",
+                "approval_required": "boolean",
+            },
+        }
+
+    def brain_recommendation_contract_payload(self):
+        return {
+            "ok": True,
+            "contract": {
+                "basis_required": True,
+                "allowed_basis_sources": ["sap_summary", "knowledge_item", "memory", "dashboard_kpi", "alert", "agent_opinion", "workflow_log"],
+                "required_fields": ["recommendation_id", "title", "basis", "risk_level", "approval_required", "review_note"],
+                "no_basis_rule": "do_not_present_as_management_recommendation",
+                "approval_rule": "high_risk_recommendations_enter_human_approval",
+            },
+        }
+
+    def enterprise_brain_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "enterprise_brain",
+            "pack_alignment": ["Pack01 foundation", "Pack02 SAP AI", "Pack03 knowledge", "Pack04 agents", "Pack05 dashboard", "Pack06 automation", "Pack07 enterprise brain"],
+            "goals": ["enterprise_memory", "decision_support", "forecasting", "simulation", "multi_agent_collaboration", "explainable_recommendations"],
+            "memory": self.brain_memory_service_payload(user),
+            "decision_engine": self.brain_decision_engine_payload(user),
+            "forecast": self.brain_forecast_payload(user),
+            "simulation": self.brain_simulation_payload(user),
+            "ai_council": self.brain_ai_council_payload(user),
+            "recommendation_contract": self.brain_recommendation_contract_payload()["contract"],
+        }
+
+    def api_brain_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/brain", "/api/brain/framework"):
+            return self.json_out(self.enterprise_brain_payload(user))
+        if path == "/api/brain/memory":
+            return self.json_out(self.brain_memory_service_payload(user))
+        if path == "/api/brain/decision-engine":
+            return self.json_out(self.brain_decision_engine_payload(user))
+        if path == "/api/brain/forecast":
+            return self.json_out(self.brain_forecast_payload(user))
+        if path == "/api/brain/simulation":
+            return self.json_out(self.brain_simulation_payload(user))
+        if path == "/api/brain/ai-council":
+            return self.json_out(self.brain_ai_council_payload(user))
+        if path == "/api/brain/recommendation-contract":
+            return self.json_out(self.brain_recommendation_contract_payload())
+        return self.json_out({"ok": False, "message": "unknown brain api"}, code=404)
+
     def api_platform_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
@@ -5683,6 +5835,11 @@ class App(BaseHTTPRequestHandler):
         checks["automation_retry_policy_status"] = "enabled"
         checks["automation_approval_policy_status"] = "high_risk_defaults_to_approval"
         checks["automation_audit_status"] = "enabled"
+        checks["enterprise_pack_07_brain_status"] = "framework_ready"
+        checks["enterprise_memory_status"] = "permission_traceable_extendable"
+        checks["decision_engine_status"] = "evidence_required"
+        checks["forecast_simulation_status"] = "contract_ready"
+        checks["ai_council_status"] = "skeleton_ready"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
