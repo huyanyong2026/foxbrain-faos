@@ -21,13 +21,14 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 
-APP_DIR = "/opt/firefox-portal"
+APP_DIR = os.environ.get("APP_DIR", "/opt/firefox-portal")
 DB = APP_DIR + "/portal.db"
 SECRET_FILE = APP_DIR + "/secret.key"
 ENV_FILE = APP_DIR + "/portal.env"
-SAP_SUMMARY_FILE = "/opt/firefox-sap-sync/latest_summary.json"
+SAP_SUMMARY_FILE = os.environ.get("SAP_SUMMARY_FILE", "/opt/firefox-sap-sync/latest_summary.json")
 UPLOAD_DIR = APP_DIR + "/uploads"
-PORT = 8088
+HOST = os.environ.get("HOST", "127.0.0.1")
+PORT = int(os.environ.get("PORT", "8088"))
 LOCK_LIMIT = 5
 LOCK_SECONDS = 15 * 60
 
@@ -1935,6 +1936,18 @@ class App(BaseHTTPRequestHandler):
             return self.sap_sync(user)
         if path == "/data-pipeline":
             return self.data_pipeline_page(user)
+        if path == "/apps":
+            return self.apps_launcher(user)
+        if path == "/desktop":
+            return self.role_desktop(user)
+        if path == "/command-center":
+            return self.command_center(user)
+        if path == "/work-queue":
+            return self.work_queue_page(user)
+        if path == "/approvals":
+            return self.approvals_page(user)
+        if path == "/system/upgrade":
+            return self.system_upgrade_page(user)
         if path == "/documents":
             return self.document_center(user)
         if path == "/workflow":
@@ -2051,6 +2064,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_get(user, path)
         if path.startswith("/api/sap/sync") or path.startswith("/api/data-pipeline") or path.startswith("/api/system/data-freshness"):
             return self.api_sap_sync_get(user, path)
+        if path.startswith("/api/apps") or path.startswith("/api/desktop") or path.startswith("/api/command-center") or path.startswith("/api/command-palette") or path.startswith("/api/object-actions") or path.startswith("/api/context-bar") or path.startswith("/api/work-queue") or path.startswith("/api/approvals") or path.startswith("/api/os/") or path.startswith("/api/system/upgrade"):
+            return self.api_os_layer_get(user, path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_get(user, path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -2183,6 +2198,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_post(self.current_user(), path)
         if path.startswith("/api/sap/sync"):
             return self.api_sap_sync_post(self.current_user(), path)
+        if path.startswith("/api/command-palette") or path.startswith("/api/approvals"):
+            return self.api_os_layer_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -4785,6 +4802,195 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(result, code=code)
         return self.json_out({"ok": False, "message": "unknown sap sync write api"}, code=404)
 
+    def app_permission_status(self, user, permission_required):
+        if not user:
+            return "login_required"
+        role = user["role"]
+        if role == "admin":
+            return "allowed"
+        if permission_required in ("view_workspace", "employee") and role in ("boss", "finance", "purchasing", "store_manager", "employee"):
+            return "allowed"
+        if permission_required == "boss" and role in ("boss", "finance", "purchasing"):
+            return "allowed"
+        if permission_required == "store_manager" and role in ("boss", "finance", "purchasing", "store_manager"):
+            return "allowed"
+        if permission_required == "finance" and role in ("boss", "finance"):
+            return "allowed"
+        if permission_required == "purchasing" and role in ("boss", "purchasing", "finance"):
+            return "allowed"
+        return "disabled"
+
+    def os_apps_payload(self, user):
+        readiness = {x["area"]: x["level"] for x in self.data_readiness_payload()}
+        apps = []
+        category_map = {"ai": "AI Command", "operation": "Business Operations", "knowledge": "Knowledge & Data", "execution": "Execution", "system": "System"}
+        for key, name, route, category, permission in self.platform_modules():
+            status = self.app_permission_status(user, permission)
+            apps.append({"module_key": key, "app_name": name, "route": route, "category": category_map.get(category, category), "status": "healthy", "permission_status": status, "data_readiness": readiness.get("sap_data", "partial" if category != "system" else "ready"), "description": key.replace("_", " ")})
+        return {"ok": True, "apps": apps, "data_freshness": self.sap_sync_status_payload()["freshness"]}
+
+    def apps_launcher(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        apps = self.os_apps_payload(user)["apps"]
+        cards = "".join(self.card(a["app_name"], a["category"] + " · " + a["permission_status"] + " · " + a["data_readiness"], a["route"] if a["permission_status"] == "allowed" else "/desktop", "btn" if a["permission_status"] == "allowed" else "btn gray", True) for a in apps)
+        self.out(layout(U(r"\u5e94\u7528\u542f\u52a8\u5668"), "<div class='grid'>" + cards + "</div>", user=user, wide=True))
+
+    def os_work_queue_payload(self, user):
+        with db() as conn:
+            tasks = [row_dict(r) for r in conn.execute("select id,task_id,title,priority,owner,due_date,status,related_object_type,source_type from tasks where status!='done' order by case priority when 'urgent' then 0 when 'high' then 1 else 2 end, updated_at desc limit 30").fetchall()]
+            knowledge = [row_dict(r) for r in conn.execute("select id,title,status,updated_at from knowledge_items where status in ('draft','pending_review') order by updated_at desc limit 10").fetchall()]
+            risks = [row_dict(r) for r in conn.execute("select id,risk_id,title,level,status,owner,due_date from system_risks where status!='resolved' order by updated_at desc limit 20").fetchall()]
+        items = []
+        for t in tasks:
+            items.append({"item_id": t.get("task_id") or str(t["id"]), "item_type": "task", "title": t["title"], "priority": t["priority"], "owner": t["owner"], "due_at": t["due_date"], "related_object": t["related_object_type"], "status": t["status"], "source_module": t["source_type"], "action_url": "/tasks"})
+        for k in knowledge:
+            items.append({"item_id": str(k["id"]), "item_type": "knowledge_approval", "title": k["title"], "priority": "normal", "owner": "", "due_at": "", "related_object": "knowledge", "status": k["status"], "source_module": "knowledge", "action_url": "/knowledge/view?id=" + str(k["id"])})
+        for r in risks:
+            items.append({"item_id": r.get("risk_id") or str(r["id"]), "item_type": "risk", "title": r["title"], "priority": r["level"], "owner": r["owner"], "due_at": r["due_date"], "related_object": "risk", "status": r["status"], "source_module": "risk_center", "action_url": "/risks"})
+        return {"ok": True, "items": items, "empty_message": self.cockpit_data()["empty_message"]}
+
+    def os_approvals_payload(self, user):
+        with db() as conn:
+            reports = [row_dict(r) for r in conn.execute("select id,title,status,updated_at from reports where status in ('draft','pending_review','generated') order by updated_at desc limit 20").fetchall()] if "reports" in {x[0] for x in conn.execute("select name from sqlite_master where type='table'").fetchall()} else []
+            content = [row_dict(r) for r in conn.execute("select id,title,status,updated_at from content_items where status in ('draft','pending_review','review') order by updated_at desc limit 20").fetchall()] if "content_items" in {x[0] for x in conn.execute("select name from sqlite_master where type='table'").fetchall()} else []
+            markdowns = [row_dict(r) for r in conn.execute("select id,markdown_id,brand_id,approval_status,created_at from markdown_suggestions where approval_status='pending_review' order by created_at desc limit 20").fetchall()]
+        items = []
+        for r in reports:
+            items.append({"approval_id": "report-" + str(r["id"]), "type": "report", "title": r["title"], "status": r["status"], "url": "/reports"})
+        for c in content:
+            items.append({"approval_id": "content-" + str(c["id"]), "type": "content", "title": c["title"], "status": c["status"], "url": "/content"})
+        for m in markdowns:
+            items.append({"approval_id": "markdown-" + str(m["id"]), "type": "markdown", "title": (m["brand_id"] or "") + " markdown", "status": m["approval_status"], "url": "/inventory-decision"})
+        return {"ok": True, "approvals": items}
+
+    def os_context_payload(self, user):
+        base = self.ai_context_packet(user, "")
+        base.update({"current_app": "", "current_object": {}, "current_workspace": "desktop", "user_role": user["role"], "visible_modules": [a for a in self.os_apps_payload(user)["apps"] if a["permission_status"] == "allowed"], "pending_work_items": self.os_work_queue_payload(user)["items"][:10], "data_freshness": self.sap_sync_status_payload(), "system_health": self.health_payload(), "recent_decisions": [], "active_risks": self.api_platform_get_risks_for_context()})
+        return base
+
+    def api_platform_get_risks_for_context(self):
+        with db() as conn:
+            return [row_dict(r) for r in conn.execute("select * from system_risks where status!='resolved' order by updated_at desc limit 10").fetchall()]
+
+    def role_desktop(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        role = user["role"]
+        if role in ("boss", "finance", "purchasing"):
+            return self.boss_workspace(user)
+        if role == "admin":
+            cards = [self.card(U(r"\u7cfb\u7edf\u5065\u5eb7"), U(r"\u6a21\u5757\u3001\u6570\u636e\u7ba1\u9053\u3001\u540c\u6b65\u548c\u5347\u7ea7\u72b6\u6001\u3002"), "/system/modules", "btn dark", True), self.card(U(r"SAP \u540c\u6b65"), U(r"\u6bcf\u665a 22:00 \u540c\u6b65\u72b6\u6001\u3002"), "/sap-sync", "btn", True), self.card(U(r"\u5e94\u7528\u542f\u52a8\u5668"), U(r"\u6240\u6709\u6a21\u5757\u5165\u53e3\u3002"), "/apps", "btn green", True)]
+            self.out(layout(U(r"\u7ba1\u7406\u5458\u684c\u9762"), "<div class='grid'>" + "".join(cards) + "</div>", user=user, wide=True))
+            return
+        if role == "employee":
+            return self.employee_workspace(user)
+        data = self.os_work_queue_payload(user)
+        body = f"<div class='panel'><h2>{U(r'\u7ecf\u7406\u684c\u9762')}</h2>{self.bullets([i['title'] for i in data['items'][:8]] or [data['empty_message']])}</div><div class='grid'>{self.card(U(r'\u95e8\u5e97\u589e\u957f'), U(r'\u95e8\u5e97\u4efb\u52a1\u3001\u987e\u5ba2\u8ddf\u8fdb\u3001\u5e93\u5b58\u95ee\u9898\u3002'), '/store-growth', 'btn green', True)}{self.card(U(r'\u5de5\u4f5c\u961f\u5217'), U(r'\u8de8\u6a21\u5757\u9700\u5904\u7406\u4e8b\u9879\u3002'), '/work-queue', 'btn', True)}{self.card(U(r'\u5ba1\u6279'), U(r'\u7edf\u4e00\u5ba1\u6279\u6536\u4ef6\u7bb1\u3002'), '/approvals', 'btn orange', True)}</div>"
+        self.out(layout(U(r"\u89d2\u8272\u684c\u9762"), body, user=user, wide=True))
+
+    def command_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        queue = self.os_work_queue_payload(user)["items"]
+        sap = self.sap_sync_status_payload()
+        body = f"<div class='panel'><h2>{U(r'\u7edf\u4e00\u547d\u4ee4\u4e2d\u5fc3')}</h2><div class='metrics'>{self.metric(U(r'\u6570\u636e\u65b0\u9c9c\u5ea6'), sap['freshness'], sap['next_run_time'])}{self.metric(U(r'\u5f85\u5904\u7406'), money(len(queue)), U(r'\u5de5\u4f5c\u961f\u5217'))}{self.metric(U(r'\u7cfb\u7edf\u72b6\u6001'), self.health_payload()['status'], self.health_payload()['app_version'])}</div></div><div class='split'><div class='panel'><h2>{U(r'\u5efa\u8bae\u52a8\u4f5c')}</h2>{self.bullets([U(r'\u67e5\u770b\u98ce\u9669\u4e2d\u5fc3'), U(r'\u68c0\u67e5 SAP \u540c\u6b65'), U(r'\u5904\u7406\u5ba1\u6279\u6536\u4ef6\u7bb1')])}</div><div class='panel'><h2>{U(r'\u5f85\u5904\u7406')}</h2>{self.bullets([i['title'] for i in queue[:8]] or [self.cockpit_data()['empty_message']])}</div></div>"
+        self.out(layout(U(r"\u547d\u4ee4\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def work_queue_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        data = self.os_work_queue_payload(user)
+        self.out(layout(U(r"\u5de5\u4f5c\u961f\u5217"), "<div class='panel'>" + self.bullets([i["item_type"] + " · " + i["title"] + " · " + i["status"] for i in data["items"]] or [data["empty_message"]]) + "</div>", user=user, wide=True))
+
+    def approvals_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        data = self.os_approvals_payload(user)
+        self.out(layout(U(r"\u5ba1\u6279\u6536\u4ef6\u7bb1"), "<div class='panel'>" + self.bullets([i["type"] + " · " + i["title"] + " · " + i["status"] for i in data["approvals"]] or [U(r"\u6682\u65e0\u5f85\u5ba1\u6279\u4e8b\u9879\u3002")]) + "</div>", user=user, wide=True))
+
+    def system_upgrade_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] != "admin":
+            return self.dashboard(user)
+        completed = [f"Task{n:03d}" for n in range(1, 23)]
+        body = f"<div class='panel'><h2>{U(r'\u7cfb\u7edf\u72b6\u6001\u4e0e\u5347\u7ea7\u4e2d\u5fc3')}</h2>{self.bullets([self.health_payload()['app_version'], U(r'\u5df2\u5b8c\u6210\uff1a') + ', '.join(completed[-8:]), U(r'\u5efa\u8bae\u4e0b\u4e00\u6b65\uff1a\u8fde\u63a5\u771f\u5b9e SAP \u8c03\u5ea6\u548c\u751f\u4ea7\u90e8\u7f72\u9a8c\u8bc1\u3002')])}</div>"
+        self.out(layout(U(r"\u5347\u7ea7\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def object_actions_payload(self):
+        actions = ["open", "edit", "add_note", "add_tag", "add_relationship", "add_timeline_event", "upload_document", "ask_jarvis", "create_task", "create_decision", "create_risk", "generate_report", "view_graph", "view_history"]
+        return {"ok": True, "actions": actions}
+
+    def context_bar_payload(self):
+        tabs = ["Overview", "Sales", "Inventory", "Documents", "Knowledge", "Research", "Risks", "Decisions", "Tasks", "Reports", "Graph", "Ask Jarvis"]
+        return {"ok": True, "tabs": tabs}
+
+    def command_palette_payload(self, user):
+        commands = [
+            ("ask_jarvis", "Ask Jarvis", "/jarvis"),
+            ("search", "Search everything", "/knowledge/query"),
+            ("create_task", "Create task", "/tasks"),
+            ("upload_document", "Upload document", "/upload"),
+            ("create_report", "Create report", "/reports"),
+            ("open_ai_ceo", "Open AI CEO", "/ai-ceo"),
+            ("open_sap_sync", "Open SAP Sync", "/sap-sync"),
+            ("open_risk_center", "Open Risk Center", "/risks"),
+            ("open_decision_center", "Open Decision Center", "/decisions"),
+            ("create_store_note", "Create store note", "/mobile"),
+            ("create_customer_followup", "Create customer follow-up", "/customer-growth"),
+            ("generate_content_draft", "Generate content draft", "/content"),
+        ]
+        return {"ok": True, "commands": [{"command": c, "title": t, "url": u, "status": "ready"} for c, t, u in commands]}
+
+    def api_os_layer_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/apps":
+            return self.json_out(self.os_apps_payload(user))
+        if path == "/api/desktop":
+            return self.json_out({"ok": True, "role": user["role"], "recommended_route": "/boss" if user["role"] in ("boss", "finance", "purchasing") else ("/system/modules" if user["role"] == "admin" else "/employee-workspace" if user["role"] == "employee" else "/desktop")})
+        if path == "/api/command-center":
+            return self.json_out({"ok": True, "work_queue": self.os_work_queue_payload(user)["items"][:10], "sap": self.sap_sync_status_payload(), "health": self.health_payload()})
+        if path == "/api/command-palette":
+            return self.json_out(self.command_palette_payload(user))
+        if path == "/api/object-actions":
+            return self.json_out(self.object_actions_payload())
+        if path == "/api/context-bar":
+            return self.json_out(self.context_bar_payload())
+        if path == "/api/work-queue":
+            return self.json_out(self.os_work_queue_payload(user))
+        if path == "/api/approvals":
+            return self.json_out(self.os_approvals_payload(user))
+        if path == "/api/os/data-freshness":
+            s = self.sap_sync_status_payload()
+            return self.json_out({"ok": True, "sap": s["freshness"], "knowledge": "ready", "research": "placeholder", "health": s["last_status"], "next_sap_sync": s["next_run_time"]})
+        if path == "/api/system/upgrade":
+            return self.json_out({"ok": True, "version": self.health_payload()["app_version"], "completed_tasks": [f"Task{n:03d}" for n in range(1, 23)], "pending_tasks": [], "suggested_next_upgrades": ["production deployment verification", "real SAP cron/systemd activation"]})
+        if path == "/api/os/context":
+            return self.json_out({"ok": True, "context": self.os_context_payload(user)})
+        return self.json_out({"ok": False, "message": "unknown os layer api"}, code=404)
+
+    def api_os_layer_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        form = self.form()
+        if path == "/api/command-palette/execute":
+            command = form.get("command", "")
+            self.log_action(user, "command_palette_executed", "os_command", None, command)
+            return self.json_out({"ok": True, "command": command, "message": U(r"\u547d\u4ee4\u5df2\u8bb0\u5f55\uff0c\u5177\u4f53\u6267\u884c\u7531\u5bf9\u5e94\u6a21\u5757\u5904\u7406\u3002")})
+        if path.startswith("/api/approvals/") and (path.endswith("/approve") or path.endswith("/reject")):
+            action = "approve" if path.endswith("/approve") else "reject"
+            self.log_action(user, "approval_" + action, "approval", None, path)
+            return self.json_out({"ok": True, "action": action, "message": U(r"\u5ba1\u6279\u52a8\u4f5c\u5df2\u8bb0\u5f55\uff0cV1 \u4e0d\u76f4\u63a5\u6539\u52a8\u6e90\u5bf9\u8c61\u3002")})
+        return self.json_out({"ok": False, "message": "unknown os layer write api"}, code=404)
+
     def store_operations(self, user):
         user = self.require_login(user)
         if not user:
@@ -4949,7 +5155,8 @@ class App(BaseHTTPRequestHandler):
         except Exception as exc:
             checks["sap_sync_scheduler_status"] = "error"
             checks["sap_sync_error"] = str(exc)
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task021", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["operating_system_layer_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task022", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -7487,4 +7694,4 @@ class App(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", PORT), App).serve_forever()
+    ThreadingHTTPServer((HOST, PORT), App).serve_forever()

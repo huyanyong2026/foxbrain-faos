@@ -333,6 +333,25 @@ Platform APIs must not expose secrets or restricted details.
 
 SAP sync APIs never return credentials or raw connection strings.
 
+## Task022 Operating System Layer API
+
+- `GET /api/apps`
+- `GET /api/desktop`
+- `GET /api/command-center`
+- `GET /api/command-palette`
+- `POST /api/command-palette/execute`
+- `GET /api/object-actions`
+- `GET /api/context-bar`
+- `GET /api/work-queue`
+- `GET /api/approvals`
+- `POST /api/approvals/{id}/approve`
+- `POST /api/approvals/{id}/reject`
+- `GET /api/os/data-freshness`
+- `GET /api/system/upgrade`
+- `GET /api/os/context`
+
+OS APIs organize existing modules and must not bypass permissions.
+
 ## Future API
 
 - `POST /api/files/parse`

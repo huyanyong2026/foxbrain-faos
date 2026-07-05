@@ -1,0 +1,35 @@
+services:
+  foxbrain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: foxbrain-v4:cloud
+    container_name: foxbrain-v4
+    restart: always
+    env_file:
+      - .env
+    environment:
+      APP_DIR: /data/firefox-portal
+      SAP_SYNC_BASE: /data/firefox-sap-sync
+      SAP_SUMMARY_FILE: /data/firefox-sap-sync/latest_summary.json
+      HOST: 0.0.0.0
+      PORT: 8088
+      APP_TIMEZONE: Asia/Shanghai
+      SAP_SYNC_ENABLED: "true"
+      SAP_SYNC_TIME: "22:00"
+    ports:
+      - "8088:8088"
+    volumes:
+      - foxbrain_portal:/data/firefox-portal
+      - foxbrain_sap_sync:/data/firefox-sap-sync
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8088/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  foxbrain_portal:
+  foxbrain_sap_sync:

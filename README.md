@@ -4,6 +4,19 @@ FoxBrain V4 is the FireFox Enterprise AI Operating System. It is built as a unif
 
 This repository upgrades the existing FoxBrain project without rewriting it. Existing login, roles, SAP B1 sync, APIs, and deployment assumptions are preserved.
 
+## Cloud Edition
+
+FoxBrain supports long-running deployment on an Ubuntu Tencent Cloud server.
+
+- `Dockerfile`: container image definition
+- `docker-compose.yml`: Cloud Edition service with `restart: always`
+- `install.sh`: one-command Ubuntu installer
+- `README_CLOUD_DEPLOY.md`: cloud deployment guide
+- `deploy/nginx/foxbrain.conf.example`: Nginx reverse proxy example
+- `.github/workflows/deploy-cloud.yml`: GitHub Actions deployment workflow
+
+After deployment, FoxBrain runs on the cloud server. Your personal computer can be turned off.
+
 ## Core Modules
 
 - AI 总经理
@@ -294,6 +307,22 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `.env.example` schedule variables
 - Health check now reports Task021 sync status
 
+## V4 Task022 Completed
+
+- Operating System Layer
+- App Launcher
+- Role-based Desktop
+- Unified Command Center
+- AI Command Palette
+- System-wide Object Actions
+- Cross-module Context Bar
+- Work Queue
+- Approval Inbox
+- Data Freshness OS Indicator
+- System Upgrade Center
+- AI OS Context
+- Health check now reports Operating System Layer status
+
 ## V4 Routes
 
 - `/`
@@ -318,6 +347,12 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/system/modules`
 - `/system/data-readiness`
 - `/data-pipeline`
+- `/apps`
+- `/desktop`
+- `/command-center`
+- `/work-queue`
+- `/approvals`
+- `/system/upgrade`
 - `/notifications`
 - `/risks`
 - `/timeline`
@@ -527,6 +562,20 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `GET /api/sap/sync/health`
 - `GET /api/data-pipeline`
 - `GET /api/system/data-freshness`
+- `GET /api/apps`
+- `GET /api/desktop`
+- `GET /api/command-center`
+- `GET /api/command-palette`
+- `POST /api/command-palette/execute`
+- `GET /api/object-actions`
+- `GET /api/context-bar`
+- `GET /api/work-queue`
+- `GET /api/approvals`
+- `POST /api/approvals/{id}/approve`
+- `POST /api/approvals/{id}/reject`
+- `GET /api/os/data-freshness`
+- `GET /api/system/upgrade`
+- `GET /api/os/context`
 
 ## Security
 

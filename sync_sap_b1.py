@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 from psycopg2.extras import execute_values
 
 
-BASE = "/opt/firefox-sap-sync"
-SUMMARY_FILE = os.path.join(BASE, "latest_summary.json")
+BASE = os.getenv("SAP_SYNC_BASE", "/opt/firefox-sap-sync")
+SUMMARY_FILE = os.getenv("SAP_SUMMARY_FILE", os.path.join(BASE, "latest_summary.json"))
 load_dotenv(os.path.join(BASE, ".env"))
 
 SAP = {k: os.getenv(k) for k in ["SAP_HOST", "SAP_DB", "SAP_USER", "SAP_PASSWORD"]}

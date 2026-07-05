@@ -57,6 +57,11 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [50_WORKSPACE_SYSTEM.md](50_WORKSPACE_SYSTEM.md)
 - [51_DECISION_RISK_CENTER.md](51_DECISION_RISK_CENTER.md)
 - [52_SAP_NIGHTLY_SYNC.md](52_SAP_NIGHTLY_SYNC.md)
+- [53_OPERATING_SYSTEM_LAYER.md](53_OPERATING_SYSTEM_LAYER.md)
+- [54_APP_LAUNCHER.md](54_APP_LAUNCHER.md)
+- [55_ROLE_DESKTOP.md](55_ROLE_DESKTOP.md)
+- [56_COMMAND_CENTER.md](56_COMMAND_CENTER.md)
+- [57_WORK_QUEUE_APPROVALS.md](57_WORK_QUEUE_APPROVALS.md)
 
 ## Codex Tasks
 
@@ -79,6 +84,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task019 Customer Membership Private Domain](CODEX_TASKS/Task019_Customer_Membership_Private_Domain.md)
 - [Task020 Systemization Platform Kernel](CODEX_TASKS/Task020_Systemization_Platform_Kernel.md)
 - [Task021 System Integration SAP Nightly Sync](CODEX_TASKS/Task021_System_Integration_SAP_Nightly_Sync.md)
+- [Task022 Operating System Layer](CODEX_TASKS/Task022_Operating_System_Layer.md)
 
 Future tasks should use folders:
 
