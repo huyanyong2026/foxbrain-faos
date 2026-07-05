@@ -204,6 +204,24 @@ Mobile submissions are pending evidence until reviewed. Enterprise WeChat APIs a
 
 Store growth APIs return templates and empty states when real store data is not available.
 
+## Task015 Brand Growth API
+
+- `GET /api/brand-growth`
+- `GET /api/brand-growth/diagnosis`
+- `POST /api/brand-growth/diagnosis`
+- `GET /api/brand-growth/strategies`
+- `POST /api/brand-growth/strategies`
+- `GET /api/brand-growth/portfolio`
+- `POST /api/brand-growth/portfolio`
+- `GET /api/brand-growth/pricing`
+- `POST /api/brand-growth/pricing`
+- `POST /api/brand-growth/pricing/calculate`
+- `GET /api/brand-growth/inventory-matrix`
+- `GET /api/brand-growth/supplier-risk`
+- `POST /api/brand-growth/create-tasks`
+
+Brand growth APIs return templates and empty states when real SAP, supplier or research data is not available.
+
 ## Future API
 
 - `POST /api/files/parse`

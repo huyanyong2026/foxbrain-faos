@@ -190,6 +190,20 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - Jarvis store growth handoff
 - Health check now reports Store Growth Engine status
 
+## V4 Task015 Completed
+
+- Brand Growth and Product Portfolio Engine
+- Brand role classification framework
+- Brand diagnosis model
+- Brand strategy model
+- Product portfolio model
+- Pricing strategy model
+- Supplier and rebate risk framework
+- Osprey discount simulation handoff
+- Inventory portfolio matrix placeholder
+- Brand task generation framework
+- Health check now reports Brand Growth Engine status
+
 ## V4 Routes
 
 - `/`
@@ -199,6 +213,7 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `/mobile/tasks`
 - `/mobile/review`
 - `/store-growth`
+- `/brand-growth`
 - `/content`
 - `/business-overview`
 - `/stores`
@@ -313,6 +328,19 @@ Production should use Nginx or Caddy as an HTTPS reverse proxy.
 - `POST /api/store-growth/focus`
 - `GET /api/store-growth/reports`
 - `POST /api/store-growth/reports`
+- `GET /api/brand-growth`
+- `GET /api/brand-growth/diagnosis`
+- `POST /api/brand-growth/diagnosis`
+- `GET /api/brand-growth/strategies`
+- `POST /api/brand-growth/strategies`
+- `GET /api/brand-growth/portfolio`
+- `POST /api/brand-growth/portfolio`
+- `GET /api/brand-growth/pricing`
+- `POST /api/brand-growth/pricing`
+- `POST /api/brand-growth/pricing/calculate`
+- `GET /api/brand-growth/inventory-matrix`
+- `GET /api/brand-growth/supplier-risk`
+- `POST /api/brand-growth/create-tasks`
 
 ## Security
 

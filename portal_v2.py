@@ -1165,6 +1165,121 @@ create table if not exists store_focus_items(
 """
         )
         conn.execute("create index if not exists idx_store_focus_store on store_focus_items(store_id, status)")
+        conn.execute(
+            """
+create table if not exists brand_diagnoses(
+ id integer primary key autoincrement,
+ diagnosis_id text unique,
+ brand_id text not null,
+ date_range_start text,
+ date_range_end text,
+ sales_status text,
+ margin_status text,
+ inventory_status text,
+ discount_status text,
+ supplier_status text,
+ market_status text,
+ customer_feedback text,
+ key_problems text,
+ opportunities text,
+ ai_suggestions text,
+ data_sources text,
+ status text not null default 'draft',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_brand_diagnoses_brand on brand_diagnoses(brand_id, created_at)")
+        conn.execute(
+            """
+create table if not exists brand_strategies(
+ id integer primary key autoincrement,
+ strategy_id text unique,
+ brand_id text not null,
+ strategy_title text not null,
+ brand_role text,
+ target_customer text,
+ target_stores text,
+ pricing_principle text,
+ inventory_principle text,
+ content_principle text,
+ growth_goal text,
+ risk_control text,
+ key_actions text,
+ status text not null default 'draft',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_brand_strategies_brand on brand_strategies(brand_id, status)")
+        conn.execute(
+            """
+create table if not exists product_portfolios(
+ id integer primary key autoincrement,
+ portfolio_id text unique,
+ brand_id text,
+ product_id text,
+ product_role text,
+ season text,
+ status text not null default 'draft',
+ sales_level text,
+ margin_level text,
+ inventory_level text,
+ markdown_level text,
+ recommendation text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_product_portfolios_brand on product_portfolios(brand_id, status)")
+        conn.execute(
+            """
+create table if not exists pricing_strategies(
+ id integer primary key autoincrement,
+ pricing_strategy_id text unique,
+ brand_id text,
+ product_id text,
+ normal_discount text,
+ promotion_discount text,
+ clearance_discount text,
+ minimum_allowed_discount text,
+ rebate_assumption text,
+ margin_warning_line text,
+ notes text,
+ status text not null default 'draft',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_pricing_strategies_brand on pricing_strategies(brand_id, status)")
+        conn.execute(
+            """
+create table if not exists supplier_brand_risks(
+ id integer primary key autoincrement,
+ risk_id text unique,
+ supplier_id text,
+ brand_id text,
+ rebate_rate text,
+ rebate_uncertainty text,
+ contract_status text,
+ agency_status text,
+ payment_terms text,
+ delivery_risk text,
+ relationship_risk text,
+ notes text,
+ status text not null default 'draft',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_supplier_brand_risks_brand on supplier_brand_risks(brand_id, status)")
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -1317,6 +1432,8 @@ class App(BaseHTTPRequestHandler):
             return self.store_growth_center(user)
         if path == "/brands/operations":
             return self.brand_operations(user)
+        if path == "/brand-growth":
+            return self.brand_growth_center(user)
         if path == "/inventory/risk":
             return self.inventory_risk(user)
         if path == "/brands/osprey-risk":
@@ -1393,6 +1510,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_mobile_get(user, path)
         if path.startswith("/api/store-growth"):
             return self.api_store_growth_get(user, path)
+        if path.startswith("/api/brand-growth"):
+            return self.api_brand_growth_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith("/api/sap/"):
@@ -1429,6 +1548,14 @@ class App(BaseHTTPRequestHandler):
             return self.store_growth_activity_save()
         if path == "/store-growth/focus/save":
             return self.store_growth_focus_save()
+        if path == "/brand-growth/diagnosis/save":
+            return self.brand_growth_diagnosis_save()
+        if path == "/brand-growth/strategies/save":
+            return self.brand_growth_strategy_save()
+        if path == "/brand-growth/portfolio/save":
+            return self.brand_growth_portfolio_save()
+        if path == "/brand-growth/pricing/save":
+            return self.brand_growth_pricing_save()
         if path == "/automation/save":
             return self.automation_save()
         if path == "/workflows/save":
@@ -1461,6 +1588,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_mobile_post(self.current_user(), path)
         if path.startswith("/api/store-growth"):
             return self.api_store_growth_post(self.current_user(), path)
+        if path.startswith("/api/brand-growth"):
+            return self.api_brand_growth_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith("/api/"):
@@ -1509,6 +1638,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_mobile_put(self.current_user(), path)
         if path.startswith("/api/store-growth"):
             return self.api_store_growth_put(self.current_user(), path)
+        if path.startswith("/api/brand-growth"):
+            return self.api_brand_growth_put(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -2386,6 +2517,7 @@ class App(BaseHTTPRequestHandler):
             self.card(U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31"), U(r"\u8fde\u63a5\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u77e5\u8bc6\u3001\u8bb0\u5fc6\u3001\u4efb\u52a1\u548c\u98ce\u9669\u3002"), "/graph", "btn green", can_manager),
             self.card(U(r"\u591a\u667a\u80fd\u4f53\u534f\u540c"), U(r"AI CEO\u3001CFO\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u7b49\u667a\u80fd\u4f53\u534f\u540c\u5206\u6790\u3002"), "/agents/collaboration", "btn", can_manager),
             self.card(U(r"\u95e8\u5e97\u589e\u957f\u5f15\u64ce"), U(r"\u95e8\u5e97\u8bca\u65ad\u3001\u589e\u957f\u8ba1\u5212\u3001\u6d3b\u52a8\u3001\u4efb\u52a1\u6267\u884c\u548c\u590d\u76d8\u62a5\u544a\u3002"), "/store-growth", "btn green", can_manager),
+            self.card(U(r"\u54c1\u724c\u589e\u957f\u5f15\u64ce"), U(r"\u54c1\u724c\u89d2\u8272\u3001\u4ea7\u54c1\u7ec4\u5408\u3001\u5b9a\u4ef7\u98ce\u9669\u3001\u5e93\u5b58\u77e9\u9635\u548c Osprey \u6298\u6263\u8bd5\u7b97\u3002"), "/brand-growth", "btn", can_manager),
             self.card(U(r"\u7cfb\u7edf\u7ba1\u7406"), U(r"\u5ba1\u6838\u5458\u5de5\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002"), "/admin", "btn dark", can_admin),
         ]
         info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
@@ -3271,7 +3403,8 @@ class App(BaseHTTPRequestHandler):
         checks["mobile_field_engine_status"] = "ready"
         checks["enterprise_wechat_status"] = "placeholder"
         checks["store_growth_engine_status"] = "ready"
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task014", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        checks["brand_growth_engine_status"] = "ready"
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V4 Task015", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -4677,6 +4810,182 @@ class App(BaseHTTPRequestHandler):
             conn.execute("update store_growth_plans set title=coalesce(?,title), goal=coalesce(?,goal), key_actions=coalesce(?,key_actions), owner=coalesce(?,owner), status=coalesce(?,status), updated_at=? where id=?", (form.get("title"), form.get("goal"), form.get("key_actions"), form.get("owner"), form.get("status"), ts(), m.group(1)))
         self.log_action(user, "store_growth_plan_updated", "store_growth_plan", m.group(1), "")
         return self.json_out({"ok": True})
+
+    def can_manage_brand_growth(self, user):
+        return bool(user and user["role"] in ("boss", "admin", "purchasing", "finance", "store_manager"))
+
+    def brand_growth_brands(self):
+        return ["KAILAS", "Osprey", "Mammut", "Salomon", "Deuter", "Gregory", "VAFOX"]
+
+    def brand_roles(self):
+        return ["core_growth", "profit", "traffic", "image", "strategic", "clearance", "experimental", "private_label"]
+
+    def brand_diagnosis_payload(self, brand_id):
+        empty = self.cockpit_data()["empty_message"]
+        return {
+            "brand_id": brand_id,
+            "sales_status": "waiting_for_brand_sap_data",
+            "margin_status": "waiting_for_brand_sap_data",
+            "inventory_status": "waiting_for_brand_inventory_data",
+            "discount_status": "manual_review_needed",
+            "supplier_status": "manual_review_needed",
+            "market_status": "research_pending",
+            "customer_feedback": "waiting_for_mobile_feedback",
+            "key_problems": [empty, U(r"\u54c1\u724c\u7ef4\u5ea6 SAP \u6570\u636e\u3001\u5916\u90e8\u7814\u7a76\u548c\u4f9b\u5e94\u5546\u4fe1\u606f\u9700\u8865\u5145\u540e\u624d\u80fd\u5f97\u51fa\u7ed3\u8bba\u3002")],
+            "opportunities": [U(r"\u53ef\u5148\u6309\u54c1\u724c\u89d2\u8272\u3001\u4ea7\u54c1\u7ec4\u5408\u3001\u5e93\u5b58\u538b\u529b\u548c\u5b9a\u4ef7\u98ce\u9669\u5efa\u7acb\u7ba1\u7406\u6846\u67b6\u3002")],
+            "ai_suggestions": [U(r"\u4e0d\u8981\u5148\u4e0b\u7ed3\u8bba\uff0c\u5148\u5efa\u7acb\u54c1\u724c\u89d2\u8272\u548c\u4ef7\u683c\u98ce\u9669\u6a21\u677f\u3002")],
+            "data_sources": ["sap_summary", "mobile_feedback", "research", "knowledge", "pricing_strategy"],
+        }
+
+    def brand_growth_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_manage_brand_growth(user):
+            return self.dashboard(user)
+        with db() as conn:
+            diagnoses = conn.execute("select * from brand_diagnoses order by updated_at desc limit 20").fetchall()
+            strategies = conn.execute("select * from brand_strategies order by updated_at desc limit 50").fetchall()
+            portfolios = conn.execute("select * from product_portfolios order by updated_at desc limit 50").fetchall()
+            pricing = conn.execute("select * from pricing_strategies order by updated_at desc limit 30").fetchall()
+            risks = conn.execute("select * from supplier_brand_risks order by updated_at desc limit 30").fetchall()
+        brand_opts = "".join("<option value='{}'>{}</option>".format(esc(b), esc(b)) for b in self.brand_growth_brands())
+        role_opts = "".join("<option value='{}'>{}</option>".format(esc(r), esc(r)) for r in self.brand_roles())
+        strategy_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div></div>".format(esc(s["strategy_title"]), esc(s["growth_goal"]), esc(s["brand_id"]), esc(s["brand_role"]), esc(s["status"])) for s in strategies) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u54c1\u724c\u7b56\u7565\u3002")))
+        diag_items = [d["brand_id"] + " · " + d["status"] + " · " + dt(d["updated_at"]) for d in diagnoses] or [U(r"\u6682\u65e0\u54c1\u724c\u8bca\u65ad\u3002")]
+        portfolio_items = [p["brand_id"] + " · " + (p["product_id"] or "") + " · " + (p["product_role"] or "") + " · " + p["status"] for p in portfolios] or [U(r"\u6682\u65e0\u4ea7\u54c1\u7ec4\u5408\u3002")]
+        pricing_items = [p["brand_id"] + " · " + (p["normal_discount"] or "") + " · " + (p["minimum_allowed_discount"] or "") + " · " + p["status"] for p in pricing] or [U(r"\u6682\u65e0\u5b9a\u4ef7\u7b56\u7565\u3002")]
+        risk_items = [r["brand_id"] + " · " + (r["rebate_uncertainty"] or "") + " · " + r["status"] for r in risks] or [U(r"\u6682\u65e0\u4f9b\u5e94\u5546\u4e0e\u8fd4\u70b9\u98ce\u9669\u3002")]
+        body = f"""
+<div class="panel"><h2>{U(r'\u54c1\u724c\u589e\u957f + \u4ea7\u54c1\u7ec4\u5408\u5f15\u64ce')}</h2><p class="small">{U(r'\u7528\u4e8e\u533a\u5206\u54c1\u724c\u89d2\u8272\u3001\u4ea7\u54c1\u89d2\u8272\u3001\u5b9a\u4ef7\u98ce\u9669\u3001\u5e93\u5b58\u538b\u529b\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u3002\u6ca1\u6709\u771f\u5b9e\u6570\u636e\u65f6\u53ea\u663e\u793a\u6846\u67b6\u3002')}</p></div>
+<div class="split">
+  <div class="panel form"><h2>{U(r'\u54c1\u724c\u8bca\u65ad')}</h2><form method="post" action="/brand-growth/diagnosis/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u5f00\u59cb\u65e5\u671f')}</label><input name="date_range_start"><label>{U(r'\u7ed3\u675f\u65e5\u671f')}</label><input name="date_range_end"><p><button>{U(r'\u751f\u6210\u8bca\u65ad\u8349\u7a3f')}</button></p></form></div>
+  <div class="panel"><h2>{U(r'\u8bca\u65ad\u8bb0\u5f55')}</h2>{self.bullets(diag_items)}</div>
+</div>
+<div class="split">
+  <div class="panel form"><h2>{U(r'\u54c1\u724c\u7b56\u7565')}</h2><form method="post" action="/brand-growth/strategies/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u7b56\u7565\u6807\u9898')}</label><input name="strategy_title" required><label>{U(r'\u54c1\u724c\u89d2\u8272')}</label><select name="brand_role">{role_opts}</select><label>{U(r'\u589e\u957f\u76ee\u6807')}</label><textarea name="growth_goal"></textarea><label>{U(r'\u98ce\u9669\u63a7\u5236')}</label><textarea name="risk_control"></textarea><label>{U(r'\u5173\u952e\u52a8\u4f5c')}</label><textarea name="key_actions"></textarea><p><button>{U(r'\u4fdd\u5b58\u7b56\u7565')}</button></p></form></div>
+  <div class="panel form"><h2>{U(r'\u4ea7\u54c1\u7ec4\u5408')}</h2><form method="post" action="/brand-growth/portfolio/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u4ea7\u54c1/SKU')}</label><input name="product_id"><label>{U(r'\u4ea7\u54c1\u89d2\u8272')}</label><input name="product_role" placeholder="hero / profit / traffic / clearance"><label>{U(r'\u63a8\u8350')}</label><textarea name="recommendation"></textarea><p><button>{U(r'\u4fdd\u5b58\u4ea7\u54c1\u7ec4\u5408')}</button></p></form></div>
+</div>
+<div class="panel"><h2>{U(r'\u54c1\u724c\u7b56\u7565')}</h2><div class="grid">{strategy_cards}</div></div>
+<div class="split">
+  <div class="panel form"><h2>{U(r'\u5b9a\u4ef7\u7b56\u7565')}</h2><form method="post" action="/brand-growth/pricing/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u5e38\u89c4\u6298\u6263')}</label><input name="normal_discount"><label>{U(r'\u4fc3\u9500\u6298\u6263')}</label><input name="promotion_discount"><label>{U(r'\u6e05\u4ed3\u6298\u6263')}</label><input name="clearance_discount"><label>{U(r'\u6700\u4f4e\u5141\u8bb8\u6298\u6263')}</label><input name="minimum_allowed_discount"><label>{U(r'\u8bf4\u660e')}</label><textarea name="notes"></textarea><p><button>{U(r'\u4fdd\u5b58\u5b9a\u4ef7')}</button></p></form></div>
+  <div class="panel"><h2>Osprey {U(r'\u6298\u6263\u8bd5\u7b97')}</h2><p class="small">{U(r'59 / 60 / 62 / 65 \u6298\u4ec5\u4f5c\u6a21\u677f\u8bd5\u7b97\uff0c\u4e0d\u4ee3\u8868\u771f\u5b9e\u7ed3\u8bba\u3002')}</p><p><a class="btn" href="/brands/osprey-risk">{U(r'\u6253\u5f00 Osprey \u98ce\u9669\u9875')}</a></p></div>
+</div>
+<div class="split"><div class="panel"><h2>{U(r'\u4ea7\u54c1\u7ec4\u5408')}</h2>{self.bullets(portfolio_items)}</div><div class="panel"><h2>{U(r'\u5b9a\u4ef7\u7b56\u7565')}</h2>{self.bullets(pricing_items)}</div></div>
+<div class="panel"><h2>{U(r'\u4f9b\u5e94\u5546\u4e0e\u8fd4\u70b9\u98ce\u9669')}</h2>{self.bullets(risk_items)}</div>
+<div class="panel"><h2>{U(r'\u5e93\u5b58\u7ec4\u5408\u77e9\u9635')}</h2>{self.bullets([U(r'\u9ad8\u9500\u552e + \u9ad8\u6bdb\u5229 = \u6838\u5fc3\u4fdd\u7559'), U(r'\u9ad8\u9500\u552e + \u4f4e\u6bdb\u5229 = \u5f15\u6d41\u63a7\u5236'), U(r'\u4f4e\u9500\u552e + \u9ad8\u6bdb\u5229 = \u7cbe\u51c6\u63a8\u8350'), U(r'\u4f4e\u9500\u552e + \u4f4e\u6bdb\u5229 = \u6e05\u4ed3\u5904\u7406'), U(r'\u9ad8\u5e93\u5b58 + \u4f4e\u6bdb\u5229 = \u9ad8\u98ce\u9669')])}</div>"""
+        self.out(layout(U(r"\u54c1\u724c\u589e\u957f\u5f15\u64ce"), body, user=user, wide=True))
+
+    def brand_growth_diagnosis_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_brand_growth(user):
+            return self.redir("/")
+        form = self.form()
+        payload = self.brand_diagnosis_payload(form.get("brand_id", ""))
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into brand_diagnoses(diagnosis_id,brand_id,date_range_start,date_range_end,sales_status,margin_status,inventory_status,discount_status,supplier_status,market_status,customer_feedback,key_problems,opportunities,ai_suggestions,data_sources,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("BD-" + uuid.uuid4().hex[:10], payload["brand_id"], form.get("date_range_start", ""), form.get("date_range_end", ""), payload["sales_status"], payload["margin_status"], payload["inventory_status"], payload["discount_status"], payload["supplier_status"], payload["market_status"], payload["customer_feedback"], json.dumps(payload["key_problems"], ensure_ascii=False), json.dumps(payload["opportunities"], ensure_ascii=False), json.dumps(payload["ai_suggestions"], ensure_ascii=False), json.dumps(payload["data_sources"], ensure_ascii=False), "draft", user["id"], now, now))
+        self.log_action(user, "brand_diagnosis_created", "brand_diagnosis", cur.lastrowid, payload["brand_id"])
+        return self.redir("/brand-growth")
+
+    def brand_growth_strategy_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_brand_growth(user):
+            return self.redir("/")
+        form = self.form()
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into brand_strategies(strategy_id,brand_id,strategy_title,brand_role,target_customer,target_stores,pricing_principle,inventory_principle,content_principle,growth_goal,risk_control,key_actions,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("BS-" + uuid.uuid4().hex[:10], form.get("brand_id", ""), form.get("strategy_title", U(r"\u672a\u547d\u540d\u54c1\u724c\u7b56\u7565")), form.get("brand_role", ""), form.get("target_customer", ""), form.get("target_stores", ""), form.get("pricing_principle", ""), form.get("inventory_principle", ""), form.get("content_principle", ""), form.get("growth_goal", ""), form.get("risk_control", ""), form.get("key_actions", ""), "draft", user["id"], now, now))
+        self.log_action(user, "brand_strategy_created", "brand_strategy", cur.lastrowid, form.get("brand_id", ""))
+        return self.redir("/brand-growth")
+
+    def brand_growth_portfolio_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_brand_growth(user):
+            return self.redir("/")
+        form = self.form()
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into product_portfolios(portfolio_id,brand_id,product_id,product_role,season,status,sales_level,margin_level,inventory_level,markdown_level,recommendation,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("PF-" + uuid.uuid4().hex[:10], form.get("brand_id", ""), form.get("product_id", ""), form.get("product_role", ""), form.get("season", ""), form.get("status", "draft"), form.get("sales_level", ""), form.get("margin_level", ""), form.get("inventory_level", ""), form.get("markdown_level", ""), form.get("recommendation", ""), now, now))
+        self.log_action(user, "product_portfolio_updated", "product_portfolio", cur.lastrowid, form.get("brand_id", ""))
+        return self.redir("/brand-growth")
+
+    def brand_growth_pricing_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        if not self.can_manage_brand_growth(user):
+            return self.redir("/")
+        form = self.form()
+        now = ts()
+        with db() as conn:
+            cur = conn.execute("insert into pricing_strategies(pricing_strategy_id,brand_id,product_id,normal_discount,promotion_discount,clearance_discount,minimum_allowed_discount,rebate_assumption,margin_warning_line,notes,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("PS-" + uuid.uuid4().hex[:10], form.get("brand_id", ""), form.get("product_id", ""), form.get("normal_discount", ""), form.get("promotion_discount", ""), form.get("clearance_discount", ""), form.get("minimum_allowed_discount", ""), form.get("rebate_assumption", ""), form.get("margin_warning_line", ""), form.get("notes", ""), "draft", now, now))
+        self.log_action(user, "pricing_strategy_changed", "pricing_strategy", cur.lastrowid, form.get("brand_id", ""))
+        return self.redir("/brand-growth")
+
+    def brand_growth_create_tasks(self, user):
+        if not user:
+            return {"ok": False, "message": "login required"}, 401
+        if not self.can_manage_brand_growth(user):
+            return {"ok": False, "message": "no permission"}, 403
+        form = self.form()
+        brand = form.get("brand_id", "Osprey")
+        actions = csv_values(form.get("actions", "")) or [U(r"\u68c0\u67e5") + brand + U(r"\u5e93\u5b58"), U(r"\u6536\u96c6") + brand + U(r"\u5e02\u573a\u4ef7\u683c\u8bc1\u636e"), U(r"\u5236\u5b9a") + brand + U(r"\u4e3b\u63a8\u65b9\u6848")]
+        now = ts()
+        ids = []
+        with db() as conn:
+            for action in actions[:10]:
+                cur = conn.execute("insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("TASK-" + uuid.uuid4().hex[:10], action, brand + " · " + U(r"\u54c1\u724c\u589e\u957f\u4efb\u52a1"), form.get("owner", user["name"]), "brand_growth", None, "normal", "todo", form.get("due_date", ""), "brand_growth", brand, user["id"], now, now))
+                ids.append(cur.lastrowid)
+        self.log_action(user, "brand_task_generated", "brand_growth", None, brand)
+        return {"ok": True, "task_ids": ids}, 200
+
+    def api_brand_growth_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_brand_growth(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        with db() as conn:
+            if path == "/api/brand-growth":
+                return self.json_out({"ok": True, "brands": self.brand_growth_brands(), "roles": self.brand_roles(), "empty_message": self.cockpit_data()["empty_message"]})
+            table_map = {"/api/brand-growth/diagnosis": ("brand_diagnoses", "diagnosis"), "/api/brand-growth/strategies": ("brand_strategies", "strategies"), "/api/brand-growth/portfolio": ("product_portfolios", "portfolio"), "/api/brand-growth/pricing": ("pricing_strategies", "pricing"), "/api/brand-growth/supplier-risk": ("supplier_brand_risks", "supplier_risk")}
+            if path in table_map:
+                table, key = table_map[path]
+                rows = conn.execute(f"select * from {table} order by updated_at desc limit 100").fetchall()
+                return self.json_out({"ok": True, key: [row_dict(r) for r in rows]})
+            if path == "/api/brand-growth/inventory-matrix":
+                return self.json_out({"ok": True, "matrix": [U(r"\u9ad8\u9500\u552e+\u9ad8\u6bdb\u5229=\u6838\u5fc3\u4fdd\u7559"), U(r"\u9ad8\u5e93\u5b58+\u4f4e\u6bdb\u5229=\u9ad8\u98ce\u9669")], "message": self.cockpit_data()["empty_message"]})
+        return self.json_out({"ok": False, "message": "unknown brand growth api"}, code=404)
+
+    def api_brand_growth_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_brand_growth(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        form = self.form()
+        now = ts()
+        if path == "/api/brand-growth/diagnosis":
+            payload = self.brand_diagnosis_payload(form.get("brand_id", ""))
+            with db() as conn:
+                cur = conn.execute("insert into brand_diagnoses(diagnosis_id,brand_id,sales_status,margin_status,inventory_status,discount_status,supplier_status,market_status,customer_feedback,key_problems,opportunities,ai_suggestions,data_sources,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("BD-" + uuid.uuid4().hex[:10], payload["brand_id"], payload["sales_status"], payload["margin_status"], payload["inventory_status"], payload["discount_status"], payload["supplier_status"], payload["market_status"], payload["customer_feedback"], json.dumps(payload["key_problems"], ensure_ascii=False), json.dumps(payload["opportunities"], ensure_ascii=False), json.dumps(payload["ai_suggestions"], ensure_ascii=False), json.dumps(payload["data_sources"], ensure_ascii=False), "draft", user["id"], now, now))
+            return self.json_out({"ok": True, "diagnosis_id": cur.lastrowid, "diagnosis": payload})
+        if path == "/api/brand-growth/pricing/calculate":
+            return self.json_out({"ok": True, "result": self.calculate_osprey_payload(form)})
+        if path == "/api/brand-growth/create-tasks":
+            result, code = self.brand_growth_create_tasks(user)
+            return self.json_out(result, code=code)
+        if path in ("/api/brand-growth/strategies", "/api/brand-growth/portfolio", "/api/brand-growth/pricing"):
+            return self.json_out({"ok": False, "message": U(r"\u8bf7\u4f7f\u7528\u9875\u9762\u8868\u5355\u6216\u540e\u7eed\u5b8c\u6574 API \u586b\u5199\u8be6\u7ec6\u5b57\u6bb5\u3002")}, code=501)
+        return self.json_out({"ok": False, "message": "unknown brand growth api"}, code=404)
+
+    def api_brand_growth_put(self, user, path):
+        return self.json_out({"ok": False, "message": "brand growth update endpoint reserved"}, code=501)
 
     def can_manage_content(self, user):
         return bool(user and user["role"] in ("boss", "admin", "store_manager", "employee", "purchasing"))

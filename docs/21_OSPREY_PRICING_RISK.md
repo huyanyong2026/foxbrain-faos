@@ -46,3 +46,9 @@
 - 接入合同和返点条款
 - 接入 Research Engine 市场价格观察
 - 输出多策略毛利和现金流对比
+
+## Task015 Brand Growth Integration
+
+Osprey pricing risk is now linked to the Brand Growth Engine.
+
+The discount calculator remains a scenario tool only. It must not become a final pricing conclusion without reviewed cost, rebate, inventory, sales and supplier context.

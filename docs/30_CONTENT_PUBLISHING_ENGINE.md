@@ -129,3 +129,16 @@ Store growth plans can provide topics for:
 - Employee shooting checklists
 
 When no AI model is configured, the content engine returns a safe skeleton only.
+
+## Task015 Brand Growth Integration
+
+Brand strategies can provide content topics:
+
+- Brand story
+- Product note
+- Xiaohongshu post
+- WeChat article
+- Store sales script
+- Member communication draft
+
+No brand claim, product spec or promotion detail may be invented.
