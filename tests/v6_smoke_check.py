@@ -119,6 +119,13 @@ def test_enterprise_pack_routes_present():
         "/api/decision-engine/opportunities",
         "/api/decision-engine/recommendations",
         "/api/decision-engine/approval-gate",
+        "/api/strategy-center/framework",
+        "/api/strategy-center/okr",
+        "/api/strategy-center/models",
+        "/api/strategy-center/scenario-comparison",
+        "/api/strategy-center/expansion-analysis",
+        "/api/strategy-center/brand-product-strategy",
+        "/api/strategy-center/dashboard",
     ]:
         assert route in portal
 
@@ -330,6 +337,25 @@ def test_pack_decision_engine_present():
         assert phrase in portal
 
 
+def test_pack_ai_strategy_center_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "ai_strategy_center_payload",
+        "strategy_okr_service_payload",
+        "strategy_model_payload",
+        "strategy_scenario_comparison_payload",
+        "strategy_expansion_analysis_payload",
+        "strategy_brand_product_payload",
+        "strategy_dashboard_payload",
+        "strategy_center_get",
+        "strategy_okrs_must_link_to_unified_kpi_catalog_and_metrics_service",
+        "strategy_models_must_use_unified_data_model_enterprise_knowledge_operating_metrics_and_history",
+        "strategy_scenarios_are_compared_in_digital_twin_sandbox_and_do_not_modify_production_data",
+        "strategy_analysis_must_remain_consistent_with_enterprise_decision_engine_digital_twin_and_data_intelligence",
+    ]:
+        assert phrase in portal
+
+
 def test_production_deployment_files_present():
     for file_name in [
         "Dockerfile",
@@ -369,6 +395,7 @@ def test_enterprise_pack_docs_present():
         "docs/122_ENTERPRISE_PACK_13_DATA_INTELLIGENCE.md",
         "docs/123_ENTERPRISE_PACK_14_DIGITAL_TWIN.md",
         "docs/124_ENTERPRISE_PACK_15_DECISION_ENGINE.md",
+        "docs/125_ENTERPRISE_PACK_16_AI_STRATEGY_CENTER.md",
         "docs/SDK_EXTENSION_STANDARD.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
@@ -385,5 +412,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task052_Pack13_Data_Intelligence.md",
         "docs/CODEX_TASKS/Task053_Pack14_Digital_Twin.md",
         "docs/CODEX_TASKS/Task054_Pack15_Decision_Engine.md",
+        "docs/CODEX_TASKS/Task055_Pack16_AI_Strategy_Center.md",
     ]:
         assert (ROOT / doc).exists()

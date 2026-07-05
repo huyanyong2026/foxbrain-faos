@@ -2164,7 +2164,7 @@ class App(BaseHTTPRequestHandler):
             return self.api_brand_growth_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
-        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/decision-engine", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
+        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/strategy-center", "/api/digital-twin", "/api/decision-engine", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
             return self.api_v5_get(user, path)
         if path.startswith("/api/sap/"):
             return self.sap_api_placeholder(user, path)
@@ -6065,6 +6065,10 @@ class App(BaseHTTPRequestHandler):
         checks["decision_opportunity_engine_status"] = "contract_ready"
         checks["explainable_recommendation_status"] = "evidence_risk_confidence_required"
         checks["decision_approval_gate_status"] = "high_risk_manual_approval_only"
+        checks["enterprise_pack_16_ai_strategy_status"] = "framework_ready"
+        checks["strategy_okr_status"] = "kpi_linked"
+        checks["strategy_scenario_comparison_status"] = "digital_twin_sandbox"
+        checks["strategy_recommendation_status"] = "explainable_and_consistent"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7321,6 +7325,7 @@ class App(BaseHTTPRequestHandler):
             "/operating-loop": ("Company Operating Loop", "Daily cycle from SAP sync, briefing, risks, decisions, tasks and evening review.", ["Morning briefing", "Risk to task", "Decision to memory", "Evening review", "Loop history"], "/api/operating-loop", "Task023"),
             "/operating-loop/evening-review": ("Evening Review", "Daily review skeleton with completed tasks, unresolved risks and tomorrow focus.", ["Completed tasks", "Unresolved risks", "Field feedback", "Tomorrow focus"], "/api/operating-loop/evening-review", "Task023"),
             "/strategy": ("Strategy + OKR Engine", "Annual goals, quarterly OKRs, monthly targets and strategic initiatives.", ["Annual goals", "Quarterly OKR", "Monthly targets", "Store goals", "Brand goals", "Key initiatives"], "/api/strategy", "Task024"),
+            "/strategy-center": ("AI Strategy Center", "Long-term strategy center aligned with unified data, knowledge, KPI, digital twin and decision engine.", ["OKR service", "Strategy models", "Scenario comparison", "Expansion analysis", "Brand strategy", "Strategy dashboard"], "/api/strategy-center/framework", "Task055"),
             "/agents/workflows": ("Agent Workflow Engine", "Structured multi-agent workflows with human review gates.", ["Workflow templates", "Running workflows", "Pending review", "Step results", "Workflow history"], "/api/agents/workflows", "Task026"),
             "/agents/marketplace": ("Agent Marketplace", "Internal digital employees and reusable agent templates.", ["Recommended agents", "Custom agents", "Template library", "Approval flow"], "/api/agents/marketplace", "Task027"),
             "/agents/builder": ("Custom Agent Builder", "Create agents with scope, tools, memory, permissions and approval policy.", ["Name and role", "Responsibilities", "Knowledge scope", "Tools", "Permissions", "Test prompt"], "/api/agents/builder/options", "Task027"),
@@ -7446,6 +7451,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(self.digital_twin_get(user, path))
         if path.startswith("/api/decision-engine"):
             return self.json_out(self.decision_engine_get(user, path))
+        if path.startswith("/api/strategy-center"):
+            return self.json_out(self.strategy_center_get(user, path))
         if path.startswith("/api/data-catalog"):
             return self.json_out({"ok": True, "datasets": self.v5_data_catalog()})
         if path.startswith("/api/data-quality"):
@@ -7883,6 +7890,130 @@ class App(BaseHTTPRequestHandler):
         if path in ("/api/decision-engine/approval-gate", "/api/decision-engine/approval"):
             return self.decision_approval_gate_payload()
         return {"ok": False, "message": "unknown decision engine api", "path": path}
+
+    def strategy_okr_service_payload(self, user):
+        kpis = self.unified_kpi_catalog_payload()["kpis"]
+        metrics = self.unified_metrics_service_payload(user)
+        return {
+            "ok": True,
+            "service": "strategy_okr_service",
+            "okr_levels": ["corporate", "department", "store"],
+            "progress_tracking": True,
+            "kpi_linkage": [{"objective": "Improve profitable growth", "key_result": item["name"], "kpi_key": item["key"], "source": item["source"], "refresh": item["refresh"]} for item in kpis[:5]],
+            "current_metric_snapshot": metrics["metric_values"],
+            "rule": "strategy_okrs_must_link_to_unified_kpi_catalog_and_metrics_service",
+        }
+
+    def strategy_model_payload(self, user):
+        return {
+            "ok": True,
+            "service": "strategy_model_service",
+            "models": [
+                {"model_id": "STR-growth", "name": "Growth Strategy", "inputs": ["revenue", "customer_growth", "store_ranking"], "basis": ["/api/kpi/catalog", "/api/data-intelligence/framework"]},
+                {"model_id": "STR-profit", "name": "Profit Strategy", "inputs": ["gross_margin", "inventory_turnover", "cash_flow"], "basis": ["/api/kpi/catalog", "/api/decision-engine/risk-scoring"]},
+                {"model_id": "STR-brand-product", "name": "Brand and Product Strategy", "inputs": ["brand_portfolio", "product_lifecycle", "category_performance", "promotion_effectiveness"], "basis": ["/api/digital-twin/relationships", "/api/knowledge/retrieval-contract"]},
+                {"model_id": "STR-expansion", "name": "Expansion Strategy", "inputs": ["new_store_opportunities", "relocation_options", "investment_estimates", "payback_analysis"], "basis": ["/api/digital-twin/simulation", "/api/decision-engine/opportunities"]},
+            ],
+            "rule": "strategy_models_must_use_unified_data_model_enterprise_knowledge_operating_metrics_and_history",
+        }
+
+    def strategy_scenario_comparison_payload(self, user):
+        decision = self.enterprise_decision_engine_payload(user)
+        twin = self.digital_twin_simulation_payload(user)
+        scenarios = [
+            {"scenario_id": "SCN-flagship-store", "name": "Open a flagship store", "simulation": "digital_twin_sandbox", "expected_benefit": "brand_visibility_and_revenue_growth", "risk_score": decision["risk_scoring"]["overall_risk_score"], "confidence": 0.56, "approval_required": True},
+            {"scenario_id": "SCN-discount-adjustment", "name": "Adjust discount strategy", "simulation": "digital_twin_sandbox", "expected_benefit": "inventory_pressure_reduction", "risk_score": 70, "confidence": 0.54, "approval_required": True},
+            {"scenario_id": "SCN-new-brand", "name": "Introduce new brands", "simulation": "digital_twin_sandbox", "expected_benefit": "category_growth_and_customer_refresh", "risk_score": 58, "confidence": 0.52, "approval_required": True},
+        ]
+        return {
+            "ok": True,
+            "service": "strategy_scenario_comparison",
+            "sandbox": twin["environment"],
+            "production_write_policy": twin["production_write_policy"],
+            "scenarios": scenarios,
+            "comparison_fields": ["expected_benefit", "risk_score", "confidence", "investment_need", "payback_period", "approval_required"],
+            "rule": "strategy_scenarios_are_compared_in_digital_twin_sandbox_and_do_not_modify_production_data",
+        }
+
+    def strategy_expansion_analysis_payload(self, user):
+        return {
+            "ok": True,
+            "service": "strategy_expansion_analysis",
+            "evaluates": ["new_store_opportunities", "relocation_options", "investment_estimates", "payback_analysis", "risk_assessment"],
+            "basis": [
+                {"source": "digital_twin", "endpoint": "/api/digital-twin/simulation"},
+                {"source": "data_intelligence", "endpoint": "/api/kpi/metrics"},
+                {"source": "decision_engine", "endpoint": "/api/decision-engine/risk-scoring"},
+                {"source": "knowledge_platform", "endpoint": "/api/knowledge/retrieval-contract"},
+            ],
+            "sample": {"initiative": "new_store_opportunity", "status": "analysis_only", "approval_required": True, "confidence": 0.53},
+            "rule": "expansion_recommendations_must_show_investment_payback_risk_and_evidence",
+        }
+
+    def strategy_brand_product_payload(self, user):
+        return {
+            "ok": True,
+            "service": "strategy_brand_product_analysis",
+            "analyzes": ["brand_portfolio", "product_lifecycle", "category_performance", "promotion_effectiveness"],
+            "basis": [
+                {"source": "unified_data_model", "entities": ["Product", "Supplier", "Store", "Customer"]},
+                {"source": "digital_twin_relationships", "endpoint": "/api/digital-twin/relationships"},
+                {"source": "decision_opportunities", "endpoint": "/api/decision-engine/opportunities"},
+                {"source": "knowledge", "endpoint": "/api/knowledge/retrieval-contract"},
+            ],
+            "recommendation_policy": "brand_and_product_strategy_is_explainable_and_requires_manager_review_before_execution",
+        }
+
+    def strategy_dashboard_payload(self, user):
+        okr = self.strategy_okr_service_payload(user)
+        comparison = self.strategy_scenario_comparison_payload(user)
+        decision = self.enterprise_decision_engine_payload(user)
+        return {
+            "ok": True,
+            "service": "strategy_dashboard",
+            "sections": ["okr_progress", "strategic_initiatives", "scenario_comparison", "risk_analysis", "decision_recommendations"],
+            "okr": okr,
+            "scenario_comparison": comparison["scenarios"],
+            "risk_summary": decision["risk_scoring"],
+            "recommendations": decision["recommendations"],
+            "consistency": {
+                "data_intelligence": "/api/data-intelligence/framework",
+                "digital_twin": "/api/digital-twin/framework",
+                "decision_engine": "/api/decision-engine/framework",
+            },
+        }
+
+    def ai_strategy_center_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "ai_strategy_center",
+            "purpose": "strategic_planning_layer_for_long_term_business_decisions",
+            "inputs": ["unified_data_model", "enterprise_knowledge", "operating_kpis", "historical_data", "digital_twin", "enterprise_decision_engine"],
+            "alignment_rule": "strategy_analysis_must_remain_consistent_with_enterprise_decision_engine_digital_twin_and_data_intelligence",
+            "okr_service": self.strategy_okr_service_payload(user),
+            "strategy_models": self.strategy_model_payload(user),
+            "scenario_comparison": self.strategy_scenario_comparison_payload(user),
+            "expansion_analysis": self.strategy_expansion_analysis_payload(user),
+            "brand_product_strategy": self.strategy_brand_product_payload(user),
+            "dashboard": self.strategy_dashboard_payload(user),
+        }
+
+    def strategy_center_get(self, user, path):
+        if path in ("/api/strategy-center", "/api/strategy-center/framework"):
+            return self.ai_strategy_center_payload(user)
+        if path in ("/api/strategy-center/okr", "/api/strategy-center/okrs"):
+            return self.strategy_okr_service_payload(user)
+        if path in ("/api/strategy-center/models", "/api/strategy-center/strategy-models"):
+            return self.strategy_model_payload(user)
+        if path in ("/api/strategy-center/scenarios", "/api/strategy-center/scenario-comparison"):
+            return self.strategy_scenario_comparison_payload(user)
+        if path in ("/api/strategy-center/expansion", "/api/strategy-center/expansion-analysis"):
+            return self.strategy_expansion_analysis_payload(user)
+        if path in ("/api/strategy-center/brand-product", "/api/strategy-center/brand-product-strategy"):
+            return self.strategy_brand_product_payload(user)
+        if path in ("/api/strategy-center/dashboard", "/api/strategy-center/strategy-dashboard"):
+            return self.strategy_dashboard_payload(user)
+        return {"ok": False, "message": "unknown strategy center api", "path": path}
 
     def v5_data_catalog(self):
         return [

@@ -30,6 +30,7 @@
 - Pack 13 data intelligence: unified KPI catalog, metrics service, data quality monitoring, trend APIs and evidence-based AI insights.
 - Pack 14 digital twin: enterprise entity model, relationship graph, historical state engine, sandbox simulation and visualization contracts.
 - Pack 15 decision engine: explainable recommendations, risk scoring, opportunity discovery and approval gates for high-risk operations.
+- Pack 16 AI Strategy Center: KPI-linked OKRs, strategy models, multi-scenario comparison, expansion planning and strategic dashboard.
 - Replace placeholder worker jobs with real knowledge indexing and report generation.
 - Add SAP incremental sync conflict detection.
 - Add structured tests for key API routes.

@@ -78,6 +78,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [122_ENTERPRISE_PACK_13_DATA_INTELLIGENCE.md](122_ENTERPRISE_PACK_13_DATA_INTELLIGENCE.md)
 - [123_ENTERPRISE_PACK_14_DIGITAL_TWIN.md](123_ENTERPRISE_PACK_14_DIGITAL_TWIN.md)
 - [124_ENTERPRISE_PACK_15_DECISION_ENGINE.md](124_ENTERPRISE_PACK_15_DECISION_ENGINE.md)
+- [125_ENTERPRISE_PACK_16_AI_STRATEGY_CENTER.md](125_ENTERPRISE_PACK_16_AI_STRATEGY_CENTER.md)
 - [SDK_EXTENSION_STANDARD.md](SDK_EXTENSION_STANDARD.md)
 - [RELEASE_1_0_PRODUCTION_CHECKLIST.md](RELEASE_1_0_PRODUCTION_CHECKLIST.md)
 - [README_AUTO_UPDATE.md](README_AUTO_UPDATE.md)
@@ -123,6 +124,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task052 Pack13 Data Intelligence](CODEX_TASKS/Task052_Pack13_Data_Intelligence.md)
 - [Task053 Pack14 Digital Twin](CODEX_TASKS/Task053_Pack14_Digital_Twin.md)
 - [Task054 Pack15 Decision Engine](CODEX_TASKS/Task054_Pack15_Decision_Engine.md)
+- [Task055 Pack16 AI Strategy Center](CODEX_TASKS/Task055_Pack16_AI_Strategy_Center.md)
 
 Future tasks should use folders:
 

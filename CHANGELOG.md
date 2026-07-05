@@ -34,3 +34,5 @@
 - Enterprise Brain simulation now uses the digital twin sandbox and explicitly blocks production data modification.
 - Integrated Pack 15 Enterprise Decision Engine with risk scoring, opportunity discovery, explainable recommendations and approval gates.
 - Enterprise Brain decision output now uses the decision engine and requires evidence, risk score and confidence for business recommendations.
+- Integrated Pack 16 AI Strategy Center with KPI-linked OKRs, strategy models, scenario comparison, expansion analysis and strategy dashboard.
+- Strategy analysis now aligns with Data Intelligence, Digital Twin and Enterprise Decision Engine contracts.
