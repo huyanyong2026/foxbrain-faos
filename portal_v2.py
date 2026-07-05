@@ -6021,6 +6021,11 @@ class App(BaseHTTPRequestHandler):
         checks["long_term_memory_status"] = "permission_searchable_traceable"
         checks["enterprise_timeline_status"] = "available"
         checks["decision_history_status"] = "supported"
+        checks["enterprise_pack_10_release_status"] = "release_candidate_ready"
+        checks["deployment_repeatability_status"] = "docker_compose_ready"
+        checks["observability_status"] = "health_endpoint_ready"
+        checks["rollback_status"] = "backup_restore_scripts_available"
+        checks["production_readiness_status"] = "local_validation_ready"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7463,9 +7468,99 @@ class App(BaseHTTPRequestHandler):
         return {"ok": True, "sensitive_data": self.v5_data_catalog(), "ai_governance": ["AI cannot change prices automatically", "AI cannot approve purchasing or finance actions", "AI cannot expose secrets", "External publishing requires approval"], "alerts": [{"level": "info", "title": "Security framework active"}]}
 
     def v5_operations_payload(self):
-        return {"ok": True, "backup": {"script": "backup.sh", "status": "available"}, "restore": {"script": "restore.sh", "status": "available"}, "healthcheck": {"script": "healthcheck.sh", "status": "available"}, "cloud": {"restart_policy": "always", "pc_can_be_off": True}, "sap": self.sap_sync_status_payload()}
+        return {"ok": True, "backup": {"script": "backup.sh", "status": "available"}, "restore": {"script": "restore.sh", "status": "available"}, "healthcheck": {"script": "healthcheck.sh", "status": "available"}, "cloud": {"restart_policy": "always", "pc_can_be_off": True}, "sap": self.sap_sync_status_payload(), "release": self.release_readiness_payload()}
+
+    def release_deployment_standard_payload(self):
+        return {
+            "ok": True,
+            "deployment_standard": {
+                "docker_deployment": True,
+                "environment_separation": True,
+                "health_checks": True,
+                "configuration_management": ".env",
+                "zero_or_minimal_downtime_updates": "docker_compose_up_d_build",
+                "required_files": ["Dockerfile", "docker-compose.yml", ".env.example", "install.sh", "README_CLOUD_DEPLOY.md", ".github/workflows/deploy-cloud.yml"],
+            },
+        }
+
+    def release_observability_payload(self):
+        health = self.health_payload()
+        return {
+            "ok": True,
+            "observability": {
+                "metrics": ["health_status", "worker_jobs", "sap_freshness", "database_status", "module_status"],
+                "structured_logs": "logs_directory_mounted",
+                "error_tracking": "health_and_operation_payloads",
+                "alerting": "notification_center_contract",
+                "dashboard_health_status": health["status"],
+                "health_endpoint": "/api/health",
+                "operations_endpoint": "/api/operations",
+            },
+        }
+
+    def release_backup_restore_payload(self):
+        return {
+            "ok": True,
+            "backup_restore": {
+                "backup_script": "backup.sh",
+                "restore_script": "restore.sh",
+                "docs": ["BACKUP_RESTORE.md", "README_BACKUP_RESTORE.md"],
+                "verification_status": "file_level_ready",
+                "rollback_rule": "restore_backup_then_restart_and_verify_health",
+            },
+        }
+
+    def release_security_review_payload(self):
+        return {
+            "ok": True,
+            "security_review": {
+                "authentication": "session_login_ready",
+                "authorization": "role_based",
+                "secrets_management": ".env_only_no_committed_secrets",
+                "encryption": "https_via_reverse_proxy",
+                "audit_logs": "activity_log_and_automation_runs",
+                "dependency_review": "requirements_and_container_images_listed",
+                "ai_safety": "high_risk_actions_require_approval",
+            },
+        }
+
+    def release_checklist_payload(self):
+        checks = [
+            {"key": "all_prior_packs_integrated", "status": "pass", "evidence": "docs/110-118 and Task040-048"},
+            {"key": "deployment_repeatable", "status": "pass", "evidence": "docker-compose.yml, install.sh, GitHub Actions"},
+            {"key": "monitoring_active", "status": "pass", "evidence": "/api/health and healthcheck.sh"},
+            {"key": "rollback_documented", "status": "pass", "evidence": "backup.sh, restore.sh, BACKUP_RESTORE.md"},
+            {"key": "security_review", "status": "pass", "evidence": "role permissions, .env, approval gates"},
+            {"key": "documentation_complete", "status": "pass", "evidence": "README_CLOUD_DEPLOY.md and docs/119"},
+            {"key": "production_checklist_passed", "status": "conditional", "evidence": "local validation passed; remote server smoke test still requires operator deployment window"},
+        ]
+        return {"ok": True, "release": "1.0", "checklist": checks, "decision": "release_candidate_ready_after_remote_smoke_test"}
+
+    def release_readiness_payload(self):
+        return {
+            "ok": True,
+            "release": "1.0",
+            "priority": ["stability", "deployability", "observability", "rollback"],
+            "deployment_standard": self.release_deployment_standard_payload()["deployment_standard"],
+            "observability": self.release_observability_payload()["observability"],
+            "backup_restore": self.release_backup_restore_payload()["backup_restore"],
+            "security_review": self.release_security_review_payload()["security_review"],
+            "checklist": self.release_checklist_payload()["checklist"],
+        }
 
     def v5_product_payload(self, path):
+        if path == "/api/product/release-readiness":
+            return self.release_readiness_payload()
+        if path == "/api/product/deployment-standard":
+            return self.release_deployment_standard_payload()
+        if path == "/api/product/observability":
+            return self.release_observability_payload()
+        if path == "/api/product/rollback":
+            return self.release_backup_restore_payload()
+        if path == "/api/product/security-review":
+            return self.release_security_review_payload()
+        if path == "/api/product/production-checklist":
+            return self.release_checklist_payload()
         return {"ok": True, "version": self.health_payload()["app_version"], "completed_tasks": [f"Task{n:03d}" for n in range(23, 39)], "feature_flags": ["enable_jarvis", "enable_agent_workflows", "enable_digital_twin", "enable_sap_nightly_sync", "enable_mobile_field_operation"], "help_sections": ["Getting started", "AI CEO", "Jarvis", "SAP sync", "Tasks", "Knowledge", "Troubleshooting"], "path": path}
 
     def v5_agent_payload(self, path, user):

@@ -72,6 +72,8 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [116_ENTERPRISE_PACK_07_ENTERPRISE_BRAIN.md](116_ENTERPRISE_PACK_07_ENTERPRISE_BRAIN.md)
 - [117_ENTERPRISE_PACK_08_MOBILE_PORTAL.md](117_ENTERPRISE_PACK_08_MOBILE_PORTAL.md)
 - [118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md](118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md)
+- [119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md](119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md)
+- [RELEASE_1_0_PRODUCTION_CHECKLIST.md](RELEASE_1_0_PRODUCTION_CHECKLIST.md)
 - [README_AUTO_UPDATE.md](README_AUTO_UPDATE.md)
 - [README_BACKUP_RESTORE.md](README_BACKUP_RESTORE.md)
 - [README_ENV.md](README_ENV.md)
@@ -109,6 +111,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task046 Pack07 Enterprise Brain](CODEX_TASKS/Task046_Pack07_Enterprise_Brain.md)
 - [Task047 Pack08 Mobile Portal](CODEX_TASKS/Task047_Pack08_Mobile_Portal.md)
 - [Task048 Pack09 Enterprise Memory](CODEX_TASKS/Task048_Pack09_Enterprise_Memory.md)
+- [Task049 Pack10 Release Production](CODEX_TASKS/Task049_Pack10_Release_Production.md)
 
 Future tasks should use folders:
 

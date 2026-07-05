@@ -28,6 +28,7 @@ After deployment, FoxBrain runs on the cloud server. Your personal computer can 
 - Pack 07: Enterprise Brain framework for enterprise memory, decision support, forecasting, simulation and AI Council.
 - Pack 08: unified enterprise portal for SSO, role navigation, shared components and responsive mobile/tablet/desktop access.
 - Pack 09: enterprise long-term memory system for events, meetings, contracts and decisions with permission-aware retrieval.
+- Pack 10: Release 1.0 production readiness for stability, deployment, monitoring and rollback.
 
 The Pack 02 through Pack 09 implementation is additive. Existing login, mobile pages, cloud deployment, SAP sync status, knowledge pages, agent center pages, dashboard pages, automation pages and memory pages are preserved.
 
@@ -71,6 +72,11 @@ The Pack 02 through Pack 09 implementation is additive. Existing login, mobile p
 - `/api/memory/timeline`
 - `/api/memory/retrieval`
 - `/api/memory/decision-history`
+- `/api/product/release-readiness`
+- `/api/product/deployment-standard`
+- `/api/product/observability`
+- `/api/product/rollback`
+- `/api/product/production-checklist`
 
 ## Core Modules
 

@@ -79,6 +79,12 @@ def test_enterprise_pack_routes_present():
         "/api/memory/retrieval",
         "/api/memory/decision-history",
         "/api/memory/ai-contract",
+        "/api/product/release-readiness",
+        "/api/product/deployment-standard",
+        "/api/product/observability",
+        "/api/product/rollback",
+        "/api/product/security-review",
+        "/api/product/production-checklist",
     ]:
         assert route in portal
 
@@ -179,6 +185,44 @@ def test_pack_enterprise_memory_present():
         assert phrase in portal
 
 
+def test_pack_release_production_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "release_readiness_payload",
+        "release_deployment_standard_payload",
+        "release_observability_payload",
+        "release_backup_restore_payload",
+        "release_security_review_payload",
+        "release_checklist_payload",
+        "release_candidate_ready",
+        "deployment_repeatability_status",
+        "rollback_status",
+    ]:
+        assert phrase in portal
+
+
+def test_production_deployment_files_present():
+    for file_name in [
+        "Dockerfile",
+        "docker-compose.yml",
+        ".env.example",
+        "install.sh",
+        "healthcheck.sh",
+        "backup.sh",
+        "restore.sh",
+        "README_CLOUD_DEPLOY.md",
+        "README_BACKUP_RESTORE.md",
+        ".github/workflows/deploy-cloud.yml",
+    ]:
+        assert (ROOT / file_name).exists()
+
+
+def test_production_compose_health_and_restart():
+    compose = read("docker-compose.yml")
+    for phrase in ["restart: always", "healthcheck:", "foxbrain-web", "foxbrain-worker", "nginx"]:
+        assert phrase in compose
+
+
 def test_enterprise_pack_docs_present():
     for doc in [
         "docs/110_ENTERPRISE_PACK_01.md",
@@ -190,6 +234,8 @@ def test_enterprise_pack_docs_present():
         "docs/116_ENTERPRISE_PACK_07_ENTERPRISE_BRAIN.md",
         "docs/117_ENTERPRISE_PACK_08_MOBILE_PORTAL.md",
         "docs/118_ENTERPRISE_PACK_09_ENTERPRISE_MEMORY.md",
+        "docs/119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md",
+        "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
         "docs/CODEX_TASKS/Task042_Pack03_Knowledge_Platform.md",
         "docs/CODEX_TASKS/Task043_Pack04_AI_Agent_Framework.md",
@@ -198,5 +244,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task046_Pack07_Enterprise_Brain.md",
         "docs/CODEX_TASKS/Task047_Pack08_Mobile_Portal.md",
         "docs/CODEX_TASKS/Task048_Pack09_Enterprise_Memory.md",
+        "docs/CODEX_TASKS/Task049_Pack10_Release_Production.md",
     ]:
         assert (ROOT / doc).exists()

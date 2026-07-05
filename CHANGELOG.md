@@ -22,3 +22,5 @@
 - Added `/portal` as the unified mobile-first portal entry for phone, tablet and desktop.
 - Integrated Pack 09 enterprise memory framework with governed long-term memory, timeline, permission-aware retrieval and decision history contracts.
 - Enterprise Brain memory service now links to the enterprise memory repository, timeline, retrieval and decision history endpoints.
+- Integrated Pack 10 Release 1.0 production readiness with deployment, observability, rollback, security review and production checklist contracts.
+- Added release readiness docs and local validation coverage before further feature development.

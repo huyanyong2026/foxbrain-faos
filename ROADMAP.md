@@ -24,6 +24,7 @@
 - Pack 07 Enterprise Brain: permissioned enterprise memory, evidence-based decision engine, forecast/simulation contracts and AI Council skeleton.
 - Pack 08 unified enterprise portal: SSO foundation, role-based navigation, shared responsive components, message center and task center.
 - Pack 09 enterprise memory: long-term memory repository, timeline, permission-aware retrieval, decision history and AI Agent memory collaboration.
+- Pack 10 Release 1.0 production readiness: integration validation, repeatable deployment, observability, rollback and production checklist.
 - Replace placeholder worker jobs with real knowledge indexing and report generation.
 - Add SAP incremental sync conflict detection.
 - Add structured tests for key API routes.
