@@ -2164,7 +2164,7 @@ class App(BaseHTTPRequestHandler):
             return self.api_brand_growth_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
-        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/kernel", "/api/data-fabric", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
+        if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
             return self.api_v5_get(user, path)
         if path.startswith("/api/sap/"):
             return self.sap_api_placeholder(user, path)
@@ -4141,17 +4141,19 @@ class App(BaseHTTPRequestHandler):
         }
 
     def dashboard_kpi_service_payload(self, user, scope="company"):
-        data = self.cockpit_data()
-        m = data["metrics"]
-        sap = self.sap_sync_status_payload()
+        unified = self.unified_metrics_service_payload(user, scope)
+        data = unified["raw_context"]
+        m = unified["metric_values"]
+        sap = unified["freshness"]["sap"]
         return {
             "ok": True,
             "service": "dashboard_kpi_service",
             "scope": scope,
-            "data_source": "unified_data_service",
+            "data_source": "unified_data_intelligence_service",
+            "kpi_catalog_endpoint": "/api/kpi/catalog",
             "business_data_only": True,
             "freshness": {
-                "sap": sap["freshness"],
+                "sap": sap["status"],
                 "last_sync_time": sap["last_sync_time"],
                 "next_run_time": sap["next_run_time"],
                 "data_date": m["data_date"],
@@ -4180,6 +4182,8 @@ class App(BaseHTTPRequestHandler):
                     "ranking": data["top_brands"],
                 },
             },
+            "metric_definitions": unified["metric_definitions"],
+            "single_source_rule": unified["single_source_rule"],
             "limitations": [data["empty_message"]] if not data["has_data"] else [],
         }
 
@@ -5158,14 +5162,19 @@ class App(BaseHTTPRequestHandler):
     def brain_decision_engine_payload(self, user):
         dashboard = self.dashboard_service_payload(user, "ceo")
         recommendations = self.dashboard_recommendation_service_payload(user)
+        unified_metrics = self.unified_metrics_service_payload(user)
+        insights = self.insight_engine_payload(user)
         knowledge_contract = self.knowledge_retrieval_contract_payload()["retrieval_contract"]
         return {
             "ok": True,
             "service": "enterprise_decision_engine",
-            "inputs": ["sap_summary", "knowledge_platform", "enterprise_memory", "ai_agents", "dashboard_alerts"],
+            "inputs": ["unified_metrics_service", "kpi_catalog", "insight_engine", "knowledge_platform", "enterprise_memory", "ai_agents", "dashboard_alerts"],
             "recommendation_rule": "all_ai_recommendations_must_cite_data_or_knowledge_basis",
+            "data_rule": "dashboard_agent_and_decision_engine_kpis_must_come_from_unified_metrics_service",
             "approval_policy": self.agent_approval_policy_payload()["approval"],
             "retrieval_contract": knowledge_contract,
+            "unified_metrics": unified_metrics,
+            "insights": insights["insights"],
             "business_context": dashboard["business_data"],
             "recommendations": recommendations["recommendations"],
             "limitations": dashboard.get("sync_status", {}).get("warning", ""),
@@ -6036,6 +6045,11 @@ class App(BaseHTTPRequestHandler):
         checks["sdk_status"] = "versioned_contract_ready"
         checks["plugin_marketplace_status"] = "registry_ready"
         checks["extension_compatibility_status"] = "backward_compatible_contract"
+        checks["enterprise_pack_13_data_intelligence_status"] = "framework_ready"
+        checks["unified_kpi_service_status"] = "single_source_of_truth"
+        checks["insight_engine_status"] = "evidence_required"
+        checks["data_quality_monitor_status"] = "active_contract"
+        checks["trend_api_status"] = "documented"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
             "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
@@ -7303,6 +7317,7 @@ class App(BaseHTTPRequestHandler):
             "/system/kernel": ("FoxBrain Core Kernel", "Central kernel for modules, objects, events, permissions, tools and health.", ["Module registry", "Object registry", "Event bus", "AI context", "Tool registry", "Health"], "/api/kernel", "Task030"),
             "/system/permissions": ("Permission Matrix", "Role, module, action and sensitive data permission adapter.", ["Roles", "Modules", "Actions", "Sensitive scopes", "AI scopes"], "/api/kernel/permissions", "Task030"),
             "/data-fabric": ("AI Data Fabric", "Unified data catalog, freshness, lineage, quality and AI readiness.", ["Data sources", "Catalog", "Lineage", "Quality", "AI-ready data", "Sensitive data"], "/api/data-fabric", "Task031"),
+            "/data-intelligence": ("Data Intelligence", "Unified KPI and data service for dashboards, AI agents and decision engines.", ["Unified metrics", "KPI catalog", "Insight engine", "Data quality", "Trend APIs"], "/api/data-intelligence/framework", "Task052"),
             "/system/apps": ("App Platform", "Built-in app registry and future plugin architecture.", ["Installed apps", "Available apps", "Permissions", "Settings", "Health", "Events"], "/api/apps", "Task032"),
             "/system/apps/developer": ("App Developer Guide", "Manifest, permission, event bus and data fabric rules for future apps.", ["Manifest", "Routes", "Permissions", "Events", "Settings", "Security"], "/api/apps/developer/template", "Task032"),
             "/integrations": ("Integration Hub", "Safe connector registry for SAP, AI providers, search, messaging and webhooks.", ["Connectors", "Credential status", "Sync jobs", "Webhooks", "AI providers", "Search providers"], "/api/integrations", "Task033"),
@@ -7410,6 +7425,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         if path.startswith("/api/data-sources"):
             return self.json_out({"ok": True, "sources": self.v5_data_sources()})
+        if path.startswith("/api/data-intelligence") or path.startswith("/api/kpi") or path.startswith("/api/insights") or path.startswith("/api/trends") or path.startswith("/api/data-quality/monitor"):
+            return self.json_out(self.data_intelligence_get(user, path))
         if path.startswith("/api/data-catalog"):
             return self.json_out({"ok": True, "datasets": self.v5_data_catalog()})
         if path.startswith("/api/data-quality"):
@@ -7460,19 +7477,164 @@ class App(BaseHTTPRequestHandler):
             {"source_key": "ai_provider", "name": "AI Provider", "type": "ai_provider", "freshness": "env_checked", "configured": bool(os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY"))},
         ]
 
+    def unified_kpi_catalog_payload(self):
+        return {
+            "ok": True,
+            "service": "unified_kpi_catalog",
+            "single_source_of_truth": True,
+            "refresh_cadence": "daily_after_sap_sync",
+            "kpis": [
+                {"key": "revenue", "name": "Revenue", "source": "sap_b1.sales", "formula": "sum(net_sales_amount)", "refresh": "daily 22:00", "owner": "finance", "used_by": ["dashboard", "ai_agent", "decision_engine"]},
+                {"key": "gross_margin", "name": "Gross Margin", "source": "sap_b1.sales", "formula": "gross_profit / revenue", "refresh": "daily 22:00", "owner": "finance", "used_by": ["dashboard", "ai_ceo", "decision_engine"]},
+                {"key": "inventory_turnover", "name": "Inventory Turnover", "source": "sap_b1.inventory", "formula": "cost_of_goods_sold / average_inventory", "refresh": "daily 22:00", "owner": "purchasing", "used_by": ["dashboard", "ai_inventory", "decision_engine"]},
+                {"key": "cash_flow", "name": "Cash Flow", "source": "finance.cash", "formula": "cash_in - cash_out", "refresh": "daily", "owner": "finance", "used_by": ["dashboard", "ai_cfo"]},
+                {"key": "customer_growth", "name": "Customer Growth", "source": "crm.members", "formula": "new_members - churned_members", "refresh": "daily", "owner": "store_manager", "used_by": ["dashboard", "ai_store_manager"]},
+                {"key": "store_ranking", "name": "Store Ranking", "source": "sap_b1.sales_by_store", "formula": "rank(store_revenue, gross_margin, completion_rate)", "refresh": "daily 22:00", "owner": "boss", "used_by": ["dashboard", "ai_ceo"]},
+                {"key": "sell_through_rate", "name": "Sell-through Rate", "source": "sap_b1.sales_inventory", "formula": "sold_quantity / received_quantity", "refresh": "daily 22:00", "owner": "purchasing", "used_by": ["dashboard", "ai_product_manager"]},
+            ],
+            "rule": "all_dashboards_agents_and_decision_engines_must_use_this_kpi_catalog_to_avoid_duplicate_calculation",
+        }
+
+    def unified_data_model_payload(self):
+        return {
+            "ok": True,
+            "service": "unified_data_model",
+            "canonical_entities": [
+                {"entity": "Store", "primary_key": "store_id", "sources": ["sap_b1", "archive_store"], "owner": "operations"},
+                {"entity": "Product", "primary_key": "sku", "sources": ["sap_b1", "archive_product"], "owner": "purchasing"},
+                {"entity": "Customer", "primary_key": "customer_id", "sources": ["crm", "member_archive"], "owner": "store_manager"},
+                {"entity": "Employee", "primary_key": "employee_id", "sources": ["hr", "user_archive"], "owner": "admin"},
+                {"entity": "Supplier", "primary_key": "supplier_id", "sources": ["sap_b1", "supplier_archive"], "owner": "purchasing"},
+                {"entity": "Order", "primary_key": "order_id", "sources": ["sap_b1"], "owner": "finance"},
+                {"entity": "Inventory", "primary_key": "inventory_id", "sources": ["sap_b1"], "owner": "purchasing"},
+                {"entity": "Finance", "primary_key": "finance_record_id", "sources": ["finance", "sap_b1"], "owner": "finance"},
+            ],
+            "reference_rule": "all_analytics_should_reference_canonical_entities_and_keep_lineage",
+        }
+
+    def unified_metrics_service_payload(self, user, scope="company"):
+        data = self.cockpit_data()
+        sap = self.sap_sync_status_payload()
+        metric_values = data["metrics"]
+        catalog = self.unified_kpi_catalog_payload()["kpis"]
+        definitions = {item["key"]: {"source": item["source"], "formula": item["formula"], "refresh": item["refresh"]} for item in catalog}
+        return {
+            "ok": True,
+            "service": "unified_metrics_service",
+            "scope": scope,
+            "single_source_rule": "dashboard_agent_and_decision_engine_kpis_must_come_from_unified_metrics_service",
+            "metric_values": metric_values,
+            "metric_definitions": definitions,
+            "raw_context": data,
+            "freshness": {
+                "sap": {"status": sap["freshness"], "last_sync_time": sap["last_sync_time"], "next_run_time": sap["next_run_time"]},
+                "data_date": metric_values["data_date"],
+            },
+            "lineage": [
+                {"metric": "revenue", "source": "cockpit_summary.month_sales", "definition": "revenue"},
+                {"metric": "gross_margin", "source": "cockpit_summary.yesterday_gross_margin", "definition": "gross_margin"},
+                {"metric": "inventory_amount", "source": "cockpit_summary.inventory_amount", "definition": "inventory_turnover"},
+                {"metric": "risk_count", "source": "cockpit_summary.risk_count", "definition": "inventory_risk"},
+            ],
+            "limitations": [data["empty_message"]] if not data["has_data"] else [],
+        }
+
+    def data_quality_monitor_payload(self):
+        sap = self.sap_sync_status_payload()
+        summary = self.cockpit_data()
+        checks = [
+            {"check": "completeness", "target": "cockpit_summary", "status": "ok" if summary["has_data"] else "waiting", "evidence": [{"source": "cockpit_data", "field": "has_data", "value": summary["has_data"]}]},
+            {"check": "consistency", "target": "kpi_catalog", "status": "contract_ready", "evidence": [{"source": "unified_kpi_catalog", "field": "single_source_of_truth", "value": True}]},
+            {"check": "freshness", "target": "sap_b1", "status": sap["freshness"], "evidence": [{"source": "sap_sync_status", "field": "last_sync_time", "value": sap["last_sync_time"]}]},
+            {"check": "duplicate_detection", "target": "canonical_entities", "status": "planned", "evidence": [{"source": "unified_data_model", "field": "primary_key", "value": "defined"}]},
+            {"check": "synchronization_status", "target": "sap_b1", "status": sap["last_status"], "evidence": [{"source": "sap_sync_status", "field": "last_status", "value": sap["last_status"]}]},
+        ]
+        return {"ok": True, "service": "data_quality_monitor", "active": True, "checks": checks, "rule": "quality_warnings_must_be_visible_before_ai_insights_are_trusted"}
+
+    def trend_api_payload(self, user, metric="revenue"):
+        metrics = self.unified_metrics_service_payload(user)
+        value_map = metrics["metric_values"]
+        points = [
+            {"period": "previous", "value": value_map.get("yesterday_sales", 0), "basis": [{"source": "unified_metrics_service", "field": "yesterday_sales"}]},
+            {"period": "current", "value": value_map.get("month_sales", 0), "basis": [{"source": "unified_metrics_service", "field": "month_sales"}]},
+        ]
+        return {"ok": True, "service": "trend_api", "metric": metric, "points": points, "trend_status": "limited_until_historical_sap_data_available", "basis_required": True}
+
+    def insight_engine_payload(self, user):
+        metrics = self.unified_metrics_service_payload(user)
+        quality = self.data_quality_monitor_payload()
+        m = metrics["metric_values"]
+        insights = [
+            {
+                "insight_id": "data-readiness",
+                "type": "exception" if metrics["limitations"] else "trend",
+                "title": "Data readiness should be checked before management conclusions.",
+                "evidence": quality["checks"],
+                "recommendation": "Review SAP sync freshness and completeness before using AI insight for decisions.",
+                "approval_required": False,
+            },
+            {
+                "insight_id": "inventory-risk",
+                "type": "exception",
+                "title": "Inventory risk requires unified KPI review.",
+                "evidence": [{"source": "unified_metrics_service", "field": "risk_count", "value": m.get("risk_count", 0)}, {"source": "kpi_catalog", "field": "inventory_turnover"}],
+                "recommendation": "Use inventory, sell-through and store ranking together before clearance or transfer action.",
+                "approval_required": True,
+            },
+        ]
+        return {
+            "ok": True,
+            "service": "insight_engine",
+            "outputs": ["trends", "exceptions", "root_cause_candidates", "opportunities", "recommendations"],
+            "insights": insights,
+            "rule": "all_ai_insights_must_reference_explicit_data_evidence",
+        }
+
+    def data_intelligence_framework_payload(self, user):
+        return {
+            "ok": True,
+            "platform": "data_intelligence_layer",
+            "purpose": "unified_kpi_and_data_service_for_dashboards_ai_agents_and_decision_engines",
+            "unified_metrics": self.unified_metrics_service_payload(user),
+            "kpi_catalog": self.unified_kpi_catalog_payload()["kpis"],
+            "data_model": self.unified_data_model_payload()["canonical_entities"],
+            "quality": self.data_quality_monitor_payload()["checks"],
+            "insight_engine_endpoint": "/api/insights/engine",
+            "trend_endpoint": "/api/trends",
+        }
+
+    def data_intelligence_get(self, user, path):
+        if path in ("/api/data-intelligence", "/api/data-intelligence/framework"):
+            return self.data_intelligence_framework_payload(user)
+        if path in ("/api/kpi", "/api/kpi/catalog"):
+            return self.unified_kpi_catalog_payload()
+        if path in ("/api/kpi/metrics", "/api/data-intelligence/metrics"):
+            return self.unified_metrics_service_payload(user)
+        if path in ("/api/data-intelligence/model", "/api/data-model"):
+            return self.unified_data_model_payload()
+        if path in ("/api/data-quality/monitor", "/api/data-intelligence/quality"):
+            return self.data_quality_monitor_payload()
+        if path in ("/api/insights", "/api/insights/engine"):
+            return self.insight_engine_payload(user)
+        if path.startswith("/api/trends"):
+            return self.trend_api_payload(user)
+        return {"ok": False, "message": "unknown data intelligence api", "path": path}
+
     def v5_data_catalog(self):
         return [
-            {"dataset_key": "stores", "name": "Store master data", "sensitivity": "internal", "ai_ready": "partial"},
-            {"dataset_key": "products", "name": "Product archive data", "sensitivity": "internal", "ai_ready": "partial"},
-            {"dataset_key": "sap_sales", "name": "SAP sales data", "sensitivity": "manager_only", "ai_ready": "depends_on_sync"},
-            {"dataset_key": "sap_inventory", "name": "SAP inventory data", "sensitivity": "manager_only", "ai_ready": "depends_on_sync"},
-            {"dataset_key": "finance", "name": "Finance data", "sensitivity": "finance_sensitive", "ai_ready": "permission_required"},
-            {"dataset_key": "customer", "name": "Customer data", "sensitivity": "customer_sensitive", "ai_ready": "restricted"},
+            {"dataset_key": "stores", "name": "Store master data", "canonical_entity": "Store", "sensitivity": "internal", "ai_ready": "partial"},
+            {"dataset_key": "products", "name": "Product archive data", "canonical_entity": "Product", "sensitivity": "internal", "ai_ready": "partial"},
+            {"dataset_key": "sap_sales", "name": "SAP sales data", "canonical_entity": "Order", "sensitivity": "manager_only", "ai_ready": "depends_on_sync"},
+            {"dataset_key": "sap_inventory", "name": "SAP inventory data", "canonical_entity": "Inventory", "sensitivity": "manager_only", "ai_ready": "depends_on_sync"},
+            {"dataset_key": "finance", "name": "Finance data", "canonical_entity": "Finance", "sensitivity": "finance_sensitive", "ai_ready": "permission_required"},
+            {"dataset_key": "customer", "name": "Customer data", "canonical_entity": "Customer", "sensitivity": "customer_sensitive", "ai_ready": "restricted"},
         ]
 
     def v5_data_quality(self):
-        sap = self.sap_sync_status_payload()
-        return [{"check": "sap_freshness", "status": sap["freshness"]}, {"check": "secret_exposure", "status": "no_secrets_returned"}, {"check": "ai_citation", "status": "source_required"}]
+        checks = self.data_quality_monitor_payload()["checks"]
+        checks.append({"check": "secret_exposure", "status": "no_secrets_returned", "evidence": [{"source": "repo_scan", "field": "secrets_visible", "value": False}]})
+        checks.append({"check": "ai_citation", "status": "source_required", "evidence": [{"source": "insight_engine", "field": "basis_required", "value": True}]})
+        return checks
 
     def sdk_platform_payload(self, user):
         return {

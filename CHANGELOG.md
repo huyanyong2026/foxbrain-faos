@@ -28,3 +28,5 @@
 - Security APIs now expose traceability rules for AI operations, workflow approvals and system configuration changes.
 - Integrated Pack 12 SDK marketplace framework with plugin manifest, extension points, marketplace registry, lifecycle and compatibility contracts.
 - SDK and marketplace APIs now expose versioned extension contracts and default human approval for high-risk plugin actions.
+- Integrated Pack 13 unified data intelligence layer with KPI catalog, metrics service, canonical data model, quality monitor, trend API and evidence-based insight engine.
+- Dashboard KPI and Enterprise Brain decision contracts now reference the unified metrics service to prevent inconsistent KPI calculations.

@@ -101,6 +101,13 @@ def test_enterprise_pack_routes_present():
         "/api/extensions/contracts",
         "/api/extensions/registry",
         "/api/marketplace/apps",
+        "/api/data-intelligence/framework",
+        "/api/kpi/catalog",
+        "/api/kpi/metrics",
+        "/api/data-intelligence/model",
+        "/api/data-quality/monitor",
+        "/api/insights/engine",
+        "/api/trends",
     ]:
         assert route in portal
 
@@ -254,6 +261,25 @@ def test_pack_sdk_marketplace_present():
         assert phrase in portal
 
 
+def test_pack_data_intelligence_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "unified_kpi_catalog_payload",
+        "unified_data_model_payload",
+        "unified_metrics_service_payload",
+        "data_quality_monitor_payload",
+        "trend_api_payload",
+        "insight_engine_payload",
+        "data_intelligence_framework_payload",
+        "all_dashboards_agents_and_decision_engines_must_use_this_kpi_catalog_to_avoid_duplicate_calculation",
+        "dashboard_agent_and_decision_engine_kpis_must_come_from_unified_metrics_service",
+        "all_ai_insights_must_reference_explicit_data_evidence",
+        "quality_warnings_must_be_visible_before_ai_insights_are_trusted",
+        "canonical_entities",
+    ]:
+        assert phrase in portal
+
+
 def test_production_deployment_files_present():
     for file_name in [
         "Dockerfile",
@@ -290,6 +316,7 @@ def test_enterprise_pack_docs_present():
         "docs/119_ENTERPRISE_PACK_10_RELEASE_PRODUCTION.md",
         "docs/120_ENTERPRISE_PACK_11_SECURITY_GOVERNANCE.md",
         "docs/121_ENTERPRISE_PACK_12_SDK_MARKETPLACE.md",
+        "docs/122_ENTERPRISE_PACK_13_DATA_INTELLIGENCE.md",
         "docs/SDK_EXTENSION_STANDARD.md",
         "docs/RELEASE_1_0_PRODUCTION_CHECKLIST.md",
         "docs/CODEX_TASKS/Task041_Pack02_SAP_AI_Connector.md",
@@ -303,5 +330,6 @@ def test_enterprise_pack_docs_present():
         "docs/CODEX_TASKS/Task049_Pack10_Release_Production.md",
         "docs/CODEX_TASKS/Task050_Pack11_Security_Governance.md",
         "docs/CODEX_TASKS/Task051_Pack12_SDK_Marketplace.md",
+        "docs/CODEX_TASKS/Task052_Pack13_Data_Intelligence.md",
     ]:
         assert (ROOT / doc).exists()

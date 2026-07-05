@@ -27,6 +27,7 @@
 - Pack 10 Release 1.0 production readiness: integration validation, repeatable deployment, observability, rollback and production checklist.
 - Pack 11 security governance: RBAC, audit export, data classification, backup recovery governance and approval controls.
 - Pack 12 SDK marketplace: plugin-first extension design, versioned SDK contracts, marketplace registry and backward compatibility guarantees.
+- Pack 13 data intelligence: unified KPI catalog, metrics service, data quality monitoring, trend APIs and evidence-based AI insights.
 - Replace placeholder worker jobs with real knowledge indexing and report generation.
 - Add SAP incremental sync conflict detection.
 - Add structured tests for key API routes.
