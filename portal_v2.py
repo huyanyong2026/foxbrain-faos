@@ -8230,7 +8230,7 @@ class App(BaseHTTPRequestHandler):
                 "approval_required": True,
             },
             {
-                "title": U(r"\u4ef7\u683c\u3001\u5408\u540c\u3001\u8d22\u52a1\u7c7b\u5efa\u议\u53ea\u80fd\u8fdb\u5165\u4eba\u5de5\u5ba1\u6279"),
+                "title": U(r"\u4ef7\u683c\u3001\u5408\u540c\u3001\u8d22\u52a1\u7c7b\u5efa\u8bae\u53ea\u80fd\u8fdb\u5165\u4eba\u5de5\u5ba1\u6279"),
                 "suggested_action": "approval_gate",
                 "evidence": [{"source": "security_policy", "field": "high_risk_approval", "value": True}],
                 "data_sources": ["security_governance", "approval_policy"],
