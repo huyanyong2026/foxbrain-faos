@@ -798,6 +798,183 @@ create table if not exists content_posts(
 """
         )
         conn.execute("create index if not exists idx_content_posts_status on content_posts(status, platform)")
+        conn.execute(
+            """
+create table if not exists decision_cases(
+ id integer primary key autoincrement,
+ case_id text unique,
+ title text not null,
+ decision_type text,
+ business_area text,
+ status text not null default 'draft',
+ priority text not null default 'normal',
+ evidence_json text,
+ recommendation text,
+ risk_score integer not null default 0,
+ confidence real not null default 0,
+ approval_required integer not null default 1,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_decision_cases_status on decision_cases(status, priority)")
+        conn.execute(
+            """
+create table if not exists decision_recommendations(
+ id integer primary key autoincrement,
+ recommendation_id text unique,
+ case_id integer,
+ title text not null,
+ suggested_action text,
+ evidence_json text,
+ data_sources text,
+ risk_score integer not null default 0,
+ confidence real not null default 0,
+ approval_required integer not null default 1,
+ status text not null default 'draft',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_decision_recommendations_case on decision_recommendations(case_id, status)")
+        conn.execute(
+            """
+create table if not exists kernel_settings(
+ id integer primary key autoincrement,
+ setting_key text unique not null,
+ setting_value text,
+ setting_type text not null default 'string',
+ description text,
+ updated_by integer,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists org_units(
+ id integer primary key autoincrement,
+ unit_id text unique,
+ parent_id integer,
+ unit_name text not null,
+ unit_type text not null default 'company',
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_org_units_parent on org_units(parent_id, unit_type)")
+        conn.execute(
+            """
+create table if not exists mcp_connectors(
+ id integer primary key autoincrement,
+ connector_key text unique not null,
+ connector_name text not null,
+ connector_type text not null,
+ endpoint text,
+ auth_mode text not null default 'env',
+ status text not null default 'registered',
+ health_status text not null default 'unknown',
+ retry_policy text,
+ metrics_json text,
+ last_checked_at integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_mcp_connectors_status on mcp_connectors(status, health_status)")
+        conn.execute(
+            """
+create table if not exists api_gateway_routes(
+ id integer primary key autoincrement,
+ route_key text unique not null,
+ method text not null,
+ path text not null,
+ service_name text not null,
+ auth_required integer not null default 1,
+ rate_limit text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists event_bus_events(
+ id integer primary key autoincrement,
+ event_id text unique,
+ event_type text not null,
+ payload_json text,
+ status text not null default 'published',
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_event_bus_events_type on event_bus_events(event_type, created_at)")
+        conn.execute(
+            """
+create table if not exists observability_metrics(
+ id integer primary key autoincrement,
+ metric_key text not null,
+ metric_value real not null default 0,
+ labels_json text,
+ collected_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_observability_metrics_key on observability_metrics(metric_key, collected_at)")
+        now_kernel = ts()
+        seed_settings = [
+            ("platform.version", "V7.1", "string", "FoxBrain Enterprise Kernel version"),
+            ("sap.sync.time", "22:00", "string", "Daily SAP read-only sync time"),
+            ("security.high_risk_approval", "true", "boolean", "High-risk actions require human approval"),
+            ("feature.mcp_gateway", "true", "boolean", "Enable MCP gateway registry"),
+        ]
+        for key, value, kind, desc in seed_settings:
+            if not conn.execute("select id from kernel_settings where setting_key=?", (key,)).fetchone():
+                conn.execute("insert into kernel_settings(setting_key,setting_value,setting_type,description,updated_at) values(?,?,?,?,?)", (key, value, kind, desc, now_kernel))
+        seed_units = [
+            ("ORG-FOX", U(r"\u706b\u72d0\u72f8\u96c6\u56e2"), "group"),
+            ("ORG-OPS", U(r"\u8fd0\u8425\u516c\u53f8"), "company"),
+            ("ORG-STORE", U(r"\u95e8\u5e97\u7ecf\u8425\u5355\u5143"), "business_unit"),
+        ]
+        for unit_id, unit_name, unit_type in seed_units:
+            if not conn.execute("select id from org_units where unit_id=?", (unit_id,)).fetchone():
+                conn.execute("insert into org_units(unit_id,unit_name,unit_type,status,created_at,updated_at) values(?,?,?,?,?,?)", (unit_id, unit_name, unit_type, "active", now_kernel, now_kernel))
+        seed_connectors = [
+            ("sap_b1", "SAP Business One", "erp", "SAP_B1_BASE_URL"),
+            ("postgresql", "PostgreSQL", "database", "POSTGRES_DSN"),
+            ("redis", "Redis", "cache", "REDIS_URL"),
+            ("neo4j", "Neo4j", "graph", "NEO4J_URI"),
+            ("qdrant", "Qdrant", "vector", "QDRANT_URL"),
+            ("minio", "MinIO", "object_storage", "MINIO_ENDPOINT"),
+            ("dify", "Dify", "ai_platform", "DIFY_BASE_URL"),
+            ("n8n", "n8n", "automation", "N8N_BASE_URL"),
+            ("wikijs", "Wiki.js", "knowledge", "WIKIJS_BASE_URL"),
+        ]
+        for key, name, ctype, endpoint_env in seed_connectors:
+            if not conn.execute("select id from mcp_connectors where connector_key=?", (key,)).fetchone():
+                conn.execute(
+                    "insert into mcp_connectors(connector_key,connector_name,connector_type,endpoint,auth_mode,status,health_status,retry_policy,metrics_json,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                    (key, name, ctype, endpoint_env, "env", "registered", "unknown", "3 retries / exponential backoff", "{}", now_kernel, now_kernel),
+                )
+        seed_routes = [
+            ("v71-status", "GET", "/api/v7.1/status", "enterprise_kernel"),
+            ("v71-mcp", "GET", "/api/v7.1/mcp/connectors", "mcp_gateway"),
+            ("v71-events", "GET", "/api/v7.1/events", "event_bus"),
+            ("v64-decision", "GET", "/api/v6.4/decision-center", "ai_decision_center"),
+        ]
+        for route_key, method, route_path, service in seed_routes:
+            if not conn.execute("select id from api_gateway_routes where route_key=?", (route_key,)).fetchone():
+                conn.execute("insert into api_gateway_routes(route_key,method,path,service_name,auth_required,rate_limit,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (route_key, method, route_path, service, 1, "60/min", "active", now_kernel, now_kernel))
         default_agents = [
             ("CEO Agent", "ceo_agent", U(r"\u603b\u7ecf\u7406\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u7ecf\u8425\u5206\u6790\u548c\u884c\u52a8\u5efa\u8bae\u3002"), "dashboard,sap,knowledge,tasks"),
             ("Sales Agent", "sales_agent", U(r"\u9500\u552e\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u5ba2\u6237\u9700\u6c42\u548c\u9500\u552e\u8bdd\u672f\u3002"), "customers,products,knowledge"),
@@ -2311,6 +2488,12 @@ class App(BaseHTTPRequestHandler):
             return self.agents(user)
         if path == "/agents/collaboration":
             return self.agent_collaboration(user)
+        if path == "/decision-center":
+            return self.v64_decision_center(user)
+        if path in ("/enterprise-kernel", "/system/kernel-v7"):
+            return self.v71_kernel_center(user)
+        if path in ("/mcp", "/mcp-gateway"):
+            return self.v71_mcp_gateway(user)
         if path in self.v5_page_routes():
             return self.v5_page(user, path)
         if path == "/sap-sync":
@@ -2467,6 +2650,10 @@ class App(BaseHTTPRequestHandler):
             return self.api_graph_get(user, path)
         if path.startswith("/api/agents"):
             return self.api_agents_get(user, path)
+        if path.startswith("/api/v6.4"):
+            return self.api_v64_get(user, path)
+        if path.startswith("/api/v7.1") or path.startswith("/api/mcp"):
+            return self.api_v71_get(user, path)
         if path == "/agents" or path == "/ai-agents":
             return self.v62_agent_center(user)
         if path == "/ai-tasks":
@@ -2515,6 +2702,8 @@ class App(BaseHTTPRequestHandler):
             return self.content_save()
         if path == "/ai-tasks/save":
             return self.ai_task_save()
+        if path == "/decision-center/save":
+            return self.v64_decision_save()
         if path == "/mobile/submissions/save":
             return self.mobile_submission_save()
         if path == "/mobile/tasks/complete":
@@ -2617,6 +2806,10 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_put(self.current_user(), path)
         if path.startswith("/api/agents"):
             return self.api_agents_post(self.current_user(), path)
+        if path.startswith("/api/v6.4"):
+            return self.api_v64_post(self.current_user(), path)
+        if path.startswith("/api/v7.1") or path.startswith("/api/mcp"):
+            return self.api_v71_post(self.current_user(), path)
         if path.startswith("/api/jarvis"):
             return self.api_jarvis_post(self.current_user(), path)
         if path.startswith("/api/reports") or path.startswith("/api/report-templates") or path.startswith("/api/report-schedules"):
@@ -6431,6 +6624,11 @@ class App(BaseHTTPRequestHandler):
         checks["ai_task_center_status"] = "ready"
         checks["log_center_status"] = "system_logs_ready"
         checks["permission_center_status"] = "role_based_ready"
+        checks["ai_decision_center_v6_4_status"] = "decision_cases_recommendations_ready"
+        checks["enterprise_kernel_v7_1_status"] = "configuration_org_rbac_ready"
+        checks["mcp_gateway_v7_1_status"] = "connector_registry_ready"
+        checks["event_bus_v7_1_status"] = "event_log_ready"
+        checks["api_gateway_v7_1_status"] = "versioned_routes_ready"
         try:
             sap_status = self.sap_sync_status_payload()
             checks["sap_sync_scheduler_status"] = "enabled" if sap_status["enabled"] else "disabled"
@@ -7994,6 +8192,266 @@ class App(BaseHTTPRequestHandler):
             self.log_action(user, "agent_recommendation_generated", "agent_scenario", None, "osprey-pricing")
             return self.json_out({"ok": True, "scenario": scenario})
         return self.json_out({"ok": False, "message": "unknown agents api"}, code=404)
+
+    def v64_decision_snapshot(self, user):
+        metrics = self.unified_metrics_service_payload(user)["metric_values"]
+        sap = self.sap_sync_status_payload()
+        risk_score = 42
+        try:
+            if float(metrics.get("risk_count") or 0) > 0:
+                risk_score += 18
+            if float(metrics.get("completion_rate") or 0) < 0.5:
+                risk_score += 10
+        except Exception:
+            pass
+        risk_score = min(95, max(20, int(risk_score)))
+        evidence = [
+            {"source": "unified_metrics_service", "field": "month_sales", "value": metrics.get("month_sales")},
+            {"source": "unified_metrics_service", "field": "completion_rate", "value": metrics.get("completion_rate")},
+            {"source": "sap_sync", "field": "next_run_time", "value": sap.get("next_run_time")},
+        ]
+        recommendations = [
+            {
+                "title": U(r"\u4eca\u65e5\u5148\u68c0\u67e5\u9500\u552e\u5b8c\u6210\u7387\u504f\u4f4e\u7684\u95e8\u5e97"),
+                "suggested_action": "store_review",
+                "evidence": evidence,
+                "data_sources": ["SAP B1", "unified_metrics_service"],
+                "risk_score": risk_score,
+                "confidence": 0.64,
+                "approval_required": False,
+            },
+            {
+                "title": U(r"\u5e93\u5b58\u538b\u529b\u5546\u54c1\u9700\u8fdb\u5165\u8c03\u62e8\u6216\u4fc3\u9500\u590d\u6838"),
+                "suggested_action": "inventory_review",
+                "evidence": evidence,
+                "data_sources": ["SAP B1", "inventory_analysis"],
+                "risk_score": max(risk_score, 58),
+                "confidence": 0.58,
+                "approval_required": True,
+            },
+            {
+                "title": U(r"\u4ef7\u683c\u3001\u5408\u540c\u3001\u8d22\u52a1\u7c7b\u5efa\u议\u53ea\u80fd\u8fdb\u5165\u4eba\u5de5\u5ba1\u6279"),
+                "suggested_action": "approval_gate",
+                "evidence": [{"source": "security_policy", "field": "high_risk_approval", "value": True}],
+                "data_sources": ["security_governance", "approval_policy"],
+                "risk_score": 80,
+                "confidence": 0.9,
+                "approval_required": True,
+            },
+        ]
+        return {"ok": True, "version": "V6.4", "metrics": metrics, "sap": sap, "risk_score": risk_score, "evidence": evidence, "recommendations": recommendations}
+
+    def v64_decision_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return self.dashboard(user)
+        snap = self.v64_decision_snapshot(user)
+        with db() as conn:
+            cases = conn.execute("select * from decision_cases order by updated_at desc limit 12").fetchall()
+        rec_items = [
+            "{} / {} / {}%".format(r["title"], U(r"\u98ce\u9669"), r["risk_score"])
+            for r in snap["recommendations"]
+        ]
+        case_cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><span class='pill'>{}</span></div>".format(
+                esc(c["title"]), esc(c["recommendation"] or ""), esc(c["decision_type"] or ""), esc(c["business_area"] or ""), c["risk_score"], esc(c["status"])
+            )
+            for c in cases
+        ) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u51b3\u7b56\u6848\u4f8b\u3002")))
+        body = f"""
+<div class="panel">
+  <h2>{U(r'AI \u51b3\u7b56\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'\u628a SAP\u3001KPI\u3001\u77e5\u8bc6\u548c AI \u5efa\u8bae\u8f6c\u6210\u53ef\u5ba1\u6838\u3001\u53ef\u8ffd\u6eaf\u3001\u53ef\u5ba1\u6279\u7684\u51b3\u7b56\u6848\u4f8b\u3002')}</p>
+  <div class="metrics">
+    {self.metric(U(r'\u672c\u6708\u9500\u552e'), U(r'\uffe5') + money(snap['metrics'].get('month_sales')), U(r'\u6765\u6e90 SAP'))}
+    {self.metric(U(r'\u5b8c\u6210\u7387'), pct(snap['metrics'].get('completion_rate')), U(r'\u7edf\u4e00 KPI'))}
+    {self.metric(U(r'\u98ce\u9669\u8bc4\u5206'), snap['risk_score'], U(r'\u9700\u4eba\u5de5\u590d\u6838'))}
+    {self.metric(U(r'SAP \u540c\u6b65'), snap['sap'].get('next_run_time'), U(r'\u6bcf\u665a 22:00'))}
+  </div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'AI \u5efa\u8bae')}</h2>{self.bullets(rec_items)}</div>
+  <div class="panel form">
+    <h2>{U(r'\u65b0\u5efa\u51b3\u7b56\u6848\u4f8b')}</h2>
+    <form method="post" action="/decision-center/save">
+      <label>{U(r'\u51b3\u7b56\u6807\u9898')}</label><input name="title" required>
+      <label>{U(r'\u7c7b\u578b')}</label><select name="decision_type"><option value="sales">sales</option><option value="inventory">inventory</option><option value="pricing">pricing</option><option value="finance">finance</option><option value="purchase">purchase</option></select>
+      <label>{U(r'\u4e1a\u52a1\u533a\u57df')}</label><input name="business_area" placeholder="store / brand / product / customer">
+      <label>{U(r'\u5efa\u8bae\u5185\u5bb9')}</label><textarea name="recommendation"></textarea>
+      <p><button>{U(r'\u4fdd\u5b58\u4e3a\u5f85\u5ba1\u6838\u51b3\u7b56')}</button></p>
+    </form>
+  </div>
+</div>
+<div class="panel"><h2>{U(r'\u51b3\u7b56\u6848\u4f8b')}</h2><div class="grid">{case_cards}</div></div>"""
+        self.out(layout(U(r"AI \u51b3\u7b56\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def v64_decision_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        title = form.get("title", "").strip()
+        if not title:
+            return self.redir("/decision-center")
+        now = ts()
+        snap = self.v64_decision_snapshot(user)
+        dtype = form.get("decision_type", "general")
+        high_risk = dtype in ("pricing", "finance", "purchase", "contract")
+        with db() as conn:
+            cur = conn.execute(
+                "insert into decision_cases(case_id,title,decision_type,business_area,status,priority,evidence_json,recommendation,risk_score,confidence,approval_required,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("DEC-" + uuid.uuid4().hex[:10], title, dtype, form.get("business_area", ""), "pending_review" if high_risk else "draft", form.get("priority", "normal"), json.dumps(snap["evidence"], ensure_ascii=False), form.get("recommendation", ""), 80 if high_risk else snap["risk_score"], 0.62, 1 if high_risk else 0, user["id"], now, now),
+            )
+        self.log_action(user, "decision_case_created", "decision_case", cur.lastrowid, title)
+        return self.redir("/decision-center")
+
+    def api_v64_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/v6.4", "/api/v6.4/status", "/api/v6.4/decision-center"):
+            payload = self.v64_decision_snapshot(user)
+            with db() as conn:
+                cases = conn.execute("select * from decision_cases order by updated_at desc limit 50").fetchall()
+            payload["cases"] = [row_dict(c) for c in cases]
+            return self.json_out(payload)
+        if path == "/api/v6.4/executive-brief":
+            snap = self.v64_decision_snapshot(user)
+            return self.json_out({"ok": True, "brief": {"yesterday_kpi": snap["metrics"], "risks": snap["risk_score"], "opportunities": snap["recommendations"][:2], "tasks_requiring_attention": [U(r"\u68c0\u67e5\u95e8\u5e97\u9500\u552e\u5dee\u989d"), U(r"\u590d\u6838\u5e93\u5b58\u538b\u529b\u5546\u54c1")]}})
+        if path == "/api/v6.4/store-intelligence":
+            return self.json_out({"ok": True, "stores": self.cockpit_data().get("stores", []), "rule": "store actions are advisory until manager review"})
+        if path == "/api/v6.4/brand-intelligence":
+            return self.json_out({"ok": True, "brands": self.cockpit_data().get("brands", []), "rule": "brand forecasts need SAP and knowledge evidence"})
+        if path == "/api/v6.4/customer-intelligence":
+            return self.json_out({"ok": True, "segments": [{"name": "high_value", "status": "framework_ready"}, {"name": "churn_risk", "status": "framework_ready"}], "rule": "customer predictions require CRM/member data"})
+        return self.json_out({"ok": False, "message": "unknown v6.4 api"}, code=404)
+
+    def api_v64_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/v6.4/decision-cases", "/api/v6.4/decision-center"):
+            form = self.form()
+            title = form.get("title", U(r"\u672a\u547d\u540d\u51b3\u7b56"))
+            now = ts()
+            snap = self.v64_decision_snapshot(user)
+            with db() as conn:
+                cur = conn.execute(
+                    "insert into decision_cases(case_id,title,decision_type,business_area,status,priority,evidence_json,recommendation,risk_score,confidence,approval_required,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("DEC-" + uuid.uuid4().hex[:10], title, form.get("decision_type", "general"), form.get("business_area", ""), "pending_review", form.get("priority", "normal"), json.dumps(snap["evidence"], ensure_ascii=False), form.get("recommendation", ""), snap["risk_score"], 0.62, 1, user["id"], now, now),
+                )
+            self.log_action(user, "decision_case_created_api", "decision_case", cur.lastrowid, title)
+            return self.json_out({"ok": True, "decision_case_id": cur.lastrowid})
+        return self.json_out({"ok": False, "message": "unknown v6.4 api"}, code=404)
+
+    def v71_kernel_payload(self, user):
+        with db() as conn:
+            settings = conn.execute("select * from kernel_settings order by setting_key").fetchall()
+            units = conn.execute("select * from org_units order by id").fetchall()
+            routes = conn.execute("select * from api_gateway_routes order by id").fetchall()
+            events = conn.execute("select * from event_bus_events order by created_at desc limit 20").fetchall()
+        return {
+            "ok": True,
+            "version": "V7.1",
+            "kernel": {
+                "configuration_center": [row_dict(r) for r in settings],
+                "organization": [row_dict(r) for r in units],
+                "rbac": {"roles": list(ROLES.keys()), "rule": "default_login_required_and_role_based_visibility"},
+                "feature_flags": {"mcp_gateway": True, "event_bus": True, "api_gateway": True},
+                "license": {"status": "internal_enterprise_use", "expires": "not_set"},
+                "global_settings": {"sap_sync_time": "22:00", "high_risk_approval": True},
+            },
+            "api_gateway": [row_dict(r) for r in routes],
+            "event_bus": [row_dict(r) for r in events],
+        }
+
+    def v71_mcp_payload(self):
+        with db() as conn:
+            rows = conn.execute("select * from mcp_connectors order by id").fetchall()
+        connectors = []
+        for row in rows:
+            item = row_dict(row)
+            env_key = item.get("endpoint") or ""
+            item["configured"] = bool(os.environ.get(env_key)) if env_key.isupper() else bool(env_key)
+            item["health_status"] = "configured" if item["configured"] else "registered"
+            item["auth"] = "secret_from_env_not_code"
+            connectors.append(item)
+        return {
+            "ok": True,
+            "version": "V7.1",
+            "gateway": "mcp_foundation",
+            "connectors": connectors,
+            "requirements": ["registration", "health_check", "authentication", "retry_policy", "logging", "metrics"],
+            "security_rule": "credentials_must_live_in_env_or_secret_store",
+        }
+
+    def v71_kernel_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.dashboard(user)
+        payload = self.v71_kernel_payload(user)
+        setting_items = [s["setting_key"] + " = " + str(s["setting_value"]) for s in payload["kernel"]["configuration_center"]]
+        route_items = [r["method"] + " " + r["path"] + " -> " + r["service_name"] for r in payload["api_gateway"]]
+        body = f"""
+<div class="panel">
+  <h2>{U(r'V7.1 \u4f01\u4e1a\u5185\u6838')}</h2>
+  <p class="small">{U(r'\u7edf\u4e00\u914d\u7f6e\u3001\u7ec4\u7ec7\u3001RBAC\u3001\u529f\u80fd\u5f00\u5173\u3001\u5ba1\u8ba1\u3001\u8bb8\u53ef\u548c\u5168\u5c40\u8bbe\u7f6e\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u7248\u672c'), payload['version'], U(r'\u5185\u6838'))}{self.metric(U(r'\u7ec4\u7ec7'), len(payload['kernel']['organization']), U(r'\u5df2\u6ce8\u518c'))}{self.metric(U(r'API \u8def\u7531'), len(payload['api_gateway']), U(r'\u7248\u672c\u5316'))}{self.metric(U(r'\u4e8b\u4ef6'), len(payload['event_bus']), U(r'\u53ef\u8ffd\u6eaf'))}</div>
+</div>
+<div class="split"><div class="panel"><h2>{U(r'\u914d\u7f6e\u4e2d\u5fc3')}</h2>{self.bullets(setting_items)}</div><div class="panel"><h2>API Gateway</h2>{self.bullets(route_items)}</div></div>
+<div class="panel"><h2>{U(r'\u5feb\u6377\u5165\u53e3')}</h2><div class="actions"><a class="button" href="/mcp-gateway">MCP Gateway</a><a class="button" href="/decision-center">{U(r'AI \u51b3\u7b56\u4e2d\u5fc3')}</a><a class="button dark" href="/logs">{U(r'\u65e5\u5fd7\u4e2d\u5fc3')}</a></div></div>"""
+        self.out(layout(U(r"V7.1 \u4f01\u4e1a\u5185\u6838"), body, user=user, wide=True))
+
+    def v71_mcp_gateway(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.dashboard(user)
+        payload = self.v71_mcp_payload()
+        cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {}</p></div><span class='pill'>{}</span></div>".format(
+                esc(c["connector_name"]), esc(c["connector_type"]), esc(c["endpoint"] or ""), esc(c["retry_policy"] or ""), esc(c["health_status"])
+            )
+            for c in payload["connectors"]
+        )
+        body = f"""
+<div class="panel"><h2>MCP Gateway</h2><p class="small">{U(r'\u4e3a SAP B1\u3001PostgreSQL\u3001Redis\u3001Neo4j\u3001Qdrant\u3001MinIO\u3001Dify\u3001n8n\u3001Wiki.js \u9884\u7559\u7edf\u4e00\u8fde\u63a5\u5668\u3002')}</p><div class="metrics">{self.metric(U(r'\u8fde\u63a5\u5668'), len(payload['connectors']), U(r'\u5df2\u6ce8\u518c'))}{self.metric(U(r'\u8ba4\u8bc1'), U(r'.env'), U(r'\u4e0d\u5199\u6b7b'))}{self.metric(U(r'\u91cd\u8bd5'), U(r'3'), U(r'\u6b21'))}</div></div>
+<div class="panel"><h2>{U(r'\u8fde\u63a5\u5668\u76ee\u5f55')}</h2><div class="grid">{cards}</div></div>"""
+        self.out(layout("MCP Gateway", body, user=user, wide=True))
+
+    def api_v71_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/v7.1", "/api/v7.1/status", "/api/v7.1/kernel"):
+            return self.json_out(self.v71_kernel_payload(user))
+        if path in ("/api/v7.1/mcp", "/api/v7.1/mcp/connectors", "/api/mcp/connectors"):
+            return self.json_out(self.v71_mcp_payload())
+        if path in ("/api/v7.1/events", "/api/mcp/events"):
+            with db() as conn:
+                rows = conn.execute("select * from event_bus_events order by created_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "events": [row_dict(r) for r in rows]})
+        if path in ("/api/v7.1/observability", "/api/mcp/health"):
+            return self.json_out({"ok": True, "metrics": [{"metric": "portal_up", "value": 1}, {"metric": "mcp_connectors_registered", "value": len(self.v71_mcp_payload()["connectors"])}], "logs": "/logs", "alerts": []})
+        return self.json_out({"ok": False, "message": "unknown v7.1 api"}, code=404)
+
+    def api_v71_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/v7.1/events", "/api/mcp/events"):
+            form = self.form()
+            event_type = form.get("event_type", "ManualEvent")
+            allowed = {"CustomerUpdated", "ProductUpdated", "InventoryChanged", "SalesCompleted", "SAPSyncFinished", "ManualEvent"}
+            if event_type not in allowed:
+                event_type = "ManualEvent"
+            now = ts()
+            with db() as conn:
+                cur = conn.execute("insert into event_bus_events(event_id,event_type,payload_json,status,created_by,created_at) values(?,?,?,?,?,?)", ("EVT-" + uuid.uuid4().hex[:10], event_type, json.dumps(form, ensure_ascii=False), "published", user["id"], now))
+            self.log_action(user, "event_published", "event_bus", cur.lastrowid, event_type)
+            return self.json_out({"ok": True, "event_id": cur.lastrowid})
+        return self.json_out({"ok": False, "message": "unknown v7.1 api"}, code=404)
 
     def v5_page_routes(self):
         return set(self.v5_catalog().keys())

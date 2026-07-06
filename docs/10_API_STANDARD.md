@@ -43,6 +43,25 @@
 
 V6.2 AI actions are draft-first. Price, contract, finance, external publishing, and SAP writeback actions must keep human approval and audit logs.
 
+## V6.4 AI Decision Center API
+
+- `GET /api/v6.4/status`
+- `GET /api/v6.4/decision-center`
+- `POST /api/v6.4/decision-cases`
+- `GET /api/v6.4/executive-brief`
+- `GET /api/v6.4/store-intelligence`
+- `GET /api/v6.4/brand-intelligence`
+- `GET /api/v6.4/customer-intelligence`
+
+## V7.1 Enterprise Kernel + MCP API
+
+- `GET /api/v7.1/status`
+- `GET /api/v7.1/kernel`
+- `GET /api/v7.1/mcp/connectors`
+- `GET /api/v7.1/events`
+- `POST /api/v7.1/events`
+- `GET /api/v7.1/observability`
+
 ## Task003 Knowledge API
 
 - `GET /api/knowledge`
