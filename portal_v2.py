@@ -486,6 +486,206 @@ create table if not exists knowledge_chunks(
         conn.execute("create index if not exists idx_chunks_knowledge on knowledge_chunks(knowledge_id)")
         conn.execute(
             """
+create table if not exists stores(
+ id integer primary key autoincrement,
+ store_code text unique,
+ name text not null,
+ city text,
+ address text,
+ area_sqm real,
+ opening_date text,
+ rent_monthly real,
+ property_fee real,
+ utilities_fee real,
+ status text not null default 'active',
+ notes text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists employees(
+ id integer primary key autoincrement,
+ employee_code text unique,
+ name text not null,
+ store_id integer,
+ role text,
+ entry_date text,
+ base_salary real,
+ commission_rule text,
+ phone text,
+ status text not null default 'active',
+ notes text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists brands(
+ id integer primary key autoincrement,
+ brand_code text unique,
+ name text not null,
+ country text,
+ category text,
+ discount_policy text,
+ gross_margin_target real,
+ notes text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists products(
+ id integer primary key autoincrement,
+ product_code text unique,
+ sku text,
+ barcode text,
+ name text not null,
+ brand_id integer,
+ category text,
+ season text,
+ cost_price real,
+ retail_price real,
+ current_discount real,
+ status text not null default 'active',
+ notes text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists customers(
+ id integer primary key autoincrement,
+ customer_code text unique,
+ name text,
+ phone text,
+ wechat text,
+ membership_level text,
+ points integer not null default 0,
+ source_store_id integer,
+ notes text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists suppliers(
+ id integer primary key autoincrement,
+ supplier_code text unique,
+ name text not null,
+ contact_name text,
+ phone text,
+ payment_terms text,
+ notes text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists inventory(
+ id integer primary key autoincrement,
+ store_id integer,
+ product_id integer,
+ quantity real not null default 0,
+ available_quantity real not null default 0,
+ locked_quantity real not null default 0,
+ last_sync_at integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sales_orders(
+ id integer primary key autoincrement,
+ order_no text unique,
+ store_id integer,
+ customer_id integer,
+ employee_id integer,
+ total_amount real not null default 0,
+ gross_profit real not null default 0,
+ gross_margin real not null default 0,
+ order_time integer,
+ source text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sales_order_items(
+ id integer primary key autoincrement,
+ order_id integer,
+ product_id integer,
+ quantity real not null default 0,
+ retail_price real,
+ discount real,
+ final_price real,
+ cost_price real,
+ gross_profit real,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists documents(
+ id integer primary key autoincrement,
+ title text not null,
+ file_name text,
+ file_type text,
+ file_path text,
+ related_type text,
+ related_id integer,
+ tags text,
+ summary text,
+ vector_status text not null default 'pending',
+ uploaded_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists ai_query_logs(
+ id integer primary key autoincrement,
+ user_id integer,
+ question text,
+ answer text,
+ related_sources text,
+ model text,
+ created_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_datahub_stores_code on stores(store_code)",
+            "create index if not exists idx_datahub_employees_store on employees(store_id)",
+            "create index if not exists idx_datahub_products_brand on products(brand_id)",
+            "create index if not exists idx_datahub_customers_phone on customers(phone)",
+            "create index if not exists idx_datahub_inventory_store_product on inventory(store_id, product_id)",
+            "create index if not exists idx_datahub_sales_orders_time on sales_orders(order_time)",
+            "create index if not exists idx_datahub_documents_related on documents(related_type, related_id)",
+            "create index if not exists idx_datahub_ai_query_user on ai_query_logs(user_id, created_at)",
+        ]:
+            conn.execute(idx)
+        conn.execute(
+            """
 create table if not exists knowledge_query_history(
  id integer primary key autoincrement,
  user_id integer,
@@ -3087,6 +3287,10 @@ class App(BaseHTTPRequestHandler):
                 (original, saved, str(path), mimetypes.guess_type(original)[0], len(data), category, description, extracted, kid, user["id"], now),
             )
             fid = fcur.lastrowid
+            conn.execute(
+                "insert into documents(title,file_name,file_type,file_path,related_type,related_id,tags,summary,vector_status,uploaded_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (original, original, Path(original).suffix.lower().lstrip("."), str(path), object_type or "knowledge", int(object_id) if object_id.isdigit() else kid, tags, summary, "pending", user["id"], now, now),
+            )
             conn.execute("update knowledge_items set source_file_id=? where id=?", (fid, kid))
             self.create_chunks(conn, kid, fid, extracted, now)
         self.log_action(user, "file_upload", "knowledge", kid, original)
@@ -3223,6 +3427,11 @@ class App(BaseHTTPRequestHandler):
         else:
             answer = U(r"\u5185\u90e8\u77e5\u8bc6\u5e93\u6682\u672a\u547d\u4e2d\u8db3\u591f\u5185\u5bb9\uff0c\u5efa\u8bae\u5148\u4e0a\u4f20\u76f8\u5173\u6587\u6863\uff0c\u6216\u5230\u5916\u7f51\u641c\u7d22\u9875\u6293\u53d6\u8d44\u6599\u540e\u5165\u5e93\u3002")
         self.log_action(user, "ai_query", "knowledge", None, question)
+        with db() as conn:
+            conn.execute(
+                "insert into ai_query_logs(user_id,question,answer,related_sources,model,created_at) values(?,?,?,?,?,?)",
+                (user["id"], question, answer, json.dumps(refs, ensure_ascii=False), os.environ.get("AI_MODEL", "internal-rag-v1"), ts()),
+            )
         return self.ai_assistant(user, answer, question, refs)
 
     def web_search(self, user, msg=""):
@@ -4317,6 +4526,12 @@ class App(BaseHTTPRequestHandler):
     def api_dashboard_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/dashboard/overview":
+            return self.json_out(self.dashboard_overview_payload(user))
+        if path == "/api/dashboard/stores":
+            return self.json_out(self.dashboard_stores_payload(user))
+        if path == "/api/dashboard/products":
+            return self.json_out(self.dashboard_products_payload(user))
         if path == "/api/dashboard/service":
             return self.json_out(self.dashboard_service_payload(user, "ceo"))
         if path == "/api/dashboard/kpis":
@@ -4336,6 +4551,84 @@ class App(BaseHTTPRequestHandler):
                 return self.json_out({"ok": False, "message": "no permission"}, code=403)
             return self.json_out(self.dashboard_service_payload(user, "store"))
         return self.json_out({"ok": False, "message": "unknown dashboard api"}, code=404)
+
+    def dashboard_overview_payload(self, user):
+        data = self.cockpit_data()
+        m = data["metrics"]
+        with db() as conn:
+            table_counts = {
+                name: conn.execute(f"select count(*) c from {name}").fetchone()["c"]
+                for name in ("stores", "employees", "brands", "products", "customers", "suppliers", "documents", "knowledge_items")
+            }
+        return {
+            "ok": True,
+            "version": "V6.1 DataHub dashboard overview",
+            "data_source": ["SAP nightly summary", "Enterprise Data Hub", "uploaded documents"],
+            "sync_time": "22:00",
+            "metrics": {
+                "today_sales": m.get("today_sales", 0),
+                "month_sales": m.get("month_sales", 0),
+                "today_gross_profit": 0,
+                "month_gross_profit": m.get("gross_profit", 0),
+                "gross_margin": m.get("gross_margin", 0),
+                "inventory_amount": m.get("inventory_amount", 0),
+                "inventory_turnover_risk": m.get("risk_count", 0),
+            },
+            "rankings": {
+                "stores": data.get("top_stores", []),
+                "brands": data.get("top_brands", []),
+                "employees": [],
+            },
+            "alerts": self.dashboard_alert_service_payload(user)["alerts"],
+            "ai_recommendations": data.get("ai_suggestions", []),
+            "table_counts": table_counts,
+            "empty_message": data.get("empty_message"),
+        }
+
+    def dashboard_stores_payload(self, user):
+        if user["role"] not in ("boss", "admin", "store_manager", "finance", "purchasing"):
+            return {"ok": False, "message": "no permission"}
+        data = self.cockpit_data()
+        with db() as conn:
+            stores = [dict(row) for row in conn.execute("select * from stores order by updated_at desc limit 100").fetchall()]
+        return {
+            "ok": True,
+            "version": "V6.1 store dashboard",
+            "data_source": ["stores", "SAP nightly summary"],
+            "stores": stores,
+            "sap_store_ranking": data.get("top_stores", []),
+            "metrics": {
+                "sales": "waiting_for_store_level_sap_detail",
+                "gross_profit": "waiting_for_store_level_sap_detail",
+                "rent_ratio": "waiting_for_finance_detail",
+                "human_efficiency": "waiting_for_employee_mapping",
+                "area_efficiency": "waiting_for_store_area",
+            },
+            "empty_message": data.get("empty_message"),
+        }
+
+    def dashboard_products_payload(self, user):
+        if user["role"] not in ("boss", "admin", "store_manager", "finance", "purchasing"):
+            return {"ok": False, "message": "no permission"}
+        with db() as conn:
+            products = [dict(row) for row in conn.execute("select * from products order by updated_at desc limit 100").fetchall()]
+            inventory_rows = [dict(row) for row in conn.execute("select * from inventory order by updated_at desc limit 100").fetchall()]
+        return {
+            "ok": True,
+            "version": "V6.1 product dashboard",
+            "data_source": ["products", "inventory", "SAP nightly sync"],
+            "products": products,
+            "inventory": inventory_rows,
+            "sections": {
+                "best_sellers": [],
+                "slow_movers": [],
+                "high_inventory": [],
+                "high_margin": [],
+                "low_margin": [],
+                "season_risk": [],
+            },
+            "empty_message": U(r"\u7b49\u5f85 SAP B1 \u5546\u54c1\u3001\u5e93\u5b58\u3001\u9500\u552e\u660e\u7ec6\u540c\u6b65\u540e\u751f\u6210\u771f\u5b9e\u5546\u54c1\u5206\u6790\u3002"),
+        }
 
     def role_can_manage(self, user):
         return bool(user and user["role"] in ("boss", "admin", "finance", "purchasing", "store_manager"))
@@ -6012,6 +6305,10 @@ class App(BaseHTTPRequestHandler):
         checks["hr_performance_engine_status"] = "ready"
         checks["customer_growth_engine_status"] = "ready"
         checks["platform_kernel_status"] = "ready"
+        checks["enterprise_data_hub_status"] = "schema_ready"
+        checks["sap_nightly_sync_center_status"] = "22:00_read_only"
+        checks["rag_foundation_status"] = "documents_chunks_query_logs_ready"
+        checks["dashboard_v6_1_api_status"] = "overview_stores_products_ready"
         try:
             sap_status = self.sap_sync_status_payload()
             checks["sap_sync_scheduler_status"] = "enabled" if sap_status["enabled"] else "disabled"

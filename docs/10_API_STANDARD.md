@@ -22,6 +22,9 @@
 ## Dashboard / SAP API
 
 - `GET /api/dashboard/summary`
+- `GET /api/dashboard/overview`
+- `GET /api/dashboard/stores`
+- `GET /api/dashboard/products`
 - `GET /api/sap/business-analysis`
 - `GET /api/sap/profit-analysis`
 - `GET /api/sap/inventory-analysis`
