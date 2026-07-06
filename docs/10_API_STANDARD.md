@@ -31,6 +31,18 @@
 - `GET /api/sap/sales-trend`
 - `GET /api/sap/ai-analysis`
 
+## V6.2 AI Agents + Content Center API
+
+- `GET /api/agents/v6.2`
+- `GET /api/agents/list`
+- `POST /api/agents/run`
+- `GET /api/agents/runs`
+- `GET /api/agents/ai-tasks`
+- `POST /api/agents/ai-tasks`
+- `GET /api/agents/logs`
+
+V6.2 AI actions are draft-first. Price, contract, finance, external publishing, and SAP writeback actions must keep human approval and audit logs.
+
 ## Task003 Knowledge API
 
 - `GET /api/knowledge`

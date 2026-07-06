@@ -714,6 +714,109 @@ create table if not exists activity_log(
         )
         conn.execute(
             """
+create table if not exists system_logs(
+ id integer primary key autoincrement,
+ module text,
+ action text,
+ level text not null default 'info',
+ message text,
+ metadata text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_system_logs_module on system_logs(module, created_at)")
+        conn.execute("create index if not exists idx_system_logs_level on system_logs(level, created_at)")
+        conn.execute(
+            """
+create table if not exists ai_agents(
+ id integer primary key autoincrement,
+ name text not null,
+ code text unique not null,
+ description text,
+ role_prompt text,
+ tools_enabled text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists ai_agent_runs(
+ id integer primary key autoincrement,
+ agent_id integer,
+ user_id integer,
+ input text,
+ output text,
+ status text not null default 'completed',
+ error_message text,
+ tokens_used integer not null default 0,
+ cost_estimate real not null default 0,
+ started_at integer,
+ finished_at integer
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_agent_runs_agent on ai_agent_runs(agent_id, started_at)")
+        conn.execute(
+            """
+create table if not exists ai_tasks(
+ id integer primary key autoincrement,
+ title text not null,
+ description text,
+ task_type text,
+ assigned_agent text,
+ priority text not null default 'normal',
+ status text not null default 'pending',
+ result text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null,
+ finished_at integer
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_tasks_status on ai_tasks(status, priority)")
+        conn.execute(
+            """
+create table if not exists content_posts(
+ id integer primary key autoincrement,
+ title text not null,
+ topic text,
+ source_type text,
+ source_id text,
+ platform text,
+ draft_content text,
+ final_content text,
+ status text not null default 'draft',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_content_posts_status on content_posts(status, platform)")
+        default_agents = [
+            ("CEO Agent", "ceo_agent", U(r"\u603b\u7ecf\u7406\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u7ecf\u8425\u5206\u6790\u548c\u884c\u52a8\u5efa\u8bae\u3002"), "dashboard,sap,knowledge,tasks"),
+            ("Sales Agent", "sales_agent", U(r"\u9500\u552e\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u5ba2\u6237\u9700\u6c42\u548c\u9500\u552e\u8bdd\u672f\u3002"), "customers,products,knowledge"),
+            ("Product Agent", "product_agent", U(r"\u5546\u54c1\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u5546\u54c1\u7ed3\u6784\u548c\u5356\u70b9\u3002"), "products,brands,knowledge"),
+            ("Inventory Agent", "inventory_agent", U(r"\u5e93\u5b58\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u5e93\u5b58\u98ce\u9669\u548c\u8c03\u62e8\u5efa\u8bae\u3002"), "inventory,sap,tasks"),
+            ("Customer Agent", "customer_agent", U(r"\u987e\u5ba2\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u4f1a\u5458\u8ddf\u8fdb\u548c\u79c1\u57df\u5efa\u8bae\u3002"), "customers,crm,knowledge"),
+            ("Content Agent", "content_agent", U(r"\u5185\u5bb9\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u591a\u5e73\u53f0\u5185\u5bb9\u8349\u7a3f\u3002"), "content,knowledge,products"),
+            ("Knowledge Agent", "knowledge_agent", U(r"\u77e5\u8bc6\u5e93\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u77e5\u8bc6\u68c0\u7d22\u548c\u5f52\u6863\u5efa\u8bae\u3002"), "knowledge,documents,rag"),
+            ("Search Agent", "search_agent", U(r"\u5916\u90e8\u641c\u7d22\u667a\u80fd\u4f53\uff0c\u53ea\u80fd\u4fdd\u5b58\u7ecf\u5ba1\u6838\u7684\u6458\u8981\u3002"), "web_search,approval,knowledge"),
+        ]
+        now_seed = ts()
+        for name, code, description, tools in default_agents:
+            if not conn.execute("select id from ai_agents where code=?", (code,)).fetchone():
+                conn.execute(
+                    "insert into ai_agents(name,code,description,role_prompt,tools_enabled,status,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                    (name, code, description, description, tools, "active", now_seed, now_seed),
+                )
+        conn.execute(
+            """
 create table if not exists timeline_events(
  id integer primary key autoincrement,
  target_type text not null,
@@ -2364,6 +2467,14 @@ class App(BaseHTTPRequestHandler):
             return self.api_graph_get(user, path)
         if path.startswith("/api/agents"):
             return self.api_agents_get(user, path)
+        if path == "/agents" or path == "/ai-agents":
+            return self.v62_agent_center(user)
+        if path == "/ai-tasks":
+            return self.ai_task_center(user)
+        if path == "/logs":
+            return self.log_center(user)
+        if path == "/permissions":
+            return self.permission_center(user)
         if path.startswith("/api/jarvis"):
             return self.api_jarvis_get(user, path)
         if path.startswith("/api/reports") or path.startswith("/api/report-templates") or path.startswith("/api/report-schedules"):
@@ -2402,6 +2513,8 @@ class App(BaseHTTPRequestHandler):
             return self.report_save()
         if path == "/content/save":
             return self.content_save()
+        if path == "/ai-tasks/save":
+            return self.ai_task_save()
         if path == "/mobile/submissions/save":
             return self.mobile_submission_save()
         if path == "/mobile/tasks/complete":
@@ -2830,6 +2943,10 @@ class App(BaseHTTPRequestHandler):
                 conn.execute(
                     "insert into activity_log(user_id,action,target_type,target_id,detail,created_at) values(?,?,?,?,?,?)",
                     (user["id"] if user else None, action, target_type, target_id, detail, ts()),
+                )
+                conn.execute(
+                    "insert into system_logs(module,action,level,message,metadata,created_at) values(?,?,?,?,?,?)",
+                    (target_type or "system", action, "info", detail or action, json.dumps({"user_id": user["id"] if user else None, "target_id": target_id}, ensure_ascii=False), ts()),
                 )
         except Exception:
             pass
@@ -6309,6 +6426,11 @@ class App(BaseHTTPRequestHandler):
         checks["sap_nightly_sync_center_status"] = "22:00_read_only"
         checks["rag_foundation_status"] = "documents_chunks_query_logs_ready"
         checks["dashboard_v6_1_api_status"] = "overview_stores_products_ready"
+        checks["ai_agents_v6_2_status"] = "seeded_ready"
+        checks["content_center_v6_2_status"] = "draft_review_export_ready"
+        checks["ai_task_center_status"] = "ready"
+        checks["log_center_status"] = "system_logs_ready"
+        checks["permission_center_status"] = "role_based_ready"
         try:
             sap_status = self.sap_sync_status_payload()
             checks["sap_sync_scheduler_status"] = "enabled" if sap_status["enabled"] else "disabled"
@@ -7395,6 +7517,167 @@ class App(BaseHTTPRequestHandler):
             "agent": agent_name,
         }
 
+    def v62_role_permissions(self):
+        return {
+            "boss": [U(r"\u5168\u5c40\u9a7e\u9a76\u8231"), U(r"AI \u603b\u7ecf\u7406"), U(r"\u5ba1\u6279\u4e2d\u5fc3"), U(r"\u7cfb\u7edf\u65e5\u5fd7"), U(r"\u6743\u9650\u7ba1\u7406")],
+            "admin": [U(r"\u7528\u6237\u7ba1\u7406"), U(r"\u7cfb\u7edf\u65e5\u5fd7"), U(r"\u6743\u9650\u7ba1\u7406"), U(r"\u77e5\u8bc6\u4e2d\u5fc3"), U(r"\u6587\u4ef6\u4e2d\u5fc3")],
+            "store_manager": [U(r"AI \u5e97\u957f"), U(r"\u95e8\u5e97\u65e5\u62a5"), U(r"\u5e93\u5b58\u5206\u6790"), U(r"\u4efb\u52a1\u4e2d\u5fc3"), U(r"\u5185\u5bb9\u8349\u7a3f")],
+            "employee": [U(r"\u77e5\u8bc6\u67e5\u8be2"), U(r"\u95e8\u5e97\u4efb\u52a1"), U(r"\u6587\u4ef6\u4e0a\u4f20"), U(r"\u57f9\u8bad\u5b66\u4e60")],
+            "purchasing": [U(r"\u4f9b\u5e94\u94fe"), U(r"\u91c7\u8d2d\u5206\u6790"), U(r"\u5e93\u5b58\u98ce\u9669"), U(r"AI \u91c7\u8d2d")],
+            "finance": [U(r"\u8d22\u52a1\u5206\u6790"), U(r"\u6bdb\u5229\u98ce\u9669"), U(r"\u4ed8\u6b3e\u5ba1\u6838"), U(r"\u5bf9\u516c\u8d26\u52a1")],
+        }
+
+    def v62_agent_response(self, agent_code, question):
+        names = {
+            "ceo_agent": U(r"AI \u603b\u7ecf\u7406"),
+            "sales_agent": U(r"AI \u9500\u552e\u5206\u6790\u5e08"),
+            "product_agent": U(r"AI \u5546\u54c1\u7ecf\u7406"),
+            "inventory_agent": U(r"AI \u5e93\u5b58\u7ecf\u7406"),
+            "customer_agent": U(r"AI \u4f1a\u5458\u987e\u95ee"),
+            "content_agent": U(r"AI \u5185\u5bb9\u7b56\u5212"),
+            "knowledge_agent": U(r"AI \u77e5\u8bc6\u7ba1\u7406\u5458"),
+            "search_agent": U(r"AI \u5916\u90e8\u7814\u7a76\u5458"),
+        }
+        agent_name = names.get(agent_code, U(r"AI \u667a\u80fd\u4f53"))
+        focus = summarize_text(question or U(r"\u7ecf\u8425\u95ee\u9898"), 90)
+        return "\n".join([
+            U(r"\u3010{} \u5206\u6790\u8349\u7a3f\u3011").format(agent_name),
+            U(r"1. \u521d\u6b65\u7ed3\u8bba\uff1a\u5df2\u6536\u5230\u95ee\u9898\u201c{}\u201d\uff0c\u5f53\u524d\u4ec5\u751f\u6210\u5f85\u5ba1\u6838\u8349\u7a3f\uff0c\u4e0d\u81ea\u52a8\u6267\u884c\u4efb\u4f55\u9ad8\u98ce\u9669\u64cd\u4f5c\u3002").format(focus),
+            U(r"2. \u6570\u636e\u4f9d\u636e\uff1a\u9700\u7ed3\u5408 SAP \u6bcf\u665a 22:00 \u540c\u6b65\u6570\u636e\u3001\u77e5\u8bc6\u5e93\u8d44\u6599\u548c\u5df2\u5ba1\u6838\u8bb0\u5fc6\u518d\u4e0b\u6700\u7ec8\u7ed3\u8bba\u3002"),
+            U(r"3. \u5206\u6790\u903b\u8f91\uff1a\u5148\u67e5\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u4f1a\u5458\u4e0e\u95e8\u5e97\u6267\u884c\uff0c\u518d\u751f\u6210\u5efa\u8bae\u548c\u4efb\u52a1\u3002"),
+            U(r"4. \u98ce\u9669\u63d0\u9192\uff1a\u4ef7\u683c\u3001\u5408\u540c\u3001\u8d22\u52a1\u3001\u5bf9\u5916\u53d1\u5e03\u7c7b\u64cd\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279\u3002"),
+            U(r"5. \u4eca\u65e5\u52a8\u4f5c\uff1a\u628a\u8fd9\u6761\u95ee\u9898\u8f6c\u6210 AI \u4efb\u52a1\uff0c\u5b8c\u6210\u6570\u636e\u6838\u5bf9\u540e\u518d\u8f93\u51fa\u53ef\u6267\u884c\u65b9\u6848\u3002"),
+        ])
+
+    def v62_agent_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_agents(user):
+            return self.redir("/")
+        with db() as conn:
+            agents = conn.execute("select * from ai_agents order by id").fetchall()
+            tasks = conn.execute("select * from ai_tasks order by updated_at desc limit 12").fetchall()
+            runs = conn.execute("select * from ai_agent_runs order by started_at desc limit 8").fetchall()
+        agent_cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{}</p></div><span class='pill'>{}</span></div>".format(
+                esc(a["name"]), esc(a["description"]), esc(a["tools_enabled"]), esc(a["status"])
+            )
+            for a in agents
+        )
+        task_items = [t["title"] + " / " + t["status"] + " / " + (t["assigned_agent"] or "") for t in tasks] or [U(r"\u6682\u65e0 AI \u4efb\u52a1\u3002")]
+        run_items = [(r["status"] + " / " + summarize_text(r["input"] or "", 48)) for r in runs] or [U(r"\u6682\u65e0\u8fd0\u884c\u8bb0\u5f55\u3002")]
+        body = f"""
+<div class="panel">
+  <h2>{U(r'AI \u667a\u80fd\u4f53\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'\u7edf\u4e00\u667a\u80fd\u4f53\u3001\u7edf\u4e00\u6743\u9650\u3001\u7edf\u4e00\u5de5\u5177\u63a5\u53e3\u3001\u7edf\u4e00\u5ba1\u8ba1\u3002\u9ad8\u98ce\u9669\u64cd\u4f5c\u53ea\u751f\u6210\u8349\u7a3f\uff0c\u7b49\u5f85\u4eba\u5de5\u5ba1\u6279\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u667a\u80fd\u4f53'), len(agents), U(r'\u5df2\u542f\u7528'))}{self.metric(U(r'AI \u4efb\u52a1'), len(tasks), U(r'\u8fd1\u671f'))}{self.metric(U(r'\u8fd0\u884c\u8bb0\u5f55'), len(runs), U(r'\u53ef\u8ffd\u6eaf'))}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u95ee AI')}</h2>
+    <form method="post" action="/api/agents/run">
+      <label>{U(r'\u9009\u62e9\u667a\u80fd\u4f53')}</label>
+      <select name="agent_code">{''.join("<option value='{}'>{}</option>".format(esc(a['code']), esc(a['name'])) for a in agents)}</select>
+      <label>{U(r'\u95ee\u9898')}</label><textarea name="question" placeholder="{U(r'\u4f8b\uff1a\u4eca\u5929\u516c\u53f8\u7ecf\u8425\u600e\u4e48\u6837\uff1f')}"></textarea>
+      <p><button>{U(r'\u751f\u6210\u5f85\u5ba1\u6838\u5206\u6790')}</button></p>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>{U(r'\u5feb\u6377\u5165\u53e3')}</h2>
+    <div class="actions"><a class="button" href="/ai-tasks">{U(r'AI \u4efb\u52a1')}</a><a class="button" href="/content">{U(r'\u5185\u5bb9\u4e2d\u5fc3')}</a><a class="button dark" href="/logs">{U(r'\u65e5\u5fd7\u4e2d\u5fc3')}</a><a class="button" href="/permissions">{U(r'\u6743\u9650\u4e2d\u5fc3')}</a></div>
+  </div>
+</div>
+<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u76ee\u5f55')}</h2><div class="grid">{agent_cards}</div></div>
+<div class="split"><div class="panel"><h2>{U(r'\u6700\u8fd1 AI \u4efb\u52a1')}</h2>{self.bullets(task_items)}</div><div class="panel"><h2>{U(r'\u6700\u8fd1\u8fd0\u884c')}</h2>{self.bullets(run_items)}</div></div>"""
+        self.out(layout(U(r"AI \u667a\u80fd\u4f53\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def ai_task_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            agents = conn.execute("select * from ai_agents order by id").fetchall()
+            tasks = conn.execute("select * from ai_tasks order by updated_at desc limit 80").fetchall()
+        cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><span class='pill'>{}</span></div>".format(
+                esc(t["title"]), esc(summarize_text(t["description"] or t["result"] or "", 100)), esc(t["task_type"]), esc(t["assigned_agent"] or ""), esc(t["priority"]), esc(t["status"])
+            )
+            for t in tasks
+        ) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0 AI \u4efb\u52a1\u3002")))
+        body = f"""
+<div class="panel">
+  <h2>{U(r'AI \u4efb\u52a1\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'\u628a\u7ecf\u8425\u95ee\u9898\u3001\u5185\u5bb9\u9700\u6c42\u3001\u5e93\u5b58\u5206\u6790\u548c\u77e5\u8bc6\u6574\u7406\u7edf\u4e00\u8f6c\u6210\u53ef\u8ddf\u8e2a\u4efb\u52a1\u3002')}</p>
+</div>
+<div class="panel form">
+  <h2>{U(r'\u65b0\u5efa AI \u4efb\u52a1')}</h2>
+  <form method="post" action="/ai-tasks/save">
+    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
+    <label>{U(r'\u4efb\u52a1\u7c7b\u578b')}</label><select name="task_type"><option value="analysis">analysis</option><option value="content">content</option><option value="knowledge">knowledge</option><option value="inventory">inventory</option><option value="customer">customer</option></select>
+    <label>{U(r'\u5206\u914d\u667a\u80fd\u4f53')}</label><select name="assigned_agent">{''.join("<option value='{}'>{}</option>".format(esc(a['code']), esc(a['name'])) for a in agents)}</select>
+    <label>{U(r'\u4f18\u5148\u7ea7')}</label><select name="priority"><option value="normal">{U(r'\u666e\u901a')}</option><option value="high">{U(r'\u9ad8')}</option><option value="urgent">{U(r'\u7d27\u6025')}</option><option value="low">{U(r'\u4f4e')}</option></select>
+    <label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea>
+    <p><button>{U(r'\u521b\u5efa AI \u4efb\u52a1')}</button></p>
+  </form>
+</div>
+<div class="panel"><h2>{U(r'\u4efb\u52a1\u5217\u8868')}</h2><div class="grid">{cards}</div></div>"""
+        self.out(layout(U(r"AI \u4efb\u52a1\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def ai_task_save(self):
+        user = self.current_user()
+        if not user:
+            return self.redir("/login")
+        form = self.form()
+        title = form.get("title", "").strip()
+        if not title:
+            return self.redir("/ai-tasks")
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                "insert into ai_tasks(title,description,task_type,assigned_agent,priority,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                (title, form.get("description", ""), form.get("task_type", "analysis"), form.get("assigned_agent", ""), form.get("priority", "normal"), "pending", user["id"], now, now),
+            )
+        self.log_action(user, "ai_task_created", "ai_task", cur.lastrowid, title)
+        return self.redir("/ai-tasks")
+
+    def log_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.redir("/")
+        with db() as conn:
+            logs = conn.execute("select * from system_logs order by created_at desc limit 120").fetchall()
+            acts = conn.execute("select * from activity_log order by created_at desc limit 40").fetchall()
+        log_items = [l["created_at"] + " / " + l["module"] + " / " + l["action"] + " / " + summarize_text(l["message"] or "", 60) for l in logs] or [U(r"\u6682\u65e0\u7cfb\u7edf\u65e5\u5fd7\u3002")]
+        act_items = [a["created_at"] + " / " + a["action"] + " / " + (a["target_type"] or "") for a in acts] or [U(r"\u6682\u65e0\u64cd\u4f5c\u65e5\u5fd7\u3002")]
+        body = f"""
+<div class="panel"><h2>{U(r'\u65e5\u5fd7\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u8bb0\u5f55 AI \u64cd\u4f5c\u3001\u4efb\u52a1\u3001\u5185\u5bb9\u3001\u6743\u9650\u548c\u7cfb\u7edf\u884c\u4e3a\uff0c\u7528\u4e8e\u8ffd\u6eaf\u548c\u5ba1\u8ba1\u3002')}</p></div>
+<div class="split"><div class="panel"><h2>{U(r'\u7cfb\u7edf\u65e5\u5fd7')}</h2>{self.bullets(log_items)}</div><div class="panel"><h2>{U(r'\u64cd\u4f5c\u65e5\u5fd7')}</h2>{self.bullets(act_items)}</div></div>"""
+        self.out(layout(U(r"\u65e5\u5fd7\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def permission_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.redir("/")
+        permissions = self.v62_role_permissions()
+        cards = "".join(
+            "<div class='card'><div><h2>{}</h2>{}</div></div>".format(esc(role), self.bullets(items))
+            for role, items in permissions.items()
+        )
+        body = f"""
+<div class="panel">
+  <h2>{U(r'\u6743\u9650\u4e2d\u5fc3')}</h2>
+  <p class="small">{U(r'\u6240\u6709 AI \u667a\u80fd\u4f53\u3001\u5185\u5bb9\u3001\u77e5\u8bc6\u3001SAP \u6570\u636e\u548c\u9ad8\u98ce\u9669\u64cd\u4f5c\u90fd\u6309\u89d2\u8272\u7ba1\u63a7\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u5f53\u524d\u89d2\u8272'), esc(user['role']), U(r'\u5df2\u767b\u5f55'))}{self.metric(U(r'\u9ad8\u98ce\u9669'), U(r'\u5ba1\u6279'), U(r'\u9ed8\u8ba4'))}{self.metric(U(r'\u5bc6\u7801'), U(r'\u52a0\u5bc6'), U(r'\u5b58\u50a8'))}</div>
+</div>
+<div class="panel"><h2>{U(r'\u89d2\u8272\u6743\u9650')}</h2><div class="grid">{cards}</div></div>
+<div class="panel"><h2>{U(r'\u9ad8\u98ce\u9669\u89c4\u5219')}</h2>{self.bullets([U(r'\u4ef7\u683c\u8c03\u6574\u3001\u5408\u540c\u3001\u8d22\u52a1\u652f\u4ed8\u3001\u5bf9\u5916\u53d1\u5e03\u4e0d\u80fd\u7531 AI \u81ea\u52a8\u6267\u884c\u3002'), U(r'\u6240\u6709 AI \u5efa\u8bae\u5fc5\u987b\u4fdd\u7559\u6570\u636e\u6216\u77e5\u8bc6\u4f9d\u636e\u3002'), U(r'\u7ba1\u7406\u5458\u53ef\u901a\u8fc7\u7528\u6237\u7ba1\u7406\u4fee\u6539\u89d2\u8272\u548c\u7981\u7528\u7528\u6237\u3002')])}</div>"""
+        self.out(layout(U(r"\u6743\u9650\u4e2d\u5fc3"), body, user=user, wide=True))
+
     def agent_collaboration(self, user):
         user = self.require_login(user)
         if not user:
@@ -7547,6 +7830,41 @@ class App(BaseHTTPRequestHandler):
     def api_agents_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/agents/v6.2":
+            with db() as conn:
+                agent_count = conn.execute("select count(*) from ai_agents").fetchone()[0]
+                task_count = conn.execute("select count(*) from ai_tasks").fetchone()[0]
+                run_count = conn.execute("select count(*) from ai_agent_runs").fetchone()[0]
+                log_count = conn.execute("select count(*) from system_logs").fetchone()[0]
+            return self.json_out({
+                "ok": True,
+                "version": "V6.2",
+                "scope": "AI Agents + Content Center",
+                "agent_count": agent_count,
+                "task_count": task_count,
+                "run_count": run_count,
+                "log_count": log_count,
+                "high_risk_policy": "human_approval_required",
+                "sap_policy": "read_only_daily_22_00_sync",
+            })
+        if path == "/api/agents/list":
+            with db() as conn:
+                rows = conn.execute("select * from ai_agents order by id").fetchall()
+            return self.json_out({"ok": True, "agents": [row_dict(r) for r in rows]})
+        if path == "/api/agents/runs":
+            with db() as conn:
+                rows = conn.execute("select * from ai_agent_runs order by started_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "runs": [row_dict(r) for r in rows]})
+        if path == "/api/agents/ai-tasks":
+            with db() as conn:
+                rows = conn.execute("select * from ai_tasks order by updated_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "tasks": [row_dict(r) for r in rows]})
+        if path == "/api/agents/logs":
+            if user["role"] not in ("boss", "admin"):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            with db() as conn:
+                rows = conn.execute("select * from system_logs order by created_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "logs": [row_dict(r) for r in rows]})
         if path == "/api/agents/framework":
             return self.json_out(self.agent_framework_payload(user))
         if path == "/api/agents/runtime-contract":
@@ -7599,6 +7917,33 @@ class App(BaseHTTPRequestHandler):
             return self.api_v5_post(user, path)
         form = self.form()
         now = ts()
+        if path == "/api/agents/run":
+            agent_code = form.get("agent_code", "ceo_agent").strip() or "ceo_agent"
+            question = form.get("question", "").strip()
+            with db() as conn:
+                agent = conn.execute("select * from ai_agents where code=?", (agent_code,)).fetchone()
+                if not agent:
+                    return self.json_out({"ok": False, "message": "agent not found"}, code=404)
+                output = self.v62_agent_response(agent["code"], question)
+                cur = conn.execute(
+                    "insert into ai_agent_runs(agent_id,user_id,input,output,status,error_message,tokens_used,cost_estimate,started_at,finished_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (agent["id"], user["id"], question, output, "completed", "", 0, 0, now, now),
+                )
+                conn.execute(
+                    "insert into ai_tasks(title,description,task_type,assigned_agent,priority,status,result,created_by,created_at,updated_at,finished_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                    (U(r"AI \u5206\u6790\uff1a") + summarize_text(question or agent["name"], 40), question, "analysis", agent["code"], "normal", "completed", output, user["id"], now, now, now),
+                )
+            self.log_action(user, "ai_agent_run", "ai_agent", agent["id"], agent["code"])
+            return self.json_out({"ok": True, "run_id": cur.lastrowid, "agent": row_dict(agent), "output": output})
+        if path == "/api/agents/ai-tasks":
+            title = form.get("title", "").strip() or U(r"\u672a\u547d\u540d AI \u4efb\u52a1")
+            with db() as conn:
+                cur = conn.execute(
+                    "insert into ai_tasks(title,description,task_type,assigned_agent,priority,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                    (title, form.get("description", ""), form.get("task_type", "analysis"), form.get("assigned_agent", ""), form.get("priority", "normal"), "pending", user["id"], now, now),
+                )
+            self.log_action(user, "ai_task_created", "ai_task", cur.lastrowid, title)
+            return self.json_out({"ok": True, "task_id": cur.lastrowid})
         if path == "/api/agents/roles":
             if not self.can_manage_agents(user):
                 return self.json_out({"ok": False, "message": "no permission"}, code=403)
@@ -10176,6 +10521,10 @@ class App(BaseHTTPRequestHandler):
                 "insert into content_drafts(content_id,title,content_type,topic,body,summary,target_platforms,status,related_object_type,related_object_id,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 ("CNT-" + uuid.uuid4().hex[:10], title, form.get("content_type", "article"), form.get("topic", ""), body, summary, form.get("target_platforms", ""), "ai_generated", form.get("related_object_type", ""), int(form.get("related_object_id")) if str(form.get("related_object_id", "")).isdigit() else None, form.get("source_type", "manual"), form.get("source_id", ""), user["id"], now, now),
             )
+            conn.execute(
+                "insert into content_posts(title,topic,source_type,source_id,platform,draft_content,final_content,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                (title, form.get("topic", ""), form.get("source_type", "manual"), form.get("source_id", ""), form.get("target_platforms", ""), body, "", "draft", user["id"], now, now),
+            )
             self.create_content_versions(conn, cur.lastrowid, title, body, form.get("target_platforms", ""))
         self.log_action(user, "content_created", "content", cur.lastrowid, title)
         return self.redir("/content")
@@ -10227,6 +10576,10 @@ class App(BaseHTTPRequestHandler):
             body, summary = self.content_skeleton(title, form.get("content_type", "article"), form.get("topic", ""), form.get("target_platforms", ""))
             with db() as conn:
                 cur = conn.execute("insert into content_drafts(content_id,title,content_type,topic,body,summary,target_platforms,status,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("CNT-" + uuid.uuid4().hex[:10], title, form.get("content_type", "article"), form.get("topic", ""), body, summary, form.get("target_platforms", ""), "ai_generated", form.get("source_type", "api"), form.get("source_id", ""), user["id"], now, now))
+                conn.execute(
+                    "insert into content_posts(title,topic,source_type,source_id,platform,draft_content,final_content,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                    (title, form.get("topic", ""), form.get("source_type", "api"), form.get("source_id", ""), form.get("target_platforms", ""), body, "", "draft", user["id"], now, now),
+                )
                 self.create_content_versions(conn, cur.lastrowid, title, body, form.get("target_platforms", ""))
             self.log_action(user, "content_created", "content", cur.lastrowid, title)
             return self.json_out({"ok": True, "content_id": cur.lastrowid})
