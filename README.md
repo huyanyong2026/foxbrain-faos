@@ -14,8 +14,13 @@ FoxBrain supports long-running deployment on an Ubuntu Tencent Cloud server.
 - `README_CLOUD_DEPLOY.md`: cloud deployment guide
 - `deploy/nginx/foxbrain.conf.example`: Nginx reverse proxy example
 - `.github/workflows/deploy-cloud.yml`: GitHub Actions deployment workflow
+- `docs/AI_PROVIDER_SETUP.md`: DeepSeek/OpenAI/Qwen compatible AI provider setup
 
 After deployment, FoxBrain runs on the cloud server. Your personal computer can be turned off.
+
+## Jarvis AI Provider Upgrade
+
+Jarvis now supports OpenAI-compatible chat providers through server-only environment variables. If no API key is configured, the existing built-in business assistant still works. If a provider key is configured, Jarvis retrieves internal SAP summaries, knowledge, memory, graph and task context first, then asks the model to generate a clearer answer with sources and limitations.
 
 ## Enterprise Packs
 

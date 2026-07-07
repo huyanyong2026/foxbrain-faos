@@ -266,6 +266,95 @@ def fetch_url_text(url):
         return ""
 
 
+def ai_provider_config():
+    provider = (os.environ.get("AI_PROVIDER") or os.environ.get("AI_DEFAULT_PROVIDER") or "").strip().lower()
+    key = (
+        os.environ.get("AI_API_KEY")
+        or os.environ.get("DEEPSEEK_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("DASHSCOPE_API_KEY")
+        or ""
+    ).strip()
+    if not provider:
+        if os.environ.get("DEEPSEEK_API_KEY"):
+            provider = "deepseek"
+        elif os.environ.get("DASHSCOPE_API_KEY"):
+            provider = "qwen"
+        elif os.environ.get("OPENAI_API_KEY"):
+            provider = "openai"
+        else:
+            provider = "openai_compatible"
+    base_url = (os.environ.get("AI_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or "").strip()
+    if not base_url:
+        if provider == "deepseek":
+            base_url = "https://api.deepseek.com"
+        elif provider in ("qwen", "dashscope"):
+            base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        else:
+            base_url = "https://api.openai.com/v1"
+    model = (os.environ.get("AI_MODEL_NAME") or os.environ.get("AI_MODEL") or "").strip()
+    if not model:
+        if provider == "deepseek":
+            model = "deepseek-chat"
+        elif provider in ("qwen", "dashscope"):
+            model = "qwen-plus"
+        else:
+            model = "gpt-4o-mini"
+    endpoint = base_url.rstrip("/")
+    if not endpoint.endswith("/chat/completions"):
+        endpoint += "/chat/completions"
+    return {
+        "configured": bool(key),
+        "provider": provider,
+        "api_key": key,
+        "base_url": base_url,
+        "endpoint": endpoint,
+        "model": model,
+        "timeout": int(os.environ.get("AI_REQUEST_TIMEOUT", "45")),
+        "max_tokens": int(os.environ.get("AI_MAX_TOKENS", "900")),
+    }
+
+
+def call_ai_chat(messages, temperature=0.2):
+    cfg = ai_provider_config()
+    if not cfg["configured"]:
+        return {"ok": False, "reason": "not_configured", "config": cfg}
+    payload = {
+        "model": cfg["model"],
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": cfg["max_tokens"],
+        "stream": False,
+    }
+    try:
+        req = urllib.request.Request(
+            cfg["endpoint"],
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={
+                "Authorization": "Bearer " + cfg["api_key"],
+                "Content-Type": "application/json",
+                "User-Agent": "FoxBrain/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=cfg["timeout"]) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        if not content:
+            return {"ok": False, "reason": "empty_response", "config": cfg}
+        return {"ok": True, "content": content.strip(), "config": cfg, "raw": data}
+    except Exception as exc:
+        return {"ok": False, "reason": "request_failed", "error": str(exc)[:300], "config": cfg}
+
+
+def prompt_json(data, limit=9000):
+    try:
+        text = json.dumps(data, ensure_ascii=False, default=str)
+    except Exception:
+        text = str(data)
+    return text[:limit]
+
+
 def load_summary():
     fallback = {
         "data_date": U(r"\u6d4b\u8bd5\u6570\u636e"),
@@ -3228,12 +3317,40 @@ class App(BaseHTTPRequestHandler):
                     "url": f"/knowledge/view?id={row['id']}",
                 }
             )
+        evidence = [
+            {
+                "title": row["title"],
+                "summary": row["summary"] or row["ai_summary"] or summarize_text(row["body"], 220),
+                "body_excerpt": summarize_text(row["body"], 600),
+                "source_type": row["source_type"],
+                "url": f"/knowledge/view?id={row['id']}",
+            }
+            for row in rows[:5]
+        ]
         if citations:
             answer = U(r"AI \u67e5\u8be2\u4e2d\u5fc3\u5df2\u627e\u5230\u76f8\u5173\u77e5\u8bc6\u6761\u76ee\u3002\u5f53\u524d\u7248\u672c\u53ea\u505a\u68c0\u7d22\u548c\u5f15\u7528\u51c6\u5907\uff0c\u4e0d\u751f\u6210\u672a\u7ecf\u9a8c\u8bc1\u7684\u7ecf\u8425\u7ed3\u8bba\u3002")
             confidence = "retrieval_ready"
         else:
             answer = U(r"AI \u67e5\u8be2\u4e2d\u5fc3\u5df2\u5efa\u7acb\u3002\u5f53\u524d\u7b49\u5f85\u63a5\u5165\u66f4\u591a\u77e5\u8bc6\u5e93\u5185\u5bb9\u3001SAP \u6570\u636e\u548c\u5927\u6a21\u578b API\u3002")
             confidence = "no_internal_hit"
+        ai_result = None
+        if evidence:
+            ai_result = call_ai_chat(
+                [
+                    {
+                        "role": "system",
+                        "content": U(r"\u4f60\u662f FoxBrain \u4f01\u4e1a\u77e5\u8bc6\u5e93\u52a9\u624b\u3002\u53ea\u80fd\u6839\u636e\u63d0\u4f9b\u7684\u5185\u90e8\u77e5\u8bc6\u56de\u7b54\uff0c\u4e0d\u80fd\u7f16\u9020\u672a\u63d0\u4f9b\u7684\u4e8b\u5b9e\u3002\u7528\u4e2d\u6587\u56de\u7b54\uff0c\u7ed3\u6784\u4e3a\uff1a\u76f4\u63a5\u7b54\u6848\u3001\u4f9d\u636e\u3001\u9700\u590d\u6838\u4e8b\u9879\u3002"),
+                    },
+                    {
+                        "role": "user",
+                        "content": U(r"\u95ee\u9898\uff1a") + question + "\n" + U(r"\u8303\u56f4\uff1a") + scope + "\n" + U(r"\u5185\u90e8\u77e5\u8bc6\uff1a") + prompt_json(evidence),
+                    },
+                ],
+                temperature=0.1,
+            )
+            if ai_result.get("ok"):
+                answer = ai_result["content"]
+                confidence = "ai_generated_with_sources"
         return {
             "answer": answer,
             "confidence": confidence,
@@ -3242,10 +3359,10 @@ class App(BaseHTTPRequestHandler):
             "cited_sap_records": [],
             "related_objects": [],
             "generated_at": ts(),
-            "model_name": os.environ.get("AI_MODEL_NAME", "not_connected"),
+            "model_name": ai_provider_config()["model"] if ai_provider_config()["configured"] else os.environ.get("AI_MODEL_NAME", "not_connected"),
             "limitations": [
                 U(r"\u672a\u7f16\u9020 SAP \u6570\u636e\u6216\u7ecf\u8425\u7ed3\u8bba\u3002"),
-                U(r"\u5411\u91cf\u68c0\u7d22\u548c\u771f\u6b63\u5927\u6a21\u578b\u56de\u7b54\u5c06\u5728\u540e\u7eed\u63a5\u5165\u3002"),
+                U(r"\u5982\u672a\u914d\u7f6e\u5927\u6a21\u578b API\uff0c\u7cfb\u7edf\u4ec5\u8fd4\u56de\u68c0\u7d22\u7ed3\u679c\u548c\u5f15\u7528\u3002"),
                 U(r"\u7b54\u6848\u9700\u4f9d\u636e\u5f15\u7528\u6765\u6e90\u590d\u6838\u3002"),
             ],
         }
@@ -11446,6 +11563,37 @@ class App(BaseHTTPRequestHandler):
             result["limitations"].append(U(r"\u6682\u65e0\u53ef\u5f15\u7528\u6765\u6e90\u3002"))
         return result
 
+    def jarvis_ai_context(self, user, intent, tool):
+        return {
+            "user": {"role": user["role"], "store": user["store"], "name": user["name"]},
+            "intent": intent,
+            "internal_data": tool["data"],
+            "sources": tool["sources"],
+            "limitations": tool["limitations"],
+            "next_actions": tool["next_actions"],
+        }
+
+    def jarvis_ai_reply(self, user, question, intent, tool):
+        if not tool["sources"] and intent not in ("content_generation", "task_creation", "report_generation", "system_help"):
+            return None, {"ok": False, "reason": "no_sources"}
+        context = self.jarvis_ai_context(user, intent, tool)
+        result = call_ai_chat(
+            [
+                {
+                    "role": "system",
+                    "content": U(r"\u4f60\u662f FoxBrain Jarvis\uff0c\u4f01\u4e1a\u7ecf\u8425 AI \u52a9\u624b\u3002\u7528\u4e2d\u6587\u56de\u7b54\uff0c\u8bed\u6c14\u76f4\u63a5\u3001\u53ef\u6267\u884c\u3002\u5fc5\u987b\u5148\u4f9d\u636e\u7cfb\u7edf\u63d0\u4f9b\u7684\u5185\u90e8\u6570\u636e\u3001SAP \u6458\u8981\u3001\u77e5\u8bc6\u5e93\u3001\u8bb0\u5fc6\u6216\u56fe\u8c31\u6765\u56de\u7b54\u3002\u6ca1\u6709\u4f9d\u636e\u65f6\u8981\u660e\u8bf4\u4e0d\u8db3\uff0c\u4e0d\u8981\u7f16\u9020\u6570\u636e\u3002\u56de\u7b54\u7ed3\u6784\uff1a\u7ed3\u8bba\u3001\u4f9d\u636e\u3001\u5efa\u8bae\u52a8\u4f5c\u3001\u9700\u590d\u6838\u4e8b\u9879\u3002"),
+                },
+                {
+                    "role": "user",
+                    "content": U(r"\u7528\u6237\u95ee\u9898\uff1a") + question + "\n" + U(r"\u7cfb\u7edf\u4e0a\u4e0b\u6587\uff1a") + prompt_json(context),
+                },
+            ],
+            temperature=0.2,
+        )
+        if result.get("ok"):
+            return result["content"], result
+        return None, result
+
     def jarvis_answer_payload(self, user, question):
         intent = self.route_jarvis_intent(question)
         tool = self.jarvis_tool_result(user, intent, question)
@@ -11466,15 +11614,30 @@ class App(BaseHTTPRequestHandler):
             answer = U(r"\u6211\u5df2\u628a\u8fd9\u4e2a\u9700\u6c42\u8bc6\u522b\u4e3a\u4efb\u52a1\u521b\u5efa\u7c7b\u3002\u7cfb\u7edf\u5df2\u751f\u6210\u5f85\u786e\u8ba4\u52a8\u4f5c\uff0c\u786e\u8ba4\u540e\u518d\u8fdb\u5165\u6267\u884c\u3002")
         elif intent == "report_generation":
             answer = U(r"\u5df2\u751f\u6210\u62a5\u544a\u6846\u67b6\uff0c\u5f53\u524d\u4ec5\u4f5c\u8349\u7a3f\uff0c\u6b63\u5f0f\u62a5\u544a\u9700\u4eba\u5de5\u5ba1\u6838\u3002")
+        ai_answer, ai_result = self.jarvis_ai_reply(user, question, intent, tool)
+        cfg = ai_provider_config()
+        if ai_answer:
+            answer = ai_answer
+            ai_status = "generated"
+        elif cfg["configured"]:
+            ai_status = ai_result.get("reason", "unavailable") if isinstance(ai_result, dict) else "unavailable"
+            tool["limitations"].append(U(r"\u5927\u6a21\u578b API \u672c\u6b21\u672a\u8fd4\u56de\u53ef\u7528\u56de\u7b54\uff0c\u5df2\u4f7f\u7528\u7cfb\u7edf\u5185\u7f6e\u56de\u7b54\u3002"))
+        else:
+            ai_status = "not_configured"
         return {
             "intent": intent,
             "answer": answer,
-            "confidence": "medium" if tool["sources"] else "low",
-            "tool_calls": [{"tool": "jarvis_router", "intent": intent}, {"tool": "adapter_layer", "success": tool["success"]}],
+            "confidence": "high" if ai_answer and tool["sources"] else ("medium" if tool["sources"] else "low"),
+            "tool_calls": [
+                {"tool": "jarvis_router", "intent": intent},
+                {"tool": "adapter_layer", "success": tool["success"]},
+                {"tool": "ai_provider", "status": ai_status, "provider": cfg["provider"], "model": cfg["model"]},
+            ],
             "cited_sources": tool["sources"],
             "related_objects": tool["data"],
             "limitations": list(dict.fromkeys(tool["limitations"])),
             "next_actions": tool["next_actions"],
+            "model_name": cfg["model"] if cfg["configured"] else "not_configured",
         }
 
     def jarvis_report_payload(self, prompt=""):
@@ -11547,6 +11710,8 @@ class App(BaseHTTPRequestHandler):
             messages = conn.execute("select * from jarvis_messages where conversation_id=? order by created_at asc limit 80", (current["id"],)).fetchall() if current else []
             actions = conn.execute("select * from jarvis_action_confirmations where created_by=? and status='pending' order by created_at desc limit 8", (user["id"],)).fetchall()
         suggestions = self.jarvis_suggestions()
+        cfg = ai_provider_config()
+        ai_status_text = (U(r"\u5df2\u63a5\u5165\u5927\u6a21\u578b") + " · " + cfg["provider"] + " · " + cfg["model"]) if cfg["configured"] else U(r"\u672a\u914d\u7f6e\u5927\u6a21\u578b API\uff0c\u5f53\u524d\u4f7f\u7528\u5185\u7f6e\u7ecf\u8425\u52a9\u624b\u6a21\u5f0f")
         chips = "".join(
             "<button type='button' onclick=\"document.getElementById('jarvis-question').value='{}'\">{}</button>".format(esc(q), esc(q))
             for group in suggestions.values()
@@ -11559,7 +11724,8 @@ class App(BaseHTTPRequestHandler):
                 sources = safe_json(msg["cited_sources"], [])
                 if sources:
                     source_html = "<div class='small'>" + " ".join("<a class='pill' href='{}'>{}</a>".format(esc(s.get("url", "#")), esc(s.get("title", s.get("type", "source")))) for s in sources[:5]) + "</div>"
-            message_html += "<div class='chat-message {}'><strong>{}</strong><p>{}</p>{}</div>".format(esc(msg["role"]), esc(msg["role"]), esc(msg["content"]), source_html)
+            content_html = esc(msg["content"]).replace("\n", "<br>")
+            message_html += "<div class='chat-message {}'><strong>{}</strong><p>{}</p>{}</div>".format(esc(msg["role"]), esc(msg["role"]), content_html, source_html)
         if not message_html:
             message_html = "<div class='chat-message assistant'><strong>Jarvis</strong><p>{}</p></div>".format(U(r"\u4f60\u53ef\u4ee5\u76f4\u63a5\u95ee\u7ecf\u8425\u3001\u77e5\u8bc6\u5e93\u3001SAP\u3001\u8bb0\u5fc6\u3001\u56fe\u8c31\u548c\u4efb\u52a1\u3002\u6211\u4f1a\u5148\u627e\u5df2\u6709\u6765\u6e90\uff0c\u6ca1\u6709\u6765\u6e90\u65f6\u660e\u786e\u8bf4\u7b49\u5f85\u63a5\u5165\u3002"))
         conversation_links = "".join("<a class='pill' href='/jarvis?conversation_id={}'>{}</a>".format(c["id"], esc(c["title"])) for c in conversations) or self.empty_state(U(r"\u6682\u65e0\u5386\u53f2\u5bf9\u8bdd\u3002"))
@@ -11582,6 +11748,7 @@ class App(BaseHTTPRequestHandler):
     <div class="panel">
       <h2>FoxBrain Jarvis</h2>
       <p class="small">{U(r'\u7edf\u4e00 AI \u52a9\u7406\u5165\u53e3\uff1a\u4e1a\u52a1\u67e5\u8be2\u3001\u77e5\u8bc6\u68c0\u7d22\u3001\u8bb0\u5fc6\u3001\u56fe\u8c31\u3001\u667a\u80fd\u4f53\u534f\u540c\u548c\u4efb\u52a1\u751f\u6210\u3002')}</p>
+      <p class="small"><span class="confidence">{esc(ai_status_text)}</span></p>
       <div class="chipbar">{chips}</div>
     </div>
     <div class="panel">{message_html}</div>
@@ -11597,7 +11764,7 @@ class App(BaseHTTPRequestHandler):
   <div>
     <div class="panel"><h2>{U(r'\u5bf9\u8bdd\u5386\u53f2')}</h2>{conversation_links}<p><a class="btn gray" href="/jarvis">{U(r'\u65b0\u5bf9\u8bdd')}</a></p></div>
     <div class="panel"><h2>{U(r'\u5f85\u786e\u8ba4\u52a8\u4f5c')}</h2>{action_rows}</div>
-    <div class="panel"><h2>{U(r'\u6765\u6e90\u4e0e\u9650\u5236')}</h2>{self.bullets([U(r'\u56de\u7b54\u5c3d\u91cf\u5f15\u7528\u5df2\u6709\u77e5\u8bc6\u3001SAP \u6458\u8981\u3001\u8bb0\u5fc6\u548c\u56fe\u8c31\u3002'), U(r'\u6ca1\u6709\u6765\u6e90\u65f6\u4e0d\u7f16\u9020\u7ecf\u8425\u7ed3\u8bba\u3002'), U(r'\u91cd\u8981\u52a8\u4f5c\u9700\u4eba\u5de5\u786e\u8ba4\u3002')])}</div>
+    <div class="panel"><h2>{U(r'\u6765\u6e90\u4e0e\u9650\u5236')}</h2>{self.bullets([U(r'\u56de\u7b54\u4f1a\u5148\u68c0\u7d22\u5df2\u6709\u77e5\u8bc6\u3001SAP \u6458\u8981\u3001\u8bb0\u5fc6\u548c\u56fe\u8c31\u3002'), U(r'\u5df2\u914d\u7f6e API \u65f6\uff0cJarvis \u4f1a\u57fa\u4e8e\u5185\u90e8\u6765\u6e90\u751f\u6210\u66f4\u81ea\u7136\u7684\u7ecf\u8425\u5efa\u8bae\u3002'), U(r'\u6ca1\u6709\u6765\u6e90\u65f6\u4e0d\u7f16\u9020\u7ecf\u8425\u7ed3\u8bba\u3002'), U(r'\u91cd\u8981\u52a8\u4f5c\u9700\u4eba\u5de5\u786e\u8ba4\u3002')])}</div>
     <div class="panel"><h2>{U(r'\u8bed\u97f3\u8f93\u5165')}</h2>{self.empty_state(U(r'\u8bed\u97f3\u8f93\u5165\u80fd\u529b\u9884\u7559\uff0c\u7b49\u5f85\u63a5\u5165\u8bed\u97f3\u8bc6\u522b\u670d\u52a1\u3002'))}</div>
   </div>
 </div>"""
@@ -11646,7 +11813,8 @@ class App(BaseHTTPRequestHandler):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         if path == "/api/jarvis/status":
-            return self.json_out({"ok": True, "status": "ready", "intents": ["general_question", "business_query", "sap_query", "knowledge_query", "research_query", "memory_query", "graph_query", "agent_collaboration", "task_creation", "report_generation", "content_generation", "system_help"], "ai_api": "not_required_for_v1"})
+            cfg = ai_provider_config()
+            return self.json_out({"ok": True, "status": "ready", "intents": ["general_question", "business_query", "sap_query", "knowledge_query", "research_query", "memory_query", "graph_query", "agent_collaboration", "task_creation", "report_generation", "content_generation", "system_help"], "ai_api": "configured" if cfg["configured"] else "not_configured", "ai_provider": cfg["provider"], "ai_model": cfg["model"]})
         if path == "/api/jarvis/suggestions":
             return self.json_out({"ok": True, "suggestions": self.jarvis_suggestions()})
         if path == "/api/jarvis/conversations":
