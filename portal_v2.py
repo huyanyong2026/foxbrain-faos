@@ -3206,6 +3206,118 @@ class App(BaseHTTPRequestHandler):
     def metric(self, label, value, note=""):
         return '<div class="metric"><span>{}</span><strong>{}</strong><span>{}</span></div>'.format(esc(label), esc(value), esc(note))
 
+    def num(self, value):
+        try:
+            return float(value or 0)
+        except Exception:
+            return 0.0
+
+    def smart_business_insights(self):
+        s = load_summary()
+        insights = []
+        actions = []
+        evidence = []
+        yesterday_sales = self.num(s.get("yesterday_sales"))
+        gross_margin = self.num(s.get("yesterday_gross_margin"))
+        completion_rate = self.num(s.get("completion_rate"))
+        inventory_amount = self.num(s.get("inventory_amount"))
+        risk_count = self.num(s.get("risk_count"))
+        top_stores = s.get("top_stores", []) or []
+
+        if gross_margin and gross_margin < 20:
+            insights.append({
+                "level": "critical",
+                "title": U(r"\u6628\u65e5\u6bdb\u5229\u7387\u504f\u4f4e"),
+                "text": U(r"\u6628\u65e5\u6bdb\u5229\u7387\u4ec5 ") + pct(gross_margin) + U(r"\uff0c\u9700\u4f18\u5148\u590d\u6838\u6298\u6263\u3001\u6210\u672c\u3001\u9000\u6362\u8d27\u548c\u7279\u4ef7\u5355\u3002"),
+                "url": "/business-overview",
+            })
+            actions.append(U(r"\u4eca\u5929\u5148\u62c9\u51fa 7 \u6708 7 \u65e5\u4f4e\u6bdb\u5229\u5355\u636e\uff0c\u6309\u95e8\u5e97\u548c\u54c1\u724c\u590d\u6838\u3002"))
+        elif gross_margin:
+            insights.append({
+                "level": "ok",
+                "title": U(r"\u6bdb\u5229\u7387\u5728\u53ef\u8bfb\u8303\u56f4"),
+                "text": U(r"\u6628\u65e5\u6bdb\u5229\u7387 ") + pct(gross_margin) + U(r"\uff0c\u7ee7\u7eed\u5173\u6ce8\u4f4e\u6298\u6263\u548c\u9ad8\u6210\u672c\u5546\u54c1\u3002"),
+                "url": "/business-overview",
+            })
+
+        low_margin_stores = []
+        for store in top_stores:
+            sales = self.num(store.get("sales"))
+            gp = self.num(store.get("gross_profit"))
+            if sales > 0 and gp / sales * 100 < 5:
+                low_margin_stores.append((store.get("store", ""), sales, gp))
+        if low_margin_stores:
+            names = ", ".join(str(x[0]) for x in low_margin_stores[:3])
+            insights.append({
+                "level": "critical",
+                "title": U(r"\u95e8\u5e97/\u4ed3\u5e93\u6bdb\u5229\u5f02\u5e38"),
+                "text": names + U(r" \u7684\u9500\u552e\u6709\u8bb0\u5f55\uff0c\u4f46\u6bdb\u5229\u63a5\u8fd1 0\uff0c\u9700\u68c0\u67e5\u6210\u672c\u6216\u6298\u6263\u53e3\u5f84\u3002"),
+                "url": "/business-overview",
+            })
+            actions.append(U(r"\u590d\u6838 ") + names + U(r" \u5f53\u65e5\u548c\u672c\u6708\u660e\u7ec6\uff0c\u786e\u8ba4\u662f\u5426\u6210\u672c\u4e3a 0\u3001\u8d60\u54c1\u3001\u5185\u90e8\u8c03\u62e8\u6216\u7279\u6b8a\u5355\u636e\u3002"))
+
+        if risk_count:
+            insights.append({
+                "level": "warning",
+                "title": U(r"\u5e93\u5b58\u98ce\u9669\u9700\u8ddf\u8fdb"),
+                "text": U(r"\u5f53\u524d\u98ce\u9669\u5e93\u5b58\u6570\u91cf ") + money(risk_count) + U(r"\uff0c\u5e93\u5b58\u91d1\u989d \uffe5") + money(inventory_amount) + U(r"\uff0c\u9700\u5206\u54c1\u724c\u548c\u95e8\u5e97\u5904\u7406\u3002"),
+                "url": "/inventory",
+            })
+            actions.append(U(r"\u4eca\u5929\u751f\u6210\u5e93\u5b58\u8ddf\u8fdb\u6e05\u5355\uff1a\u9ad8\u5e93\u5b58\u3001\u96f6\u627f\u8bfa\u3001\u53ef\u8c03\u62e8\u3001\u9700\u964d\u4ef7\u56db\u7c7b\u5206\u5f00\u3002"))
+
+        if completion_rate >= 60:
+            insights.append({
+                "level": "ok",
+                "title": U(r"\u6708\u5ea6\u5b8c\u6210\u7387\u8f83\u597d"),
+                "text": U(r"\u672c\u6708\u5b8c\u6210\u7387 ") + pct(completion_rate) + U(r"\uff0c\u63a5\u4e0b\u6765\u8981\u628a\u589e\u957f\u62c6\u5230\u95e8\u5e97\u548c\u54c1\u724c\u3002"),
+                "url": "/business-overview",
+            })
+        else:
+            insights.append({
+                "level": "warning",
+                "title": U(r"\u9700\u5173\u6ce8\u6708\u5ea6\u76ee\u6807\u8fdb\u5ea6"),
+                "text": U(r"\u672c\u6708\u5b8c\u6210\u7387 ") + pct(completion_rate) + U(r"\uff0c\u5efa\u8bae\u6bcf\u5e97\u62c6\u5206\u4eca\u65e5\u5dee\u989d\u3002"),
+                "url": "/tasks",
+            })
+
+        if yesterday_sales:
+            evidence.append(U(r"\u6628\u65e5\u9500\u552e\uff1a\uffe5") + money(yesterday_sales))
+        evidence.append(U(r"\u672c\u6708\u9500\u552e\uff1a\uffe5") + money(s.get("month_sales")))
+        evidence.append(U(r"\u672c\u6708\u6bdb\u5229\uff1a\uffe5") + money(s.get("month_gross_profit")))
+        evidence.append(U(r"\u6570\u636e\u65e5\u671f\uff1a") + str(s.get("data_date") or ""))
+
+        if not actions:
+            actions = (s.get("todos", []) or [])[:4]
+        if not actions:
+            actions = [U(r"\u5148\u786e\u4fdd SAP \u540c\u6b65\u548c\u95e8\u5e97\u9500\u552e\u660e\u7ec6\u5b8c\u6574\uff0c\u518d\u505a\u7ecf\u8425\u5224\u65ad\u3002")]
+        return {"insights": insights[:6], "actions": actions[:6], "evidence": evidence[:6]}
+
+    def insight_cards(self, insights):
+        if not insights:
+            return self.empty_state(U(r"\u6682\u65e0\u5f02\u5e38\u5224\u65ad\u3002"))
+        colors = {"critical": "red", "warning": "orange", "ok": "green", "info": "gray"}
+        html_parts = []
+        for item in insights:
+            cls = colors.get(item.get("level"), "gray")
+            html_parts.append(self.card(item.get("title", ""), item.get("text", ""), item.get("url", "/jarvis"), "btn " + cls, True))
+        return '<div class="grid">' + "".join(html_parts) + "</div>"
+
+    def store_score_table(self, stores):
+        rows = ""
+        for item in stores[:10]:
+            sales = self.num(item.get("sales"))
+            gp = self.num(item.get("gross_profit"))
+            margin = gp / sales * 100 if sales else 0
+            flag = U(r"\u6bdb\u5229\u5f02\u5e38") if sales and margin < 5 else (U(r"\u9700\u5173\u6ce8") if margin < 20 else U(r"\u6b63\u5e38"))
+            rows += "<tr><td>{}</td><td>\uffe5{}</td><td>\uffe5{}</td><td>{}</td><td>{}</td></tr>".format(
+                esc(item.get("store", "")), money(sales), money(gp), pct(margin), esc(flag)
+            )
+        if not rows:
+            rows = '<tr><td colspan="5" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u95e8\u5e97\u6570\u636e\u3002"))
+        return "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table>".format(
+            U(r"\u95e8\u5e97/\u4ed3"), U(r"\u9500\u552e"), U(r"\u6bdb\u5229"), U(r"\u6bdb\u5229\u7387"), U(r"AI \u5224\u65ad"), rows
+        )
+
     def bullets(self, items):
         clean = [item for item in items if item]
         return '<ul class="list">' + "".join("<li>{}</li>".format(esc(item)) for item in clean) + "</ul>"
@@ -3926,6 +4038,7 @@ class App(BaseHTTPRequestHandler):
             return self.dashboard(user)
         s = load_summary()
         status = self.sap_sync_status_payload()
+        smart = self.smart_business_insights()
         history_items = [h["sync_id"] + " · " + h["trigger_type"] + " · " + h["status"] for h in status["history"][:10]] or [U(r"\u6682\u65e0 SAP \u540c\u6b65\u5386\u53f2\u3002")]
         body = f"""
 <div class="panel">
@@ -3939,6 +4052,11 @@ class App(BaseHTTPRequestHandler):
   </div>
   <p class="small">{status['warning']}</p>
   <form method="post" action="/api/sap/sync/run"><button>{U(r'\u7acb\u5373\u540c\u6b65 SAP \u6570\u636e')}</button></form>
+</div>
+{self.insight_cards(smart['insights'][:4])}
+<div class="split">
+  <div class="panel"><h2>{U(r'\u540c\u6b65\u540e\u5efa\u8bae')}</h2>{self.bullets(smart['actions'])}</div>
+  <div class="panel"><h2>{U(r'\u6570\u636e\u6838\u5bf9\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}</div>
 </div>
 <div class="split">
   <div class="panel"><h2>{U(r'\u540c\u6b65\u5386\u53f2')}</h2>{self.bullets(history_items)}</div>
@@ -4238,6 +4356,35 @@ class App(BaseHTTPRequestHandler):
         can_boss = role in ("boss", "admin", "finance", "purchasing")
         can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
         can_admin = role == "admin"
+        if can_boss:
+            data = self.cockpit_data()
+            smart = self.smart_business_insights()
+            m = data["metrics"]
+            metrics = "".join(
+                [
+                    self.metric(U(r"\u6628\u65e5\u9500\u552e"), U(r"\uffe5") + money(m["yesterday_sales"]), U(r"\u6570\u636e\u65e5\u671f ") + str(m["data_date"])),
+                    self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(m["month_sales"]), U(r"\u5b8c\u6210\u7387 ") + pct(m["completion_rate"])),
+                    self.metric(U(r"\u6bdb\u5229\u60c5\u51b5"), U(r"\uffe5") + money(m["gross_profit"]), U(r"\u6bdb\u5229\u7387 ") + pct(m["gross_margin"])),
+                    self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), money(m["risk_count"]), U(r"\u5e93\u5b58 \uffe5") + money(m["inventory_amount"])),
+                ]
+            )
+            command_panel = f"""
+<div class="panel">
+  <h2>{U(r'FoxBrain \u7ecf\u8425\u96f7\u8fbe')}</h2>
+  <p class="small">{U(r'\u7cfb\u7edf\u5df2\u6839\u636e SAP \u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u548c\u76ee\u6807\u8fdb\u5ea6\u81ea\u52a8\u7b5b\u51fa\u4eca\u5929\u5e94\u4f18\u5148\u5904\u7406\u7684\u4e8b\u3002')}</p>
+  <div class="metrics">{metrics}</div>
+</div>
+{self.insight_cards(smart['insights'][:3])}
+<div class="split">
+  <div class="panel"><h2>{U(r'\u4eca\u65e5\u5efa\u8bae\u52a8\u4f5c')}</h2>{self.bullets(smart['actions'][:4])}<p><a class="btn dark" href="/ai-ceo">{U(r'\u6253\u5f00 AI \u603b\u7ecf\u7406')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u5224\u65ad\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}<p><a class="btn" href="/business-overview">{U(r'\u67e5\u770b\u7ecf\u8425\u603b\u89c8')}</a></p></div>
+</div>"""
+        else:
+            command_panel = f"""
+<div class="panel">
+  <h2>{U(r'FoxBrain \u5de5\u4f5c\u53f0')}</h2>
+  <p class="small">{U(r'\u5df2\u6309\u4f60\u7684\u89d2\u8272\u5c55\u793a\u53ef\u7528\u5165\u53e3\uff0c\u7ecf\u8425\u654f\u611f\u6570\u636e\u4ec5\u5411\u6388\u6743\u89d2\u8272\u5f00\u653e\u3002')}</p>
+</div>"""
         cards = [
             self.card("FoxBrain Jarvis", U(r"\u7edf\u4e00 AI \u603b\u7ba1\u5165\u53e3\uff1a\u76f4\u63a5\u95ee\u7ecf\u8425\u3001SAP\u3001\u77e5\u8bc6\u5e93\u3001\u4efb\u52a1\u548c\u667a\u80fd\u4f53\u534f\u540c\u3002"), "/jarvis", "btn", True),
             self.card(U(r"AI \u603b\u7ecf\u7406"), U(r"\u4eca\u5929\u516c\u53f8\u60c5\u51b5\u3001\u98ce\u9669\u63d0\u9192\u3001\u7ecf\u8425\u5efa\u8bae\u3002"), "/ai-ceo", "btn", can_boss),
@@ -4259,7 +4406,7 @@ class App(BaseHTTPRequestHandler):
         info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
             U(r"\u5f53\u524d\u8d26\u53f7"), T["name"], esc(user["name"]), T["store"], esc(user["store"]), T["role"], esc(ROLES.get(role, role))
         )
-        self.out(layout(T["brand"], '<div class="grid">' + "".join(cards) + "</div>" + info, user=user, wide=True))
+        self.out(layout(T["brand"], command_panel + '<div class="grid">' + "".join(cards) + "</div>" + info, user=user, wide=True))
 
     def module_page(self, user, path):
         user = self.require_login(user)
@@ -5067,6 +5214,7 @@ class App(BaseHTTPRequestHandler):
         if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
             return self.dashboard(user)
         data = self.cockpit_data()
+        smart = self.smart_business_insights()
         m = data["metrics"]
         metrics = "".join(
             [
@@ -5082,11 +5230,9 @@ class App(BaseHTTPRequestHandler):
         memory_refs = [m["title"] + " · " + m["memory_type"] for m in memory_rows if self.can_view_memory(user, m)]
         if not memory_refs:
             memory_refs = [U(r"\u6682\u65e0\u5df2\u5ba1\u6838\u8bb0\u5fc6\uff0cAI \u603b\u7ecf\u7406\u5c06\u5728\u51b3\u7b56\u548c\u539f\u5219\u5ba1\u6838\u540e\u5f15\u7528\u3002")]
-        risk_items = [
-            U(r"\u95e8\u5e97\u5f02\u5e38\uff1a\u7b49\u5f85\u95e8\u5e97\u9500\u552e\u3001\u6bdb\u5229\u548c\u5e93\u5b58\u6570\u636e\u5b8c\u6574\u540e\u5224\u65ad\u3002"),
-            U(r"\u54c1\u724c\u5f02\u5e38\uff1a\u7b49\u5f85\u54c1\u724c\u7ef4\u5ea6 SAP \u5206\u6790\u63a5\u5165\u3002"),
-            U(r"\u5e93\u5b58\u5f02\u5e38\uff1a\u53ef\u5148\u8fdb\u5165\u5e93\u5b58\u98ce\u9669\u9875\u68c0\u67e5\u3002"),
-        ]
+        risk_items = [(i.get("title", "") + U(r"\uff1a") + i.get("text", "")) for i in smart["insights"]]
+        if not risk_items:
+            risk_items = [data["empty_message"]]
         body = f"""
 <div class="panel">
   <h2>{U(r'AI \u603b\u7ecf\u7406\u65e5\u62a5')}</h2>
@@ -5098,13 +5244,14 @@ class App(BaseHTTPRequestHandler):
   <div class="panel"><h2>{U(r'\u4eca\u65e5\u98ce\u9669\u63d0\u9192')}</h2>{self.bullets(risk_items)}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u91cd\u70b9\u4efb\u52a1')}</h2>{self.bullets(data['todos'] or [U(r'\u53ef\u4ece AI \u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u5e76\u5206\u914d\u8d23\u4efb\u4eba\u3002')])}<p><a class="btn" href="/tasks">{U(r'\u8fdb\u5165\u4efb\u52a1\u4e2d\u5fc3')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u5916\u90e8\u7814\u7a76\u63d0\u9192')}</h2>{self.bullets([U(r'\u7814\u7a76\u5f15\u64ce\u5df2\u9884\u7559\uff0c\u5916\u90e8\u4fe1\u606f\u9700\u5ba1\u6838\u540e\u624d\u80fd\u5165\u5e93\u3002'), U(r'\u672a\u914d\u7f6e\u5916\u90e8\u641c\u7d22 API \u65f6\u4e0d\u81ea\u52a8\u6293\u53d6\u65b0\u95fb\u3002')])}</div>
+  <div class="panel"><h2>{U(r'\u4eca\u65e5\u91cd\u70b9\u4efb\u52a1')}</h2>{self.bullets(smart['actions'] or data['todos'] or [U(r'\u53ef\u4ece AI \u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u5e76\u5206\u914d\u8d23\u4efb\u4eba\u3002')])}<p><a class="btn" href="/tasks">{U(r'\u8fdb\u5165\u4efb\u52a1\u4e2d\u5fc3')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u5224\u65ad\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}</div>
 </div>
+<div class="panel"><h2>{U(r'\u95e8\u5e97\u6bdb\u5229\u6392\u67e5')}</h2>{self.store_score_table(data['top_stores'])}</div>
 <div class="panel"><h2>{U(r'AI \u603b\u7ecf\u7406\u53c2\u8003\u8bb0\u5fc6')}</h2>{self.bullets(memory_refs)}<p><a class="btn" href="/memory">{U(r'\u8fdb\u5165\u8bb0\u5fc6\u4e2d\u5fc3')}</a></p></div>
 <div class="panel">
   <h2>{U(r'AI \u5efa\u8bae')}</h2>
-  {self.bullets([U(r'\u5148\u5b8c\u5584 SAP B1 \u6bcf\u665a 22:00 \u540c\u6b65\u7a33\u5b9a\u6027\u3002'), U(r'\u628a Osprey \u4ef7\u683c\u98ce\u9669\u653e\u5165\u4e13\u9898\u8ddf\u8e2a\u3002'), U(r'\u628a\u91cd\u70b9\u7ecf\u8425\u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u907f\u514d\u53ea\u770b\u4e0d\u505a\u3002')])}
+  {self.bullets(smart['actions'][:3] + [U(r'\u628a\u91cd\u70b9\u7ecf\u8425\u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u907f\u514d\u53ea\u770b\u4e0d\u505a\u3002')])}
   <p><a class="btn dark" href="/business-overview">{U(r'\u6253\u5f00\u7ecf\u8425\u9a7e\u9a76\u8231')}</a></p>
 </div>"""
         self.out(layout(U(r"AI \u603b\u7ecf\u7406\u65e5\u62a5"), body, user=user, wide=True))
@@ -5116,6 +5263,7 @@ class App(BaseHTTPRequestHandler):
         if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
             return self.dashboard(user)
         data = self.cockpit_data()
+        smart = self.smart_business_insights()
         m = data["metrics"]
         empty = data["empty_message"]
         metrics = "".join(
@@ -5130,13 +5278,15 @@ class App(BaseHTTPRequestHandler):
         brand_cards = "".join(self.card(str(b.get("brand", "")), U(r"\u7b49\u5f85\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u548c\u5e93\u5b58\u5206\u6790\u3002"), "/brands/operations", "btn", True) for b in data["top_brands"][:4])
         body = f"""
 <div class="panel"><h2>{U(r'\u7ecf\u8425\u9a7e\u9a76\u8231 V1')}</h2><p class="small">{U(r'\u4e0d\u505a\u5bc6\u96c6 ERP \u62a5\u8868\uff0c\u53ea\u628a\u8001\u677f\u4eca\u5929\u9700\u8981\u770b\u7684\u4e8b\u653e\u5728\u4e00\u5c4f\u3002')}</p><div class="metrics">{metrics}</div></div>
+{self.insight_cards(smart['insights'])}
+<div class="panel"><h2>{U(r'\u95e8\u5e97\u6bdb\u5229\u4f53\u68c0')}</h2>{self.store_score_table(data['top_stores'])}</div>
 <div class="split">
   <div class="panel"><h2>{U(r'\u95e8\u5e97\u6392\u540d')}</h2>{('<div class="grid">' + store_cards + '</div>') if store_cards else self.empty_state(empty)}<p><a class="btn" href="/stores/operations">{U(r'\u95e8\u5e97\u7ecf\u8425')}</a></p></div>
   <div class="panel"><h2>{U(r'\u54c1\u724c\u6392\u540d')}</h2>{('<div class="grid">' + brand_cards + '</div>') if brand_cards else self.empty_state(empty)}<p><a class="btn" href="/brands/operations">{U(r'\u54c1\u724c\u7ecf\u8425')}</a></p></div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5f02\u5e38\u63d0\u9192')}</h2>{self.bullets([U(r'\u5e93\u5b58\u98ce\u9669\u8bf7\u8fdb\u5165\u5e93\u5b58\u98ce\u9669\u9875\u8ddf\u8fdb\u3002'), U(r'Osprey \u4ef7\u683c\u98ce\u9669\u5df2\u5efa\u7acb\u4e13\u9898\u6a21\u677f\u3002')])}</div>
-  <div class="panel"><h2>{U(r'AI \u5efa\u8bae')}</h2>{self.bullets(data['ai_suggestions'][:4] or [empty])}<p><a class="btn dark" href="/ai-ceo">{U(r'\u67e5\u770b AI \u603b\u7ecf\u7406\u65e5\u62a5')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u4eca\u65e5\u5efa\u8bae\u52a8\u4f5c')}</h2>{self.bullets(smart['actions'])}</div>
+  <div class="panel"><h2>{U(r'\u5224\u65ad\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}<p><a class="btn dark" href="/ai-ceo">{U(r'\u67e5\u770b AI \u603b\u7ecf\u7406\u65e5\u62a5')}</a></p></div>
 </div>"""
         self.out(layout(U(r"\u7ecf\u8425\u9a7e\u9a76\u8231"), body, user=user, wide=True))
 
