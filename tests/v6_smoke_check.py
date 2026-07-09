@@ -3125,6 +3125,7 @@ def test_sprint008_dashboard_search_and_safety_present():
 def test_sprint008_summary_and_report_present():
     summary = read("SPRINT008_DATA_LAKE_SUMMARY.md")
     report = read("SPRINT008_DATA_LAKE_TEST_REPORT.md")
+    real_report = read("SPRINT008_REAL_SAP_DATA_TEST_REPORT.md")
     for phrase in [
         "Sprint008 Data Lake Summary",
         "data_lake_sources",
@@ -3146,3 +3147,19 @@ def test_sprint008_summary_and_report_present():
         "Business metrics",
     ]:
         assert phrase in report
+    for phrase in [
+        "Sprint008 Real SAP Data Validation Report",
+        "2501",
+        "25kailas",
+        "26kailas",
+        "gb18030",
+        "data_lake_records",
+        "55,457",
+        "42,672",
+        "12,785",
+        "Sales amount",
+        "Gross profit",
+        "Inventory retail amount",
+        "No production SAP connection was made",
+    ]:
+        assert phrase in real_report

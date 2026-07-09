@@ -65,6 +65,33 @@ sap_import_batches / sap_sales / sap_inventory
 Data Lake rebuild
 ```
 
+## Real SAP Data Validation
+
+Executed with the requested files:
+
+- `库存7.9.xls`
+- `南山店库存7.9.xls`
+- `总销售261.1-7.9.xls`
+- `2501销售.xls`
+- `25kailas销售.xls`
+- `26kailas销售.xls`
+
+Result:
+
+- Files in Data Lake: 6
+- Import batches: 6
+- Raw Data Lake records: 55,457
+- Inventory rows: 12,785
+- Sales rows: 42,672
+- Object links: 141,116
+- Object suggestions: 27,169
+- Sales amount: 34,746,796.27
+- Gross profit: 10,226,406.24
+- Inventory amount: 16,829,795.15
+- Inventory quantity: 50,978
+
+Full report: `SPRINT008_REAL_SAP_DATA_TEST_REPORT.md`
+
 ## Safety Verification
 
 - No production SAP connection was added.

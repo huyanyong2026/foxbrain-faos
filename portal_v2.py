@@ -5738,7 +5738,7 @@ class App(BaseHTTPRequestHandler):
                 ("data_lake_record", source_id, record_type, record_id, object_type, object_id, match_key, confidence, status, now, now),
             )
         if not obj:
-            self.create_object_suggestion(conn, object_type, object_name, "data_lake_record", record_id, evidence, confidence)
+            self.create_object_suggestion(conn, object_type, object_name, "data_lake_source", source_id, evidence, confidence)
 
     def data_lake_normalized_from_row(self, row, record_type):
         data = row_dict(row)
@@ -5789,14 +5789,21 @@ class App(BaseHTTPRequestHandler):
     def rebuild_data_lake_for_batch(self, conn, batch, user_id=None):
         now = ts()
         batch_id = batch["id"]
+        file_hash = ""
+        document_id = batch["document_id"] if "document_id" in batch.keys() else None
+        if document_id:
+            doc = conn.execute("select storage_path,file_path from documents where id=?", (document_id,)).fetchone()
+            file_path = (doc["storage_path"] or doc["file_path"]) if doc else ""
+            if file_path and os.path.exists(file_path):
+                file_hash = hashlib.sha256(Path(file_path).read_bytes()).hexdigest()
         existing = conn.execute("select * from data_lake_sources where batch_id=?", (batch_id,)).fetchone()
         if existing:
             source_id = existing["id"]
-            conn.execute("update data_lake_sources set row_count=?, status=?, updated_at=? where id=?", (batch["row_count"] or 0, "rebuilt", now, source_id))
+            conn.execute("update data_lake_sources set row_count=?, file_hash=?, status=?, updated_at=? where id=?", (batch["row_count"] or 0, file_hash, "rebuilt", now, source_id))
         else:
             cur = conn.execute(
                 "insert into data_lake_sources(source_type,source_name,document_id,batch_id,filename,file_hash,encoding,delimiter,status,row_count,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                ("sap_import", batch["filename"] or ("batch-" + str(batch_id)), batch["document_id"], batch_id, batch["filename"], "", "source_detected", "source_detected", "active", batch["row_count"] or 0, user_id, now, now),
+                ("sap_import", batch["filename"] or ("batch-" + str(batch_id)), document_id, batch_id, batch["filename"], file_hash, "source_detected", "source_detected", "active", batch["row_count"] or 0, user_id, now, now),
             )
             source_id = cur.lastrowid
         created = 0
@@ -5832,22 +5839,39 @@ class App(BaseHTTPRequestHandler):
         now = ts()
         conn.execute("delete from business_metrics_snapshots")
         batch_json = json.dumps([r["id"] for r in conn.execute("select id from sap_import_batches order by id").fetchall()], ensure_ascii=False)
+        store_sales = {}
         for row in conn.execute("select coalesce(store_name,'') store_name, sum(coalesce(amount,0)) sales_amount, sum(coalesce(gross_profit,0)) gross_profit, sum(coalesce(quantity,0)) quantity from sap_sales group by store_name").fetchall():
             store = self.normalize_store_name(row["store_name"])
-            amount = float(row["sales_amount"] or 0)
-            gross = float(row["gross_profit"] or 0)
-            for key, value in [("sales_amount", amount), ("gross_profit", gross), ("gross_margin", gross / amount if amount else 0), ("sales_quantity", row["quantity"] or 0)]:
+            bucket = store_sales.setdefault(store, {"sales_amount": 0.0, "gross_profit": 0.0, "quantity": 0.0})
+            bucket["sales_amount"] += float(row["sales_amount"] or 0)
+            bucket["gross_profit"] += float(row["gross_profit"] or 0)
+            bucket["quantity"] += float(row["quantity"] or 0)
+        for store, bucket in store_sales.items():
+            amount = bucket["sales_amount"]
+            gross = bucket["gross_profit"]
+            for key, value in [("sales_amount", amount), ("gross_profit", gross), ("gross_margin", gross / amount if amount else 0), ("sales_quantity", bucket["quantity"])]:
                 conn.execute("insert into business_metrics_snapshots(snapshot_type,store_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("store_sales", store, key, float(value or 0), batch_json, now))
+        brand_sales = {}
         for row in conn.execute("select coalesce(brand_name,'') brand_name, sum(coalesce(amount,0)) sales_amount, sum(coalesce(gross_profit,0)) gross_profit from sap_sales group by brand_name").fetchall():
             if not row["brand_name"]:
                 continue
-            amount = float(row["sales_amount"] or 0)
-            gross = float(row["gross_profit"] or 0)
+            bucket = brand_sales.setdefault(row["brand_name"], {"sales_amount": 0.0, "gross_profit": 0.0})
+            bucket["sales_amount"] += float(row["sales_amount"] or 0)
+            bucket["gross_profit"] += float(row["gross_profit"] or 0)
+        for brand, bucket in brand_sales.items():
+            amount = bucket["sales_amount"]
+            gross = bucket["gross_profit"]
             for key, value in [("sales_amount", amount), ("gross_profit", gross), ("gross_margin", gross / amount if amount else 0)]:
-                conn.execute("insert into business_metrics_snapshots(snapshot_type,brand_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("brand_sales", row["brand_name"], key, float(value or 0), batch_json, now))
+                conn.execute("insert into business_metrics_snapshots(snapshot_type,brand_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("brand_sales", brand, key, float(value or 0), batch_json, now))
+        store_inventory = {}
         for row in conn.execute("select coalesce(store_name,'') store_name, sum(coalesce(quantity,0)) quantity, sum(coalesce(cost_amount,0)) cost_amount, sum(coalesce(retail_amount,0)) retail_amount from sap_inventory group by store_name").fetchall():
             store = self.normalize_store_name(row["store_name"])
-            for key, value in [("inventory_quantity", row["quantity"] or 0), ("inventory_cost_amount", row["cost_amount"] or 0), ("inventory_retail_amount", row["retail_amount"] or 0)]:
+            bucket = store_inventory.setdefault(store, {"quantity": 0.0, "cost_amount": 0.0, "retail_amount": 0.0})
+            bucket["quantity"] += float(row["quantity"] or 0)
+            bucket["cost_amount"] += float(row["cost_amount"] or 0)
+            bucket["retail_amount"] += float(row["retail_amount"] or 0)
+        for store, bucket in store_inventory.items():
+            for key, value in [("inventory_quantity", bucket["quantity"]), ("inventory_cost_amount", bucket["cost_amount"]), ("inventory_retail_amount", bucket["retail_amount"])]:
                 conn.execute("insert into business_metrics_snapshots(snapshot_type,store_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("store_inventory", store, key, float(value or 0), batch_json, now))
 
     def rebuild_data_lake(self, user=None):
@@ -12484,7 +12508,7 @@ where ki.deleted_at is null"""
                     )
                     object_id = cur.lastrowid
                 conn.execute("update business_object_suggestions set status='approved', reviewed_by=?, reviewed_at=?, updated_at=? where id=?", (user["id"], now, now, row["id"]))
-                conn.execute("update business_object_links set object_id=?, match_status='matched', match_confidence=1.0, updated_at=? where object_type=? and match_status='suggested' and record_id in (select source_id from business_object_suggestions where id=?)", (object_id, now, row["object_type"], row["id"]))
+                conn.execute("update business_object_links set object_id=?, match_status='matched', match_confidence=1.0, updated_at=? where object_type=? and source_id=? and match_status='suggested'", (object_id, now, row["object_type"], row["source_id"]))
             if "text/html" in (self.headers.get("Accept") or ""):
                 return self.redir("/object-suggestions")
             return self.json_out({"ok": True, "object_id": object_id})
