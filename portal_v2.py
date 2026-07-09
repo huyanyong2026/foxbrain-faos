@@ -1347,6 +1347,7 @@ create table if not exists business_object_suggestions(
  id integer primary key autoincrement,
  object_type text not null,
  object_name text not null,
+ canonical_key text,
  source_type text,
  source_id integer,
  evidence text,
@@ -1359,6 +1360,7 @@ create table if not exists business_object_suggestions(
 )
 """
         )
+        ensure_column(conn, "business_object_suggestions", "canonical_key", "canonical_key text")
         conn.execute(
             """
 create table if not exists business_metrics_snapshots(
@@ -1376,6 +1378,64 @@ create table if not exists business_metrics_snapshots(
 )
 """
         )
+        conn.execute(
+            """
+create table if not exists store_aliases(
+ id integer primary key autoincrement,
+ canonical_store_name text not null,
+ alias_name text not null,
+ alias_type text,
+ source text,
+ confidence real not null default 0,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists brand_aliases(
+ id integer primary key autoincrement,
+ canonical_brand_name text not null,
+ alias_name text not null,
+ source text,
+ confidence real not null default 0,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_calibration_rules(
+ id integer primary key autoincrement,
+ rule_key text unique not null,
+ rule_type text not null,
+ rule_name text not null,
+ rule_json text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_metric_quality(
+ id integer primary key autoincrement,
+ metric_key text not null,
+ dimension_type text,
+ dimension_value text,
+ quality_status text not null,
+ quality_message text,
+ source_batch_ids text,
+ created_at integer not null
+)
+"""
+        )
         for idx in [
             "create index if not exists idx_sap_import_batches_document on sap_import_batches(document_id)",
             "create index if not exists idx_sap_sales_batch on sap_sales(batch_id)",
@@ -1386,9 +1446,48 @@ create table if not exists business_metrics_snapshots(
             "create index if not exists idx_business_object_links_record on business_object_links(record_type, record_id, object_type)",
             "create index if not exists idx_business_object_links_object on business_object_links(object_type, object_id, match_status)",
             "create unique index if not exists idx_business_object_suggestions_unique on business_object_suggestions(object_type, object_name, source_type, source_id)",
+            "create unique index if not exists idx_business_object_suggestions_canonical on business_object_suggestions(object_type, canonical_key)",
             "create index if not exists idx_business_metrics_lookup on business_metrics_snapshots(snapshot_type, metric_key, store_name, brand_name)",
+            "create unique index if not exists idx_store_aliases_alias on store_aliases(alias_name)",
+            "create unique index if not exists idx_brand_aliases_alias on brand_aliases(alias_name)",
+            "create index if not exists idx_metric_quality_lookup on business_metric_quality(metric_key, quality_status, dimension_type)",
         ]:
             conn.execute(idx)
+        seed_now = ts()
+        for canonical, alias, alias_type in [
+            (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97"), "canonical"),
+            (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
+            (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u6279\u53d1\u5ba2\u6237"), "wholesale"),
+            (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u6279\u53d1\u5ba2\u6237-1"), "wholesale"),
+            (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u5206\u9500\u5ba2\u6237"), "distribution"),
+            (U(r"\u632f\u5174\u5e97"), U(r"\u632f\u5174\u5e97"), "canonical"),
+            (U(r"\u632f\u5174\u5e97"), U(r"\u632f\u5174\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
+            (U(r"\u632f\u5174\u5e97"), U(r"\u632f\u5174\u5e97\u6279\u53d1\u5ba2\u6237"), "wholesale"),
+            (U(r"\u632f\u5174\u5e97"), U(r"\u632f\u5174\u5e97\u5206\u9500\u5ba2\u6237"), "distribution"),
+            (U(r"\u632f\u5174\u5e97"), U(r"\u632f\u5174\u5e97\u4f1a\u5458\u5ba2\u6237"), "member"),
+            (U(r"\u822a\u82d1\u5e97"), U(r"\u822a\u82d1\u5e97"), "canonical"),
+            (U(r"\u822a\u82d1\u5e97"), U(r"\u822a\u82d1\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
+            (U(r"\u822a\u82d1\u5e97"), U(r"\u822a\u82d1\u5e97\u6279\u53d1\u5ba2\u6237"), "wholesale"),
+            (U(r"\u822a\u82d1\u5e97"), U(r"\u822a\u82d1\u5e97\u5206\u9500\u5ba2\u6237"), "distribution"),
+            (U(r"\u91d1\u6c99\u5e97"), U(r"\u91d1\u6c99\u5e97"), "canonical"),
+            (U(r"\u91d1\u6c99\u5e97"), U(r"\u91d1\u6c99\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
+            (U(r"\u5fae\u5e97"), U(r"\u5fae\u5e97"), "canonical"),
+            (U(r"\u5fae\u5e97"), U(r"\u5fae\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
+            (U(r"\u7f51\u5e97"), U(r"\u7f51\u5e97"), "canonical"),
+            (U(r"\u7f51\u5e97"), U(r"\u7f51\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
+            (U(r"\u5168\u90e8\u5e93\u5b58"), U(r"\u5168\u90e8\u5e93\u5b58"), "canonical"),
+        ]:
+            conn.execute("insert or ignore into store_aliases(canonical_store_name,alias_name,alias_type,source,confidence,status,created_at,updated_at) values(?,?,?,?,?,?,?,?)", (canonical, alias, alias_type, "Sprint008.5 seed", 1.0, "active", seed_now, seed_now))
+        for canonical, alias in [
+            ("Kailas", "Kailas"), ("Kailas", U(r"\u51ef\u4e50\u77f3")),
+            ("Osprey", "Osprey"),
+            ("Mammut", "Mammut"), ("Mammut", U(r"\u731b\u72b8\u8c61")),
+            ("VAFOX", "VAFOX"), ("VAFOX", U(r"\u706b\u72d0\u72f8")),
+            ("VauDe", "VauDe"), ("VauDe", U(r"\u6c83\u5fb7")),
+        ]:
+            conn.execute("insert or ignore into brand_aliases(canonical_brand_name,alias_name,source,confidence,status,created_at,updated_at) values(?,?,?,?,?,?,?)", (canonical, alias, "Sprint008.5 seed", 1.0, "active", seed_now, seed_now))
+        conn.execute("insert or ignore into business_calibration_rules(rule_key,rule_type,rule_name,rule_json,status,created_at,updated_at) values(?,?,?,?,?,?,?)", ("store_alias_canonicalization", "store", "Store alias canonicalization", json.dumps({"source": "store_aliases"}, ensure_ascii=False), "active", seed_now, seed_now))
+        conn.execute("insert or ignore into business_calibration_rules(rule_key,rule_type,rule_name,rule_json,status,created_at,updated_at) values(?,?,?,?,?,?,?)", ("brand_alias_canonicalization", "brand", "Brand alias canonicalization", json.dumps({"source": "brand_aliases"}, ensure_ascii=False), "active", seed_now, seed_now))
         conn.execute(
             """
 create table if not exists knowledge_query_history(
@@ -4381,6 +4480,8 @@ class App(BaseHTTPRequestHandler):
             return self.data_lake_page(user, path)
         if path in ("/object-links", "/object-suggestions"):
             return self.object_match_center(user, path)
+        if path in ("/business-calibration", "/business-calibration/stores", "/business-calibration/brands", "/business-calibration/quality"):
+            return self.business_calibration_page(user, path)
         if path == "/apps":
             return self.apps_launcher(user)
         if path == "/desktop":
@@ -4587,7 +4688,7 @@ class App(BaseHTTPRequestHandler):
             return self.api_owner_os_get(user, path)
         if path.startswith("/api/second-brain"):
             return self.api_second_brain_get(user, path)
-        if path.startswith("/api/data-lake") or path.startswith("/api/object-links") or path.startswith("/api/object-suggestions") or path.startswith("/api/business-metrics"):
+        if path.startswith("/api/data-lake") or path.startswith("/api/object-links") or path.startswith("/api/object-suggestions") or path.startswith("/api/business-metrics") or path.startswith("/api/business-calibration"):
             return self.api_data_lake_get(user, path)
         if path.startswith("/api/search") or path.startswith("/api/timeline"):
             return self.api_search_timeline_get(user, path)
@@ -4765,7 +4866,7 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_post(self.current_user(), path)
         if path.startswith("/api/sap/sync"):
             return self.api_sap_sync_post(self.current_user(), path)
-        if path.startswith("/api/data-lake") or path.startswith("/api/object-suggestions"):
+        if path.startswith("/api/data-lake") or path.startswith("/api/object-suggestions") or path.startswith("/api/business-calibration"):
             return self.api_data_lake_post(self.current_user(), path)
         if path.startswith("/api/command-palette") or path.startswith("/api/approvals") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner"):
             return self.api_os_layer_post(self.current_user(), path)
@@ -5670,8 +5771,16 @@ class App(BaseHTTPRequestHandler):
         text = (value or "").strip()
         replacements = {
             U(r"\u5357\u5c71\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u5357\u5c71\u5e97"),
+            U(r"\u5357\u5c71\u5e97\u6279\u53d1\u5ba2\u6237"): U(r"\u5357\u5c71\u5e97"),
+            U(r"\u5357\u5c71\u5e97\u6279\u53d1\u5ba2\u6237-1"): U(r"\u5357\u5c71\u5e97"),
+            U(r"\u5357\u5c71\u5e97\u5206\u9500\u5ba2\u6237"): U(r"\u5357\u5c71\u5e97"),
             U(r"\u632f\u5174\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u632f\u5174\u5e97"),
+            U(r"\u632f\u5174\u5e97\u6279\u53d1\u5ba2\u6237"): U(r"\u632f\u5174\u5e97"),
+            U(r"\u632f\u5174\u5e97\u5206\u9500\u5ba2\u6237"): U(r"\u632f\u5174\u5e97"),
+            U(r"\u632f\u5174\u5e97\u4f1a\u5458\u5ba2\u6237"): U(r"\u632f\u5174\u5e97"),
             U(r"\u822a\u82d1\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u822a\u82d1\u5e97"),
+            U(r"\u822a\u82d1\u5e97\u6279\u53d1\u5ba2\u6237"): U(r"\u822a\u82d1\u5e97"),
+            U(r"\u822a\u82d1\u5e97\u5206\u9500\u5ba2\u6237"): U(r"\u822a\u82d1\u5e97"),
             U(r"\u91d1\u6c99\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u91d1\u6c99\u5e97"),
             U(r"\u5fae\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u5fae\u5e97"),
             U(r"\u7f51\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u7f51\u5e97"),
@@ -5682,6 +5791,26 @@ class App(BaseHTTPRequestHandler):
             if store in text:
                 return store
         return text
+
+    def store_alias_map(self, conn):
+        rows = conn.execute("select canonical_store_name, alias_name from store_aliases where status='active'").fetchall()
+        return {(r["alias_name"] or "").strip(): (r["canonical_store_name"] or "").strip() for r in rows if (r["alias_name"] or "").strip()}
+
+    def brand_alias_map(self, conn):
+        rows = conn.execute("select canonical_brand_name, alias_name from brand_aliases where status='active'").fetchall()
+        mapping = {}
+        for r in rows:
+            alias = (r["alias_name"] or "").strip()
+            if alias:
+                mapping[alias.lower()] = (r["canonical_brand_name"] or "").strip()
+        return mapping
+
+    def canonical_store_name(self, conn, value):
+        text = self.normalize_store_name(value)
+        if not text:
+            return ""
+        mapping = self.store_alias_map(conn)
+        return mapping.get(text, text)
 
     def infer_brand_name(self, text):
         hay = (text or "").lower()
@@ -5696,6 +5825,37 @@ class App(BaseHTTPRequestHandler):
                 return label
         return ""
 
+    def canonical_brand_name(self, conn, value, product_text=""):
+        text = (value or "").strip() or self.infer_brand_name(product_text)
+        if not text:
+            return ""
+        mapping = self.brand_alias_map(conn)
+        return mapping.get(text.lower(), self.infer_brand_name(text) or text)
+
+    def product_canonical_key(self, normalized):
+        code = str((normalized or {}).get("product_code") or "").strip()
+        barcode = str((normalized or {}).get("barcode") or "").strip()
+        name = re.sub(r"\s+", " ", str((normalized or {}).get("product_name") or "").strip()).lower()
+        if code:
+            return "product_code:" + code
+        if barcode:
+            return "barcode:" + barcode
+        if name:
+            return "product_name:" + name
+        return ""
+
+    def object_canonical_key(self, conn, object_type, object_name, match_key="", evidence=None):
+        evidence = evidence or {}
+        normalized = evidence.get("normalized") if isinstance(evidence, dict) else {}
+        if object_type == "store":
+            return "store:" + self.canonical_store_name(conn, object_name)
+        if object_type == "brand":
+            return "brand:" + self.canonical_brand_name(conn, object_name)
+        if object_type == "product":
+            product_key = self.product_canonical_key(normalized or {})
+            return product_key or ("product:" + re.sub(r"\s+", " ", (object_name or "").strip()).lower())
+        return "{}:{}".format(object_type, re.sub(r"\s+", " ", (object_name or "").strip()).lower())
+
     def find_enterprise_object(self, conn, object_type, name="", code=""):
         if code:
             row = conn.execute("select * from enterprise_objects where object_type=? and archived_at is null and coalesce(code,'')=?", (object_type, code)).fetchone()
@@ -5707,17 +5867,22 @@ class App(BaseHTTPRequestHandler):
                 return row
         return None
 
-    def create_object_suggestion(self, conn, object_type, object_name, source_type, source_id, evidence, confidence=0.7):
+    def create_object_suggestion(self, conn, object_type, object_name, source_type, source_id, evidence, confidence=0.7, canonical_key=""):
         if not object_name:
             return None
         now = ts()
-        existing = conn.execute("select id from business_object_suggestions where object_type=? and object_name=? and source_type=? and source_id=?", (object_type, object_name, source_type, source_id)).fetchone()
+        canonical_key = canonical_key or self.object_canonical_key(conn, object_type, object_name, "", evidence)
+        existing = None
+        if canonical_key:
+            existing = conn.execute("select id from business_object_suggestions where object_type=? and canonical_key=?", (object_type, canonical_key)).fetchone()
+        if not existing and not canonical_key:
+            existing = conn.execute("select id from business_object_suggestions where object_type=? and object_name=? and source_type=? and source_id=?", (object_type, object_name, source_type, source_id)).fetchone()
         if existing:
-            conn.execute("update business_object_suggestions set evidence=?, confidence=?, updated_at=? where id=?", (json.dumps(evidence or {}, ensure_ascii=False), confidence, now, existing["id"]))
+            conn.execute("update business_object_suggestions set object_name=?, canonical_key=?, source_type=?, source_id=?, evidence=?, confidence=?, updated_at=? where id=?", (object_name, canonical_key, source_type, source_id, json.dumps(evidence or {}, ensure_ascii=False), confidence, now, existing["id"]))
             return existing["id"]
         cur = conn.execute(
-            "insert into business_object_suggestions(object_type,object_name,source_type,source_id,evidence,confidence,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
-            (object_type, object_name, source_type, source_id, json.dumps(evidence or {}, ensure_ascii=False), confidence, "pending", now, now),
+            "insert into business_object_suggestions(object_type,object_name,canonical_key,source_type,source_id,evidence,confidence,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+            (object_type, object_name, canonical_key, source_type, source_id, json.dumps(evidence or {}, ensure_ascii=False), confidence, "pending", now, now),
         )
         return cur.lastrowid
 
@@ -5725,6 +5890,11 @@ class App(BaseHTTPRequestHandler):
         if not object_name:
             return
         now = ts()
+        canonical_key = self.object_canonical_key(conn, object_type, object_name, match_key, evidence)
+        if object_type == "store":
+            object_name = canonical_key.replace("store:", "", 1)
+        elif object_type == "brand":
+            object_name = canonical_key.replace("brand:", "", 1)
         obj = self.find_enterprise_object(conn, object_type, object_name, code)
         status = "matched" if obj else "suggested"
         object_id = obj["id"] if obj else None
@@ -5738,7 +5908,8 @@ class App(BaseHTTPRequestHandler):
                 ("data_lake_record", source_id, record_type, record_id, object_type, object_id, match_key, confidence, status, now, now),
             )
         if not obj:
-            self.create_object_suggestion(conn, object_type, object_name, "data_lake_source", source_id, evidence, confidence)
+            suggestion_source_id = int(hashlib.sha1((canonical_key or object_name).encode("utf-8")).hexdigest()[:12], 16) % 2147483647
+            self.create_object_suggestion(conn, object_type, object_name, "data_lake_canonical", suggestion_source_id, evidence, confidence, canonical_key)
 
     def data_lake_normalized_from_row(self, row, record_type):
         data = row_dict(row)
@@ -5811,6 +5982,9 @@ class App(BaseHTTPRequestHandler):
         for record_type, rows in (("sales", conn.execute("select * from sap_sales where batch_id=? order by id", (batch_id,)).fetchall()), ("inventory", conn.execute("select * from sap_inventory where batch_id=? order by id", (batch_id,)).fetchall())):
             for idx, row in enumerate(rows, 1):
                 normalized = self.data_lake_normalized_from_row(row, record_type)
+                normalized["store_name"] = self.canonical_store_name(conn, normalized.get("store_name"))
+                normalized["brand_name"] = self.canonical_brand_name(conn, normalized.get("brand_name"), normalized.get("product_name"))
+                normalized["product_key"] = self.product_canonical_key(normalized)
                 row_hash = self.data_lake_hash({"batch_id": batch_id, "record_type": record_type, "raw_id": row["id"], "raw_data": row["raw_data"], "normalized": normalized})
                 quality_status, quality_message = self.data_lake_quality(normalized, record_type)
                 warnings += 1 if quality_status != "ok" else 0
@@ -5838,10 +6012,11 @@ class App(BaseHTTPRequestHandler):
     def refresh_business_metrics(self, conn):
         now = ts()
         conn.execute("delete from business_metrics_snapshots")
+        conn.execute("delete from business_metric_quality")
         batch_json = json.dumps([r["id"] for r in conn.execute("select id from sap_import_batches order by id").fetchall()], ensure_ascii=False)
         store_sales = {}
         for row in conn.execute("select coalesce(store_name,'') store_name, sum(coalesce(amount,0)) sales_amount, sum(coalesce(gross_profit,0)) gross_profit, sum(coalesce(quantity,0)) quantity from sap_sales group by store_name").fetchall():
-            store = self.normalize_store_name(row["store_name"])
+            store = self.canonical_store_name(conn, row["store_name"])
             bucket = store_sales.setdefault(store, {"sales_amount": 0.0, "gross_profit": 0.0, "quantity": 0.0})
             bucket["sales_amount"] += float(row["sales_amount"] or 0)
             bucket["gross_profit"] += float(row["gross_profit"] or 0)
@@ -5855,7 +6030,8 @@ class App(BaseHTTPRequestHandler):
         for row in conn.execute("select coalesce(brand_name,'') brand_name, sum(coalesce(amount,0)) sales_amount, sum(coalesce(gross_profit,0)) gross_profit from sap_sales group by brand_name").fetchall():
             if not row["brand_name"]:
                 continue
-            bucket = brand_sales.setdefault(row["brand_name"], {"sales_amount": 0.0, "gross_profit": 0.0})
+            brand = self.canonical_brand_name(conn, row["brand_name"])
+            bucket = brand_sales.setdefault(brand, {"sales_amount": 0.0, "gross_profit": 0.0})
             bucket["sales_amount"] += float(row["sales_amount"] or 0)
             bucket["gross_profit"] += float(row["gross_profit"] or 0)
         for brand, bucket in brand_sales.items():
@@ -5865,7 +6041,7 @@ class App(BaseHTTPRequestHandler):
                 conn.execute("insert into business_metrics_snapshots(snapshot_type,brand_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("brand_sales", brand, key, float(value or 0), batch_json, now))
         store_inventory = {}
         for row in conn.execute("select coalesce(store_name,'') store_name, sum(coalesce(quantity,0)) quantity, sum(coalesce(cost_amount,0)) cost_amount, sum(coalesce(retail_amount,0)) retail_amount from sap_inventory group by store_name").fetchall():
-            store = self.normalize_store_name(row["store_name"])
+            store = self.canonical_store_name(conn, row["store_name"])
             bucket = store_inventory.setdefault(store, {"quantity": 0.0, "cost_amount": 0.0, "retail_amount": 0.0})
             bucket["quantity"] += float(row["quantity"] or 0)
             bucket["cost_amount"] += float(row["cost_amount"] or 0)
@@ -5873,6 +6049,11 @@ class App(BaseHTTPRequestHandler):
         for store, bucket in store_inventory.items():
             for key, value in [("inventory_quantity", bucket["quantity"]), ("inventory_cost_amount", bucket["cost_amount"]), ("inventory_retail_amount", bucket["retail_amount"])]:
                 conn.execute("insert into business_metrics_snapshots(snapshot_type,store_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("store_inventory", store, key, float(value or 0), batch_json, now))
+            if bucket["quantity"] and bucket["retail_amount"] and not bucket["cost_amount"]:
+                conn.execute(
+                    "insert into business_metric_quality(metric_key,dimension_type,dimension_value,quality_status,quality_message,source_batch_ids,created_at) values(?,?,?,?,?,?,?)",
+                    ("inventory_cost_amount", "store", store, "warning", U(r"\u5e93\u5b58\u6709\u6570\u91cf\u548c\u96f6\u552e\u91d1\u989d\uff0c\u4f46\u6210\u672c\u91d1\u989d\u4e3a 0\uff0c\u6bdb\u5229\u53e3\u5f84\u9700\u4eba\u5de5\u786e\u8ba4\u3002"), batch_json, now),
+                )
 
     def rebuild_data_lake(self, user=None):
         with db() as conn:
@@ -5894,11 +6075,17 @@ class App(BaseHTTPRequestHandler):
                 "quality_alerts": count("select count(*) c from data_quality_checks where status!='ok'"),
                 "sales_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='sales_amount'").fetchone()["v"] or 0),
                 "gross_profit": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='gross_profit'").fetchone()["v"] or 0),
+                "gross_margin": float(conn.execute("select case when coalesce(sum(case when metric_key='sales_amount' then metric_value else 0 end),0)=0 then 0 else coalesce(sum(case when metric_key='gross_profit' then metric_value else 0 end),0)/sum(case when metric_key='sales_amount' then metric_value else 0 end) end v from business_metrics_snapshots where snapshot_type='store_sales'").fetchone()["v"] or 0),
+                "inventory_cost_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_cost_amount'").fetchone()["v"] or 0),
                 "inventory_retail_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_retail_amount'").fetchone()["v"] or 0),
                 "inventory_quantity": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_quantity'").fetchone()["v"] or 0),
+                "store_aliases": count("select count(*) c from store_aliases where status='active'"),
+                "brand_aliases": count("select count(*) c from brand_aliases where status='active'"),
+                "metric_quality_warnings": count("select count(*) c from business_metric_quality where quality_status!='ok'"),
                 "top_store_sales": [row_dict(r) for r in conn.execute("select store_name, metric_value sales_amount from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='sales_amount' order by metric_value desc limit 8").fetchall()],
                 "top_brand_sales": [row_dict(r) for r in conn.execute("select brand_name, metric_value sales_amount from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount' order by metric_value desc limit 8").fetchall()],
                 "inventory_summary": [row_dict(r) for r in conn.execute("select store_name, metric_key, metric_value from business_metrics_snapshots where snapshot_type='store_inventory' order by store_name, metric_key").fetchall()],
+                "quality_warnings": [row_dict(r) for r in conn.execute("select * from business_metric_quality where quality_status!='ok' order by created_at desc limit 20").fetchall()],
             }
         finally:
             if own:
@@ -6037,6 +6224,18 @@ class App(BaseHTTPRequestHandler):
                 for row in conn.execute("select * from business_metrics_snapshots where coalesce(store_name,'') like ? or coalesce(brand_name,'') like ? or coalesce(product_code,'') like ? or metric_key like ? order by created_at desc limit 50", (like, like, like, like)).fetchall():
                     title = row["metric_key"] + " / " + (row["store_name"] or row["brand_name"] or row["product_code"] or "")
                     results.append({"type": "business_metric", "icon": "MET", "id": row["id"], "title": title, "snippet": str(row["metric_value"]), "source": row["snapshot_type"], "related_object": row["metric_key"], "url": "/data-lake", "score": 0.7, "updated_at": row["created_at"]})
+            if want("store_alias"):
+                for row in conn.execute("select * from store_aliases where canonical_store_name like ? or alias_name like ? or coalesce(alias_type,'') like ? order by canonical_store_name, alias_name limit 50", (like, like, like)).fetchall():
+                    results.append({"type": "store_alias", "icon": "STORE", "id": row["id"], "title": row["alias_name"], "snippet": U(r"\u5f52\u4e00\u5230 ") + row["canonical_store_name"], "source": "store_aliases", "related_object": row["alias_type"] or "", "url": "/business-calibration/stores", "score": 0.82, "updated_at": row["updated_at"]})
+            if want("brand_alias"):
+                for row in conn.execute("select * from brand_aliases where canonical_brand_name like ? or alias_name like ? order by canonical_brand_name, alias_name limit 50", (like, like)).fetchall():
+                    results.append({"type": "brand_alias", "icon": "BRAND", "id": row["id"], "title": row["alias_name"], "snippet": U(r"\u5f52\u4e00\u5230 ") + row["canonical_brand_name"], "source": "brand_aliases", "related_object": "brand", "url": "/business-calibration/brands", "score": 0.82, "updated_at": row["updated_at"]})
+            if want("calibration_rule"):
+                for row in conn.execute("select * from business_calibration_rules where rule_key like ? or rule_type like ? or rule_name like ? or coalesce(rule_json,'') like ? order by updated_at desc limit 50", (like, like, like, like)).fetchall():
+                    results.append({"type": "calibration_rule", "icon": "RULE", "id": row["id"], "title": row["rule_name"], "snippet": self.search_snippet(row["rule_json"], q), "source": row["rule_type"], "related_object": row["status"], "url": "/business-calibration", "score": 0.78, "updated_at": row["updated_at"]})
+            if want("metric_quality"):
+                for row in conn.execute("select * from business_metric_quality where metric_key like ? or coalesce(dimension_value,'') like ? or coalesce(quality_message,'') like ? order by created_at desc limit 50", (like, like, like)).fetchall():
+                    results.append({"type": "metric_quality", "icon": "QA", "id": row["id"], "title": row["metric_key"], "snippet": row["quality_message"] or "", "source": row["quality_status"], "related_object": "{} / {}".format(row["dimension_type"] or "", row["dimension_value"] or ""), "url": "/business-calibration/quality", "score": 0.78, "updated_at": row["created_at"]})
         results.sort(key=lambda item: (item.get("score", 0), item.get("updated_at") or 0), reverse=True)
         return {"ok": True, "query": q, "total": len(results), "results": results[:120], "filters": {"type": result_type, "category": category, "object_type": object_type, "status": status, "date_from": date_from, "date_to": date_to}}
 
@@ -7142,8 +7341,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "quality_alerts": business_metrics["quality_alerts"],
                 "sales_amount": business_metrics["sales_amount"],
                 "gross_profit": business_metrics["gross_profit"],
+                "gross_margin": business_metrics["gross_margin"],
+                "inventory_cost_amount": business_metrics["inventory_cost_amount"],
                 "inventory_retail_amount": business_metrics["inventory_retail_amount"],
                 "inventory_quantity": business_metrics["inventory_quantity"],
+                "store_aliases": business_metrics["store_aliases"],
+                "brand_aliases": business_metrics["brand_aliases"],
+                "metric_quality_warnings": business_metrics["metric_quality_warnings"],
             },
             "business_metrics": business_metrics,
             "recent_documents": recent_documents,
@@ -7158,6 +7362,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": U(r"\u77e5\u8bc6\u4e2d\u5fc3"), "url": "/knowledge", "status": "ready"},
                 {"title": "FoxBrain Data Lake", "url": "/data-lake", "status": "ready"},
                 {"title": "Object Match Center", "url": "/object-links", "status": "ready"},
+                {"title": "Business Calibration", "url": "/business-calibration", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7186,8 +7391,11 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ("Data Lake", summary["data_lake_records"], "records"),
             (U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), "sales"),
             (U(r"\u6bdb\u5229"), money(summary.get("gross_" + "profit", 0)), "gross profit"),
+            (U(r"\u6bdb\u5229\u7387"), "{:.1%}".format(summary["gross_margin"]), "calibrated"),
             (U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["inventory_retail_amount"]), "inventory"),
+            (U(r"\u5e93\u5b58\u6210\u672c"), money(summary["inventory_cost_amount"]), "cost basis"),
             (U(r"\u5bf9\u8c61\u5efa\u8bae"), summary["suggested_objects"], "match center"),
+            (U(r"\u6821\u51c6\u63d0\u9192"), summary["metric_quality_warnings"], "business calibration"),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7224,7 +7432,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         ] or [U(r"\u6682\u65e0\u54c1\u724c\u9500\u552e\u6392\u884c\u3002")])
         business_alerts = self.bullets([
             U(r"\u6570\u636e\u8d28\u91cf\u544a\u8b66\uff1a") + str(summary["quality_alerts"]),
+            U(r"\u7ecf\u8425\u6307\u6807\u53e3\u5f84\u63d0\u9192\uff1a") + str(summary["metric_quality_warnings"]),
             U(r"\u5f85\u786e\u8ba4\u5bf9\u8c61\u5efa\u8bae\uff1a") + str(summary["suggested_objects"]),
+            U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u672c\u5c42\u4ec5\u5904\u7406\u5df2\u4e0a\u4f20 SAP \u5bfc\u51fa\u6587\u4ef6\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\u3002"),
         ])
         status_html = "".join(
@@ -7325,7 +7535,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         date_from = query.get("date_from", [""])[0].strip()
         date_to = query.get("date_to", [""])[0].strip()
         payload = self.global_search_results(user, q, result_type, category, object_type, status, date_from, date_to)
-        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6")), ("data_lake_source", "Data Lake Source"), ("data_lake_record", "Data Lake Record"), ("object_link", "Object Link"), ("object_suggestion", "Object Suggestion"), ("business_metric", "Business Metric")])
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6")), ("data_lake_source", "Data Lake Source"), ("data_lake_record", "Data Lake Record"), ("object_link", "Object Link"), ("object_suggestion", "Object Suggestion"), ("business_metric", "Business Metric"), ("store_alias", "Store Alias"), ("brand_alias", "Brand Alias"), ("calibration_rule", "Calibration Rule"), ("metric_quality", "Metric Quality")])
         object_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"])) for item in self.object_types())
         cards = "".join(
             "<div class='card'><div><h2>{} {}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
@@ -12361,8 +12571,10 @@ where ki.deleted_at is null"""
             self.metric("Data Lake Records", summary["data_lake_records"], "raw rows"),
             self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), "sap_sales"),
             self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), "gross_profit"),
+            self.metric(U(r"\u6bdb\u5229\u7387"), "{:.1%}".format(summary["gross_margin"]), "calibrated"),
             self.metric(U(r"\u5e93\u5b58\u6570\u91cf"), money(summary["inventory_quantity"]), "inventory"),
             self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["inventory_retail_amount"]), "retail"),
+            self.metric(U(r"\u6821\u51c6\u63d0\u9192"), summary["metric_quality_warnings"], "quality"),
         ])
         source_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], esc(r["filename"] or r["source_name"] or ""), r["batch_id"], r["row_count"], esc(dt(r["updated_at"]))) for r in sources) or "<tr><td colspan='5'>No sources yet.</td></tr>"
         record_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], esc(r["record_type"]), r["batch_id"], esc(r["quality_status"]), esc(r["quality_message"] or "")) for r in records) or "<tr><td colspan='5'>No records yet.</td></tr>"
@@ -12379,7 +12591,7 @@ where ki.deleted_at is null"""
   <div class="panel"><h2>{}</h2>{}</div>
 </div>
 <div class="panel"><h2>{}</h2><table><thead><tr><th>ID</th><th>Type</th><th>Batch</th><th>Quality</th><th>Message</th></tr></thead><tbody>{}</tbody></table></div>
-<div class="panel"><p><a class="btn" href="/object-links">Object Match Center</a> <a class="btn" href="/api/business-metrics/summary">Metrics API</a></p></div>
+<div class="panel"><p><a class="btn" href="/object-links">Object Match Center</a> <a class="btn" href="/business-calibration">Business Calibration</a> <a class="btn" href="/api/business-metrics/summary">Metrics API</a></p></div>
 """.format(
             U(r"\u4ec5\u5904\u7406\u5df2\u4e0a\u4f20\u7684 SAP \u5bfc\u51fa\u6587\u4ef6\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\u3002"),
             U(r"\u91cd\u5efa Data Lake"),
@@ -12427,6 +12639,64 @@ where ki.deleted_at is null"""
             suggestion_rows,
         )
         self.out(layout("Object Match Center", body, user=user, wide=True))
+
+    def business_calibration_page(self, user, path="/business-calibration"):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        with db() as conn:
+            summary = self.business_metrics_summary(conn)
+            store_aliases = conn.execute("select * from store_aliases where status='active' order by canonical_store_name, alias_name").fetchall()
+            brand_aliases = conn.execute("select * from brand_aliases where status='active' order by canonical_brand_name, alias_name").fetchall()
+            quality = conn.execute("select * from business_metric_quality order by created_at desc limit 80").fetchall()
+            rules = conn.execute("select * from business_calibration_rules order by rule_type, rule_key").fetchall()
+        metrics = "".join([
+            self.metric(U(r"\u95e8\u5e97\u522b\u540d"), summary["store_aliases"], U(r"\u5df2\u751f\u6548")),
+            self.metric(U(r"\u54c1\u724c\u522b\u540d"), summary["brand_aliases"], U(r"\u5df2\u751f\u6548")),
+            self.metric(U(r"\u5bf9\u8c61\u5efa\u8bae"), summary["suggested_objects"], U(r"\u5df2\u6309\u6807\u51c6\u952e\u53bb\u91cd")),
+            self.metric(U(r"\u6307\u6807\u8d28\u91cf\u63d0\u9192"), summary["metric_quality_warnings"], U(r"\u9700\u590d\u6838")),
+        ])
+        store_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(r["canonical_store_name"]), esc(r["alias_name"]), esc(r["alias_type"] or ""), esc(str(r["confidence"]))) for r in store_aliases) or "<tr><td colspan='4'>No store aliases.</td></tr>"
+        brand_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(r["canonical_brand_name"]), esc(r["alias_name"]), esc(str(r["confidence"]))) for r in brand_aliases) or "<tr><td colspan='3'>No brand aliases.</td></tr>"
+        quality_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(r["metric_key"]), esc(r["dimension_type"] or ""), esc(r["dimension_value"] or ""), esc(r["quality_message"] or "")) for r in quality) or "<tr><td colspan='4'>No quality warnings.</td></tr>"
+        rule_items = self.bullets(["{} / {} / {}".format(esc(r["rule_type"]), esc(r["rule_key"]), esc(r["status"])) for r in rules] or [U(r"\u6682\u65e0\u89c4\u5219\u3002")])
+        body = """
+<div class="panel">
+  <h2>Sprint008.5 Business Calibration</h2>
+  <p class="small">{}</p>
+  <form method="post" action="/api/business-calibration/rebuild"><button>{}</button></form>
+</div>
+<div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>Confidence</th></tr></thead><tbody>{}</tbody></table></div>
+  <div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>Confidence</th></tr></thead><tbody>{}</tbody></table></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2><table><thead><tr><th>Metric</th><th>Type</th><th>Value</th><th>Message</th></tr></thead><tbody>{}</tbody></table></div>
+</div>
+""".format(
+            U(r"\u4ec5\u5728 FoxBrain Data Lake \u548c\u7ecf\u8425\u6307\u6807\u5c42\u6821\u51c6\uff0c\u4e0d\u8fde\u63a5\u6216\u4fee\u6539\u751f\u4ea7 SAP\u3002"),
+            U(r"\u91cd\u5efa\u6821\u51c6\u6307\u6807"),
+            U(r"\u6821\u51c6\u6458\u8981"),
+            metrics,
+            U(r"\u95e8\u5e97\u5f52\u4e00"),
+            U(r"\u6807\u51c6\u95e8\u5e97"),
+            U(r"\u522b\u540d"),
+            U(r"\u7c7b\u578b"),
+            store_rows,
+            U(r"\u54c1\u724c\u5f52\u4e00"),
+            U(r"\u6807\u51c6\u54c1\u724c"),
+            U(r"\u522b\u540d"),
+            brand_rows,
+            U(r"\u6821\u51c6\u89c4\u5219"),
+            rule_items,
+            U(r"\u6307\u6807\u8d28\u91cf"),
+            quality_rows,
+        )
+        self.out(layout("Business Calibration", body, user=user, wide=True))
 
     def api_sap_sync_get(self, user, path):
         if not user:
@@ -12480,6 +12750,20 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": True, "suggestions": [row_dict(r) for r in rows]})
         if path == "/api/business-metrics/summary":
             return self.json_out({"ok": True, "summary": self.business_metrics_summary()})
+        if path == "/api/business-calibration/summary":
+            return self.json_out({"ok": True, "summary": self.business_metrics_summary(), "safety": "file_import_only_no_production_sap_connection"})
+        if path == "/api/business-calibration/store-aliases":
+            with db() as conn:
+                rows = conn.execute("select * from store_aliases order by canonical_store_name, alias_name").fetchall()
+            return self.json_out({"ok": True, "store_aliases": [row_dict(r) for r in rows]})
+        if path == "/api/business-calibration/brand-aliases":
+            with db() as conn:
+                rows = conn.execute("select * from brand_aliases order by canonical_brand_name, alias_name").fetchall()
+            return self.json_out({"ok": True, "brand_aliases": [row_dict(r) for r in rows]})
+        if path == "/api/business-calibration/quality":
+            with db() as conn:
+                rows = conn.execute("select * from business_metric_quality order by created_at desc limit 300").fetchall()
+            return self.json_out({"ok": True, "quality": [row_dict(r) for r in rows]})
         return self.json_out({"ok": False, "message": "unknown data lake api"}, code=404)
 
     def api_data_lake_post(self, user, path):
@@ -12491,6 +12775,11 @@ where ki.deleted_at is null"""
             payload = self.rebuild_data_lake(user)
             if "text/html" in (self.headers.get("Accept") or ""):
                 return self.redir("/data-lake")
+            return self.json_out(payload)
+        if path == "/api/business-calibration/rebuild":
+            payload = self.rebuild_data_lake(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/business-calibration")
             return self.json_out(payload)
         m_approve = re.match(r"^/api/object-suggestions/(\d+)/approve$", path)
         if m_approve:
