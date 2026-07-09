@@ -194,6 +194,17 @@ from .enterprise_second_brain import (
     SECOND_BRAIN_ROADMAP,
     build_enterprise_second_brain_contract,
 )
+from .enterprise_second_brain_v11 import (
+    CEO_HOME_V11_SECTIONS,
+    DRIVE_2_DOMAINS,
+    KNOWLEDGE_PIPELINE_STAGES,
+    OBJECT_ENGINE_MODELS,
+    build_ceo_home_v11_contract,
+    build_drive_2_contract,
+    build_enterprise_second_brain_v11_contract,
+    build_knowledge_pipeline_contract,
+    build_object_engine_contract,
+)
 
 __all__ = [
     "ENTERPRISE_MODULES",
@@ -352,4 +363,13 @@ __all__ = [
     "SECOND_BRAIN_PRINCIPLES",
     "SECOND_BRAIN_ROADMAP",
     "build_enterprise_second_brain_contract",
+    "CEO_HOME_V11_SECTIONS",
+    "DRIVE_2_DOMAINS",
+    "KNOWLEDGE_PIPELINE_STAGES",
+    "OBJECT_ENGINE_MODELS",
+    "build_ceo_home_v11_contract",
+    "build_drive_2_contract",
+    "build_enterprise_second_brain_v11_contract",
+    "build_knowledge_pipeline_contract",
+    "build_object_engine_contract",
 ]

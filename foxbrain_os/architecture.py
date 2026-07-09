@@ -71,6 +71,7 @@ ENTERPRISE_MODULES = (
     EnterpriseModule("owner_enterprise_planning", "Owner OS and Enterprise OS Boundary Planning", "platform", "platform", "owner_private_data_enterprise_operations_sync_policy", "/api/owner-enterprise", "/owner-enterprise-plan", "high", True, "service_contract_ready"),
     EnterpriseModule("owner_os_foundation", "FoxBrain Owner OS V1 Foundation", "platform", "product", "owner_second_brain_master_blueprint", "/api/owner-os", "/", "high", True, "service_contract_ready"),
     EnterpriseModule("enterprise_second_brain", "FoxBrain Enterprise Second Brain V1.0", "platform", "product", "product_specification_baseline", "/api/second-brain", "/second-brain", "high", True, "service_contract_ready"),
+    EnterpriseModule("enterprise_second_brain_v11", "FoxBrain Enterprise Second Brain V1.1", "platform", "product", "drive_object_pipeline_ceo_home_baseline", "/api/second-brain/v1.1", "/ceo-home", "high", True, "service_contract_ready"),
     EnterpriseModule("approvals", "Approval Center", "governance", "operations", "approvals", "/api/approvals", "/approvals", "high", True, "legacy_in_portal"),
     EnterpriseModule("brain", "Enterprise Digital Brain", "ai", "strategy", "enterprise_digital_brain_recommendations", "/api/digital-brain", "/digital-brain", "high", True, "service_contract_ready"),
     EnterpriseModule("platform", "Enterprise AI Platform", "platform", "platform", "platform_plugins", "/api/enterprise-ai-platform", "/enterprise-ai-platform", "high", True, "service_contract_ready"),

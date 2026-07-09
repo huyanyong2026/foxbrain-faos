@@ -86,6 +86,15 @@
 - Keep high-risk AI actions approval-gated, explainable, traceable and auditable.
 - Use `/second-brain` and `/api/second-brain` as the protected product baseline surface.
 
+## FoxBrain Enterprise Second Brain V1.1 Direction
+
+- Upgrade FoxBrain Drive into Drive 2.0: Enterprise Knowledge Drive.
+- Build Object Engine so company, store, brand, product, customer, document and memory share a canonical object model.
+- Build Knowledge Pipeline: Document -> OCR -> Chunk -> Embedding -> Vector DB -> Graph -> AI Summary -> Knowledge Object -> Agent.
+- Rework the root dashboard contract as CEO Home while keeping the visible home page to ten entries only.
+- Add `/drive`, `/objects`, `/knowledge-pipeline` and `/ceo-home` as click-through details.
+- Keep SAP as system of record and require review for sensitive AI summaries and high-risk operations.
+
 ## FoxBrain OS Enterprise V1.1 Direction
 
 - Integrate AI Knowledge Brain into the existing Enterprise V1.0 architecture.

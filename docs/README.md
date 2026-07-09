@@ -189,6 +189,7 @@ This directory is the long-term documentation system for FoxBrain V4.
 - [Task090 FoxBrain Owner OS V1 Foundation](CODEX_TASKS/Task090_FoxBrain_Owner_OS_V1_Foundation.md)
 - [Task091 FoxBrain Owner OS V1.0 Master Blueprint](CODEX_TASKS/Task091_FoxBrain_Owner_OS_V1_0_Master_Blueprint.md)
 - [Task092 FoxBrain Enterprise Second Brain V1.0](CODEX_TASKS/Task092_FoxBrain_Enterprise_Second_Brain_V1_0.md)
+- [Task093 FoxBrain Enterprise Second Brain V1.1](CODEX_TASKS/Task093_FoxBrain_Enterprise_Second_Brain_V1_1.md)
 
 Future tasks should use folders:
 

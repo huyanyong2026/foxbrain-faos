@@ -721,7 +721,7 @@ def test_foxbrain_os_6_homepage_minimal_entry_layer():
 def test_homepage_business_radar_is_independent_section():
     portal = read("portal_v2.py")
     final_dashboard_start = portal.rindex("    def dashboard(self, user):")
-    final_dashboard_end = portal.index("    def business_radar_payload(self, user):", final_dashboard_start)
+    final_dashboard_end = portal.index("    def os_layer_cards(self, items):", final_dashboard_start)
     final_dashboard = portal[final_dashboard_start:final_dashboard_end]
     assert "/business-radar" not in final_dashboard
     assert "self.cockpit_data()" not in final_dashboard
@@ -2558,5 +2558,88 @@ def test_foxbrain_enterprise_second_brain_docs_present():
         "Product Constitution",
         "SAP Business One remains",
         "high-risk AI actions",
+    ]:
+        assert phrase in combined
+
+
+def test_foxbrain_enterprise_second_brain_v11_module_present():
+    module = read("foxbrain_os/enterprise_second_brain_v11.py")
+    init_file = read("foxbrain_os/__init__.py")
+    architecture = read("foxbrain_os/architecture.py")
+    portal = read("portal_v2.py")
+    for phrase in [
+        "FoxBrain Enterprise Second Brain V1.1",
+        "DRIVE_2_DOMAINS",
+        "OBJECT_ENGINE_MODELS",
+        "KNOWLEDGE_PIPELINE_STAGES",
+        "CEO_HOME_V11_SECTIONS",
+        "build_drive_2_contract",
+        "build_object_engine_contract",
+        "build_knowledge_pipeline_contract",
+        "build_ceo_home_v11_contract",
+        "Enterprise Knowledge Drive",
+    ]:
+        assert phrase in module
+    assert "build_enterprise_second_brain_v11_contract" in init_file
+    assert "enterprise_second_brain_v11" in architecture
+    for phrase in [
+        "/drive",
+        "/objects",
+        "/knowledge-pipeline",
+        "/ceo-home",
+        "/api/drive/v2",
+        "/api/object-engine",
+        "/api/knowledge-pipeline",
+        "/api/ceo-home",
+        "drive_2_page",
+        "object_engine_page",
+        "knowledge_pipeline_page",
+        "ceo_home_v11_page",
+        "FoxBrain CEO Home",
+        "root_home_keeps_ten_entries_only_details_after_click",
+    ]:
+        assert phrase in portal
+
+
+def test_foxbrain_enterprise_second_brain_v11_imports():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("foxbrain_second_brain_v11", ROOT / "foxbrain_os" / "enterprise_second_brain_v11.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    contract = module.build_enterprise_second_brain_v11_contract()
+    assert contract["ok"] is True
+    assert contract["version"] == "FoxBrain Enterprise Second Brain V1.1"
+    assert "Drive 2.0" in contract["focus"]
+    assert contract["drive_2"]["positioning"] == "Enterprise Knowledge Drive"
+    assert len(contract["drive_2"]["domains"]) == 5
+    assert len(contract["object_engine"]["models"]) >= 7
+    assert contract["knowledge_pipeline"]["flow"] == ["Document", "OCR", "Chunk", "Embedding", "Vector DB", "Graph", "AI Summary", "Knowledge Object", "Agent"]
+    assert contract["ceo_home"]["homepage_policy"] == "root_home_keeps_ten_entries_only_details_after_click"
+    assert contract["guardrails"]["sap_remains_system_of_record"] is True
+    assert contract["guardrails"]["high_risk_actions_require_human_approval"] is True
+
+
+def test_foxbrain_enterprise_second_brain_v11_docs_present():
+    docs = [
+        "docs/882_FOXBRAIN_ENTERPRISE_SECOND_BRAIN_V1_1.md",
+        "docs/883_FOXBRAIN_ENTERPRISE_SECOND_BRAIN_V1_1_STAGE_RESULT.md",
+        "docs/CODEX_TASKS/Task093_FoxBrain_Enterprise_Second_Brain_V1_1.md",
+    ]
+    for path in docs:
+        assert (ROOT / path).exists()
+    combined = "\n".join(read(doc) for doc in docs)
+    for phrase in [
+        "FoxBrain Enterprise Second Brain V1.1",
+        "Drive 2.0",
+        "Object Engine",
+        "Knowledge Pipeline",
+        "CEO Home",
+        "Document",
+        "OCR",
+        "Embedding",
+        "Vector DB",
+        "Knowledge Object",
+        "SAP remains the system of record",
     ]:
         assert phrase in combined

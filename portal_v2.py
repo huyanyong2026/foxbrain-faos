@@ -46,6 +46,7 @@ try:
     from foxbrain_os.owner_enterprise_planning import build_owner_enterprise_planning_contract, build_sync_policy, classify_data_domain
     from foxbrain_os.owner_os_foundation import build_master_blueprint_contract, build_owner_home_contract, build_owner_os_foundation_contract
     from foxbrain_os.enterprise_second_brain import build_enterprise_second_brain_contract
+    from foxbrain_os.enterprise_second_brain_v11 import build_ceo_home_v11_contract, build_drive_2_contract, build_enterprise_second_brain_v11_contract, build_knowledge_pipeline_contract, build_object_engine_contract
 except Exception:
     def enterprise_v1_architecture_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
@@ -219,6 +220,16 @@ except Exception:
         return {"ok": False, "documents": []}
     def build_enterprise_second_brain_contract():
         return {"ok": False, "version": "FoxBrain Enterprise Second Brain V1.0", "product_spec_books": [], "engines": []}
+    def build_enterprise_second_brain_v11_contract():
+        return {"ok": False, "version": "FoxBrain Enterprise Second Brain V1.1"}
+    def build_drive_2_contract():
+        return {"ok": False, "version": "FoxBrain Drive 2.0", "domains": []}
+    def build_object_engine_contract():
+        return {"ok": False, "version": "Object Engine V1.1", "models": []}
+    def build_knowledge_pipeline_contract():
+        return {"ok": False, "version": "Knowledge Pipeline V1.1", "pipeline": []}
+    def build_ceo_home_v11_contract():
+        return {"ok": False, "version": "CEO Home V1.1", "sections": []}
 
 
 APP_DIR = os.environ.get("APP_DIR", "/opt/firefox-portal")
@@ -4065,6 +4076,14 @@ class App(BaseHTTPRequestHandler):
             return self.owner_enterprise_plan(user)
         if path == "/second-brain":
             return self.enterprise_second_brain_page(user)
+        if path == "/drive":
+            return self.drive_2_page(user)
+        if path == "/objects":
+            return self.object_engine_page(user)
+        if path == "/knowledge-pipeline":
+            return self.knowledge_pipeline_page(user)
+        if path == "/ceo-home":
+            return self.ceo_home_v11_page(user)
         if path.startswith("/owner/"):
             return self.owner_os_center_page(user, path)
         if path == "/business-radar":
@@ -4211,6 +4230,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_owner_os_get(user, path)
         if path.startswith("/api/second-brain"):
             return self.api_second_brain_get(user, path)
+        if path.startswith(("/api/drive", "/api/object-engine", "/api/knowledge-pipeline", "/api/ceo-home")):
+            return self.api_second_brain_v11_get(user, path)
         if path.startswith(("/api/ai-business-center", "/api/decision/today", "/api/forecast/sales", "/api/inventory/risk", "/api/purchase/recommend", "/api/profit/analysis", "/api/risk/list", "/api/business-memory")):
             return self.api_ai_business_center_get(user, path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
@@ -5876,6 +5897,7 @@ class App(BaseHTTPRequestHandler):
     def dashboard(self, user):
         role = user["role"]
         owner_roles = ("boss", "admin", "finance")
+        ceo_home = build_ceo_home_v11_contract()
         minimal_links = [
             (U(r"\u4f01\u4e1a"), "/owner/enterprise", role in owner_roles),
             (U(r"\u8d44\u4ea7"), "/owner/assets", role in owner_roles),
@@ -5893,7 +5915,10 @@ class App(BaseHTTPRequestHandler):
             for label, href, allowed in minimal_links
             if allowed
         )
-        body = '<div class="panel"><h2>FoxBrain OS</h2><div class="grid">{}</div></div>'.format(buttons)
+        body = '<div class="panel" data-home-contract="{}"><h2>FoxBrain CEO Home</h2><div class="grid">{}</div></div>'.format(
+            esc(ceo_home.get("homepage_policy", "root_home_keeps_ten_entries_only_details_after_click")),
+            buttons,
+        )
         return self.out(layout(T["brand"], body, user=user, wide=False))
 
     def os_layer_cards(self, items):
@@ -6213,6 +6238,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         if not self.can_open(user, ("boss", "admin", "finance")):
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path.startswith("/api/second-brain/v1.1"):
+            return self.api_second_brain_v11_get(user, path)
         contract = build_enterprise_second_brain_contract()
         if path in ("/api/second-brain", "/api/second-brain/v1", "/api/second-brain/specification"):
             return self.json_out(contract)
@@ -6225,6 +6252,142 @@ class App(BaseHTTPRequestHandler):
         if path == "/api/second-brain/firefox-route":
             return self.json_out({"ok": True, "firefox_landing_route": contract.get("firefox_landing_route", {})})
         return self.json_out({"ok": False, "message": "unknown second brain api"}, code=404)
+
+    def drive_2_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        contract = build_drive_2_contract()
+        cards = "".join(
+            self.card(
+                item.get("name", ""),
+                item.get("purpose", ""),
+                "#",
+                "btn",
+                True,
+            )
+            for item in contract.get("domains", [])
+        )
+        body = """
+<div class="panel">
+  <h2>FoxBrain Drive 2.0</h2>
+  <p class="small">Enterprise Knowledge Drive</p>
+  <p><a class="btn dark" href="/api/drive/v2">API</a> <a class="btn" href="/knowledge-pipeline">{}</a></p>
+</div>
+<div class="grid">{}</div>""".format(U(r"\u77e5\u8bc6\u6d41\u6c34\u7ebf"), cards)
+        self.out(layout("FoxBrain Drive 2.0", body, user=user, wide=True))
+
+    def object_engine_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        contract = build_object_engine_contract()
+        cards = "".join(
+            self.card(
+                item.get("name", ""),
+                "sources: " + ", ".join(item.get("primary_sources", [])) + " / relationships: " + ", ".join(item.get("relationships", [])[:4]),
+                "#",
+                "btn",
+                True,
+            )
+            for item in contract.get("models", [])
+        )
+        body = """
+<div class="panel">
+  <h2>Object Engine</h2>
+  <p class="small">{}</p>
+  <p><a class="btn dark" href="/api/object-engine">API</a> <a class="btn" href="/drive">{}</a></p>
+</div>
+<div class="grid">{}</div>""".format(
+            esc(contract.get("canonical_rule", "")),
+            "Drive 2.0",
+            cards,
+        )
+        self.out(layout("Object Engine", body, user=user, wide=True))
+
+    def knowledge_pipeline_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        contract = build_knowledge_pipeline_contract()
+        cards = "".join(
+            self.card(
+                item.get("name", ""),
+                item.get("input_type", "") + " -> " + item.get("output_type", "") + " / " + item.get("audit_requirement", ""),
+                "#",
+                "btn",
+                True,
+            )
+            for item in contract.get("pipeline", [])
+        )
+        body = """
+<div class="panel">
+  <h2>Knowledge Pipeline</h2>
+  <p class="small">Document -> OCR -> Chunk -> Embedding -> Vector DB -> Graph -> AI Summary -> Knowledge Object -> Agent</p>
+  <p><a class="btn dark" href="/api/knowledge-pipeline">API</a> <a class="btn" href="/objects">Object Engine</a></p>
+</div>
+<div class="grid">{}</div>""".format(cards)
+        self.out(layout("Knowledge Pipeline", body, user=user, wide=True))
+
+    def ceo_home_v11_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance")):
+            return self.dashboard(user)
+        contract = build_ceo_home_v11_contract()
+        summary = load_summary()
+        metrics = "".join(
+            [
+                self.metric(U(r"\u6628\u65e5\u9500\u552e"), U(r"\uffe5") + money(summary.get("yesterday_sales")), U(r"\u6570\u636e\u65e5\u671f ") + esc(summary.get("data_date"))),
+                self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(summary.get("month_sales")), U(r"\u5b8c\u6210\u7387 ") + pct(summary.get("completion_rate"))),
+                self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), money(summary.get("risk_count")), U(r"\u5e93\u5b58 ") + U(r"\uffe5") + money(summary.get("inventory_amount"))),
+            ]
+        )
+        sections = [
+            item.get("name", "") + ": " + ", ".join(item.get("signals", []))
+            for item in contract.get("sections", [])
+        ]
+        body = """
+<div class="panel">
+  <h2>CEO Home V1.1</h2>
+  <div class="metrics">{}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="panel"><p><a class="btn dark" href="/api/ceo-home">API</a> <a class="btn" href="/drive">Drive 2.0</a> <a class="btn" href="/knowledge-pipeline">Knowledge Pipeline</a></p></div>""".format(
+            metrics,
+            U(r"\u9996\u9875\u7b56\u7565"),
+            self.bullets([contract.get("homepage_policy", "")]),
+            U(r"\u4fe1\u53f7\u5206\u533a"),
+            self.bullets(sections),
+        )
+        self.out(layout("CEO Home V1.1", body, user=user, wide=True))
+
+    def api_second_brain_v11_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path in ("/api/second-brain/v1.1", "/api/second-brain/v1.1/specification"):
+            return self.json_out(build_enterprise_second_brain_v11_contract())
+        if path in ("/api/drive", "/api/drive/v2"):
+            return self.json_out(build_drive_2_contract())
+        if path == "/api/object-engine":
+            return self.json_out(build_object_engine_contract())
+        if path == "/api/knowledge-pipeline":
+            return self.json_out(build_knowledge_pipeline_contract())
+        if path == "/api/ceo-home":
+            return self.json_out(build_ceo_home_v11_contract())
+        return self.json_out({"ok": False, "message": "unknown second brain v1.1 api"}, code=404)
 
     def business_radar_payload(self, user):
         data = self.cockpit_data()
