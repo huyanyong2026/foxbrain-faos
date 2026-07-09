@@ -1,0 +1,74 @@
+# 21 Osprey Pricing Risk / Osprey 价格风险专题
+
+## 目标
+
+建立 Osprey 价格风险专题页，帮助老板分析低折扣销售、返点不确定、库存提货和渠道稳定性带来的经营风险。
+
+## 页面
+
+- `/brands/osprey-risk`
+- `GET /api/brands/osprey-risk`
+- `POST /api/brands/osprey-risk/calculate`
+
+## 重要原则
+
+本专题是结构化分析模板，不把用户输入或市场观察自动声明为系统事实。所有结论都需要结合 SAP B1、真实销售、库存、合同和管理层判断。
+
+## 分析结构
+
+- 当前问题
+- 市场价格观察
+- 当前策略
+- 59 折长期销售风险
+- 60 / 62 / 65 折对比模型
+- 返点依赖风险
+- 库存提货风险
+- AI 建议
+- 决策记录
+- 相关文件
+- 相关研究
+- 相关库存
+- 相关销售
+
+## 试算器字段
+
+- 成本折扣
+- 销售折扣
+- 返点比率
+- 库存金额
+- 预计销售额
+- 固定费用分摊
+
+## 后续升级
+
+- 接入 Osprey 销售历史
+- 接入库存结构
+- 接入合同和返点条款
+- 接入 Research Engine 市场价格观察
+- 输出多策略毛利和现金流对比
+
+## Task015 Brand Growth Integration
+
+Osprey pricing risk is now linked to the Brand Growth Engine.
+
+The discount calculator remains a scenario tool only. It must not become a final pricing conclusion without reviewed cost, rebate, inventory, sales and supplier context.
+
+## Task016 Inventory Decision Integration
+
+Osprey now has a dedicated inventory decision entry:
+
+- `/brands/osprey-inventory-decision`
+- `GET /api/inventory-decision/osprey`
+
+The page connects Osprey pricing, rebate, future order and inventory cash pressure into one review surface. It remains a decision-support view and must not be treated as an automatic order or markdown instruction.
+
+## Task017 Finance Integration
+
+Osprey pricing risk now connects to the Finance Profit Engine through:
+
+- Rebate analysis
+- Discount impact calculation
+- Break-even calculation
+- Osprey profit risk report placeholder
+
+The 59 discount scenario remains an input-driven calculator. It must not produce a final conclusion without real cost, sales, rebate and expense evidence.

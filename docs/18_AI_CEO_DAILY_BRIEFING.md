@@ -1,0 +1,47 @@
+# 18 AI CEO Daily Briefing / AI 总经理日报
+
+## 目标
+
+老板每天打开 FoxBrain 后，第一眼看到今天最重要的经营摘要、风险提醒和待处理事项。
+
+## 页面
+
+- `/ai-ceo`
+- `GET /api/ai-ceo/daily-briefing`
+
+## 内容结构
+
+- 今日经营摘要
+- 今日风险提醒
+- 今日重点任务
+- 门店异常
+- 品牌异常
+- 库存异常
+- 现金流提示
+- 外部研究提醒
+- AI 建议
+- 待处理事项
+
+## 数据原则
+
+没有 SAP B1 或真实业务数据时，只显示等待同步的空状态，不编造销售、毛利、库存和现金流结论。
+
+## 后续升级
+
+- 接入 n8n 在每日 22:00 SAP 同步后生成晨报
+- 接入 Dify 生成自然语言建议
+- 结合 Research Engine 输出外部市场提醒
+- 将 AI 建议一键转任务
+
+## Task011 Reporting Engine
+
+The AI CEO Daily Briefing can be reused as the default data source and structure for the CEO Daily Report template.
+
+Daily report drafts still require human review before becoming official.
+## Task021 SAP Freshness Rule
+
+AI CEO should reference SAP sync status.
+
+- Fresh data: say analysis is based on latest SAP sync.
+- Stale or outdated data: show warning and avoid strong conclusions.
+- No data: show clean empty state.
