@@ -1079,6 +1079,25 @@ create table if not exists documents(
 )
 """
         )
+        for col, ddl in [
+            ("filename", "filename text"),
+            ("original_filename", "original_filename text"),
+            ("storage_path", "storage_path text"),
+            ("mime_type", "mime_type text"),
+            ("extension", "extension text"),
+            ("size_bytes", "size_bytes integer not null default 0"),
+            ("category", "category text not null default '未分类文件库'"),
+            ("processing_status", "processing_status text not null default 'pending'"),
+            ("ai_summary", "ai_summary text"),
+            ("extracted_text", "extracted_text text"),
+            ("extracted_text_path", "extracted_text_path text"),
+            ("related_object_type", "related_object_type text"),
+            ("related_object_id", "related_object_id integer"),
+            ("version", "version integer not null default 1"),
+            ("created_by", "created_by integer"),
+            ("deleted_at", "deleted_at integer"),
+        ]:
+            ensure_column(conn, "documents", col, ddl)
         conn.execute(
             """
 create table if not exists ai_query_logs(
@@ -1100,6 +1119,9 @@ create table if not exists ai_query_logs(
             "create index if not exists idx_datahub_inventory_store_product on inventory(store_id, product_id)",
             "create index if not exists idx_datahub_sales_orders_time on sales_orders(order_time)",
             "create index if not exists idx_datahub_documents_related on documents(related_type, related_id)",
+            "create index if not exists idx_documents_category_status on documents(category, processing_status)",
+            "create index if not exists idx_documents_created on documents(created_at)",
+            "create index if not exists idx_documents_related_object on documents(related_object_type, related_object_id)",
             "create index if not exists idx_datahub_ai_query_user on ai_query_logs(user_id, created_at)",
         ]:
             conn.execute(idx)
@@ -4084,6 +4106,8 @@ class App(BaseHTTPRequestHandler):
             return self.knowledge_pipeline_page(user)
         if path == "/ceo-home":
             return self.ceo_home_v11_page(user)
+        if path == "/owner/knowledge":
+            return self.owner_os_center_page(user, path)
         if path.startswith("/owner/"):
             return self.owner_os_center_page(user, path)
         if path == "/business-radar":
@@ -4404,6 +4428,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_os_layer_post(self.current_user(), path)
         if path.startswith(("/api/workflow-automation", "/api/workflow/")):
             return self.api_workflow_automation_post(self.current_user(), path)
+        if path.startswith("/api/drive"):
+            return self.api_drive_post(self.current_user(), path)
         if path.startswith(("/api/ai-business-center", "/api/ai/task/create")):
             return self.api_ai_business_center_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
@@ -4476,6 +4502,8 @@ class App(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         path = urlparse(self.path).path
+        if path.startswith("/api/drive"):
+            return self.api_drive_post(self.current_user(), path)
         if path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences"):
@@ -4496,6 +4524,18 @@ class App(BaseHTTPRequestHandler):
             return self.api_brand_growth_put(self.current_user(), path)
         if path.startswith(("/api/strategy", "/api/agents", "/api/digital-twin", "/api/kernel", "/api/data-fabric", "/api/integrations", "/api/security", "/api/operations", "/api/product", "/api/feedback", "/api/action")):
             return self.api_v5_post(self.current_user(), path)
+        return self.json_out({"ok": False, "message": "unsupported"}, code=404)
+
+    def do_PATCH(self):
+        path = urlparse(self.path).path
+        if path.startswith("/api/drive"):
+            return self.api_drive_post(self.current_user(), path)
+        return self.json_out({"ok": False, "message": "unsupported"}, code=404)
+
+    def do_DELETE(self):
+        path = urlparse(self.path).path
+        if path.startswith("/api/drive"):
+            return self.api_drive_delete(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -4934,6 +4974,112 @@ class App(BaseHTTPRequestHandler):
                 (uuid.uuid4().hex, knowledge_id, document_id, idx, part, max(1, len(part) // 2), "pending", now),
             )
         return len(chunks)
+
+    def drive_categories(self):
+        return [
+            U(r"\u95e8\u5e97\u5e93"),
+            U(r"\u5458\u5de5\u5e93"),
+            U(r"\u54c1\u724c\u5e93"),
+            U(r"\u4ea7\u54c1\u5e93"),
+            U(r"\u4f9b\u5e94\u5546\u5e93"),
+            U(r"\u5ba2\u6237\u5e93"),
+            U(r"\u5408\u540c\u5e93"),
+            U(r"\u8d22\u52a1\u5e93"),
+            U(r"\u9500\u552e\u5e93"),
+            U(r"\u5e93\u5b58\u5e93"),
+            U(r"\u91c7\u8d2d\u5e93"),
+            U(r"\u57f9\u8bad\u8d44\u6599\u5e93"),
+            U(r"\u5185\u5bb9\u7d20\u6750\u5e93"),
+            U(r"\u4f1a\u8bae\u7eaa\u8981\u5e93"),
+            "SAP" + U(r"\u6570\u636e"),
+            U(r"\u672a\u5206\u7c7b\u6587\u4ef6\u5e93"),
+        ]
+
+    def drive_supported_extensions(self):
+        return {
+            "pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx",
+            "jpg", "jpeg", "png", "webp", "mp4", "mov", "mp3", "wav", "m4a",
+            "txt", "md", "zip",
+        }
+
+    def drive_category_for_file(self, filename, text=""):
+        name = (filename or "").lower()
+        content = ((filename or "") + "\n" + (text or "")).lower()
+        if "sap" in content:
+            return "SAP" + U(r"\u6570\u636e")
+        if any(k in content for k in ("contract", U(r"\u5408\u540c"))):
+            return U(r"\u5408\u540c\u5e93")
+        if any(k in content for k in ("finance", U(r"\u8d22\u52a1"), U(r"\u4ed8\u6b3e"))):
+            return U(r"\u8d22\u52a1\u5e93")
+        if any(k in content for k in ("inventory", U(r"\u5e93\u5b58"))):
+            return U(r"\u5e93\u5b58\u5e93")
+        if any(k in content for k in ("purchase", U(r"\u91c7\u8d2d"))):
+            return U(r"\u91c7\u8d2d\u5e93")
+        if any(k in content for k in ("brand", "kailas", "osprey", "mammut", U(r"\u54c1\u724c"))):
+            return U(r"\u54c1\u724c\u5e93")
+        if any(k in content for k in ("product", "sku", U(r"\u4ea7\u54c1"), U(r"\u5546\u54c1"))):
+            return U(r"\u4ea7\u54c1\u5e93")
+        if any(k in content for k in ("store", U(r"\u95e8\u5e97"), U(r"\u5357\u5c71"))):
+            return U(r"\u95e8\u5e97\u5e93")
+        if any(k in content for k in ("meeting", U(r"\u4f1a\u8bae"), U(r"\u7eaa\u8981"))):
+            return U(r"\u4f1a\u8bae\u7eaa\u8981\u5e93")
+        if any(k in content for k in ("training", U(r"\u57f9\u8bad"), "sop")):
+            return U(r"\u57f9\u8bad\u8d44\u6599\u5e93")
+        if Path(name).suffix.lower().lstrip(".") in ("jpg", "jpeg", "png", "webp", "mp4", "mov"):
+            return U(r"\u5185\u5bb9\u7d20\u6750\u5e93")
+        return U(r"\u672a\u5206\u7c7b\u6587\u4ef6\u5e93")
+
+    def drive_extract_text(self, file_path, filename):
+        return extract_file_text(file_path, filename)
+
+    def drive_generate_summary(self, text):
+        return summarize_text(text) if text else U(r"\u7b49\u5f85 AI \u6458\u8981\u751f\u6210")
+
+    def drive_generate_tags(self, text):
+        return extract_tags(text)
+
+    def drive_classify_file(self, metadata, text):
+        return metadata.get("category") or self.drive_category_for_file(metadata.get("original_filename", ""), text)
+
+    def drive_link_to_object(self, metadata, text):
+        return {
+            "related_object_type": metadata.get("related_object_type") or metadata.get("related_type") or "",
+            "related_object_id": metadata.get("related_object_id") or metadata.get("related_id"),
+        }
+
+    def drive_processing_status(self, extracted_text):
+        return "completed" if extracted_text else "pending"
+
+    def document_to_json(self, row):
+        data = row_dict(row) or {}
+        original = data.get("original_filename") or data.get("file_name") or data.get("title") or ""
+        file_path = data.get("storage_path") or data.get("file_path") or ""
+        extension = (data.get("extension") or data.get("file_type") or Path(original).suffix.lower().lstrip(".") or "").lower()
+        return {
+            "id": data.get("id"),
+            "filename": data.get("filename") or data.get("file_name") or original,
+            "original_filename": original,
+            "storage_path": file_path,
+            "file_path": file_path,
+            "mime_type": data.get("mime_type"),
+            "file_size": data.get("size_bytes") or 0,
+            "size_bytes": data.get("size_bytes") or 0,
+            "extension": extension,
+            "upload_time": data.get("created_at"),
+            "uploader": data.get("created_by") or data.get("uploaded_by"),
+            "category": data.get("category") or U(r"\u672a\u5206\u7c7b\u6587\u4ef6\u5e93"),
+            "tags": data.get("tags"),
+            "processing_status": data.get("processing_status") or data.get("vector_status") or "pending",
+            "related_object_type": data.get("related_object_type") or data.get("related_type"),
+            "related_object_id": data.get("related_object_id") or data.get("related_id"),
+            "ai_summary": data.get("ai_summary") or data.get("summary"),
+            "extracted_text": data.get("extracted_text"),
+            "extracted_text_path": data.get("extracted_text_path"),
+            "version": data.get("version") or 1,
+            "created_at": data.get("created_at"),
+            "updated_at": data.get("updated_at"),
+            "deleted_at": data.get("deleted_at"),
+        }
 
     def knowledge_status_text(self, row):
         status = (row["status"] if row and "status" in row.keys() else "") or "draft"
@@ -5902,7 +6048,7 @@ class App(BaseHTTPRequestHandler):
             (U(r"\u4f01\u4e1a"), "/owner/enterprise", role in owner_roles),
             (U(r"\u8d44\u4ea7"), "/owner/assets", role in owner_roles),
             (U(r"\u6863\u6848"), "/owner/archive", role in owner_roles),
-            (U(r"\u77e5\u8bc6"), "/owner/knowledge", role in owner_roles),
+            (U(r"\u77e5\u8bc6"), "/drive", role in owner_roles),
             ("AI", "/jarvis", True),
             (U(r"\u51b3\u7b56"), "/owner/decision", role in owner_roles),
             (U(r"\u6570\u636e"), "/owner/data", role in owner_roles),
@@ -6260,23 +6406,111 @@ class App(BaseHTTPRequestHandler):
         if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
             return self.dashboard(user)
         contract = build_drive_2_contract()
-        cards = "".join(
-            self.card(
-                item.get("name", ""),
-                item.get("purpose", ""),
-                "#",
-                "btn",
-                True,
+        query = parse_qs(urlparse(self.path).query)
+        q = (query.get("q", [""])[0] or "").strip()
+        category_filter = (query.get("category", [""])[0] or "").strip()
+        ext_filter = (query.get("type", [""])[0] or "").strip().lower()
+        where = ["deleted_at is null"]
+        params = []
+        if q:
+            like = "%" + q + "%"
+            where.append("(coalesce(original_filename,file_name,title) like ? or coalesce(tags,'') like ? or coalesce(ai_summary,summary,'') like ?)")
+            params.extend([like, like, like])
+        if category_filter:
+            where.append("category=?")
+            params.append(category_filter)
+        if ext_filter:
+            where.append("extension=?")
+            params.append(ext_filter)
+        with db() as conn:
+            files = conn.execute("select * from documents where " + " and ".join(where) + " order by created_at desc limit 80", params).fetchall()
+            recent = conn.execute("select * from documents where deleted_at is null order by created_at desc limit 6").fetchall()
+            queue = conn.execute("select * from documents where deleted_at is null and processing_status in ('pending','processing','failed') order by updated_at desc limit 12").fetchall()
+        categories = self.drive_categories()
+        category_options = "".join('<option value="{}"{}>{}</option>'.format(esc(c), " selected" if c == category_filter else "", esc(c)) for c in categories)
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(esc(ext), " selected" if ext == ext_filter else "", esc(ext)) for ext in sorted(self.drive_supported_extensions()))
+        category_cards = "".join(self.card(c, "FoxBrain Drive category", "/drive?category=" + esc(c), "btn", True) for c in categories)
+        file_rows = ""
+        for row in files:
+            item = self.document_to_json(row)
+            file_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/api/drive/files/{}'>API</a> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form></td></tr>".format(
+                esc(item["original_filename"]),
+                esc(item["category"]),
+                esc(item["extension"]),
+                esc(str(item["size_bytes"])),
+                esc(item["processing_status"]),
+                esc(item["ai_summary"] or ""),
+                item["id"],
+                item["id"],
+                U(r"\u91cd\u5904\u7406"),
             )
-            for item in contract.get("domains", [])
-        )
+        if not file_rows:
+            file_rows = "<tr><td colspan='7' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0\u6587\u4ef6\uff0c\u53ef\u4ee5\u5148\u4e0a\u4f20 PDF\u3001Excel\u3001Word \u6216\u56fe\u7247\u3002"))
+        recent_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["category"] for row in recent] or [U(r"\u6682\u65e0\u6700\u8fd1\u6587\u4ef6")]
+        queue_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["processing_status"] for row in queue] or [U(r"\u5f53\u524d\u65e0\u5f85\u5904\u7406\u961f\u5217")]
         body = """
 <div class="panel">
   <h2>FoxBrain Drive 2.0</h2>
   <p class="small">Enterprise Knowledge Drive</p>
-  <p><a class="btn dark" href="/api/drive/v2">API</a> <a class="btn" href="/knowledge-pipeline">{}</a></p>
+  <form method="post" action="/api/drive/upload" enctype="multipart/form-data">
+    <label>{}</label>
+    <input name="file" type="file" required>
+    <label>{}</label>
+    <select name="category"><option value="">{}</option>{}</select>
+    <label>{}</label><input name="tags">
+    <label>{}</label><input name="related_object_type" placeholder="brand / store / product">
+    <label>{}</label><input name="related_object_id" placeholder="optional id">
+    <p><button>{}</button> <a class="btn" href="/api/drive/v2">API</a> <a class="btn" href="/knowledge-pipeline">{}</a></p>
+  </form>
 </div>
-<div class="grid">{}</div>""".format(U(r"\u77e5\u8bc6\u6d41\u6c34\u7ebf"), cards)
+<div class="panel">
+  <form method="get" action="/drive">
+    <label>{}</label><input name="q" value="{}" placeholder="PDF / SAP / Kailas / contract">
+    <label>{}</label><select name="category"><option value="">{}</option>{}</select>
+    <label>{}</label><select name="type"><option value="">{}</option>{}</select>
+    <p><button>{}</button></p>
+  </form>
+</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+<div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>""".format(
+            U(r"\u4e0a\u4f20\u6587\u4ef6"),
+            U(r"\u5206\u7c7b"),
+            U(r"\u81ea\u52a8\u5206\u7c7b"),
+            category_options,
+            U(r"\u6807\u7b7e"),
+            U(r"\u5173\u8054\u5bf9\u8c61\u7c7b\u578b"),
+            U(r"\u5173\u8054\u5bf9\u8c61 ID"),
+            U(r"\u4e0a\u4f20\u5230 Drive"),
+            U(r"\u77e5\u8bc6\u6d41\u6c34\u7ebf"),
+            U(r"\u641c\u7d22"),
+            esc(q),
+            U(r"\u5206\u7c7b"),
+            U(r"\u5168\u90e8"),
+            category_options,
+            U(r"\u6587\u4ef6\u7c7b\u578b"),
+            U(r"\u5168\u90e8"),
+            type_options,
+            U(r"\u67e5\u627e"),
+            U(r"\u6700\u8fd1\u6587\u4ef6"),
+            self.bullets(recent_items),
+            U(r"\u5904\u7406\u961f\u5217"),
+            self.bullets(queue_items),
+            U(r"\u5206\u7c7b"),
+            category_cards,
+            U(r"\u6587\u4ef6"),
+            U(r"\u6587\u4ef6"),
+            U(r"\u5206\u7c7b"),
+            U(r"\u7c7b\u578b"),
+            U(r"\u5927\u5c0f"),
+            U(r"\u72b6\u6001"),
+            U(r"AI \u6458\u8981"),
+            U(r"\u64cd\u4f5c"),
+            file_rows,
+        )
         self.out(layout("FoxBrain Drive 2.0", body, user=user, wide=True))
 
     def object_engine_page(self, user):
@@ -6377,6 +6611,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path.startswith("/api/drive/files") or path == "/api/drive/categories":
+            return self.api_drive_get(user, path)
         if path in ("/api/second-brain/v1.1", "/api/second-brain/v1.1/specification"):
             return self.json_out(build_enterprise_second_brain_v11_contract())
         if path in ("/api/drive", "/api/drive/v2"):
@@ -6388,6 +6624,228 @@ class App(BaseHTTPRequestHandler):
         if path == "/api/ceo-home":
             return self.json_out(build_ceo_home_v11_contract())
         return self.json_out({"ok": False, "message": "unknown second brain v1.1 api"}, code=404)
+
+    def api_drive_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/drive/categories":
+            return self.json_out({"ok": True, "categories": self.drive_categories(), "supported_extensions": sorted(self.drive_supported_extensions())})
+        m_download = re.match(r"^/api/drive/files/(\d+)/download$", path)
+        if m_download:
+            with db() as conn:
+                row = conn.execute("select * from documents where id=? and deleted_at is null", (m_download.group(1),)).fetchone()
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            item = self.document_to_json(row)
+            file_path = item.get("file_path") or ""
+            if not file_path or not os.path.exists(file_path):
+                return self.json_out({"ok": False, "message": "file missing"}, code=404)
+            data = Path(file_path).read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", item.get("mime_type") or mimetypes.guess_type(item.get("original_filename") or "")[0] or "application/octet-stream")
+            self.send_header("Content-Disposition", "attachment; filename=\"{}\"".format(Path(item.get("original_filename") or "download").name.encode("ascii", "ignore").decode("ascii") or "download"))
+            self.send_header("Content-Length", str(len(data)))
+            self.security_headers()
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        m_detail = re.match(r"^/api/drive/files/(\d+)$", path)
+        if m_detail:
+            with db() as conn:
+                row = conn.execute("select * from documents where id=? and deleted_at is null", (m_detail.group(1),)).fetchone()
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            item = self.document_to_json(row)
+            item["download_url"] = "/api/drive/files/{}/download".format(item["id"])
+            return self.json_out({"ok": True, "file": item})
+        if path == "/api/drive/files":
+            query = parse_qs(urlparse(self.path).query)
+            q = (query.get("q", [""])[0] or "").strip()
+            category = (query.get("category", [""])[0] or "").strip()
+            ext = (query.get("type", [""])[0] or "").strip().lower()
+            status = (query.get("status", [""])[0] or "").strip()
+            where = ["deleted_at is null"]
+            params = []
+            if q:
+                like = "%" + q + "%"
+                where.append("(coalesce(original_filename,file_name,title) like ? or coalesce(tags,'') like ? or coalesce(ai_summary,summary,'') like ?)")
+                params.extend([like, like, like])
+            if category:
+                where.append("category=?")
+                params.append(category)
+            if ext:
+                where.append("extension=?")
+                params.append(ext)
+            if status:
+                where.append("processing_status=?")
+                params.append(status)
+            with db() as conn:
+                rows = conn.execute("select * from documents where " + " and ".join(where) + " order by created_at desc limit 200", params).fetchall()
+                counts = conn.execute("select processing_status, count(*) c from documents where deleted_at is null group by processing_status").fetchall()
+            return self.json_out({
+                "ok": True,
+                "files": [self.document_to_json(row) for row in rows],
+                "counts": {row["processing_status"] or "pending": row["c"] for row in counts},
+                "categories": self.drive_categories(),
+            })
+        return self.json_out({"ok": False, "message": "unknown drive api"}, code=404)
+
+    def api_drive_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/drive/upload":
+            return self.api_drive_upload(user)
+        m_reprocess = re.match(r"^/api/drive/files/(\d+)/reprocess$", path)
+        if m_reprocess:
+            now = ts()
+            with db() as conn:
+                row = conn.execute("select * from documents where id=? and deleted_at is null", (m_reprocess.group(1),)).fetchone()
+                if not row:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                item = self.document_to_json(row)
+                extracted = ""
+                if item.get("file_path") and os.path.exists(item["file_path"]):
+                    extracted = self.drive_extract_text(item["file_path"], item.get("original_filename") or "")
+                summary = self.drive_generate_summary(extracted)
+                tags = self.drive_generate_tags((item.get("original_filename") or "") + "\n" + extracted)
+                status = self.drive_processing_status(extracted)
+                conn.execute(
+                    "update documents set processing_status=?, extracted_text=?, ai_summary=?, tags=?, vector_status=?, summary=?, updated_at=? where id=?",
+                    (status, extracted, summary, tags or item.get("tags"), "pending", summary, now, item["id"]),
+                )
+            self.log_action(user, "drive_file_reprocess", "document", m_reprocess.group(1), status)
+            return self.json_out({"ok": True, "id": int(m_reprocess.group(1)), "processing_status": status})
+        m_update = re.match(r"^/api/drive/files/(\d+)$", path)
+        if m_update:
+            form = self.form()
+            allowed_status = {"pending", "processing", "completed", "failed", "archived"}
+            fields = []
+            params = []
+            for key in ("category", "tags", "related_object_type", "ai_summary"):
+                if key in form:
+                    fields.append(key + "=?")
+                    params.append(form.get(key, ""))
+            if "related_object_id" in form:
+                fields.append("related_object_id=?")
+                params.append(int(form["related_object_id"]) if str(form["related_object_id"]).isdigit() else None)
+            if "processing_status" in form and form["processing_status"] in allowed_status:
+                fields.append("processing_status=?")
+                params.append(form["processing_status"])
+            if not fields:
+                return self.json_out({"ok": False, "message": "no fields"}, code=400)
+            fields.append("updated_at=?")
+            params.append(ts())
+            params.append(m_update.group(1))
+            with db() as conn:
+                conn.execute("update documents set " + ",".join(fields) + " where id=? and deleted_at is null", params)
+            self.log_action(user, "drive_file_update", "document", m_update.group(1), "")
+            return self.json_out({"ok": True, "id": int(m_update.group(1))})
+        return self.json_out({"ok": False, "message": "unknown drive post api"}, code=404)
+
+    def api_drive_upload(self, user):
+        content_length = int(self.headers.get("Content-Length", "0") or 0)
+        if content_length > MAX_UPLOAD_BYTES:
+            return self.json_out({"ok": False, "message": "file too large", "max_bytes": MAX_UPLOAD_BYTES}, code=413)
+        form = self.multipart()
+        item = form["file"] if "file" in form else None
+        if item is None or not getattr(item, "filename", ""):
+            return self.json_out({"ok": False, "message": "file required"}, code=400)
+        original = Path(item.filename).name
+        extension = Path(original).suffix.lower().lstrip(".")
+        if extension not in self.drive_supported_extensions():
+            return self.json_out({"ok": False, "message": "unsupported file type", "extension": extension}, code=400)
+        category = (form.getfirst("category", "") or "").strip()
+        tags_input = (form.getfirst("tags", "") or "").strip()
+        related_object_type = module_key(form.getfirst("related_object_type", "") or "")
+        related_object_id_raw = (form.getfirst("related_object_id", "") or "").strip()
+        folder = Path(UPLOAD_DIR) / "drive"
+        folder.mkdir(parents=True, exist_ok=True)
+        saved = uuid.uuid4().hex + ("." + extension if extension else "")
+        file_path = folder / saved
+        data = item.file.read()
+        file_path.write_bytes(data)
+        mime_type = mimetypes.guess_type(original)[0] or getattr(item, "type", None) or "application/octet-stream"
+        extracted = self.drive_extract_text(str(file_path), original)
+        metadata = {
+            "original_filename": original,
+            "category": category,
+            "related_object_type": related_object_type,
+            "related_object_id": int(related_object_id_raw) if related_object_id_raw.isdigit() else None,
+        }
+        category = self.drive_classify_file(metadata, extracted)
+        summary = self.drive_generate_summary(extracted)
+        tags = tags_input or self.drive_generate_tags(original + "\n" + extracted)
+        processing_status = self.drive_processing_status(extracted)
+        extracted_path = ""
+        if extracted:
+            extracted_file = folder / (saved + ".txt")
+            extracted_file.write_text(extracted, encoding="utf-8")
+            extracted_path = str(extracted_file)
+        now = ts()
+        with db() as conn:
+            cur = conn.execute(
+                """insert into documents(
+ title,file_name,file_type,file_path,related_type,related_id,tags,summary,vector_status,uploaded_by,created_at,updated_at,
+ filename,original_filename,storage_path,mime_type,extension,size_bytes,category,processing_status,ai_summary,extracted_text,
+ extracted_text_path,related_object_type,related_object_id,version,created_by,deleted_at
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    original,
+                    saved,
+                    extension,
+                    str(file_path),
+                    related_object_type,
+                    int(related_object_id_raw) if related_object_id_raw.isdigit() else None,
+                    tags,
+                    summary,
+                    "pending",
+                    user["id"],
+                    now,
+                    now,
+                    saved,
+                    original,
+                    str(file_path),
+                    mime_type,
+                    extension,
+                    len(data),
+                    category,
+                    processing_status,
+                    summary,
+                    extracted,
+                    extracted_path,
+                    related_object_type,
+                    int(related_object_id_raw) if related_object_id_raw.isdigit() else None,
+                    1,
+                    user["id"],
+                    None,
+                ),
+            )
+            doc_id = cur.lastrowid
+        self.log_action(user, "drive_file_upload", "document", doc_id, original)
+        if "text/html" in (self.headers.get("Accept") or ""):
+            return self.redir("/drive")
+        return self.json_out({"ok": True, "file": self.document_to_json({"id": doc_id, "title": original, "file_name": saved, "file_type": extension, "file_path": str(file_path), "tags": tags, "summary": summary, "created_at": now, "updated_at": now, "filename": saved, "original_filename": original, "storage_path": str(file_path), "mime_type": mime_type, "extension": extension, "size_bytes": len(data), "category": category, "processing_status": processing_status, "ai_summary": summary, "extracted_text": extracted, "extracted_text_path": extracted_path, "related_object_type": related_object_type, "related_object_id": int(related_object_id_raw) if related_object_id_raw.isdigit() else None, "version": 1, "created_by": user["id"], "deleted_at": None})})
+
+    def api_drive_delete(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        m = re.match(r"^/api/drive/files/(\d+)$", path)
+        if not m:
+            return self.json_out({"ok": False, "message": "unknown drive delete api"}, code=404)
+        now = ts()
+        with db() as conn:
+            row = conn.execute("select id from documents where id=? and deleted_at is null", (m.group(1),)).fetchone()
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            conn.execute("update documents set deleted_at=?, processing_status='archived', updated_at=? where id=?", (now, now, m.group(1)))
+        self.log_action(user, "drive_file_archived", "document", m.group(1), "")
+        return self.json_out({"ok": True, "id": int(m.group(1)), "status": "archived"})
 
     def business_radar_payload(self, user):
         data = self.cockpit_data()

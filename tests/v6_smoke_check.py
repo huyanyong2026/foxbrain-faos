@@ -712,7 +712,7 @@ def test_foxbrain_os_6_homepage_minimal_entry_layer():
     assert "return self.out(layout(T[\"brand\"], body, user=user, wide=False))" in dashboard
     assert "/enterprise-ai-platform" in portal
     assert "/enterprise-ai-platform" not in dashboard
-    for phrase in ["/owner/enterprise", "/owner/assets", "/owner/archive", "/owner/knowledge", "/jarvis", "/owner/decision", "/owner/data", "/owner/projects", "/owner/strategy", "/owner/system"]:
+    for phrase in ["/owner/enterprise", "/owner/assets", "/owner/archive", "/drive", "/jarvis", "/owner/decision", "/owner/data", "/owner/projects", "/owner/strategy", "/owner/system"]:
         assert phrase in dashboard
     for phrase in ["/os/business", "/os/ai", "/os/messages", "/os/me"]:
         assert phrase not in dashboard
@@ -2233,7 +2233,7 @@ def test_foxbrain_os_ux_2_information_architecture_module_present():
     ]:
         assert phrase in portal
     final_dashboard = portal.rsplit("def dashboard(self, user):", 1)[1].split("def os_layer_cards", 1)[0]
-    for phrase in ["/owner/enterprise", "/owner/assets", "/owner/archive", "/owner/knowledge", "/jarvis", "/owner/decision", "/owner/data", "/owner/projects", "/owner/strategy", "/owner/system"]:
+    for phrase in ["/owner/enterprise", "/owner/assets", "/owner/archive", "/drive", "/jarvis", "/owner/decision", "/owner/data", "/owner/projects", "/owner/strategy", "/owner/system"]:
         assert phrase in final_dashboard
     assert "small" not in final_dashboard
     assert "first_layer" not in final_dashboard
@@ -2641,5 +2641,86 @@ def test_foxbrain_enterprise_second_brain_v11_docs_present():
         "Vector DB",
         "Knowledge Object",
         "SAP remains the system of record",
+    ]:
+        assert phrase in combined
+
+
+def test_sprint001_drive_foundation_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists documents",
+        'ensure_column(conn, "documents", col, ddl)',
+        '("filename", "filename text")',
+        '("original_filename", "original_filename text")',
+        '("storage_path", "storage_path text")',
+        '("mime_type", "mime_type text")',
+        '("extension", "extension text")',
+        '("size_bytes", "size_bytes integer not null default 0")',
+        '("category", "category text not null default',
+        '("processing_status", "processing_status text not null default',
+        '("ai_summary", "ai_summary text")',
+        '("extracted_text", "extracted_text text")',
+        '("related_object_type", "related_object_type text")',
+        '("related_object_id", "related_object_id integer")',
+        '("version", "version integer not null default 1")',
+        '("deleted_at", "deleted_at integer")',
+        "drive_categories",
+        "drive_supported_extensions",
+        "drive_extract_text",
+        "drive_generate_summary",
+        "drive_generate_tags",
+        "drive_classify_file",
+        "drive_link_to_object",
+        "document_to_json",
+    ]:
+        assert phrase in portal
+    for phrase in [
+        'if path == "/drive"',
+        "/api/drive/upload",
+        "/api/drive/files",
+        "/api/drive/files/{}",
+        "/api/drive/files/{}/download",
+        "/api/drive/files/{}/reprocess",
+        "/api/drive/categories",
+        "def api_drive_get",
+        "def api_drive_post",
+        "def api_drive_upload",
+        "def api_drive_delete",
+        "def do_PATCH",
+        "def do_DELETE",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint001_drive_home_keeps_ten_entries_and_opens_drive():
+    portal = read("portal_v2.py")
+    final_dashboard_start = portal.rindex("    def dashboard(self, user):")
+    final_dashboard_end = portal.index("    def os_layer_cards(self, items):", final_dashboard_start)
+    final_dashboard = portal[final_dashboard_start:final_dashboard_end]
+    assert '"/drive"' in final_dashboard
+    assert '"/owner/knowledge"' not in final_dashboard
+    assert "minimal_links" in final_dashboard
+    assert "FoxBrain CEO Home" in final_dashboard
+
+
+def test_sprint001_docs_and_summary_present():
+    docs = [
+        "docs/MASTER_PLAN.md",
+        "sprints/Sprint001_FoxBrain_Drive_Foundation.md",
+        "docs/884_SPRINT001_FOXBRAIN_DRIVE_FOUNDATION_SUMMARY.md",
+    ]
+    for path in docs:
+        assert (ROOT / path).exists()
+    combined = "\n".join(read(doc) for doc in docs)
+    for phrase in [
+        "FoxBrain Drive Foundation",
+        "POST /api/drive/upload",
+        "GET /api/drive/files",
+        "DELETE /api/drive/files/:id",
+        "PATCH /api/drive/files/:id",
+        "documents",
+        "processing_status",
+        "No existing data is deleted",
+        "Sprint002 should implement Object Engine",
     ]:
         assert phrase in combined

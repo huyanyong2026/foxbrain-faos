@@ -4,6 +4,18 @@ FoxBrain V4 is the FireFox Enterprise AI Operating System. It is built as a unif
 
 This repository upgrades the existing FoxBrain project without rewriting it. Existing login, roles, SAP B1 sync, APIs, and deployment assumptions are preserved.
 
+## Sprint001 FoxBrain Drive Foundation
+
+FoxBrain Drive Foundation has been implemented in-place on the existing `huyan.vafox.com` portal.
+
+- Page: `/drive`
+- Upload API: `POST /api/drive/upload`
+- File list API: `GET /api/drive/files`
+- File detail API: `GET /api/drive/files/:id`
+- Archive API: `DELETE /api/drive/files/:id`
+- Reprocess API: `POST /api/drive/files/:id/reprocess`
+- Development summary: `docs/884_SPRINT001_FOXBRAIN_DRIVE_FOUNDATION_SUMMARY.md`
+
 ## Cloud Edition
 
 FoxBrain supports long-running deployment on an Ubuntu Tencent Cloud server.
