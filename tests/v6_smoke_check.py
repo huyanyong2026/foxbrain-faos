@@ -3077,6 +3077,9 @@ def test_sprint007_sap_import_schema_routes_and_api_present():
         "idx_sap_inventory_lookup",
         "def sap_import_types",
         "def sap_read_rows_from_file",
+        "def sap_text_file_rows",
+        "def sap_infer_store_name",
+        "def sap_inventory_amount",
         "def sap_import_document",
         "def sap_import_page",
         'if path in ("/sap-import", "/data-import")',
@@ -3101,6 +3104,9 @@ def test_sprint007_sap_import_integrations_present():
         "sap_inventory_rows_total",
         "recent_sap_imports",
         "sap_import",
+        "gb18030",
+        "csv.excel_tab",
+        "物料编号",
         r"\u5bfc\u5165\u4e3a SAP \u6570\u636e",
         '"type": "sap_batch"',
         '"type": "sap_sales"',
@@ -3129,6 +3135,44 @@ def test_sprint007_summary_present():
         "does not require any program installed on the SAP production server",
         "Dashboard integration",
         "Search integration",
+        "docs/SAP_REAL_DATA_IMPORT_MAPPING.md",
+        "SPRINT007_REAL_SAP_IMPORT_TEST_REPORT.md",
         "Sprint008",
     ]:
         assert phrase in summary
+
+
+def test_sprint007_real_sap_mapping_doc_present():
+    mapping = read("docs/SAP_REAL_DATA_IMPORT_MAPPING.md")
+    for phrase in [
+        "SAP Real Data Import Mapping",
+        "GB18030/GBK encoded tab-separated text files",
+        "no production SAP connection",
+        "物料编码",
+        "商品编码",
+        "客户编号",
+        "客户名称",
+        "物料编号",
+        "物料名称",
+        "客户采购单号",
+        "销售代表",
+        "内部核算成本",
+        "raw_data",
+    ]:
+        assert phrase in mapping
+
+
+def test_sprint007_real_sap_import_report_present():
+    report = read("SPRINT007_REAL_SAP_IMPORT_TEST_REPORT.md")
+    for phrase in [
+        "Sprint007 Real SAP Import Test Report",
+        "sap数据.zip",
+        "库存7.9.xls",
+        "南山店库存7.9.xls",
+        "总销售261.1-7.9.xls",
+        "Sales rows: 47,650",
+        "Inventory rows: 22,556",
+        "Failed rows: 0",
+        "Production SAP remained untouched",
+    ]:
+        assert phrase in report

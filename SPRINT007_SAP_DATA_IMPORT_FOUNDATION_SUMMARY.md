@@ -6,6 +6,8 @@ Sprint007 adds the SAP Excel/CSV import foundation to the existing huyan.vafox.c
 
 This sprint only imports SAP-exported files uploaded by users. It makes no production SAP connection and does not require any program installed on the SAP production server.
 
+Real SAP field mapping is documented in `docs/SAP_REAL_DATA_IMPORT_MAPPING.md`.
+
 ## New Database Tables
 
 - `sap_import_batches`
@@ -31,6 +33,8 @@ Non-inventory import types currently land in the normalized sales foundation tab
 - `/data-import`
 
 The page supports direct Excel/CSV upload and importing an existing Drive file as SAP data.
+
+The importer now supports SAP `.xls` files that are actually GB18030/GBK encoded tab-separated text exports.
 
 ## API Interfaces
 
@@ -79,13 +83,21 @@ Search can match imported SAP batch filenames, import types, store names, employ
 
 ## Test Results
 
-Planned verification:
+Executed verification:
 
 - Python syntax check for `portal_v2.py`
 - Python syntax check for `tests/v6_smoke_check.py`
 - Existing smoke test suite including Sprint001-007 assertions
+- Real SAP package parse/import test against `sap数据.zip`
 
-Final executed results are reported in the Codex response after test run.
+Real SAP import result:
+
+- 10 priority files imported into a local temporary database.
+- 10 import batches completed.
+- 47,650 sales rows imported.
+- 22,556 inventory rows imported.
+- 0 failed rows.
+- Full report: `SPRINT007_REAL_SAP_IMPORT_TEST_REPORT.md`
 
 ## Sprint008 Recommendation
 

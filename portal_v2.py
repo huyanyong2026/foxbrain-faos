@@ -5459,57 +5459,69 @@ class App(BaseHTTPRequestHandler):
         return {
             "sale_date": ["sale_date", "date", "doc_date", "posting_date", "销售日期", "日期", "单据日期"],
             "snapshot_date": ["snapshot_date", "date", "库存日期", "日期", "快照日期"],
-            "store_name": ["store_name", "store", "warehouse", "whs_name", "门店", "店铺", "仓库", "仓库名称"],
-            "store_code": ["store_code", "whs_code", "warehouse_code", "门店代码", "仓库代码"],
-            "employee_name": ["employee_name", "salesperson", "staff", "员工", "销售员", "营业员"],
+            "store_name": ["store_name", "store", "warehouse", "whs_name", "门店", "店铺", "仓库", "仓库名称", "客户名称", "位置名称"],
+            "store_code": ["store_code", "whs_code", "warehouse_code", "门店代码", "仓库代码", "客户编号", "位置编码"],
+            "employee_name": ["employee_name", "salesperson", "staff", "员工", "销售员", "营业员", "销售代表"],
             "employee_code": ["employee_code", "slp_code", "员工代码", "销售员代码"],
             "brand_name": ["brand_name", "brand", "品牌"],
             "category_name": ["category_name", "category", "品类", "类别", "商品分类"],
-            "product_code": ["product_code", "item_code", "sku", "货号", "商品编码", "物料编码"],
+            "product_code": ["product_code", "item_code", "sku", "货号", "商品编码", "物料编码", "物料编号"],
             "product_name": ["product_name", "item_name", "description", "商品名称", "产品名称", "物料名称"],
             "barcode": ["barcode", "条码", "国际条码"],
-            "quantity": ["quantity", "qty", "数量", "销售数量", "库存数量"],
+            "quantity": ["quantity", "qty", "数量", "销售数量", "库存数量", "库存量", "可用量"],
             "amount": ["amount", "sales_amount", "line_total", "销售额", "金额", "含税金额"],
-            "cost": ["cost", "成本", "销售成本"],
+            "cost": ["cost", "成本", "销售成本", "内部核算成本", "成本价"],
             "gross_profit": ["gross_profit", "毛利", "毛利额"],
-            "cost_amount": ["cost_amount", "stock_value", "成本金额", "库存成本"],
-            "retail_amount": ["retail_amount", "retail_value", "零售金额", "吊牌金额"],
+            "cost_amount": ["cost_amount", "stock_value", "成本金额", "库存成本", "成本价"],
+            "retail_amount": ["retail_amount", "retail_value", "零售金额", "吊牌金额", "零售价", "U_BPrice1"],
             "age_days": ["age_days", "库存天数", "库龄", "库龄天数"],
         }
 
+    def sap_text_file_rows(self, file_path):
+        raw = Path(file_path).read_bytes()
+        text = ""
+        encoding = ""
+        for enc in ("utf-8-sig", "gb18030", "gbk", "utf-16", "big5"):
+            try:
+                text = raw.decode(enc)
+                encoding = enc
+                break
+            except Exception:
+                continue
+        if not text:
+            text = raw.decode("utf-8", errors="ignore")
+            encoding = "utf-8-ignore"
+        try:
+            dialect = csv.Sniffer().sniff(text[:4096], delimiters="\t,;")
+        except Exception:
+            dialect = csv.excel_tab if "\t" in text[:4096] else csv.excel
+        rows = list(csv.reader(io.StringIO(text), dialect))
+        return rows, encoding
+
     def sap_guess_import_type(self, filename, headers):
-        text = (filename + " " + " ".join(headers)).lower()
+        filename_text = (filename or "").lower()
+        header_text = " ".join(headers).lower()
+        text = (filename_text + " " + header_text).lower()
         if any(x in text for x in ["inventory", "stock", "库存", "库龄"]):
             return "inventory"
-        if any(x in text for x in ["employee", "salesperson", "员工", "营业员"]):
+        if any(x in filename_text for x in ["employee", "salesperson", "员工", "营业员"]):
             return "employee_sales"
-        if any(x in text for x in ["brand", "品牌"]):
+        if any(x in filename_text for x in ["brand", "品牌"]):
             return "brand_sales"
-        if any(x in text for x in ["category", "品类", "类别"]):
+        if any(x in filename_text for x in ["category", "品类", "类别"]):
             return "category_sales"
-        if any(x in text for x in ["purchase", "采购", "进货"]):
+        if any(x in filename_text for x in ["purchase", "采购", "进货"]):
             return "purchase"
+        if any(x in text for x in ["sales", "sale", "销售", "金额", "毛利", "销售代表"]):
+            return "sales"
         return "sales"
 
     def sap_read_rows_from_file(self, file_path, filename):
         ext = Path(filename or file_path).suffix.lower()
         rows = []
-        if ext == ".csv":
-            raw = Path(file_path).read_bytes()
-            text = ""
-            for enc in ("utf-8-sig", "gb18030", "utf-16"):
-                try:
-                    text = raw.decode(enc)
-                    break
-                except Exception:
-                    continue
-            if not text:
-                text = raw.decode("utf-8", errors="ignore")
-            try:
-                dialect = csv.Sniffer().sniff(text[:4096])
-            except Exception:
-                dialect = csv.excel
-            rows = list(csv.reader(io.StringIO(text), dialect))
+        raw_head = Path(file_path).read_bytes()[:8]
+        if ext == ".csv" or (ext == ".xls" and not raw_head.startswith(b"\xd0\xcf\x11\xe0")):
+            rows, encoding = self.sap_text_file_rows(file_path)
         elif ext in (".xlsx", ".xls"):
             try:
                 import openpyxl
@@ -5529,6 +5541,21 @@ class App(BaseHTTPRequestHandler):
             padded = list(raw_row) + [""] * max(0, len(headers) - len(raw_row))
             data_rows.append({headers[i] or ("column_" + str(i + 1)): (padded[i] if i < len(padded) else "") for i in range(len(headers))})
         return headers, data_rows, data_rows[:5]
+
+    def sap_infer_store_name(self, filename, raw, mapping):
+        text = filename or ""
+        for store in [U(r"\u5357\u5c71\u5e97"), U(r"\u632f\u5174\u5e97"), U(r"\u822a\u82d1\u5e97"), U(r"\u91d1\u6c99\u5e97"), U(r"\u5fae\u5e97"), U(r"\u7f51\u5e97")]:
+            if store in text:
+                return store
+            short = store.replace(U(r"\u5e97"), "")
+            if short and short in text:
+                return store
+        mapped = self.sap_value(raw, mapping, "store_name")
+        if mapped:
+            return mapped
+        if U(r"\u5e93\u5b58") in text:
+            return U(r"\u5168\u90e8\u5e93\u5b58")
+        return ""
 
     def sap_build_mapping(self, headers, import_type):
         normalized = {str(h).strip().lower(): h for h in headers}
@@ -5562,6 +5589,19 @@ class App(BaseHTTPRequestHandler):
         val = self.sap_float(value)
         return int(val) if val is not None else None
 
+    def sap_inventory_amount(self, raw, mapping, amount_field, unit_field):
+        amount = self.sap_float(self.sap_value(raw, mapping, amount_field))
+        amount_source = mapping.get(amount_field, "")
+        if amount is not None and amount_source not in (U(r"\u6210\u672c\u4ef7"), U(r"\u96f6\u552e\u4ef7"), "U_BPrice1"):
+            return amount
+        qty = self.sap_float(self.sap_value(raw, mapping, "quantity"))
+        unit = self.sap_float(self.sap_value(raw, mapping, unit_field))
+        if qty is not None and unit is not None:
+            return qty * unit
+        if amount is not None:
+            return amount
+        return None
+
     def sap_import_summary(self):
         with db() as conn:
             return {
@@ -5594,15 +5634,16 @@ class App(BaseHTTPRequestHandler):
             for raw in rows:
                 try:
                     raw_json = json.dumps(raw, ensure_ascii=False)
+                    store_name = self.sap_infer_store_name(item["original_filename"], raw, mapping)
                     if target == "inventory":
                         conn.execute(
                             "insert into sap_inventory(batch_id,snapshot_date,store_name,store_code,brand_name,category_name,product_code,product_name,barcode,quantity,cost_amount,retail_amount,age_days,raw_data,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                            (batch_id, self.sap_value(raw, mapping, "snapshot_date"), self.sap_value(raw, mapping, "store_name"), self.sap_value(raw, mapping, "store_code"), self.sap_value(raw, mapping, "brand_name"), self.sap_value(raw, mapping, "category_name"), self.sap_value(raw, mapping, "product_code"), self.sap_value(raw, mapping, "product_name"), self.sap_value(raw, mapping, "barcode"), self.sap_float(self.sap_value(raw, mapping, "quantity")), self.sap_float(self.sap_value(raw, mapping, "cost_amount")), self.sap_float(self.sap_value(raw, mapping, "retail_amount")), self.sap_int(self.sap_value(raw, mapping, "age_days")), raw_json, now),
+                            (batch_id, self.sap_value(raw, mapping, "snapshot_date"), store_name, self.sap_value(raw, mapping, "store_code"), self.sap_value(raw, mapping, "brand_name"), self.sap_value(raw, mapping, "category_name"), self.sap_value(raw, mapping, "product_code"), self.sap_value(raw, mapping, "product_name"), self.sap_value(raw, mapping, "barcode"), self.sap_float(self.sap_value(raw, mapping, "quantity")), self.sap_inventory_amount(raw, mapping, "cost_amount", "cost"), self.sap_inventory_amount(raw, mapping, "retail_amount", "retail_amount"), self.sap_int(self.sap_value(raw, mapping, "age_days")), raw_json, now),
                         )
                     else:
                         conn.execute(
                             "insert into sap_sales(batch_id,sale_date,store_name,store_code,employee_name,employee_code,brand_name,category_name,product_code,product_name,barcode,quantity,amount,cost,gross_profit,raw_data,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                            (batch_id, self.sap_value(raw, mapping, "sale_date"), self.sap_value(raw, mapping, "store_name"), self.sap_value(raw, mapping, "store_code"), self.sap_value(raw, mapping, "employee_name"), self.sap_value(raw, mapping, "employee_code"), self.sap_value(raw, mapping, "brand_name"), self.sap_value(raw, mapping, "category_name"), self.sap_value(raw, mapping, "product_code"), self.sap_value(raw, mapping, "product_name"), self.sap_value(raw, mapping, "barcode"), self.sap_float(self.sap_value(raw, mapping, "quantity")), self.sap_float(self.sap_value(raw, mapping, "amount")), self.sap_float(self.sap_value(raw, mapping, "cost")), self.sap_float(self.sap_value(raw, mapping, "gross_profit")), raw_json, now),
+                            (batch_id, self.sap_value(raw, mapping, "sale_date"), store_name, self.sap_value(raw, mapping, "store_code"), self.sap_value(raw, mapping, "employee_name"), self.sap_value(raw, mapping, "employee_code"), self.sap_value(raw, mapping, "brand_name"), self.sap_value(raw, mapping, "category_name"), self.sap_value(raw, mapping, "product_code"), self.sap_value(raw, mapping, "product_name"), self.sap_value(raw, mapping, "barcode"), self.sap_float(self.sap_value(raw, mapping, "quantity")), self.sap_float(self.sap_value(raw, mapping, "amount")), self.sap_float(self.sap_value(raw, mapping, "cost")), self.sap_float(self.sap_value(raw, mapping, "gross_profit")), raw_json, now),
                         )
                     success += 1
                 except Exception:
