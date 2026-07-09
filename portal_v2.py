@@ -1573,7 +1573,71 @@ create table if not exists business_rule_results(
             "create index if not exists idx_business_rule_results_rule on business_rule_results(rule_id, created_at)",
         ]:
             conn.execute(idx)
+        conn.execute(
+            """
+create table if not exists business_health_snapshots(
+ id integer primary key autoincrement,
+ snapshot_date text not null,
+ overall_score real not null default 0,
+ sales_score real not null default 0,
+ margin_score real not null default 0,
+ inventory_score real not null default 0,
+ brand_score real not null default 0,
+ store_score real not null default 0,
+ operation_score real not null default 0,
+ data_score real not null default 0,
+ status text not null default 'unknown',
+ calculation_version text not null default 'sprint012_v1',
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_health_details(
+ id integer primary key autoincrement,
+ snapshot_id integer not null,
+ dimension text not null,
+ entity_type text,
+ entity_id integer,
+ score real not null default 0,
+ status text not null default 'unknown',
+ summary text,
+ evidence_json text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_health_weights(
+ id integer primary key autoincrement,
+ dimension text unique not null,
+ weight real not null default 1,
+ status text not null default 'active',
+ source text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_business_health_snapshots_date on business_health_snapshots(snapshot_date, created_at)",
+            "create index if not exists idx_business_health_details_snapshot on business_health_details(snapshot_id, dimension)",
+            "create index if not exists idx_business_health_weights_status on business_health_weights(status, dimension)",
+        ]:
+            conn.execute(idx)
         seed_now = ts()
+        for dimension, weight in [
+            ("sales_health", 1.2),
+            ("margin_health", 1.2),
+            ("inventory_health", 1.2),
+            ("brand_health", 0.9),
+            ("store_health", 0.9),
+            ("operation_health", 0.8),
+            ("data_health", 0.8),
+        ]:
+            conn.execute("insert or ignore into business_health_weights(dimension,weight,status,source,created_at,updated_at) values(?,?,?,?,?,?)", (dimension, weight, "active", "Sprint012 configurable seed; future source Business Rule Engine", seed_now, seed_now))
         huohu_initial_business_rules = [
             ("inventory_over_180_amount_50000", "Inventory age over 180 days and amount over 50000", "inventory_rule", "IF inventory_days > 180 AND inventory_amount > 50000 THEN create high inventory risk insight.", {"all": [{"metric": "inventory_days", "operator": ">", "value": 180}, {"metric": "inventory_amount", "operator": ">", "value": 50000}], "dataset": "sap_inventory"}, {"decision_type": "inventory_risk", "action": "create_decision_insight", "owner": "purchasing"}, "high", 10, "active", "Sprint011 Huohu Fox initial rule"),
             ("inventory_over_365_amount_100000", "Critical inventory age over 365 days and amount over 100000", "inventory_rule", "IF inventory_days > 365 AND inventory_amount > 100000 THEN create critical decision insight and dashboard alert.", {"all": [{"metric": "inventory_days", "operator": ">", "value": 365}, {"metric": "inventory_amount", "operator": ">", "value": 100000}], "dataset": "sap_inventory"}, {"decision_type": "inventory_risk", "action": "create_decision_insight", "dashboard_alert": True, "owner": "purchasing"}, "critical", 5, "active", "Sprint011 Huohu Fox initial rule"),
@@ -4638,6 +4702,8 @@ class App(BaseHTTPRequestHandler):
             return self.business_calibration_page(user, path)
         if path in ("/business-rules", "/business-rules/runs") or re.match(r"^/business-rules/\d+$", path):
             return self.business_rules_page(user, path)
+        if path == "/business-health":
+            return self.business_health_page(user)
         if path == "/apps":
             return self.apps_launcher(user)
         if path == "/desktop":
@@ -4814,6 +4880,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_decision_get(user, path)
         if path.startswith("/api/business-rules"):
             return self.api_business_rules_get(user, path)
+        if path.startswith("/api/business-health"):
+            return self.api_business_health_get(user, path)
         if path.startswith("/api/dashboard/"):
             return self.api_dashboard_get(user, path)
         if path == "/api/dashboard/ceo":
@@ -5046,6 +5114,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_ai_business_center_post(self.current_user(), path)
         if path.startswith("/api/business-rules"):
             return self.api_business_rules_post(self.current_user(), path)
+        if path.startswith("/api/business-health"):
+            return self.api_business_health_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -7492,6 +7562,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             graph_metrics = self.knowledge_graph_summary(conn)
             decision_metrics = self.decision_engine_summary(conn)
             rule_metrics = self.business_rule_summary(conn)
+            health_metrics = self.business_health_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7504,6 +7575,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Knowledge Graph", graph_metrics["graph_nodes"] >= 0, "knowledge_graph_nodes"),
                 ("Decision Engine", decision_metrics["decision_insights_total"] >= 0, "decision_insights"),
                 ("Business Rule Engine", rule_metrics["business_rules_active"] >= 0, "business_rules"),
+                ("Business Health Engine", health_metrics["overall_score"] >= 0, "business_health_snapshots"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7547,10 +7619,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "business_rules_active": rule_metrics["business_rules_active"],
                 "business_rule_runs_total": rule_metrics["business_rule_runs_total"],
                 "business_rule_triggered_high": rule_metrics["business_rule_triggered_high"],
+                "business_health_score": health_metrics["overall_score"],
+                "business_health_status": health_metrics["health_status"],
             },
             "business_metrics": business_metrics,
             "decision_metrics": decision_metrics,
             "rule_metrics": rule_metrics,
+            "health_metrics": health_metrics,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -7567,6 +7642,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "Business Knowledge Graph", "url": "/knowledge-graph", "status": "ready"},
                 {"title": "Decision Engine", "url": "/decision", "status": "ready"},
                 {"title": "Business Rule Engine", "url": "/business-rules", "status": "ready"},
+                {"title": "Business Health Engine", "url": "/business-health", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7610,6 +7686,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ("Active Rules", summary["business_rules_active"], "business_rules"),
             ("Rule Runs", summary["business_rule_runs_total"], "auditable"),
             ("High Rule Triggers", summary["business_rule_triggered_high"], "high/critical"),
+            ("Business Health", "{:.1f}/100".format(summary["business_health_score"]), summary["business_health_status"]),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7656,6 +7733,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "Latest accepted decision: " + latest_accepted_decision,
             "Business Rule Engine active rules: " + str(summary["business_rules_active"]),
             "Latest rule run: " + (str(latest_rule_run.get("id")) + " / " + str(latest_rule_run.get("status")) if latest_rule_run else "none"),
+            "Business Health: {:.1f}/100 / {}".format(summary["business_health_score"], summary["business_health_status"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
@@ -15712,6 +15790,192 @@ order by gross_profit asc limit 300
         if "text/html" in (self.headers.get("Accept") or ""):
             return self.redir("/business-rules/{}".format(rule_id))
         return self.json_out({"ok": True, "rule_id": rule_id})
+
+    def health_status(self, score):
+        score = float(score or 0)
+        if score >= 85:
+            return "excellent"
+        if score >= 70:
+            return "healthy"
+        if score >= 50:
+            return "warning"
+        return "critical"
+
+    def health_detail_to_json(self, row):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        return data
+
+    def business_health_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            latest = conn.execute("select * from business_health_snapshots order by created_at desc limit 1").fetchone()
+            details = conn.execute("select * from business_health_details where snapshot_id=? order by score asc", (latest["id"],)).fetchall() if latest else []
+            weights = conn.execute("select * from business_health_weights where status='active' order by dimension").fetchall()
+            return {
+                "health_snapshot": row_dict(latest) if latest else None,
+                "overall_score": float(latest["overall_score"] if latest else 0),
+                "health_status": latest["status"] if latest else "unknown",
+                "details": [self.health_detail_to_json(r) for r in details],
+                "weights": [row_dict(r) for r in weights],
+                "evidence_rule": "all_business_health_scores_must_include_evidence",
+                "weight_rule": "business_health_weights_are_configurable_and_ready_for_business_rule_engine",
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def health_score_from_ratio(self, ratio, good=0.3, ok=0.2, weak=0.1):
+        ratio = float(ratio or 0)
+        if ratio >= good:
+            return 90
+        if ratio >= ok:
+            return 75
+        if ratio >= weak:
+            return 60
+        return 40
+
+    def business_health_dimensions(self, conn):
+        metrics = self.business_metrics_summary(conn)
+        rules = self.business_rule_summary(conn)
+        decisions = self.decision_engine_summary(conn)
+        sales_amount = float(metrics.get("sales_amount") or 0)
+        gross_margin = float(metrics.get("gross_margin") or 0)
+        inventory_amount = float(metrics.get("inventory_retail_amount") or 0)
+        inventory_qty = float(metrics.get("inventory_quantity") or 0)
+        quality_warnings = int(metrics.get("metric_quality_warnings") or 0) + int(metrics.get("quality_alerts") or 0)
+        suggested_objects = int(metrics.get("suggested_objects") or 0)
+        neg_profit = int(conn.execute("select count(*) c from sap_sales where coalesce(gross_profit,0)<0").fetchone()["c"] or 0)
+        aged_inventory = int(conn.execute("select count(*) c from sap_inventory where coalesce(age_days,0)>180 and coalesce(retail_amount,cost_amount,0)>50000").fetchone()["c"] or 0)
+        store_count = int(conn.execute("select count(distinct store_name) c from business_metrics_snapshots where snapshot_type='store_sales' and coalesce(store_name,'')!=''").fetchone()["c"] or 0)
+        brand_total = float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount'").fetchone()["v"] or 0)
+        top_brand = conn.execute("select brand_name, metric_value sales_amount, id from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount' and coalesce(brand_name,'')!='' order by metric_value desc limit 1").fetchone()
+        brand_share = float(top_brand["sales_amount"] or 0) / brand_total if top_brand and brand_total > 0 else 0
+        dimensions = []
+        def add(dimension, score, summary, evidence, entity_type="", entity_id=None):
+            dimensions.append({"dimension": dimension, "score": max(0, min(100, float(score))), "status": self.health_status(score), "summary": summary, "evidence": evidence, "entity_type": entity_type, "entity_id": entity_id})
+        add("sales_health", 80 if sales_amount > 0 else 50, "Sales amount is available." if sales_amount > 0 else "No imported sales amount is available.", [{"source_type": "business_metrics_snapshots", "source_id": "sales_amount", "evidence_title": "Sales amount", "evidence_summary": "sales_amount={}".format(sales_amount), "confidence": 0.86}])
+        margin_score = self.health_score_from_ratio(gross_margin)
+        if neg_profit:
+            margin_score = min(margin_score, 55)
+        add("margin_health", margin_score, "Gross margin {:.1%}, negative profit rows {}.".format(gross_margin, neg_profit), [{"source_type": "business_metrics_snapshots", "source_id": "gross_margin", "evidence_title": "Gross margin", "evidence_summary": "gross_margin={:.4f}".format(gross_margin), "confidence": 0.86}, {"source_type": "sap_sales", "source_id": "negative_gross_profit_count", "evidence_title": "Negative gross profit count", "evidence_summary": "negative_rows={}".format(neg_profit), "confidence": 0.78}])
+        inventory_score = 82 if inventory_qty > 0 else 55
+        if aged_inventory:
+            inventory_score = min(inventory_score, 55)
+        if inventory_qty > 0 and metrics.get("inventory_cost_amount", 0) <= 0:
+            inventory_score = min(inventory_score, 60)
+        add("inventory_health", inventory_score, "Inventory amount {}, quantity {}, aged risk rows {}.".format(inventory_amount, inventory_qty, aged_inventory), [{"source_type": "business_metrics_snapshots", "source_id": "inventory_retail_amount", "evidence_title": "Inventory amount", "evidence_summary": "inventory_retail_amount={} inventory_quantity={}".format(inventory_amount, inventory_qty), "confidence": 0.84}, {"source_type": "sap_inventory", "source_id": "age_days_over_180_amount_over_50000", "evidence_title": "Aged inventory count", "evidence_summary": "aged_inventory_count={}".format(aged_inventory), "confidence": 0.78}])
+        brand_score = 82 if brand_total > 0 else 55
+        if brand_share > 0.6:
+            brand_score = 62
+        add("brand_health", brand_score, "Top brand share {:.1%}.".format(brand_share), [{"source_type": "business_metrics_snapshots", "source_id": str(top_brand["id"] if top_brand else "brand_sales"), "evidence_title": "Brand sales share", "evidence_summary": "top_brand={} share={:.4f}".format(top_brand["brand_name"] if top_brand else "", brand_share), "confidence": 0.8}])
+        store_score = 80 if store_count > 0 else 55
+        add("store_health", store_score, "Store sales dimensions available: {}.".format(store_count), [{"source_type": "business_metrics_snapshots", "source_id": "store_sales", "evidence_title": "Store sales coverage", "evidence_summary": "store_count={}".format(store_count), "confidence": 0.8}])
+        op_score = 82
+        if rules.get("business_rule_triggered_high", 0) > 0 or decisions.get("decision_high_severity", 0) > 0:
+            op_score = 58
+        add("operation_health", op_score, "High rule triggers {}, high decision insights {}.".format(rules.get("business_rule_triggered_high", 0), decisions.get("decision_high_severity", 0)), [{"source_type": "business_rule_results", "source_id": "high_trigger_count", "evidence_title": "High rule triggers", "evidence_summary": "business_rule_triggered_high={}".format(rules.get("business_rule_triggered_high", 0)), "confidence": 0.82}, {"source_type": "decision_insights", "source_id": "high_severity_count", "evidence_title": "High decision insights", "evidence_summary": "decision_high_severity={}".format(decisions.get("decision_high_severity", 0)), "confidence": 0.82}])
+        data_score = 88
+        if quality_warnings or suggested_objects:
+            data_score = max(45, 88 - quality_warnings * 8 - suggested_objects * 2)
+        add("data_health", data_score, "Data warnings {}, pending object suggestions {}.".format(quality_warnings, suggested_objects), [{"source_type": "business_metric_quality", "source_id": "warning_count", "evidence_title": "Metric quality warnings", "evidence_summary": "quality_warnings={}".format(quality_warnings), "confidence": 0.82}, {"source_type": "business_object_suggestions", "source_id": "pending_count", "evidence_title": "Pending object suggestions", "evidence_summary": "suggested_objects={}".format(suggested_objects), "confidence": 0.76}])
+        return dimensions
+
+    def calculate_business_health(self, user=None, run_type="manual"):
+        now = ts()
+        snapshot_date = time.strftime("%Y-%m-%d", time.localtime(now))
+        with db() as conn:
+            dimensions = self.business_health_dimensions(conn)
+            weights = {r["dimension"]: float(r["weight"] or 0) for r in conn.execute("select * from business_health_weights where status='active'").fetchall()}
+            total_weight = sum(weights.get(d["dimension"], 1) for d in dimensions) or 1
+            overall = sum(d["score"] * weights.get(d["dimension"], 1) for d in dimensions) / total_weight
+            scores = {d["dimension"]: d["score"] for d in dimensions}
+            cur = conn.execute(
+                "insert into business_health_snapshots(snapshot_date,overall_score,sales_score,margin_score,inventory_score,brand_score,store_score,operation_score,data_score,status,calculation_version,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (snapshot_date, overall, scores.get("sales_health", 0), scores.get("margin_health", 0), scores.get("inventory_health", 0), scores.get("brand_health", 0), scores.get("store_health", 0), scores.get("operation_health", 0), scores.get("data_health", 0), self.health_status(overall), "sprint012_v1_configurable_weights", now),
+            )
+            snapshot_id = cur.lastrowid
+            critical_details = []
+            for d in dimensions:
+                if not d["evidence"]:
+                    raise ValueError("health detail missing evidence: " + d["dimension"])
+                conn.execute("insert into business_health_details(snapshot_id,dimension,entity_type,entity_id,score,status,summary,evidence_json,created_at) values(?,?,?,?,?,?,?,?,?)", (snapshot_id, d["dimension"], d["entity_type"], d["entity_id"], d["score"], d["status"], d["summary"], json.dumps(d["evidence"], ensure_ascii=False), now))
+                if d["status"] in ("critical", "warning"):
+                    critical_details.append(d)
+            evidence = [{"source_type": "business_health_snapshots", "source_id": str(snapshot_id), "evidence_title": "Business health snapshot", "evidence_summary": "overall_score={:.1f} status={}".format(overall, self.health_status(overall)), "confidence": 0.88}]
+            evidence += [{"source_type": "business_health_details", "source_id": d["dimension"], "evidence_title": d["dimension"], "evidence_summary": d["summary"], "confidence": 0.82} for d in critical_details[:5]]
+            insight_id = None
+            if overall < 60 or any(d["status"] == "critical" for d in critical_details):
+                insight_id = self.upsert_decision_insight(conn, "operation_alert", "Business health requires CEO review", "Business Health Engine calculated score {:.1f}/100 with status {}.".format(overall, self.health_status(overall)), "high" if overall < 50 else "medium", "business_health", snapshot_id, {"snapshot_id": snapshot_id, "overall_score": overall, "status": self.health_status(overall)}, evidence, "Review low health dimensions and trigger Business Rule / Decision Engine follow-up before execution.", [{"title": "Review business health", "description": "Open Business Health and inspect evidence-backed dimensions.", "action_type": "manual_review", "owner": "boss"}], user)
+            self.add_timeline_event(conn, "business_health", snapshot_id, "business_health_snapshot_created", "Business Health Snapshot Created", "overall_score={:.1f} status={}".format(overall, self.health_status(overall)), "business_health_snapshots", snapshot_id, {"overall_score": overall, "status": self.health_status(overall), "decision_insight_id": insight_id}, user["id"] if user else None, now)
+        return {"ok": True, "snapshot_id": snapshot_id, "overall_score": round(overall, 2), "status": self.health_status(overall), "decision_insight_id": insight_id, "details": dimensions, "safety": "business_health_scores_are_evidence_backed_no_external_ai_api_no_production_sap"}
+
+    def business_health_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        with db() as conn:
+            summary = self.business_health_summary(conn)
+            trend = conn.execute("select * from business_health_snapshots order by created_at desc limit 20").fetchall()
+        latest = summary["health_snapshot"]
+        if not latest:
+            metrics = self.metric("Overall", "No snapshot", "run health calculation")
+            details_html = self.empty_state("No health snapshot yet.")
+        else:
+            metrics = "".join([
+                self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7\u5ea6"), "{:.1f}/100".format(summary["overall_score"]), summary["health_status"]),
+                self.metric("Sales", latest["sales_score"], "sales_health"),
+                self.metric("Margin", latest["margin_score"], "margin_health"),
+                self.metric("Inventory", latest["inventory_score"], "inventory_health"),
+                self.metric("Data", latest["data_score"], "data_health"),
+            ])
+            details_html = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>{}</p><p class='small'>evidence {}</p></div>".format(esc(d["dimension"]), float(d["score"]), esc(d["status"]), esc(d["summary"] or ""), len(d["evidence_json"])) for d in summary["details"])
+        trend_items = self.bullets(["{} / {:.1f} / {}".format(r["snapshot_date"], r["overall_score"], r["status"]) for r in trend] or ["No historical trend yet."])
+        weight_items = self.bullets(["{} weight {}".format(w["dimension"], w["weight"]) for w in summary["weights"]] or ["No active weights."])
+        body = """
+<div class="panel"><h2>Business Health Engine</h2><p class="small">Every health score is evidence-backed. Weights are database-configurable and ready for future Business Rule Engine control.</p><form method="post" action="/api/business-health/recalculate" style="display:inline"><button>Calculate Health</button></form> <a class="btn dark" href="/api/business-health">API</a><div class="metrics">{}</div></div>
+<div class="split"><div class="panel"><h2>Top Risks / Opportunities</h2>{}</div><div class="panel"><h2>Health Weights</h2>{}</div></div>
+<div class="grid">{}</div>""".format(metrics, trend_items, weight_items, details_html)
+        self.out(layout(U(r"\u4f01\u4e1a\u5065\u5eb7"), body, user=user, wide=True))
+
+    def api_business_health_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/business-health":
+            return self.json_out({"ok": True, **self.business_health_summary()})
+        if path == "/api/business-health/snapshots":
+            with db() as conn:
+                rows = conn.execute("select * from business_health_snapshots order by created_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "snapshots": [row_dict(r) for r in rows]})
+        if path == "/api/business-health/details":
+            q = parse_qs(urlparse(self.path).query)
+            sid = q.get("snapshot_id", [""])[0]
+            with db() as conn:
+                if str(sid).isdigit():
+                    rows = conn.execute("select * from business_health_details where snapshot_id=? order by score asc", (sid,)).fetchall()
+                else:
+                    latest = conn.execute("select id from business_health_snapshots order by created_at desc limit 1").fetchone()
+                    rows = conn.execute("select * from business_health_details where snapshot_id=? order by score asc", (latest["id"],)).fetchall() if latest else []
+            return self.json_out({"ok": True, "details": [self.health_detail_to_json(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown business health api"}, code=404)
+
+    def api_business_health_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/business-health/recalculate":
+            payload = self.calculate_business_health(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/business-health")
+            return self.json_out(payload)
+        return self.json_out({"ok": False, "message": "unknown business health write api"}, code=404)
 
     def can_view_graph(self, user):
         return bool(user)

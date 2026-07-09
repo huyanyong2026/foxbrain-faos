@@ -3449,3 +3449,73 @@ def test_sprint011_summary_and_report_present():
         "no external AI API",
     ]:
         assert phrase in report
+
+
+def test_sprint012_business_health_engine_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists business_health_snapshots",
+        "create table if not exists business_health_details",
+        "create table if not exists business_health_weights",
+        "idx_business_health_snapshots_date",
+        "idx_business_health_details_snapshot",
+        "idx_business_health_weights_status",
+        "def business_health_summary",
+        "def business_health_dimensions",
+        "def calculate_business_health",
+        "def business_health_page",
+        "def api_business_health_get",
+        "def api_business_health_post",
+        '"/business-health"',
+        '"/api/business-health"',
+        '"/api/business-health/recalculate"',
+        '"/api/business-health/snapshots"',
+        '"/api/business-health/details"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint012_business_health_evidence_dashboard_decision_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "all_business_health_scores_must_include_evidence",
+        "business_health_weights_are_configurable_and_ready_for_business_rule_engine",
+        "business_health_scores_are_evidence_backed_no_external_ai_api_no_production_sap",
+        "business_health_snapshot_created",
+        "upsert_decision_insight",
+        "Business Health Engine",
+        "Business Health",
+        "business_health_score",
+        "business_health_status",
+        "business_health_snapshots",
+        "business_health_details",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint012_summary_and_report_present():
+    summary = read("SPRINT012_BUSINESS_HEALTH_ENGINE_SUMMARY.md")
+    report = read("SPRINT012_BUSINESS_HEALTH_ENGINE_TEST_REPORT.md")
+    for phrase in [
+        "Sprint012 Business Health Engine Summary",
+        "business_health_snapshots",
+        "business_health_details",
+        "business_health_weights",
+        "GET /api/business-health",
+        "POST /api/business-health/recalculate",
+        "Dashboard Integration",
+        "Decision Engine Integration",
+        "all_business_health_scores_must_include_evidence",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint012 Business Health Engine Test Report",
+        "Schema Checks",
+        "Runtime Checks",
+        "API Checks",
+        "UI Checks",
+        "Guardrail Checks",
+        "no production SAP connection",
+        "no external AI API",
+    ]:
+        assert phrase in report
