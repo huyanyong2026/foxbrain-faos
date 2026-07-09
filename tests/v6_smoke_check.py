@@ -2986,3 +2986,81 @@ def test_sprint005_summary_present():
         "Sprint006",
     ]:
         assert phrase in summary
+
+
+def test_sprint006_memory_engine_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists enterprise_memories",
+        "create table if not exists memory_relations",
+        "idx_enterprise_memories_type",
+        "idx_enterprise_memories_risk",
+        "idx_enterprise_memories_object",
+        "def enterprise_memory_types",
+        "def enterprise_memory_to_json",
+        "def normalize_enterprise_memory_form",
+        "def write_enterprise_memory_timeline",
+        'if path in ("/memory", "/memories")',
+        'path.startswith("/api/memories") or path == "/api/memory-types"',
+        "def api_enterprise_memories_get",
+        "def api_enterprise_memories_post",
+        "def api_enterprise_memories_delete",
+        'if path == "/api/memory-types"',
+        'if path == "/api/memories"',
+        r"^/api/memories/(\d+)$",
+        r"^/api/objects/(\d+)/memories$",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint006_memory_engine_fields_dashboard_search_timeline_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "decision",
+        "meeting",
+        "risk",
+        "strategy",
+        "operation",
+        "purchase",
+        "pricing",
+        "store",
+        "brand",
+        "supplier",
+        "reason",
+        "impact",
+        "related_object_type",
+        "related_document_id",
+        "related_knowledge_id",
+        "enterprise_memories_total",
+        "high_risk_memories_total",
+        "recent_memories",
+        '\"type\": \"memory\"',
+        "memory_created",
+        "memory_updated",
+        "enterprise_memory",
+        "memory_relations",
+        '\"url\": \"/memory\"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint006_summary_present():
+    summary = read("SPRINT006_MEMORY_ENGINE_SUMMARY.md")
+    for phrase in [
+        "Sprint006 Memory Engine Summary",
+        "enterprise_memories",
+        "memory_relations",
+        "GET /api/memories",
+        "POST /api/memories",
+        "PATCH /api/memories/:id",
+        "DELETE /api/memories/:id",
+        "GET /api/memory-types",
+        "GET /api/objects/:id/memories",
+        "Dashboard integration",
+        "Search integration",
+        "Timeline integration",
+        "does not build ai.vafox.com",
+        "does not require any external AI API",
+        "Sprint007",
+    ]:
+        assert phrase in summary
