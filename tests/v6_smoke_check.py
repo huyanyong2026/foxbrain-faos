@@ -2804,3 +2804,56 @@ def test_sprint002_drive_object_linking_and_summary_present():
         "Sprint003",
     ]:
         assert phrase in summary
+
+
+def test_sprint003_knowledge_pipeline_schema_and_helpers_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists document_chunks",
+        'ensure_column(conn, "knowledge_items", "document_id", "document_id integer")',
+        'ensure_column(conn, "knowledge_items", "content", "content text")',
+        'ensure_column(conn, "knowledge_items", "source_path", "source_path text")',
+        'ensure_column(conn, "knowledge_items", "chunk_index", "chunk_index integer")',
+        'ensure_column(conn, "knowledge_items", "confidence", "confidence real not null default 0")',
+        '("processing_error", "processing_error text")',
+        "knowledge_pipeline_chunks",
+        "document_knowledge_metrics",
+        "process_document_to_knowledge",
+        "embedding_status",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint003_knowledge_pipeline_routes_and_drive_integration_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "/api/knowledge/process-document/",
+        "/api/knowledge/items",
+        "/api/knowledge/search",
+        "/api/documents",
+        "def api_documents_get",
+        "def api_documents_post",
+        r"^/api/documents/(\d+)/chunks$",
+        "knowledge_processing",
+        "self.process_document_to_knowledge(user, doc_id",
+        "self.process_document_to_knowledge(user, m_reprocess.group(1), force=True)",
+        "Document -> Extract Text -> Chunk -> Summary -> Tags -> Knowledge Records -> Search Index -> Ready for AI Q&A",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint003_summary_present():
+    summary = read("SPRINT003_KNOWLEDGE_PIPELINE_SUMMARY.md")
+    for phrase in [
+        "Sprint003 Knowledge Pipeline Summary",
+        "document_chunks",
+        "POST /api/knowledge/process-document/:documentId",
+        "GET /api/knowledge/items",
+        "GET /api/documents/:id/chunks",
+        "POST /api/documents/:id/reprocess",
+        "does not build ai.vafox.com",
+        "does not require any external AI API",
+        "OCR placeholder",
+        "Sprint004",
+    ]:
+        assert phrase in summary

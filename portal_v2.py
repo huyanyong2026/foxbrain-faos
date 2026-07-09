@@ -845,10 +845,15 @@ create table if not exists knowledge_items(
         ensure_column(conn, "knowledge_items", "knowledge_id", "knowledge_id text")
         ensure_column(conn, "knowledge_items", "source_id", "source_id text")
         ensure_column(conn, "knowledge_items", "source_file_id", "source_file_id integer")
+        ensure_column(conn, "knowledge_items", "document_id", "document_id integer")
         ensure_column(conn, "knowledge_items", "object_type", "object_type text")
         ensure_column(conn, "knowledge_items", "object_id", "object_id integer")
+        ensure_column(conn, "knowledge_items", "content", "content text")
         ensure_column(conn, "knowledge_items", "summary", "summary text")
         ensure_column(conn, "knowledge_items", "keywords", "keywords text")
+        ensure_column(conn, "knowledge_items", "source_path", "source_path text")
+        ensure_column(conn, "knowledge_items", "chunk_index", "chunk_index integer")
+        ensure_column(conn, "knowledge_items", "confidence", "confidence real not null default 0")
         ensure_column(conn, "knowledge_items", "status", "status text not null default 'draft'")
         ensure_column(conn, "knowledge_items", "visibility", "visibility text not null default 'public_internal'")
         ensure_column(conn, "knowledge_items", "human_summary", "human_summary text")
@@ -862,6 +867,7 @@ create table if not exists knowledge_items(
         ensure_column(conn, "knowledge_items", "deleted_at", "deleted_at integer")
         conn.execute("create index if not exists idx_knowledge_status on knowledge_items(status)")
         conn.execute("create index if not exists idx_knowledge_object on knowledge_items(object_type, object_id)")
+        conn.execute("create index if not exists idx_knowledge_document on knowledge_items(document_id)")
         conn.execute("create index if not exists idx_knowledge_visibility on knowledge_items(visibility)")
         conn.execute("create index if not exists idx_knowledge_governance on knowledge_items(owner, department, retention_policy)")
         conn.execute(
@@ -903,6 +909,24 @@ create table if not exists knowledge_chunks(
 """
         )
         conn.execute("create index if not exists idx_chunks_knowledge on knowledge_chunks(knowledge_id)")
+        conn.execute(
+            """
+create table if not exists document_chunks(
+ id integer primary key autoincrement,
+ document_id integer not null,
+ chunk_index integer not null,
+ content text,
+ token_count integer not null default 0,
+ summary text,
+ embedding_status text not null default 'pending',
+ metadata text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_document_chunks_document on document_chunks(document_id, chunk_index)")
+        conn.execute("create index if not exists idx_document_chunks_embedding on document_chunks(embedding_status)")
         conn.execute(
             """
 create table if not exists stores(
@@ -1093,6 +1117,7 @@ create table if not exists documents(
             ("extracted_text_path", "extracted_text_path text"),
             ("related_object_type", "related_object_type text"),
             ("related_object_id", "related_object_id integer"),
+            ("processing_error", "processing_error text"),
             ("version", "version integer not null default 1"),
             ("created_by", "created_by integer"),
             ("deleted_at", "deleted_at integer"),
@@ -4353,6 +4378,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_sap_knowledge_engine_get(user, path)
         if path.startswith("/api/knowledge-quality") or path.startswith("/api/ai-learning") or path.startswith("/api/boss-experience"):
             return self.api_knowledge_quality_get(user, path)
+        if path.startswith("/api/documents"):
+            return self.api_documents_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith(("/api/operating-loop", "/api/strategy", "/api/strategy-center", "/api/university", "/api/learning", "/api/growth-engine", "/api/executive-command-center", "/api/digital-twin", "/api/decision-engine", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
@@ -4515,6 +4542,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_store_growth_post(self.current_user(), path)
         if path.startswith("/api/brand-growth"):
             return self.api_brand_growth_post(self.current_user(), path)
+        if path.startswith("/api/documents"):
+            return self.api_documents_post(self.current_user(), path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_post(self.current_user(), path)
         if path.startswith(("/api/operating-loop", "/api/strategy", "/api/digital-twin", "/api/kernel", "/api/data-fabric", "/api/data-sources", "/api/integrations", "/api/security", "/api/operations", "/api/product", "/api/feedback", "/api/action")):
@@ -4995,12 +5024,16 @@ class App(BaseHTTPRequestHandler):
             "id": data.get("id"),
             "knowledge_id": data.get("knowledge_id") or f"KB-{data.get('id')}",
             "title": data.get("title"),
-            "content": data.get("body") if include_body else None,
+            "content": (data.get("content") or data.get("body")) if include_body else None,
             "source_type": data.get("source_type"),
             "source_id": data.get("source_id"),
             "source_file_id": data.get("source_file_id"),
+            "document_id": data.get("document_id"),
             "object_type": data.get("object_type"),
             "object_id": data.get("object_id"),
+            "source_path": data.get("source_path"),
+            "chunk_index": data.get("chunk_index"),
+            "confidence": data.get("confidence"),
             "summary": data.get("summary") or data.get("ai_summary"),
             "human_summary": data.get("human_summary"),
             "keywords": data.get("keywords"),
@@ -5027,6 +5060,122 @@ class App(BaseHTTPRequestHandler):
                 (uuid.uuid4().hex, knowledge_id, document_id, idx, part, max(1, len(part) // 2), "pending", now),
             )
         return len(chunks)
+
+    def knowledge_pipeline_chunks(self, text):
+        return chunk_text(text, size=1200) or ([text.strip()] if (text or "").strip() else [])
+
+    def document_knowledge_metrics(self, conn, document_id):
+        chunk_row = conn.execute("select count(*) c from document_chunks where document_id=?", (document_id,)).fetchone()
+        item_row = conn.execute("select count(*) c from knowledge_items where document_id=? and deleted_at is null", (document_id,)).fetchone()
+        doc = conn.execute("select processing_status,processing_error,extracted_text from documents where id=?", (document_id,)).fetchone()
+        return {
+            "document_id": int(document_id) if str(document_id).isdigit() else document_id,
+            "processing_status": doc["processing_status"] if doc else "unknown",
+            "processing_error": doc["processing_error"] if doc and "processing_error" in doc.keys() else "",
+            "extracted_text_status": "available" if doc and (doc["extracted_text"] or "").strip() else "empty",
+            "chunk_count": chunk_row["c"] if chunk_row else 0,
+            "knowledge_item_count": item_row["c"] if item_row else 0,
+        }
+
+    def process_document_to_knowledge(self, user, document_id, force=False):
+        if not str(document_id).isdigit():
+            return {"ok": False, "message": "invalid document id"}
+        now = ts()
+        with db() as conn:
+            doc = conn.execute("select * from documents where id=? and deleted_at is null", (document_id,)).fetchone()
+            if not doc:
+                return {"ok": False, "message": "document not found"}
+            conn.execute("update documents set processing_status='extracting', processing_error=null, updated_at=? where id=?", (now, document_id))
+            item = self.document_to_json(doc)
+            file_path = item.get("file_path") or item.get("storage_path") or ""
+            filename = item.get("original_filename") or item.get("filename") or item.get("file_name") or ""
+            extracted = item.get("extracted_text") or ""
+            if force or not extracted:
+                if file_path and os.path.exists(file_path):
+                    extracted = self.drive_extract_text(file_path, filename)
+                else:
+                    conn.execute("update documents set processing_status='failed', processing_error=?, updated_at=? where id=?", ("file missing", now, document_id))
+                    return {"ok": False, "message": "file missing", "processing_status": "failed"}
+            if not (extracted or "").strip():
+                ext = (item.get("extension") or Path(filename).suffix.lower().lstrip(".") or "").lower()
+                reason = "unsupported or empty text extraction"
+                if ext in ("jpg", "jpeg", "png", "webp"):
+                    reason = "ocr placeholder: image text extraction not implemented"
+                elif ext in ("mp4", "mov", "mp3", "wav", "m4a"):
+                    reason = "asr placeholder: media transcription not implemented"
+                conn.execute("update documents set processing_status='failed', processing_error=?, extracted_text=?, updated_at=? where id=?", (reason, extracted or "", now, document_id))
+                return {"ok": False, "message": reason, "processing_status": "failed"}
+            summary = self.drive_generate_summary(extracted)
+            tags = self.drive_generate_tags("\n".join([filename, item.get("category") or "", extracted]))
+            conn.execute(
+                "update documents set processing_status='chunking', extracted_text=?, ai_summary=?, summary=?, tags=coalesce(nullif(tags,''),?), updated_at=? where id=?",
+                (extracted, summary, summary, tags, now, document_id),
+            )
+            chunks = self.knowledge_pipeline_chunks(extracted)
+            conn.execute("delete from document_chunks where document_id=?", (document_id,))
+            conn.execute("delete from knowledge_items where document_id=? and source_type='document_pipeline'", (document_id,))
+            conn.execute("delete from knowledge_chunks where document_id=?", (document_id,))
+            created_items = []
+            conn.execute("update documents set processing_status='summarizing', updated_at=? where id=?", (ts(), document_id))
+            for idx, part in enumerate(chunks):
+                chunk_summary = summarize_text(part, 420)
+                metadata = {
+                    "document_title": filename,
+                    "category": item.get("category"),
+                    "related_object_type": item.get("related_object_type"),
+                    "related_object_id": item.get("related_object_id"),
+                    "pipeline": "Sprint003 Knowledge Pipeline",
+                }
+                conn.execute(
+                    "insert into document_chunks(document_id,chunk_index,content,token_count,summary,embedding_status,metadata,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                    (document_id, idx, part, max(1, len(part)), chunk_summary, "pending", json.dumps(metadata, ensure_ascii=False), now, now),
+                )
+                title = "{} #{}".format(filename, idx + 1)
+                cur = conn.execute(
+                    """insert into knowledge_items(
+ title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at,
+ knowledge_id,source_id,source_file_id,document_id,object_type,object_id,content,summary,keywords,source_path,chunk_index,confidence,status,visibility,auto_tags,manual_tags,embedding_status
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        title,
+                        item.get("category") or self.drive_category_for_file(filename, extracted),
+                        tags,
+                        part,
+                        chunk_summary,
+                        "document_pipeline",
+                        filename,
+                        user["id"] if user else item.get("created_by"),
+                        now,
+                        now,
+                        "KB-" + uuid.uuid4().hex[:12],
+                        str(document_id),
+                        item.get("id"),
+                        item.get("id"),
+                        item.get("related_object_type") or "",
+                        item.get("related_object_id"),
+                        part,
+                        chunk_summary,
+                        tags,
+                        file_path,
+                        idx,
+                        0.8,
+                        "ready",
+                        "public_internal",
+                        tags,
+                        "",
+                        "pending",
+                    ),
+                )
+                kid = cur.lastrowid
+                created_items.append(kid)
+                conn.execute(
+                    "insert into knowledge_chunks(chunk_id,knowledge_id,document_id,chunk_index,chunk_text,token_count,embedding_status,created_at) values(?,?,?,?,?,?,?,?)",
+                    (uuid.uuid4().hex, kid, document_id, idx, part, max(1, len(part)), "pending", now),
+                )
+            conn.execute("update documents set processing_status='indexed', vector_status='pending', processing_error=null, updated_at=? where id=?", (ts(), document_id))
+            metrics = self.document_knowledge_metrics(conn, document_id)
+        self.log_action(user, "knowledge_pipeline_process_document", "document", document_id, "chunks={}; items={}".format(metrics["chunk_count"], metrics["knowledge_item_count"]))
+        return {"ok": True, "document_id": int(document_id), "processing_status": "indexed", "knowledge_item_ids": created_items, **metrics}
 
     def drive_categories(self):
         return [
@@ -5128,6 +5277,7 @@ class App(BaseHTTPRequestHandler):
             "ai_summary": data.get("ai_summary") or data.get("summary"),
             "extracted_text": data.get("extracted_text"),
             "extracted_text_path": data.get("extracted_text_path"),
+            "processing_error": data.get("processing_error"),
             "version": data.get("version") or 1,
             "created_at": data.get("created_at"),
             "updated_at": data.get("updated_at"),
@@ -6057,30 +6207,80 @@ class App(BaseHTTPRequestHandler):
         user = self.require_login(user)
         if not user:
             return
-        cats = [
-            (U(r"\u516c\u53f8\u5236\u5ea6"), "/wiki/firefox-hq/company-architecture"),
-            ("SOP", "/wiki/firefox-hq/operations"),
-            (U(r"\u54c1\u724c"), "/wiki/firefox-hq/brands"),
-            (U(r"\u4ea7\u54c1"), "/wiki/firefox-hq/supply-chain"),
-            (U(r"\u57f9\u8bad"), "/wiki/firefox-hq/tasks"),
-            (U(r"\u5927\u5e97\u9879\u76ee"), "/wiki/firefox-hq/big-store-plan"),
-            (U(r"AI \u5f00\u53d1\u6587\u6863"), "/wiki/firefox-hq/company-ai-server-plan"),
-            (U(r"\u6587\u4ef6\u4e0a\u4f20"), "/upload"),
-            (U(r"\u5916\u7f51\u641c\u7d22"), "/web-search"),
-            (U(r"AI \u52a9\u624b"), "/ai-assistant"),
-        ]
-        pills = "".join('<a class="pill" href="{}">{}</a>'.format(esc(href), esc(name)) for name, href in cats)
+        query = parse_qs(urlparse(self.path).query)
+        q = query.get("q", [""])[0].strip()
+        source_type = query.get("source_type", [""])[0].strip()
+        object_type = module_key(query.get("object_type", [""])[0] or "")
+        category = query.get("category", [""])[0].strip()
+        where = ["deleted_at is null"]
+        params = []
+        if q:
+            like = "%" + q + "%"
+            where.append("(title like ? or body like ? or content like ? or summary like ? or keywords like ? or tags like ?)")
+            params += [like, like, like, like, like, like]
+        if source_type:
+            where.append("source_type=?")
+            params.append(source_type)
+        if object_type:
+            where.append("object_type=?")
+            params.append(object_type)
+        if category:
+            where.append("category=?")
+            params.append(category)
+        with db() as conn:
+            rows = [
+                r for r in conn.execute("select * from knowledge_items where " + " and ".join(where) + " order by updated_at desc limit 80", params).fetchall()
+                if self.can_view_knowledge(user, r)
+            ]
+            total = conn.execute("select count(*) c from knowledge_items where deleted_at is null").fetchone()["c"]
+            processed_docs = conn.execute("select count(*) c from documents where deleted_at is null and processing_status='indexed'").fetchone()["c"]
+            failed_docs = conn.execute("select count(*) c from documents where deleted_at is null and processing_status='failed'").fetchone()["c"]
+            chunk_count = conn.execute("select count(*) c from document_chunks").fetchone()["c"]
+            by_source = conn.execute("select coalesce(source_type,'unknown') name, count(*) c from knowledge_items where deleted_at is null group by source_type order by c desc limit 8").fetchall()
+            object_counts = conn.execute("select coalesce(object_type,'') name, count(*) c from knowledge_items where deleted_at is null and coalesce(object_type,'')!='' group by object_type order by c desc limit 10").fetchall()
+            category_counts = conn.execute("select coalesce(category,'') name, count(*) c from knowledge_items where deleted_at is null and coalesce(category,'')!='' group by category order by c desc limit 10").fetchall()
+        object_type_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"])) for item in self.object_types())
+        cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / chunk {}</p></div><a class='btn full' href='/knowledge/view?id={}'>{}</a></div>".format(
+                esc(row["title"]),
+                esc((row["summary"] or row["ai_summary"] or U(r"\u7b49\u5f85\u6458\u8981\u751f\u6210"))[:180]),
+                esc(row["source_type"] or ""),
+                esc(self.knowledge_status_text(row)),
+                esc(str(row["chunk_index"] if "chunk_index" in row.keys() and row["chunk_index"] is not None else "")),
+                row["id"],
+                U(r"\u67e5\u770b"),
+            )
+            for row in rows
+        ) or "<div class='panel'><p class='small'>{}</p></div>".format(U(r"\u6682\u65e0\u77e5\u8bc6\u6761\u76ee\uff0c\u53ef\u4ee5\u5148\u5728 Drive \u4e0a\u4f20\u6587\u4ef6\u3002"))
+        source_pills = "".join('<span class="pill">{} {}</span>'.format(esc(r["name"]), r["c"]) for r in by_source)
+        object_pills = "".join('<a class="pill" href="/knowledge?object_type={}">{} {}</a>'.format(esc(r["name"]), esc(self.object_type_label(r["name"]) or r["name"]), r["c"]) for r in object_counts)
+        category_pills = "".join('<a class="pill" href="/knowledge?category={}">{} {}</a>'.format(esc(r["name"]), esc(r["name"]), r["c"]) for r in category_counts)
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u706b\u72d0\u72f8 AI \u4f01\u4e1a\u77e5\u8bc6\u5e93')}</h2>
-  <p class="small">{U(r'\u6309\u7ecf\u8425\u573a\u666f\u5206\u7c7b\uff0c\u65b9\u4fbf\u5458\u5de5\u624b\u673a\u6253\u5f00\u3001\u641c\u7d22\u548c\u5b66\u4e60\u3002')}</p>
-  <div>{pills}</div>
-  <form method="get" action="/wiki/search" style="margin-top:14px">
-    <label>{U(r'\u5168\u6587\u641c\u7d22')}</label><input name="q" placeholder="{U(r'\u8f93\u5165\u5173\u952e\u8bcd\uff0c\u5982\uff1a\u85aa\u916c\u3001\u5357\u5c71\u3001SAP B1')}">
-    <p><button>{U(r'\u641c\u7d22\u77e5\u8bc6\u5e93')}</button></p>
+  <h2>Knowledge Pipeline</h2>
+  <p class="small">Document -> Extract Text -> Chunk -> Summary -> Tags -> Knowledge Records -> Search Index -> Ready for AI Q&A</p>
+  <div class="inline"><a class="btn" href="/drive">{U(r'Drive \u4e0a\u4f20')}</a><a class="btn green" href="/knowledge/new">{U(r'\u65b0\u5efa\u77e5\u8bc6')}</a><a class="btn dark" href="/api/knowledge/items">API</a><a class="btn" href="/object-center">{U(r'\u5bf9\u8c61\u4e2d\u5fc3')}</a></div>
+</div>
+<div class="metrics">
+  {self.metric(U(r'\u77e5\u8bc6\u603b\u6570'), total, U(r'\u5168\u90e8\u6761\u76ee'))}
+  {self.metric(U(r'\u5df2\u5904\u7406\u6587\u4ef6'), processed_docs, U(r'indexed'))}
+  {self.metric(U(r'\u5207\u7247\u6570'), chunk_count, U(r'document_chunks'))}
+  {self.metric(U(r'\u5904\u7406\u5931\u8d25'), failed_docs, U(r'\u9700\u590d\u6838'))}
+</div>
+<div class="panel">
+  <form method="get" action="/knowledge">
+    <label>{U(r'\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u6587\u4ef6\u540d\u3001\u6b63\u6587\u3001\u6458\u8981\u3001\u6807\u7b7e')}">
+    <label>{U(r'\u6765\u6e90')}</label><input name="source_type" value="{esc(source_type)}" placeholder="document_pipeline / note / sap_knowledge">
+    <label>{U(r'\u5bf9\u8c61\u7c7b\u578b')}</label><select name="object_type"><option value="">{U(r'\u5168\u90e8')}</option>{object_type_options}</select>
+    <label>{U(r'\u5206\u7c7b')}</label><input name="category" value="{esc(category)}">
+    <p><button>{U(r'\u641c\u7d22')}</button></p>
   </form>
-</div>"""
-        self.out(layout(U(r"\u706b\u72d0\u72f8 AI \u4f01\u4e1a\u77e5\u8bc6\u5e93"), body, user=user))
+  <div>{source_pills}</div>
+  <div>{object_pills}</div>
+  <div>{category_pills}</div>
+</div>
+<div class="grid">{cards}</div>"""
+        self.out(layout("Knowledge Pipeline", body, user=user, wide=True))
 
     def inventory(self, user):
         user = self.require_login(user)
@@ -7271,6 +7471,8 @@ class App(BaseHTTPRequestHandler):
                 return self.json_out({"ok": False, "message": "not found"}, code=404)
             item = self.document_to_json(row)
             item["download_url"] = "/api/drive/files/{}/download".format(item["id"])
+            with db() as conn:
+                item["knowledge_processing"] = self.document_knowledge_metrics(conn, item["id"])
             return self.json_out({"ok": True, "file": item})
         if path == "/api/drive/files":
             query = parse_qs(urlparse(self.path).query)
@@ -7313,28 +7515,13 @@ class App(BaseHTTPRequestHandler):
             return self.api_drive_upload(user)
         m_reprocess = re.match(r"^/api/drive/files/(\d+)/reprocess$", path)
         if m_reprocess:
-            now = ts()
-            with db() as conn:
-                row = conn.execute("select * from documents where id=? and deleted_at is null", (m_reprocess.group(1),)).fetchone()
-                if not row:
-                    return self.json_out({"ok": False, "message": "not found"}, code=404)
-                item = self.document_to_json(row)
-                extracted = ""
-                if item.get("file_path") and os.path.exists(item["file_path"]):
-                    extracted = self.drive_extract_text(item["file_path"], item.get("original_filename") or "")
-                summary = self.drive_generate_summary(extracted)
-                tags = self.drive_generate_tags((item.get("original_filename") or "") + "\n" + extracted)
-                status = self.drive_processing_status(extracted)
-                conn.execute(
-                    "update documents set processing_status=?, extracted_text=?, ai_summary=?, tags=?, vector_status=?, summary=?, updated_at=? where id=?",
-                    (status, extracted, summary, tags or item.get("tags"), "pending", summary, now, item["id"]),
-                )
-            self.log_action(user, "drive_file_reprocess", "document", m_reprocess.group(1), status)
-            return self.json_out({"ok": True, "id": int(m_reprocess.group(1)), "processing_status": status})
+            result = self.process_document_to_knowledge(user, m_reprocess.group(1), force=True)
+            self.log_action(user, "drive_file_reprocess", "document", m_reprocess.group(1), result.get("processing_status", "failed"))
+            return self.json_out(result, code=200 if result.get("ok") else 422)
         m_update = re.match(r"^/api/drive/files/(\d+)$", path)
         if m_update:
             form = self.form()
-            allowed_status = {"pending", "processing", "completed", "failed", "archived"}
+            allowed_status = {"pending", "extracting", "chunking", "summarizing", "indexed", "processing", "completed", "failed", "archived"}
             fields = []
             params = []
             for key in ("category", "tags", "related_object_type", "ai_summary"):
@@ -7443,9 +7630,10 @@ class App(BaseHTTPRequestHandler):
             )
             doc_id = cur.lastrowid
         self.log_action(user, "drive_file_upload", "document", doc_id, original)
+        pipeline_result = self.process_document_to_knowledge(user, doc_id, force=False)
         if "text/html" in (self.headers.get("Accept") or ""):
             return self.redir("/drive")
-        return self.json_out({"ok": True, "file": self.document_to_json({"id": doc_id, "title": original, "file_name": saved, "file_type": extension, "file_path": str(file_path), "tags": tags, "summary": summary, "created_at": now, "updated_at": now, "filename": saved, "original_filename": original, "storage_path": str(file_path), "mime_type": mime_type, "extension": extension, "size_bytes": len(data), "category": category, "processing_status": processing_status, "ai_summary": summary, "extracted_text": extracted, "extracted_text_path": extracted_path, "related_object_type": related_object_type, "related_object_id": int(related_object_id_raw) if related_object_id_raw.isdigit() else None, "version": 1, "created_by": user["id"], "deleted_at": None})})
+        return self.json_out({"ok": True, "file": self.document_to_json({"id": doc_id, "title": original, "file_name": saved, "file_type": extension, "file_path": str(file_path), "tags": tags, "summary": summary, "created_at": now, "updated_at": now, "filename": saved, "original_filename": original, "storage_path": str(file_path), "mime_type": mime_type, "extension": extension, "size_bytes": len(data), "category": category, "processing_status": pipeline_result.get("processing_status", processing_status), "ai_summary": summary, "extracted_text": extracted, "extracted_text_path": extracted_path, "related_object_type": related_object_type, "related_object_id": int(related_object_id_raw) if related_object_id_raw.isdigit() else None, "processing_error": pipeline_result.get("message") if not pipeline_result.get("ok") else "", "version": 1, "created_by": user["id"], "deleted_at": None}), "knowledge_pipeline": pipeline_result})
 
     def api_drive_delete(self, user, path):
         if not user:
@@ -9066,6 +9254,9 @@ limit 200
         with db() as conn:
             row = conn.execute("select * from knowledge_items where id=?", (kid,)).fetchone()
             chunks = conn.execute("select * from knowledge_chunks where knowledge_id=? order by chunk_index limit 8", (kid,)).fetchall()
+            document_chunks = conn.execute("select * from document_chunks where document_id=? order by chunk_index limit 12", (row["document_id"] if row and "document_id" in row.keys() and row["document_id"] else None,)).fetchall() if row else []
+            doc = conn.execute("select * from documents where id=?", (row["document_id"],)).fetchone() if row and "document_id" in row.keys() and row["document_id"] else None
+            obj = conn.execute("select * from enterprise_objects where object_type=? and id=?", (row["object_type"], row["object_id"])).fetchone() if row and row["object_type"] and row["object_id"] else None
         if not row or not self.can_view_knowledge(user, row):
             return self.redir("/knowledge")
         chunk_rows = "".join(
@@ -9085,6 +9276,16 @@ limit 200
         relation_text = ""
         if row["object_type"]:
             relation_text = f"{row['object_type']} #{row['object_id'] or ''}"
+        if obj:
+            relation_text = "{} / {}".format(self.object_type_label(obj["object_type"]), obj["name"])
+        source_file = self.document_to_json(doc)["original_filename"] if doc else (row["source_ref"] or "")
+        content_text = row["content"] if "content" in row.keys() and row["content"] else row["body"]
+        doc_chunk_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(c["chunk_index"], esc(c["embedding_status"]), esc(summarize_text(c["content"], 120)))
+            for c in document_chunks
+        )
+        if not doc_chunk_rows:
+            doc_chunk_rows = '<tr><td colspan="3" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0 document_chunks\u3002"))
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
@@ -9283,6 +9484,30 @@ limit 200
             self.sap_knowledge_payload(user),
         )
 
+    def api_documents_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        m_chunks = re.match(r"^/api/documents/(\d+)/chunks$", path)
+        if m_chunks:
+            with db() as conn:
+                doc = conn.execute("select * from documents where id=? and deleted_at is null", (m_chunks.group(1),)).fetchone()
+                if not doc:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                chunks = conn.execute("select * from document_chunks where document_id=? order by chunk_index", (m_chunks.group(1),)).fetchall()
+                metrics = self.document_knowledge_metrics(conn, m_chunks.group(1))
+            return self.json_out({"ok": True, "document": self.document_to_json(doc), "metrics": metrics, "chunks": [row_dict(row) for row in chunks]})
+        return self.json_out({"ok": False, "message": "unknown documents api"}, code=404)
+
+    def api_documents_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        m_reprocess = re.match(r"^/api/documents/(\d+)/reprocess$", path)
+        if m_reprocess:
+            return self.json_out(self.process_document_to_knowledge(user, m_reprocess.group(1), force=True))
+        return self.json_out({"ok": False, "message": "unknown documents post api"}, code=404)
+
     def api_knowledge_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
@@ -9359,16 +9584,48 @@ limit 200
             with db() as conn:
                 rows = conn.execute("select * from sap_knowledge_snapshots order by updated_at desc limit 100").fetchall()
             return self.json_out({"ok": True, "snapshots": [row_dict(r) for r in rows]})
-        if path in ("/api/knowledge", "/api/knowledge/search"):
+        if path == "/api/knowledge/items":
             query = parse_qs(urlparse(self.path).query)
             q = query.get("q", [""])[0].strip()
+            object_type = module_key(query.get("object_type", [""])[0] or "")
+            category = query.get("category", [""])[0].strip()
             params = []
             sql = "select * from knowledge_items where deleted_at is null"
             if q:
                 like = "%" + q + "%"
-                sql += " and (title like ? or body like ? or summary like ? or keywords like ? or tags like ?)"
-                params = [like, like, like, like, like]
-            sql += " order by updated_at desc limit 100"
+                sql += " and (title like ? or body like ? or content like ? or summary like ? or keywords like ? or tags like ?)"
+                params.extend([like, like, like, like, like, like])
+            if object_type:
+                sql += " and object_type=?"
+                params.append(object_type)
+            if category:
+                sql += " and category=?"
+                params.append(category)
+            sql += " order by updated_at desc limit 200"
+            with db() as conn:
+                rows = [r for r in conn.execute(sql, params).fetchall() if self.can_view_knowledge(user, r)]
+            return self.json_out({"ok": True, "items": [self.knowledge_to_json(row, include_body=False) for row in rows]})
+        m_item = re.match(r"^/api/knowledge/items/(\d+)$", path)
+        if m_item:
+            with db() as conn:
+                row = conn.execute("select * from knowledge_items where id=? and deleted_at is null", (m_item.group(1),)).fetchone()
+                chunks = conn.execute("select * from document_chunks where document_id=? order by chunk_index", (row["document_id"] if row else None,)).fetchall() if row and row["document_id"] else []
+            if not row or not self.can_view_knowledge(user, row):
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "item": self.knowledge_to_json(row), "document_chunks": [row_dict(c) for c in chunks]})
+        if path in ("/api/knowledge", "/api/knowledge/search"):
+            query = parse_qs(urlparse(self.path).query)
+            q = query.get("q", [""])[0].strip()
+            params = []
+            sql = """select distinct ki.* from knowledge_items ki
+left join enterprise_objects eo on eo.object_type=ki.object_type and eo.id=ki.object_id
+left join documents d on d.id=ki.document_id
+where ki.deleted_at is null"""
+            if q:
+                like = "%" + q + "%"
+                sql += " and (ki.title like ? or ki.body like ? or ki.content like ? or ki.summary like ? or ki.keywords like ? or ki.tags like ? or coalesce(d.extracted_text,'') like ? or coalesce(eo.name,'') like ?)"
+                params = [like, like, like, like, like, like, like, like]
+            sql += " order by ki.updated_at desc limit 100"
             with db() as conn:
                 rows = [r for r in conn.execute(sql, params).fetchall() if self.can_view_knowledge(user, r)]
             return self.json_out({"ok": True, "items": [self.knowledge_to_json(r, include_body=False) for r in rows]})
@@ -9396,6 +9653,11 @@ limit 200
     def api_knowledge_post(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
+        m_process = re.match(r"^/api/knowledge/process-document/(\d+)$", path)
+        if m_process:
+            if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            return self.json_out(self.process_document_to_knowledge(user, m_process.group(1), force=True))
         if path == "/api/knowledge/query-plan":
             form = self.form()
             return self.json_out(build_query_plan(form.get("question", ""), form.get("scope", "all")))
