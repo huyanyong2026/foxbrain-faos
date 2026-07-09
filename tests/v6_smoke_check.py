@@ -3666,3 +3666,74 @@ def test_sprint014_summary_and_report_present():
         "no external AI API",
     ]:
         assert phrase in report
+
+
+def test_sprint015_store_intelligence_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists store_intelligence_snapshots",
+        "create table if not exists store_analysis_details",
+        "create table if not exists store_intelligence_rules",
+        "idx_store_intelligence_snapshots_date",
+        "idx_store_analysis_details_store",
+        "idx_store_intelligence_rules_status",
+        "def store_intelligence_summary",
+        "def calculate_store_intelligence",
+        "def store_intelligence_page",
+        "def api_store_intelligence_get",
+        "def api_store_intelligence_post",
+        '"/store-intelligence"',
+        '"/api/store-intelligence"',
+        '"/api/store-intelligence/recalculate"',
+        '"/api/store-intelligence/snapshots"',
+        '"/api/store-intelligence/details"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint015_store_intelligence_evidence_integrations_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "all_store_analysis_must_include_evidence",
+        "store_intelligence_all_analysis_has_evidence_no_production_sap",
+        "store_intelligence_file_import_only_no_production_sap_no_external_ai_api",
+        "store_intelligence_snapshot_created",
+        "store_intelligence_snapshots",
+        "store_analysis_details",
+        "store_intelligence_rules",
+        "upsert_decision_insight",
+        "upsert_kg_node",
+        "upsert_kg_edge",
+        "Store Intelligence",
+        "store_intelligence_avg_health",
+        "store_intelligence_risky",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint015_summary_and_report_present():
+    summary = read("SPRINT015_STORE_INTELLIGENCE_SUMMARY.md")
+    report = read("SPRINT015_STORE_INTELLIGENCE_TEST_REPORT.md")
+    for phrase in [
+        "Sprint015 Store Intelligence Summary",
+        "store_intelligence_snapshots",
+        "store_analysis_details",
+        "store_intelligence_rules",
+        "GET /api/store-intelligence",
+        "POST /api/store-intelligence/recalculate",
+        "Decision Engine Integration",
+        "Knowledge Graph Integration",
+        "Dashboard Integration",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint015 Store Intelligence Test Report",
+        "Schema Checks",
+        "Runtime Checks",
+        "Decision Engine Checks",
+        "Knowledge Graph Checks",
+        "Guardrail Checks",
+        "no production SAP connection",
+        "no external AI API",
+    ]:
+        assert phrase in report

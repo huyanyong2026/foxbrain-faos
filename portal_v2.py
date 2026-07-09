@@ -1801,6 +1801,80 @@ create table if not exists brand_intelligence_rules(
             ("brand_growth_opportunity_high_score", "Brand growth opportunity with strong sales and low pressure", "opportunity_rule", {"sales_score_gte": 70, "inventory_pressure_lte": 0.35}, "medium"),
         ]:
             conn.execute("insert or ignore into brand_intelligence_rules(rule_key,rule_name,rule_type,condition_json,severity,status,source,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (rule_key, rule_name, rule_type, json.dumps(condition, ensure_ascii=False), severity, "active", "Sprint014 rule-based brand intelligence", seed_now, seed_now))
+        conn.execute(
+            """
+create table if not exists store_intelligence_snapshots(
+ id integer primary key autoincrement,
+ snapshot_date text not null,
+ store_id text not null,
+ store_name text not null,
+ sales_score real not null default 0,
+ margin_score real not null default 0,
+ inventory_score real not null default 0,
+ efficiency_score real not null default 0,
+ overall_score real not null default 0,
+ sales_amount real not null default 0,
+ sales_share real not null default 0,
+ gross_profit real not null default 0,
+ gross_margin real not null default 0,
+ inventory_amount real not null default 0,
+ inventory_pressure real not null default 0,
+ growth_rate real not null default 0,
+ efficiency_value real not null default 0,
+ status text not null default 'normal',
+ summary text,
+ evidence_json text,
+ created_insight_id integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists store_analysis_details(
+ id integer primary key autoincrement,
+ snapshot_id integer,
+ store_id text not null,
+ store_name text not null,
+ metric_type text not null,
+ metric_value real not null default 0,
+ status text not null default 'normal',
+ summary text,
+ evidence_json text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists store_intelligence_rules(
+ id integer primary key autoincrement,
+ rule_key text unique not null,
+ rule_name text not null,
+ rule_type text not null,
+ condition_json text,
+ severity text not null default 'medium',
+ status text not null default 'active',
+ source text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_store_intelligence_snapshots_date on store_intelligence_snapshots(snapshot_date, overall_score)",
+            "create index if not exists idx_store_intelligence_snapshots_store on store_intelligence_snapshots(store_id, created_at)",
+            "create index if not exists idx_store_analysis_details_store on store_analysis_details(store_id, metric_type, created_at)",
+            "create index if not exists idx_store_intelligence_rules_status on store_intelligence_rules(status, rule_type)",
+        ]:
+            conn.execute(idx)
+        for rule_key, rule_name, rule_type, condition, severity in [
+            ("store_inventory_pressure_high", "Store inventory pressure is high", "risk_rule", {"inventory_pressure_gte": 0.65}, "high"),
+            ("store_margin_below_25", "Store gross margin below 25 percent", "risk_rule", {"gross_margin_lt": 0.25}, "medium"),
+            ("store_sales_share_opportunity", "Store sales share and efficiency show expansion opportunity", "opportunity_rule", {"sales_score_gte": 75, "inventory_pressure_lte": 0.40}, "medium"),
+            ("store_watch_low_sales", "Store sales contribution is low", "risk_rule", {"sales_score_lte": 45}, "medium"),
+        ]:
+            conn.execute("insert or ignore into store_intelligence_rules(rule_key,rule_name,rule_type,condition_json,severity,status,source,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (rule_key, rule_name, rule_type, json.dumps(condition, ensure_ascii=False), severity, "active", "Sprint015 rule-based store intelligence", seed_now, seed_now))
         for canonical, alias, alias_type in [
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97"), "canonical"),
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
@@ -4856,6 +4930,8 @@ class App(BaseHTTPRequestHandler):
             return self.inventory_intelligence_page(user)
         if path == "/brand-intelligence":
             return self.brand_intelligence_page(user)
+        if path == "/store-intelligence":
+            return self.store_intelligence_page(user)
         if path == "/apps":
             return self.apps_launcher(user)
         if path == "/desktop":
@@ -5038,6 +5114,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_inventory_intelligence_get(user, path)
         if path.startswith("/api/brand-intelligence"):
             return self.api_brand_intelligence_get(user, path)
+        if path.startswith("/api/store-intelligence"):
+            return self.api_store_intelligence_get(user, path)
         if path.startswith("/api/dashboard/"):
             return self.api_dashboard_get(user, path)
         if path == "/api/dashboard/ceo":
@@ -5276,6 +5354,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_inventory_intelligence_post(self.current_user(), path)
         if path.startswith("/api/brand-intelligence"):
             return self.api_brand_intelligence_post(self.current_user(), path)
+        if path.startswith("/api/store-intelligence"):
+            return self.api_store_intelligence_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -7725,6 +7805,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             health_metrics = self.business_health_summary(conn)
             inventory_intelligence = self.inventory_intelligence_summary(conn)
             brand_intelligence = self.brand_intelligence_summary(conn)
+            store_intelligence = self.store_intelligence_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7740,6 +7821,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Business Health Engine", health_metrics["overall_score"] >= 0, "business_health_snapshots"),
                 ("Inventory Intelligence", inventory_intelligence["total_inventory_quantity"] >= 0, "inventory_intelligence_snapshots"),
                 ("Brand Intelligence", brand_intelligence["brand_count"] >= 0, "brand_intelligence_snapshots"),
+                ("Store Intelligence", store_intelligence["store_count"] >= 0, "store_intelligence_snapshots"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7793,6 +7875,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "brand_intelligence_avg_health": brand_intelligence["avg_brand_health"],
                 "brand_intelligence_risky": len(brand_intelligence["risky_brands"]),
                 "brand_intelligence_opportunity": len(brand_intelligence["opportunity_brands"]),
+                "store_intelligence_count": store_intelligence["store_count"],
+                "store_intelligence_avg_health": store_intelligence["avg_store_health"],
+                "store_intelligence_risky": len(store_intelligence["risky_stores"]),
+                "store_intelligence_opportunity": len(store_intelligence["opportunity_stores"]),
             },
             "business_metrics": business_metrics,
             "decision_metrics": decision_metrics,
@@ -7800,6 +7886,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "health_metrics": health_metrics,
             "inventory_intelligence": inventory_intelligence,
             "brand_intelligence": brand_intelligence,
+            "store_intelligence": store_intelligence,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -7819,6 +7906,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "Business Health Engine", "url": "/business-health", "status": "ready"},
                 {"title": "Inventory Intelligence", "url": "/inventory-intelligence", "status": "ready"},
                 {"title": "Brand Intelligence", "url": "/brand-intelligence", "status": "ready"},
+                {"title": "Store Intelligence", "url": "/store-intelligence", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7865,6 +7953,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ("Business Health", "{:.1f}/100".format(summary["business_health_score"]), summary["business_health_status"]),
             (U(r"\u5e93\u5b58\u5065\u5eb7"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), "Inventory Intelligence"),
             (U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), "risk {} / opp {}".format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
+            (U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), "risk {} / opp {}".format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7914,6 +8003,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "Business Health: {:.1f}/100 / {}".format(summary["business_health_score"], summary["business_health_status"]),
             "Inventory Intelligence: high={} critical={} slow={} opportunity={}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"], summary["inventory_intelligence_slow_stock"], summary["inventory_intelligence_opportunity"]),
             "Brand Intelligence: brands={} avg_health={:.1f} risky={} opportunity={}".format(summary["brand_intelligence_count"], summary["brand_intelligence_avg_health"], summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"]),
+            "Store Intelligence: stores={} avg_health={:.1f} risky={} opportunity={}".format(summary["store_intelligence_count"], summary["store_intelligence_avg_health"], summary["store_intelligence_risky"], summary["store_intelligence_opportunity"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
@@ -16610,6 +16700,228 @@ group by coalesce(brand_name,'')
                 return self.redir("/brand-intelligence")
             return self.json_out(payload)
         return self.json_out({"ok": False, "message": "unknown brand intelligence write api"}, code=404)
+
+    def store_status(self, score, inventory_pressure=0, gross_margin=0):
+        if inventory_pressure >= 0.75:
+            return "risk"
+        if gross_margin and gross_margin < 0.18:
+            return "risk"
+        if score >= 78:
+            return "opportunity"
+        if score >= 60:
+            return "healthy"
+        return "watch"
+
+    def store_snapshot_to_json(self, row):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        return data
+
+    def store_detail_to_json(self, row):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        return data
+
+    def store_intelligence_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            latest_ts_row = conn.execute("select max(created_at) v from store_intelligence_snapshots").fetchone()
+            latest_ts = latest_ts_row["v"] if latest_ts_row else None
+            rows = [self.store_snapshot_to_json(r) for r in conn.execute("select * from store_intelligence_snapshots where created_at=coalesce(?, created_at) order by overall_score desc, sales_amount desc limit 80", (latest_ts,)).fetchall()] if latest_ts else []
+            risky = [r for r in rows if r.get("status") in ("risk", "watch")][:10]
+            opportunities = [r for r in rows if r.get("status") == "opportunity"][:10]
+            return {
+                "store_snapshot_at": latest_ts,
+                "store_count": len(rows),
+                "top_stores": rows[:10],
+                "risky_stores": risky,
+                "opportunity_stores": opportunities,
+                "best_profit_stores": sorted(rows, key=lambda x: float(x.get("gross_profit") or 0), reverse=True)[:10],
+                "inventory_pressure_stores": sorted(rows, key=lambda x: float(x.get("inventory_pressure") or 0), reverse=True)[:10],
+                "avg_store_health": round(sum(float(r.get("overall_score") or 0) for r in rows) / len(rows), 2) if rows else 0,
+                "evidence_rule": "all_store_analysis_must_include_evidence",
+                "safety": "store_intelligence_file_import_only_no_production_sap_no_external_ai_api",
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def store_recommendation(self, status, sales_share, gross_margin, inventory_pressure):
+        if inventory_pressure >= 0.75:
+            return "Review store inventory structure and transfer/markdown plan with evidence before action."
+        if gross_margin and gross_margin < 0.25:
+            return "Review store discount and product mix; improvement action requires manager approval."
+        if status == "opportunity":
+            return "Store shows improvement or expansion opportunity; review staffing, display and product allocation plan."
+        if sales_share < 0.08:
+            return "Review store positioning, product mix and staff support with sales evidence."
+        return "Continue monitoring store sales, margin and inventory pressure."
+
+    def calculate_store_intelligence(self, user=None):
+        now = ts()
+        snapshot_date = time.strftime("%Y-%m-%d", time.localtime(now))
+        with db() as conn:
+            sales_rows = conn.execute("""
+select coalesce(store_name,'') store_name,
+       sum(coalesce(amount,0)) sales_amount,
+       sum(coalesce(quantity,0)) sales_quantity,
+       sum(coalesce(gross_profit,0)) gross_profit,
+       count(distinct coalesce(brand_name,'')) brand_count,
+       count(distinct coalesce(product_code,'')) product_count,
+       count(distinct coalesce(employee_name,'')) employee_count,
+       min(id) source_id,
+       group_concat(id) evidence_ids
+from sap_sales
+where coalesce(store_name,'')!=''
+group by coalesce(store_name,'')
+""").fetchall()
+            inventory_rows = conn.execute("""
+select coalesce(store_name,'') store_name,
+       sum(coalesce(quantity,0)) inventory_quantity,
+       sum(coalesce(retail_amount,cost_amount,0)) inventory_amount,
+       count(distinct coalesce(brand_name,'')) brand_count,
+       count(distinct coalesce(product_code,'')) product_count,
+       max(coalesce(age_days,0)) max_age_days,
+       min(id) source_id,
+       group_concat(id) evidence_ids
+from sap_inventory
+where coalesce(store_name,'')!=''
+group by coalesce(store_name,'')
+""").fetchall()
+            inventory_lookup = {self.canonical_store_name(conn, r["store_name"]): r for r in inventory_rows}
+            sales_total = sum(float(r["sales_amount"] or 0) for r in sales_rows) or 0
+            inventory_total = sum(float(r["inventory_amount"] or 0) for r in inventory_rows) or 0
+            store_names = sorted(set([self.canonical_store_name(conn, r["store_name"]) for r in sales_rows] + list(inventory_lookup.keys())))
+            created = []
+            for store in store_names:
+                sales = next((r for r in sales_rows if self.canonical_store_name(conn, r["store_name"]) == store), None)
+                inv = inventory_lookup.get(store)
+                sales_amount = float(sales["sales_amount"] if sales else 0)
+                sales_quantity = float(sales["sales_quantity"] if sales else 0)
+                gross_profit = float(sales["gross_profit"] if sales else 0)
+                gross_margin = gross_profit / sales_amount if sales_amount else 0
+                inventory_amount = float(inv["inventory_amount"] if inv else 0)
+                inventory_quantity = float(inv["inventory_quantity"] if inv else 0)
+                sales_share = sales_amount / sales_total if sales_total else 0
+                inventory_pressure = inventory_amount / inventory_total if inventory_total else 0
+                employee_count = int(sales["employee_count"] if sales and sales["employee_count"] else 0)
+                efficiency_value = sales_amount / max(employee_count, 1)
+                sales_score = min(100, sales_share * 180 + 45) if sales_amount else 35
+                margin_score = 90 if gross_margin >= 0.35 else (75 if gross_margin >= 0.25 else (55 if gross_margin > 0 else 40))
+                inventory_score = max(25, 90 - inventory_pressure * 80)
+                efficiency_score = min(100, 45 + min(efficiency_value / 10000, 5) * 10)
+                prev = conn.execute("select * from store_intelligence_snapshots where store_id=? order by created_at desc limit 1", (store,)).fetchone()
+                growth_rate = 0.0
+                if prev and float(prev["sales_amount"] or 0) > 0:
+                    growth_rate = (sales_amount - float(prev["sales_amount"] or 0)) / float(prev["sales_amount"] or 1)
+                overall = sales_score * 0.30 + margin_score * 0.25 + inventory_score * 0.25 + efficiency_score * 0.20
+                status = self.store_status(overall, inventory_pressure, gross_margin)
+                evidence = [
+                    {"source_type": "sap_sales", "source_id": str(sales["evidence_ids"] if sales else "no_sales_rows"), "evidence_title": "Store sales rows", "evidence_summary": "store={} sales_amount={} sales_share={:.4f} gross_profit={} gross_margin={:.4f}".format(store, sales_amount, sales_share, gross_profit, gross_margin), "confidence": 0.86},
+                    {"source_type": "sap_inventory", "source_id": str(inv["evidence_ids"] if inv else "no_inventory_rows"), "evidence_title": "Store inventory rows", "evidence_summary": "store={} inventory_amount={} inventory_pressure={:.4f} inventory_quantity={}".format(store, inventory_amount, inventory_pressure, inventory_quantity), "confidence": 0.84},
+                    {"source_type": "store_intelligence_rules", "source_id": status, "evidence_title": "Rule-based store status", "evidence_summary": "status={} overall={:.2f} sales_score={:.2f} margin_score={:.2f} inventory_score={:.2f}".format(status, overall, sales_score, margin_score, inventory_score), "confidence": 0.76},
+                ]
+                summary = "Store {} score {:.1f}; sales_share {:.1%}; gross_margin {:.1%}; inventory_pressure {:.1%}.".format(store, overall, sales_share, gross_margin, inventory_pressure)
+                cur = conn.execute(
+                    "insert into store_intelligence_snapshots(snapshot_date,store_id,store_name,sales_score,margin_score,inventory_score,efficiency_score,overall_score,sales_amount,sales_share,gross_profit,gross_margin,inventory_amount,inventory_pressure,growth_rate,efficiency_value,status,summary,evidence_json,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (snapshot_date, store, store, sales_score, margin_score, inventory_score, efficiency_score, overall, sales_amount, sales_share, gross_profit, gross_margin, inventory_amount, inventory_pressure, growth_rate, efficiency_value, status, summary, json.dumps(evidence, ensure_ascii=False), now),
+                )
+                snapshot_id = cur.lastrowid
+                created.append(snapshot_id)
+                for metric_type, metric_value, metric_status, metric_summary in [
+                    ("store_sales_amount", sales_amount, "normal" if sales_amount > 0 else "missing", "Store sales amount from SAP sales export."),
+                    ("store_sales_share", sales_share, "normal", "Store sales contribution share."),
+                    ("store_gross_profit", gross_profit, "normal" if gross_profit >= 0 else "risk", "Store gross profit from SAP sales export."),
+                    ("store_gross_margin", gross_margin, "risk" if gross_margin and gross_margin < 0.25 else "normal", "Store gross margin."),
+                    ("store_inventory_amount", inventory_amount, "normal", "Store inventory amount from SAP inventory export."),
+                    ("store_inventory_pressure", inventory_pressure, "risk" if inventory_pressure >= 0.65 else "normal", "Store inventory pressure share."),
+                    ("store_growth_rate", growth_rate, "normal", "Store growth rate compared with previous store intelligence snapshot when available."),
+                    ("store_efficiency", efficiency_value, "normal", "Store sales per employee foundation metric."),
+                    ("store_health_score", overall, status, "Overall store health score."),
+                ]:
+                    conn.execute("insert into store_analysis_details(snapshot_id,store_id,store_name,metric_type,metric_value,status,summary,evidence_json,created_at) values(?,?,?,?,?,?,?,?,?)", (snapshot_id, store, store, metric_type, metric_value, metric_status, metric_summary, json.dumps(evidence, ensure_ascii=False), now))
+                store_node = self.upsert_kg_node(conn, "store", None, store, {"store_health_score": overall, "status": status, "sales_share": sales_share, "inventory_pressure": inventory_pressure}, "store_intelligence_snapshots", snapshot_id)
+                if sales:
+                    sales_node = self.upsert_kg_node(conn, "sales", None, store + " sales", {"sales_amount": sales_amount, "gross_profit": gross_profit}, "sap_sales", sales["source_id"])
+                    self.upsert_kg_edge(conn, store_node, sales_node, "HAS_SALES", 0.82, "store_intelligence_snapshots", snapshot_id, {"sales_amount": sales_amount})
+                if inv:
+                    inv_node = self.upsert_kg_node(conn, "inventory", None, store + " inventory", {"inventory_amount": inventory_amount, "inventory_quantity": inventory_quantity}, "sap_inventory", inv["source_id"])
+                    self.upsert_kg_edge(conn, store_node, inv_node, "HAS_INVENTORY", 0.82, "store_intelligence_snapshots", snapshot_id, {"inventory_amount": inventory_amount})
+                for br in conn.execute("select distinct brand_name from sap_sales where store_name=? and coalesce(brand_name,'')!='' limit 20", (store,)).fetchall():
+                    brand = self.upsert_kg_node(conn, "brand", None, self.canonical_brand_name(conn, br["brand_name"]), {"store": store}, "sap_sales", sales["source_id"] if sales else snapshot_id)
+                    self.upsert_kg_edge(conn, store_node, brand, "SELLS_BRAND", 0.76, "store_intelligence_snapshots", snapshot_id, {"store": store})
+                insight_id = None
+                if status in ("risk", "opportunity") or (gross_margin and gross_margin < 0.25):
+                    insight_type = "store_performance" if status != "opportunity" else "store_growth_opportunity"
+                    severity = "high" if status == "risk" else "medium"
+                    recommendation = self.store_recommendation(status, sales_share, gross_margin, inventory_pressure)
+                    insight_id = self.upsert_decision_insight(conn, insight_type, "Store intelligence: {} / {}".format(status, store), recommendation, severity, "store_intelligence", snapshot_id, {"store_name": store, "entity_name": store, "overall_score": overall, "sales_share": sales_share, "gross_margin": gross_margin, "inventory_pressure": inventory_pressure}, evidence, recommendation, [{"title": "Review store improvement plan", "description": recommendation, "action_type": "manual_review", "owner": "store_manager"}], user)
+                    if insight_id:
+                        conn.execute("update store_intelligence_snapshots set created_insight_id=? where id=?", (insight_id, snapshot_id))
+                        decision_node = self.upsert_kg_node(conn, "decision", insight_id, "Store decision: " + store, {"status": status}, "decision_insights", insight_id)
+                        self.upsert_kg_edge(conn, decision_node, store_node, "DECISION_ABOUT", 0.84, "store_intelligence_snapshots", snapshot_id, {"status": status})
+            self.add_timeline_event(conn, "store_intelligence", None, "store_intelligence_snapshot_created", "Store Intelligence Snapshot Created", "stores={}".format(len(created)), "store_intelligence_snapshots", ",".join(map(str, created[:20])), {"store_snapshot_ids": created[:50]}, user["id"] if user else None, now)
+        return {"ok": True, "store_snapshots": len(created), "snapshot_ids": created, "safety": "store_intelligence_all_analysis_has_evidence_no_production_sap"}
+
+    def store_intelligence_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        summary = self.store_intelligence_summary()
+        metrics = "".join([
+            self.metric(U(r"\u95e8\u5e97\u6570"), summary["store_count"], "stores"),
+            self.metric(U(r"\u5e73\u5747\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["avg_store_health"]), "score"),
+            self.metric(U(r"\u98ce\u9669\u95e8\u5e97"), len(summary["risky_stores"]), "risk/watch"),
+            self.metric(U(r"\u673a\u4f1a\u95e8\u5e97"), len(summary["opportunity_stores"]), "opportunity"),
+        ])
+        rank_cards = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>sales {} / margin {:.1%} / inventory pressure {:.1%}</p><p class='small'>evidence {}</p></div>".format(esc(r.get("store_name") or ""), float(r.get("overall_score") or 0), esc(r.get("status") or ""), money(r.get("sales_amount") or 0), float(r.get("gross_margin") or 0), float(r.get("inventory_pressure") or 0), len(r.get("evidence_json") or [])) for r in summary["top_stores"]) or self.empty_state("No store intelligence snapshot yet.")
+        risk_items = self.bullets(["{} / {} / pressure {:.1%}".format(esc(r.get("store_name") or ""), esc(r.get("status") or ""), float(r.get("inventory_pressure") or 0)) for r in summary["risky_stores"]] or ["No risky stores yet."])
+        opportunity_items = self.bullets(["{} / score {:.1f}".format(esc(r.get("store_name") or ""), float(r.get("overall_score") or 0)) for r in summary["opportunity_stores"]] or ["No opportunity stores yet."])
+        pressure_items = self.bullets(["{} / pressure {:.1%} / {}".format(esc(r.get("store_name") or ""), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_stores"]] or ["No inventory pressure yet."])
+        body = """
+<div class="panel"><h2>Store Intelligence</h2><p class="small">Evidence-backed store sales, margin, inventory pressure and operating profile. No production SAP connection.</p><form method="post" action="/api/store-intelligence/recalculate" style="display:inline"><button>Analyze Stores</button></form> <a class="btn dark" href="/api/store-intelligence">API</a><div class="metrics">{}</div></div>
+<div class="split"><div class="panel"><h2>Risks</h2>{}</div><div class="panel"><h2>Opportunities</h2>{}</div></div>
+<div class="panel"><h2>Inventory Pressure</h2>{}</div>
+<div class="panel"><h2>Store Ranking</h2><div class="grid">{}</div></div>""".format(metrics, risk_items, opportunity_items, pressure_items, rank_cards)
+        self.out(layout("Store Intelligence", body, user=user, wide=True))
+
+    def api_store_intelligence_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/store-intelligence":
+            return self.json_out({"ok": True, **self.store_intelligence_summary()})
+        if path == "/api/store-intelligence/snapshots":
+            with db() as conn:
+                rows = conn.execute("select * from store_intelligence_snapshots order by created_at desc, overall_score desc limit 300").fetchall()
+            return self.json_out({"ok": True, "snapshots": [self.store_snapshot_to_json(r) for r in rows]})
+        if path == "/api/store-intelligence/details":
+            q = parse_qs(urlparse(self.path).query)
+            store_id = q.get("store_id", [""])[0]
+            with db() as conn:
+                if store_id:
+                    rows = conn.execute("select * from store_analysis_details where store_id=? order by created_at desc, metric_type limit 300", (store_id,)).fetchall()
+                else:
+                    rows = conn.execute("select * from store_analysis_details order by created_at desc, metric_type limit 300").fetchall()
+            return self.json_out({"ok": True, "details": [self.store_detail_to_json(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown store intelligence api"}, code=404)
+
+    def api_store_intelligence_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/store-intelligence/recalculate":
+            payload = self.calculate_store_intelligence(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/store-intelligence")
+            return self.json_out(payload)
+        return self.json_out({"ok": False, "message": "unknown store intelligence write api"}, code=404)
 
     def can_view_graph(self, user):
         return bool(user)
