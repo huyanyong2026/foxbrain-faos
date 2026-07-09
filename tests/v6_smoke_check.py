@@ -3163,3 +3163,73 @@ def test_sprint008_summary_and_report_present():
         "No production SAP connection was made",
     ]:
         assert phrase in real_report
+
+
+def test_sprint008_5_business_calibration_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists store_aliases",
+        "create table if not exists brand_aliases",
+        "create table if not exists business_calibration_rules",
+        "create table if not exists business_metric_quality",
+        "canonical_key text",
+        "idx_business_object_suggestions_canonical",
+        "def canonical_store_name",
+        "def canonical_brand_name",
+        "def product_canonical_key",
+        "def business_calibration_page",
+        '"/business-calibration"',
+        '"/api/business-calibration/summary"',
+        '"/api/business-calibration/store-aliases"',
+        '"/api/business-calibration/brand-aliases"',
+        '"/api/business-calibration/quality"',
+        '"/api/business-calibration/rebuild"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint008_5_dashboard_search_and_safety_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "Business Calibration",
+        "gross_margin",
+        "inventory_cost_amount",
+        "metric_quality_warnings",
+        '"type": "store_alias"',
+        '"type": "brand_alias"',
+        '"type": "calibration_rule"',
+        '"type": "metric_quality"',
+        "Store Alias",
+        "Brand Alias",
+        "Calibration Rule",
+        "Metric Quality",
+        "file_import_only_no_production_sap_connection",
+        r"\u4e0d\u8fde\u63a5\u6216\u4fee\u6539\u751f\u4ea7 SAP",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint008_5_summary_and_report_present():
+    summary = read("SPRINT008_5_BUSINESS_CALIBRATION_SUMMARY.md")
+    report = read("SPRINT008_5_BUSINESS_CALIBRATION_TEST_REPORT.md")
+    for phrase in [
+        "Sprint008.5 Business Calibration Summary",
+        "store_aliases",
+        "brand_aliases",
+        "business_calibration_rules",
+        "business_metric_quality",
+        "Object Match Center",
+        "CEO Dashboard",
+        "No production SAP connection",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint008.5 Business Calibration Test Report",
+        "Store normalization",
+        "Brand normalization",
+        "Product calibration",
+        "Object suggestion reduction",
+        "Dashboard changes",
+        "No production SAP connection",
+    ]:
+        assert phrase in report
