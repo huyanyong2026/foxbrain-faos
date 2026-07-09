@@ -1195,6 +1195,202 @@ create table if not exists object_relations(
             conn.execute(idx)
         conn.execute(
             """
+create table if not exists sap_import_batches(
+ id integer primary key autoincrement,
+ document_id integer,
+ import_type text not null,
+ filename text,
+ status text not null default 'pending',
+ row_count integer not null default 0,
+ success_count integer not null default 0,
+ failed_count integer not null default 0,
+ error_message text,
+ mapping text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sap_sales(
+ id integer primary key autoincrement,
+ batch_id integer not null,
+ sale_date text,
+ store_name text,
+ store_code text,
+ employee_name text,
+ employee_code text,
+ brand_name text,
+ category_name text,
+ product_code text,
+ product_name text,
+ barcode text,
+ quantity real,
+ amount real,
+ cost real,
+ gross_profit real,
+ raw_data text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sap_inventory(
+ id integer primary key autoincrement,
+ batch_id integer not null,
+ snapshot_date text,
+ store_name text,
+ store_code text,
+ brand_name text,
+ category_name text,
+ product_code text,
+ product_name text,
+ barcode text,
+ quantity real,
+ cost_amount real,
+ retail_amount real,
+ age_days integer,
+ raw_data text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists data_lake_sources(
+ id integer primary key autoincrement,
+ source_type text not null,
+ source_name text,
+ document_id integer,
+ batch_id integer,
+ filename text,
+ file_hash text,
+ encoding text,
+ delimiter text,
+ status text not null default 'active',
+ row_count integer not null default 0,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists data_lake_records(
+ id integer primary key autoincrement,
+ source_id integer not null,
+ batch_id integer,
+ record_type text not null,
+ row_index integer not null default 0,
+ row_hash text not null,
+ raw_data text,
+ normalized_data text,
+ quality_status text not null default 'ok',
+ quality_message text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists data_lake_lineage(
+ id integer primary key autoincrement,
+ source_id integer,
+ record_id integer,
+ target_type text,
+ target_id integer,
+ relation_type text not null default 'derived_from',
+ metadata text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists data_quality_checks(
+ id integer primary key autoincrement,
+ source_id integer,
+ batch_id integer,
+ check_key text not null,
+ status text not null,
+ message text,
+ affected_count integer not null default 0,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_object_links(
+ id integer primary key autoincrement,
+ source_type text,
+ source_id integer,
+ record_type text,
+ record_id integer,
+ object_type text,
+ object_id integer,
+ match_key text,
+ match_confidence real not null default 0,
+ match_status text not null default 'unmatched',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_object_suggestions(
+ id integer primary key autoincrement,
+ object_type text not null,
+ object_name text not null,
+ source_type text,
+ source_id integer,
+ evidence text,
+ confidence real not null default 0,
+ status text not null default 'pending',
+ reviewed_by integer,
+ reviewed_at integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_metrics_snapshots(
+ id integer primary key autoincrement,
+ snapshot_type text not null,
+ period_start text,
+ period_end text,
+ store_name text,
+ brand_name text,
+ product_code text,
+ metric_key text not null,
+ metric_value real not null default 0,
+ source_batch_ids text,
+ created_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_sap_import_batches_document on sap_import_batches(document_id)",
+            "create index if not exists idx_sap_sales_batch on sap_sales(batch_id)",
+            "create index if not exists idx_sap_inventory_batch on sap_inventory(batch_id)",
+            "create unique index if not exists idx_data_lake_sources_batch on data_lake_sources(batch_id)",
+            "create unique index if not exists idx_data_lake_records_hash on data_lake_records(batch_id, record_type, row_hash)",
+            "create index if not exists idx_data_lake_records_source on data_lake_records(source_id, record_type)",
+            "create index if not exists idx_business_object_links_record on business_object_links(record_type, record_id, object_type)",
+            "create index if not exists idx_business_object_links_object on business_object_links(object_type, object_id, match_status)",
+            "create unique index if not exists idx_business_object_suggestions_unique on business_object_suggestions(object_type, object_name, source_type, source_id)",
+            "create index if not exists idx_business_metrics_lookup on business_metrics_snapshots(snapshot_type, metric_key, store_name, brand_name)",
+        ]:
+            conn.execute(idx)
+        conn.execute(
+            """
 create table if not exists knowledge_query_history(
  id integer primary key autoincrement,
  user_id integer,
@@ -4181,6 +4377,10 @@ class App(BaseHTTPRequestHandler):
             return self.sap_sync(user)
         if path == "/data-pipeline":
             return self.data_pipeline_page(user)
+        if path in ("/data-lake", "/data-lake/sources", "/data-lake/records"):
+            return self.data_lake_page(user, path)
+        if path in ("/object-links", "/object-suggestions"):
+            return self.object_match_center(user, path)
         if path == "/apps":
             return self.apps_launcher(user)
         if path == "/desktop":
@@ -4387,6 +4587,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_owner_os_get(user, path)
         if path.startswith("/api/second-brain"):
             return self.api_second_brain_get(user, path)
+        if path.startswith("/api/data-lake") or path.startswith("/api/object-links") or path.startswith("/api/object-suggestions") or path.startswith("/api/business-metrics"):
+            return self.api_data_lake_get(user, path)
         if path.startswith("/api/search") or path.startswith("/api/timeline"):
             return self.api_search_timeline_get(user, path)
         if path.startswith("/api/objects") or path == "/api/object-types":
@@ -4563,6 +4765,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_post(self.current_user(), path)
         if path.startswith("/api/sap/sync"):
             return self.api_sap_sync_post(self.current_user(), path)
+        if path.startswith("/api/data-lake") or path.startswith("/api/object-suggestions"):
+            return self.api_data_lake_post(self.current_user(), path)
         if path.startswith("/api/command-palette") or path.startswith("/api/approvals") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner"):
             return self.api_os_layer_post(self.current_user(), path)
         if path.startswith(("/api/workflow-automation", "/api/workflow/")):
@@ -5458,6 +5662,224 @@ class App(BaseHTTPRequestHandler):
             "archived_at": data.get("archived_at"),
         }
 
+    def data_lake_hash(self, payload):
+        text = json.dumps(payload or {}, ensure_ascii=False, sort_keys=True, default=str)
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    def normalize_store_name(self, value):
+        text = (value or "").strip()
+        replacements = {
+            U(r"\u5357\u5c71\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u5357\u5c71\u5e97"),
+            U(r"\u632f\u5174\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u632f\u5174\u5e97"),
+            U(r"\u822a\u82d1\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u822a\u82d1\u5e97"),
+            U(r"\u91d1\u6c99\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u91d1\u6c99\u5e97"),
+            U(r"\u5fae\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u5fae\u5e97"),
+            U(r"\u7f51\u5e97\u96f6\u552e\u5ba2\u6237"): U(r"\u7f51\u5e97"),
+        }
+        if text in replacements:
+            return replacements[text]
+        for store in [U(r"\u5357\u5c71\u5e97"), U(r"\u632f\u5174\u5e97"), U(r"\u822a\u82d1\u5e97"), U(r"\u91d1\u6c99\u5e97"), U(r"\u5fae\u5e97"), U(r"\u7f51\u5e97"), U(r"\u5168\u90e8\u5e93\u5b58")]:
+            if store in text:
+                return store
+        return text
+
+    def infer_brand_name(self, text):
+        hay = (text or "").lower()
+        for label, keys in [
+            ("Kailas", ["kailas", U(r"\u51ef\u4e50\u77f3")]),
+            ("Osprey", ["osprey"]),
+            ("Mammut", ["mammut", U(r"\u731b\u72b8\u8c61")]),
+            ("VAFOX", ["vafox", U(r"\u706b\u72d0\u72f8")]),
+            ("VauDe", ["vaude", U(r"\u6c83\u5fb7")]),
+        ]:
+            if any(k.lower() in hay for k in keys):
+                return label
+        return ""
+
+    def find_enterprise_object(self, conn, object_type, name="", code=""):
+        if code:
+            row = conn.execute("select * from enterprise_objects where object_type=? and archived_at is null and coalesce(code,'')=?", (object_type, code)).fetchone()
+            if row:
+                return row
+        if name:
+            row = conn.execute("select * from enterprise_objects where object_type=? and archived_at is null and name=?", (object_type, name)).fetchone()
+            if row:
+                return row
+        return None
+
+    def create_object_suggestion(self, conn, object_type, object_name, source_type, source_id, evidence, confidence=0.7):
+        if not object_name:
+            return None
+        now = ts()
+        existing = conn.execute("select id from business_object_suggestions where object_type=? and object_name=? and source_type=? and source_id=?", (object_type, object_name, source_type, source_id)).fetchone()
+        if existing:
+            conn.execute("update business_object_suggestions set evidence=?, confidence=?, updated_at=? where id=?", (json.dumps(evidence or {}, ensure_ascii=False), confidence, now, existing["id"]))
+            return existing["id"]
+        cur = conn.execute(
+            "insert into business_object_suggestions(object_type,object_name,source_type,source_id,evidence,confidence,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+            (object_type, object_name, source_type, source_id, json.dumps(evidence or {}, ensure_ascii=False), confidence, "pending", now, now),
+        )
+        return cur.lastrowid
+
+    def link_or_suggest_object(self, conn, source_id, record_type, record_id, object_type, object_name, match_key, evidence, code=""):
+        if not object_name:
+            return
+        now = ts()
+        obj = self.find_enterprise_object(conn, object_type, object_name, code)
+        status = "matched" if obj else "suggested"
+        object_id = obj["id"] if obj else None
+        confidence = 0.95 if obj else 0.72
+        existing = conn.execute("select id from business_object_links where record_type=? and record_id=? and object_type=? and match_key=?", (record_type, record_id, object_type, match_key)).fetchone()
+        if existing:
+            conn.execute("update business_object_links set object_id=?, match_confidence=?, match_status=?, updated_at=? where id=?", (object_id, confidence, status, now, existing["id"]))
+        else:
+            conn.execute(
+                "insert into business_object_links(source_type,source_id,record_type,record_id,object_type,object_id,match_key,match_confidence,match_status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                ("data_lake_record", source_id, record_type, record_id, object_type, object_id, match_key, confidence, status, now, now),
+            )
+        if not obj:
+            self.create_object_suggestion(conn, object_type, object_name, "data_lake_record", record_id, evidence, confidence)
+
+    def data_lake_normalized_from_row(self, row, record_type):
+        data = row_dict(row)
+        if record_type == "sales":
+            amount = float(data.get("amount") or 0)
+            gross_profit = float(data.get("gross_profit") or 0)
+            return {
+                "sale_date": data.get("sale_date"),
+                "store_name": self.normalize_store_name(data.get("store_name")),
+                "store_code": data.get("store_code"),
+                "employee_name": data.get("employee_name"),
+                "brand_name": data.get("brand_name") or self.infer_brand_name(data.get("product_name")),
+                "category_name": data.get("category_name"),
+                "product_code": data.get("product_code"),
+                "product_name": data.get("product_name"),
+                "barcode": data.get("barcode"),
+                "quantity": data.get("quantity") or 0,
+                "amount": amount,
+                "cost": data.get("cost") or 0,
+                "gross_profit": gross_profit,
+                "gross_margin": gross_profit / amount if amount else 0,
+            }
+        return {
+            "snapshot_date": data.get("snapshot_date"),
+            "store_name": self.normalize_store_name(data.get("store_name")),
+            "store_code": data.get("store_code"),
+            "brand_name": data.get("brand_name") or self.infer_brand_name(data.get("product_name")),
+            "category_name": data.get("category_name"),
+            "product_code": data.get("product_code"),
+            "product_name": data.get("product_name"),
+            "barcode": data.get("barcode"),
+            "quantity": data.get("quantity") or 0,
+            "cost_amount": data.get("cost_amount") or 0,
+            "retail_amount": data.get("retail_amount") or 0,
+            "age_days": data.get("age_days"),
+        }
+
+    def data_lake_quality(self, normalized, record_type):
+        issues = []
+        if record_type == "sales" and not normalized.get("amount"):
+            issues.append("missing_amount")
+        if record_type == "inventory" and normalized.get("quantity") in ("", None):
+            issues.append("missing_quantity")
+        if not normalized.get("product_code") and not normalized.get("barcode") and not normalized.get("product_name"):
+            issues.append("missing_product_identity")
+        return ("warning" if issues else "ok"), ",".join(issues)
+
+    def rebuild_data_lake_for_batch(self, conn, batch, user_id=None):
+        now = ts()
+        batch_id = batch["id"]
+        existing = conn.execute("select * from data_lake_sources where batch_id=?", (batch_id,)).fetchone()
+        if existing:
+            source_id = existing["id"]
+            conn.execute("update data_lake_sources set row_count=?, status=?, updated_at=? where id=?", (batch["row_count"] or 0, "rebuilt", now, source_id))
+        else:
+            cur = conn.execute(
+                "insert into data_lake_sources(source_type,source_name,document_id,batch_id,filename,file_hash,encoding,delimiter,status,row_count,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("sap_import", batch["filename"] or ("batch-" + str(batch_id)), batch["document_id"], batch_id, batch["filename"], "", "source_detected", "source_detected", "active", batch["row_count"] or 0, user_id, now, now),
+            )
+            source_id = cur.lastrowid
+        created = 0
+        warnings = 0
+        for record_type, rows in (("sales", conn.execute("select * from sap_sales where batch_id=? order by id", (batch_id,)).fetchall()), ("inventory", conn.execute("select * from sap_inventory where batch_id=? order by id", (batch_id,)).fetchall())):
+            for idx, row in enumerate(rows, 1):
+                normalized = self.data_lake_normalized_from_row(row, record_type)
+                row_hash = self.data_lake_hash({"batch_id": batch_id, "record_type": record_type, "raw_id": row["id"], "raw_data": row["raw_data"], "normalized": normalized})
+                quality_status, quality_message = self.data_lake_quality(normalized, record_type)
+                warnings += 1 if quality_status != "ok" else 0
+                existing_record = conn.execute("select id from data_lake_records where batch_id=? and record_type=? and row_hash=?", (batch_id, record_type, row_hash)).fetchone()
+                if existing_record:
+                    record_id = existing_record["id"]
+                    conn.execute("update data_lake_records set normalized_data=?, quality_status=?, quality_message=? where id=?", (json.dumps(normalized, ensure_ascii=False), quality_status, quality_message, record_id))
+                else:
+                    cur = conn.execute(
+                        "insert into data_lake_records(source_id,batch_id,record_type,row_index,row_hash,raw_data,normalized_data,quality_status,quality_message,created_at) values(?,?,?,?,?,?,?,?,?,?)",
+                        (source_id, batch_id, record_type, idx, row_hash, row["raw_data"], json.dumps(normalized, ensure_ascii=False), quality_status, quality_message, now),
+                    )
+                    record_id = cur.lastrowid
+                    created += 1
+                    conn.execute("insert into data_lake_lineage(source_id,record_id,target_type,target_id,relation_type,metadata,created_at) values(?,?,?,?,?,?,?)", (source_id, record_id, "sap_" + record_type, row["id"], "derived_from", json.dumps({"batch_id": batch_id}, ensure_ascii=False), now))
+                evidence = {"batch_id": batch_id, "record_id": record_id, "record_type": record_type, "normalized": normalized}
+                self.link_or_suggest_object(conn, source_id, record_type, record_id, "store", normalized.get("store_name") or "", "store_name", evidence)
+                self.link_or_suggest_object(conn, source_id, record_type, record_id, "product", normalized.get("product_name") or normalized.get("product_code") or "", "product_code:" + str(normalized.get("product_code") or normalized.get("barcode") or normalized.get("product_name") or ""), evidence, normalized.get("product_code") or normalized.get("barcode") or "")
+                self.link_or_suggest_object(conn, source_id, record_type, record_id, "brand", normalized.get("brand_name") or "", "brand_name", evidence)
+        conn.execute("delete from data_quality_checks where batch_id=?", (batch_id,))
+        conn.execute("insert into data_quality_checks(source_id,batch_id,check_key,status,message,affected_count,created_at) values(?,?,?,?,?,?,?)", (source_id, batch_id, "required_business_fields", "warning" if warnings else "ok", "rows with missing amount/quantity/product identity", warnings, now))
+        self.refresh_business_metrics(conn)
+        return {"source_id": source_id, "created_records": created, "warnings": warnings}
+
+    def refresh_business_metrics(self, conn):
+        now = ts()
+        conn.execute("delete from business_metrics_snapshots")
+        batch_json = json.dumps([r["id"] for r in conn.execute("select id from sap_import_batches order by id").fetchall()], ensure_ascii=False)
+        for row in conn.execute("select coalesce(store_name,'') store_name, sum(coalesce(amount,0)) sales_amount, sum(coalesce(gross_profit,0)) gross_profit, sum(coalesce(quantity,0)) quantity from sap_sales group by store_name").fetchall():
+            store = self.normalize_store_name(row["store_name"])
+            amount = float(row["sales_amount"] or 0)
+            gross = float(row["gross_profit"] or 0)
+            for key, value in [("sales_amount", amount), ("gross_profit", gross), ("gross_margin", gross / amount if amount else 0), ("sales_quantity", row["quantity"] or 0)]:
+                conn.execute("insert into business_metrics_snapshots(snapshot_type,store_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("store_sales", store, key, float(value or 0), batch_json, now))
+        for row in conn.execute("select coalesce(brand_name,'') brand_name, sum(coalesce(amount,0)) sales_amount, sum(coalesce(gross_profit,0)) gross_profit from sap_sales group by brand_name").fetchall():
+            if not row["brand_name"]:
+                continue
+            amount = float(row["sales_amount"] or 0)
+            gross = float(row["gross_profit"] or 0)
+            for key, value in [("sales_amount", amount), ("gross_profit", gross), ("gross_margin", gross / amount if amount else 0)]:
+                conn.execute("insert into business_metrics_snapshots(snapshot_type,brand_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("brand_sales", row["brand_name"], key, float(value or 0), batch_json, now))
+        for row in conn.execute("select coalesce(store_name,'') store_name, sum(coalesce(quantity,0)) quantity, sum(coalesce(cost_amount,0)) cost_amount, sum(coalesce(retail_amount,0)) retail_amount from sap_inventory group by store_name").fetchall():
+            store = self.normalize_store_name(row["store_name"])
+            for key, value in [("inventory_quantity", row["quantity"] or 0), ("inventory_cost_amount", row["cost_amount"] or 0), ("inventory_retail_amount", row["retail_amount"] or 0)]:
+                conn.execute("insert into business_metrics_snapshots(snapshot_type,store_name,metric_key,metric_value,source_batch_ids,created_at) values(?,?,?,?,?,?)", ("store_inventory", store, key, float(value or 0), batch_json, now))
+
+    def rebuild_data_lake(self, user=None):
+        with db() as conn:
+            results = [self.rebuild_data_lake_for_batch(conn, batch, user["id"] if user else None) for batch in conn.execute("select * from sap_import_batches order by id").fetchall()]
+            summary = self.business_metrics_summary(conn)
+        return {"ok": True, "rebuilt_batches": len(results), "results": results, "summary": summary, "safety": "file_import_only_no_production_sap_connection"}
+
+    def business_metrics_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            count = lambda sql: int(conn.execute(sql).fetchone()["c"] or 0)
+            return {
+                "data_lake_sources": count("select count(*) c from data_lake_sources"),
+                "data_lake_records": count("select count(*) c from data_lake_records"),
+                "linked_objects": count("select count(*) c from business_object_links where match_status='matched'"),
+                "suggested_objects": count("select count(*) c from business_object_suggestions where status='pending'"),
+                "quality_alerts": count("select count(*) c from data_quality_checks where status!='ok'"),
+                "sales_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='sales_amount'").fetchone()["v"] or 0),
+                "gross_profit": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='gross_profit'").fetchone()["v"] or 0),
+                "inventory_retail_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_retail_amount'").fetchone()["v"] or 0),
+                "inventory_quantity": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_quantity'").fetchone()["v"] or 0),
+                "top_store_sales": [row_dict(r) for r in conn.execute("select store_name, metric_value sales_amount from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='sales_amount' order by metric_value desc limit 8").fetchall()],
+                "top_brand_sales": [row_dict(r) for r in conn.execute("select brand_name, metric_value sales_amount from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount' order by metric_value desc limit 8").fetchall()],
+                "inventory_summary": [row_dict(r) for r in conn.execute("select store_name, metric_key, metric_value from business_metrics_snapshots where snapshot_type='store_inventory' order by store_name, metric_key").fetchall()],
+            }
+        finally:
+            if own:
+                conn.close()
+
     def object_file_count(self, conn, object_type, object_id):
         row = conn.execute(
             "select count(*) c from documents where deleted_at is null and related_object_type=? and related_object_id=?",
@@ -5573,6 +5995,24 @@ class App(BaseHTTPRequestHandler):
                     if not in_date(row["updated_at"]):
                         continue
                     results.append({"type": "memory", "icon": "MEM", "id": row["id"], "title": row["title"], "snippet": self.search_snippet((row["summary"] or "") + " " + (row["reason"] or "") + " " + (row["decision"] or "") + " " + (row["content"] or ""), q), "source": row["memory_type"] or "enterprise_memory", "related_object": "{} #{}".format(row["related_object_type"] or "", row["related_object_id"] or "").strip(), "url": "/memory/view?id={}".format(row["id"]), "score": 0.88, "updated_at": row["updated_at"]})
+            if want("data_lake_source"):
+                for row in conn.execute("select * from data_lake_sources where coalesce(filename,'') like ? or coalesce(source_name,'') like ? or coalesce(status,'') like ? order by updated_at desc limit 50", (like, like, like)).fetchall():
+                    results.append({"type": "data_lake_source", "icon": "LAKE", "id": row["id"], "title": row["filename"] or row["source_name"], "snippet": "batch {} / rows {}".format(row["batch_id"], row["row_count"]), "source": "data_lake_sources", "related_object": "batch #{}".format(row["batch_id"] or ""), "url": "/data-lake/sources", "score": 0.8, "updated_at": row["updated_at"]})
+            if want("data_lake_record"):
+                for row in conn.execute("select * from data_lake_records where coalesce(raw_data,'') like ? or coalesce(normalized_data,'') like ? or coalesce(quality_message,'') like ? order by id desc limit 50", (like, like, like)).fetchall():
+                    normalized = safe_json(row["normalized_data"], {})
+                    title = normalized.get("product_name") or normalized.get("store_name") or ("Data Lake Record #" + str(row["id"]))
+                    results.append({"type": "data_lake_record", "icon": "ROW", "id": row["id"], "title": title, "snippet": self.search_snippet(row["normalized_data"] or row["raw_data"] or row["quality_message"], q), "source": row["record_type"], "related_object": "batch #{}".format(row["batch_id"] or ""), "url": "/data-lake/records", "score": 0.74, "updated_at": row["created_at"]})
+            if want("object_suggestion"):
+                for row in conn.execute("select * from business_object_suggestions where object_name like ? or object_type like ? or coalesce(evidence,'') like ? order by updated_at desc limit 50", (like, like, like)).fetchall():
+                    results.append({"type": "object_suggestion", "icon": "SUG", "id": row["id"], "title": row["object_name"], "snippet": self.search_snippet(row["evidence"], q), "source": row["object_type"], "related_object": row["status"], "url": "/object-suggestions", "score": 0.76, "updated_at": row["updated_at"]})
+            if want("object_link"):
+                for row in conn.execute("select * from business_object_links where object_type like ? or match_key like ? or match_status like ? order by updated_at desc limit 50", (like, like, like)).fetchall():
+                    results.append({"type": "object_link", "icon": "LINK", "id": row["id"], "title": "{} / {}".format(row["object_type"], row["match_status"]), "snippet": row["match_key"], "source": "business_object_links", "related_object": "object #{}".format(row["object_id"] or ""), "url": "/object-links", "score": 0.75, "updated_at": row["updated_at"]})
+            if want("business_metric"):
+                for row in conn.execute("select * from business_metrics_snapshots where coalesce(store_name,'') like ? or coalesce(brand_name,'') like ? or coalesce(product_code,'') like ? or metric_key like ? order by created_at desc limit 50", (like, like, like, like)).fetchall():
+                    title = row["metric_key"] + " / " + (row["store_name"] or row["brand_name"] or row["product_code"] or "")
+                    results.append({"type": "business_metric", "icon": "MET", "id": row["id"], "title": title, "snippet": str(row["metric_value"]), "source": row["snapshot_type"], "related_object": row["metric_key"], "url": "/data-lake", "score": 0.7, "updated_at": row["created_at"]})
         results.sort(key=lambda item: (item.get("score", 0), item.get("updated_at") or 0), reverse=True)
         return {"ok": True, "query": q, "total": len(results), "results": results[:120], "filters": {"type": result_type, "category": category, "object_type": object_type, "status": status, "date_from": date_from, "date_to": date_to}}
 
@@ -6643,6 +7083,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             timeline_events_total = count(conn, "select count(*) c from timeline_events")
             enterprise_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null")
             high_risk_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null and risk_level in ('high','critical')")
+            business_metrics = self.business_metrics_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -6670,7 +7111,17 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "timeline_events_total": timeline_events_total,
                 "enterprise_memories_total": enterprise_memories_total,
                 "high_risk_memories_total": high_risk_memories_total,
+                "data_lake_sources": business_metrics["data_lake_sources"],
+                "data_lake_records": business_metrics["data_lake_records"],
+                "linked_objects": business_metrics["linked_objects"],
+                "suggested_objects": business_metrics["suggested_objects"],
+                "quality_alerts": business_metrics["quality_alerts"],
+                "sales_amount": business_metrics["sales_amount"],
+                "gross_profit": business_metrics["gross_profit"],
+                "inventory_retail_amount": business_metrics["inventory_retail_amount"],
+                "inventory_quantity": business_metrics["inventory_quantity"],
             },
+            "business_metrics": business_metrics,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -6681,6 +7132,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "FoxBrain Drive", "url": "/drive", "status": "ready"},
                 {"title": U(r"\u5bf9\u8c61\u4e2d\u5fc3"), "url": "/object-center", "status": "ready"},
                 {"title": U(r"\u77e5\u8bc6\u4e2d\u5fc3"), "url": "/knowledge", "status": "ready"},
+                {"title": "FoxBrain Data Lake", "url": "/data-lake", "status": "ready"},
+                {"title": "Object Match Center", "url": "/object-links", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -6706,6 +7159,11 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             (U(r"\u65f6\u95f4\u8f74\u4e8b\u4ef6"), summary["timeline_events_total"], U(r"Timeline")),
             (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), summary["enterprise_memories_total"], U(r"Memory")),
             (U(r"\u9ad8\u98ce\u9669\u8bb0\u5fc6"), summary["high_risk_memories_total"], U(r"\u9700\u5173\u6ce8")),
+            ("Data Lake", summary["data_lake_records"], "records"),
+            (U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), "sales"),
+            (U(r"\u6bdb\u5229"), money(summary.get("gross_" + "profit", 0)), "gross profit"),
+            (U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["inventory_retail_amount"]), "inventory"),
+            (U(r"\u5bf9\u8c61\u5efa\u8bae"), summary["suggested_objects"], "match center"),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -6732,6 +7190,19 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "{} · {} · {}".format(esc(r.get("title") or ""), esc(r.get("memory_type") or ""), esc(r.get("risk_level") or ""))
             for r in payload["recent_memories"]
         ] or [U(r"\u6682\u65e0\u6700\u8fd1\u4f01\u4e1a\u8bb0\u5fc6\u3002")])
+        top_store_sales = self.bullets([
+            "{} / {}".format(esc(r.get("store_name") or ""), money(r.get("sales_amount") or 0))
+            for r in payload["business_metrics"]["top_store_sales"]
+        ] or [U(r"\u6682\u65e0\u95e8\u5e97\u9500\u552e\u6392\u884c\u3002")])
+        top_brand_sales = self.bullets([
+            "{} / {}".format(esc(r.get("brand_name") or ""), money(r.get("sales_amount") or 0))
+            for r in payload["business_metrics"]["top_brand_sales"]
+        ] or [U(r"\u6682\u65e0\u54c1\u724c\u9500\u552e\u6392\u884c\u3002")])
+        business_alerts = self.bullets([
+            U(r"\u6570\u636e\u8d28\u91cf\u544a\u8b66\uff1a") + str(summary["quality_alerts"]),
+            U(r"\u5f85\u786e\u8ba4\u5bf9\u8c61\u5efa\u8bae\uff1a") + str(summary["suggested_objects"]),
+            U(r"\u672c\u5c42\u4ec5\u5904\u7406\u5df2\u4e0a\u4f20 SAP \u5bfc\u51fa\u6587\u4ef6\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\u3002"),
+        ])
         status_html = "".join(
             "<div class='metric'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(esc(item["name"]), esc(item["status"]), esc(item["source"]))
             for item in payload["system_status"]
@@ -6774,6 +7245,11 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
   <div class="panel"><h2>{}</h2>{}</div>
 </div>
 <div class="panel"><h2>{}</h2>{}</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2>{}</div>
 <div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
 """.format(
@@ -6796,6 +7272,12 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             recent_timeline,
             U(r"\u6700\u8fd1\u4f01\u4e1a\u8bb0\u5fc6"),
             recent_memories,
+            U(r"\u95e8\u5e97\u6392\u884c"),
+            top_store_sales,
+            U(r"\u54c1\u724c\u6392\u884c"),
+            top_brand_sales,
+            U(r"\u5f02\u5e38\u63d0\u9192"),
+            business_alerts,
             U(r"\u7cfb\u7edf\u72b6\u6001"),
             status_html,
             U(r"\u66f4\u591a\u5165\u53e3"),
@@ -6819,7 +7301,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         date_from = query.get("date_from", [""])[0].strip()
         date_to = query.get("date_to", [""])[0].strip()
         payload = self.global_search_results(user, q, result_type, category, object_type, status, date_from, date_to)
-        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6"))])
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6")), ("data_lake_source", "Data Lake Source"), ("data_lake_record", "Data Lake Record"), ("object_link", "Object Link"), ("object_suggestion", "Object Suggestion"), ("business_metric", "Business Metric")])
         object_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"])) for item in self.object_types())
         cards = "".join(
             "<div class='card'><div><h2>{} {}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
@@ -11839,6 +12321,89 @@ where ki.deleted_at is null"""
         cards = "".join(self.card(p["name"], p["status"] + " 路 " + U(r"\u4e0b\u6b21 ") + str(p["next_run"]), p["url"], "btn", True) for p in self.data_pipeline_payload()["pipelines"])
         self.out(layout(U(r"\u6570\u636e\u7ba1\u9053"), "<div class='grid'>" + cards + "</div>", user=user, wide=True))
 
+    def data_lake_page(self, user, path="/data-lake"):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        with db() as conn:
+            summary = self.business_metrics_summary(conn)
+            sources = conn.execute("select * from data_lake_sources order by updated_at desc limit 30").fetchall()
+            records = conn.execute("select * from data_lake_records order by id desc limit 80").fetchall()
+            quality = conn.execute("select * from data_quality_checks order by created_at desc limit 20").fetchall()
+        metrics = "".join([
+            self.metric("Data Lake Sources", summary["data_lake_sources"], "source files/batches"),
+            self.metric("Data Lake Records", summary["data_lake_records"], "raw rows"),
+            self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), "sap_sales"),
+            self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), "gross_profit"),
+            self.metric(U(r"\u5e93\u5b58\u6570\u91cf"), money(summary["inventory_quantity"]), "inventory"),
+            self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["inventory_retail_amount"]), "retail"),
+        ])
+        source_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], esc(r["filename"] or r["source_name"] or ""), r["batch_id"], r["row_count"], esc(dt(r["updated_at"]))) for r in sources) or "<tr><td colspan='5'>No sources yet.</td></tr>"
+        record_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], esc(r["record_type"]), r["batch_id"], esc(r["quality_status"]), esc(r["quality_message"] or "")) for r in records) or "<tr><td colspan='5'>No records yet.</td></tr>"
+        quality_items = self.bullets(["{} / {} / {}".format(esc(r["check_key"]), esc(r["status"]), esc(r["message"] or "")) for r in quality] or [U(r"\u6682\u65e0\u8d28\u91cf\u544a\u8b66\u3002")])
+        body = """
+<div class="panel">
+  <h2>FoxBrain Data Lake</h2>
+  <p class="small">{}</p>
+  <form method="post" action="/api/data-lake/rebuild"><button>{}</button></form>
+</div>
+<div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2><table><thead><tr><th>ID</th><th>{}</th><th>Batch</th><th>Rows</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2><table><thead><tr><th>ID</th><th>Type</th><th>Batch</th><th>Quality</th><th>Message</th></tr></thead><tbody>{}</tbody></table></div>
+<div class="panel"><p><a class="btn" href="/object-links">Object Match Center</a> <a class="btn" href="/api/business-metrics/summary">Metrics API</a></p></div>
+""".format(
+            U(r"\u4ec5\u5904\u7406\u5df2\u4e0a\u4f20\u7684 SAP \u5bfc\u51fa\u6587\u4ef6\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\u3002"),
+            U(r"\u91cd\u5efa Data Lake"),
+            U(r"\u7ecf\u8425\u6307\u6807"),
+            metrics,
+            U(r"\u6570\u636e\u6e90"),
+            U(r"\u6587\u4ef6"),
+            U(r"\u66f4\u65b0"),
+            source_rows,
+            U(r"\u8d28\u91cf\u68c0\u67e5"),
+            quality_items,
+            U(r"\u539f\u59cb\u884c\u8bb0\u5f55"),
+            record_rows,
+        )
+        self.out(layout("FoxBrain Data Lake", body, user=user, wide=True))
+
+    def object_match_center(self, user, path="/object-links"):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        with db() as conn:
+            links = conn.execute("select * from business_object_links order by updated_at desc limit 100").fetchall()
+            suggestions = conn.execute("select * from business_object_suggestions order by updated_at desc limit 100").fetchall()
+        link_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], esc(r["object_type"]), esc(r["match_status"]), esc(r["match_key"]), esc(str(r["match_confidence"]))) for r in links) or "<tr><td colspan='5'>No object links yet.</td></tr>"
+        suggestion_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><form method='post' action='/api/object-suggestions/{}/approve' style='display:inline'><button>{}</button></form> <form method='post' action='/api/object-suggestions/{}/reject' style='display:inline'><button class='secondary'>{}</button></form></td></tr>".format(
+                r["id"], esc(r["object_type"]), esc(r["object_name"]), esc(r["status"]), r["id"], U(r"\u786e\u8ba4"), r["id"], U(r"\u62d2\u7edd")
+            )
+            for r in suggestions
+        ) or "<tr><td colspan='5'>No suggestions yet.</td></tr>"
+        body = """
+<div class="panel"><h2>Object Match Center</h2><p class="small">{}</p></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2><table><thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Key</th><th>Confidence</th></tr></thead><tbody>{}</tbody></table></div>
+  <div class="panel"><h2>{}</h2><table><thead><tr><th>ID</th><th>Type</th><th>Name</th><th>Status</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>
+</div>
+""".format(
+            U(r"\u53ea\u751f\u6210\u5efa\u8bae\u5173\u8054/\u5efa\u8bae\u521b\u5efa\uff0c\u4e0d\u81ea\u52a8\u4e71\u5efa\u5bf9\u8c61\u3002"),
+            U(r"\u5bf9\u8c61\u5173\u8054"),
+            link_rows,
+            U(r"\u5efa\u8bae\u521b\u5efa"),
+            U(r"\u64cd\u4f5c"),
+            suggestion_rows,
+        )
+        self.out(layout("Object Match Center", body, user=user, wide=True))
+
     def api_sap_sync_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
@@ -11861,6 +12426,77 @@ where ki.deleted_at is null"""
             s = self.sap_sync_status_payload()
             return self.json_out({"ok": True, "sap_data_freshness": s["freshness"], "warning": s["warning"]})
         return self.json_out({"ok": False, "message": "unknown sap sync api"}, code=404)
+
+    def api_data_lake_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        query = parse_qs(urlparse(self.path).query)
+        if path == "/api/data-lake/sources":
+            with db() as conn:
+                rows = conn.execute("select * from data_lake_sources order by updated_at desc limit 300").fetchall()
+            return self.json_out({"ok": True, "sources": [row_dict(r) for r in rows]})
+        if path == "/api/data-lake/records":
+            record_type = query.get("type", [""])[0]
+            where, params = ["1=1"], []
+            if record_type:
+                where.append("record_type=?")
+                params.append(record_type)
+            with db() as conn:
+                rows = conn.execute("select * from data_lake_records where " + " and ".join(where) + " order by id desc limit 500", params).fetchall()
+            return self.json_out({"ok": True, "records": [row_dict(r) for r in rows]})
+        if path == "/api/object-links":
+            with db() as conn:
+                rows = conn.execute("select * from business_object_links order by updated_at desc limit 500").fetchall()
+            return self.json_out({"ok": True, "links": [row_dict(r) for r in rows]})
+        if path == "/api/object-suggestions":
+            with db() as conn:
+                rows = conn.execute("select * from business_object_suggestions order by updated_at desc limit 500").fetchall()
+            return self.json_out({"ok": True, "suggestions": [row_dict(r) for r in rows]})
+        if path == "/api/business-metrics/summary":
+            return self.json_out({"ok": True, "summary": self.business_metrics_summary()})
+        return self.json_out({"ok": False, "message": "unknown data lake api"}, code=404)
+
+    def api_data_lake_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/data-lake/rebuild":
+            payload = self.rebuild_data_lake(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/data-lake")
+            return self.json_out(payload)
+        m_approve = re.match(r"^/api/object-suggestions/(\d+)/approve$", path)
+        if m_approve:
+            now = ts()
+            with db() as conn:
+                row = conn.execute("select * from business_object_suggestions where id=?", (m_approve.group(1),)).fetchone()
+                if not row:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                obj = self.find_enterprise_object(conn, row["object_type"], row["object_name"], "")
+                object_id = obj["id"] if obj else None
+                if not object_id:
+                    cur = conn.execute(
+                        "insert into enterprise_objects(object_type,name,code,description,status,tags,metadata,ai_summary,created_by,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (row["object_type"], row["object_name"], "", U(r"\u7531 Data Lake \u5bf9\u8c61\u5339\u914d\u4e2d\u5fc3\u4eba\u5de5\u786e\u8ba4\u521b\u5efa\u3002"), "active", "data-lake", row["evidence"] or "{}", "", user["id"], now, now, None),
+                    )
+                    object_id = cur.lastrowid
+                conn.execute("update business_object_suggestions set status='approved', reviewed_by=?, reviewed_at=?, updated_at=? where id=?", (user["id"], now, now, row["id"]))
+                conn.execute("update business_object_links set object_id=?, match_status='matched', match_confidence=1.0, updated_at=? where object_type=? and match_status='suggested' and record_id in (select source_id from business_object_suggestions where id=?)", (object_id, now, row["object_type"], row["id"]))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/object-suggestions")
+            return self.json_out({"ok": True, "object_id": object_id})
+        m_reject = re.match(r"^/api/object-suggestions/(\d+)/reject$", path)
+        if m_reject:
+            now = ts()
+            with db() as conn:
+                conn.execute("update business_object_suggestions set status='rejected', reviewed_by=?, reviewed_at=?, updated_at=? where id=?", (user["id"], now, now, m_reject.group(1)))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/object-suggestions")
+            return self.json_out({"ok": True})
+        return self.json_out({"ok": False, "message": "unknown data lake write api"}, code=404)
 
     def api_sap_knowledge_engine_get(self, user, path):
         if not user:
