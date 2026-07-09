@@ -2724,3 +2724,83 @@ def test_sprint001_docs_and_summary_present():
         "Sprint002 should implement Object Engine",
     ]:
         assert phrase in combined
+
+
+def test_sprint002_object_engine_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists enterprise_objects",
+        "create table if not exists object_relations",
+        "idx_enterprise_objects_type_status",
+        "idx_object_relations_source",
+        "related_object_type",
+        "related_object_id",
+        "def object_types",
+        "def object_templates",
+        "def generateObjectSummary",
+        "def suggestRelations",
+        "def object_timeline_placeholder",
+        "def enterprise_object_to_json",
+    ]:
+        assert phrase in portal
+    for phrase in [
+        'if path in ("/object-center", "/objects")',
+        'path.startswith("/api/objects") or path == "/api/object-types"',
+        "def api_objects_get",
+        "def api_objects_post",
+        "def api_objects_delete",
+        "/api/object-types",
+        "/api/objects/link-document",
+        "/api/objects/{}/documents/link",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint002_object_engine_required_types_and_templates_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        '"key": "store"',
+        '"key": "employee"',
+        '"key": "brand"',
+        '"key": "product"',
+        '"key": "supplier"',
+        '"key": "customer"',
+        '"key": "contract"',
+        '"key": "project"',
+        '"key": "meeting"',
+        '"key": "task"',
+        '"store": ["address", "area", "opening_date", "rent", "manager", "phone"]',
+        '"employee": ["role", "store", "join_date", "phone", "status"]',
+        '"brand": ["brand_origin", "supplier", "website", "positioning", "main_categories"]',
+        '"product": ["brand", "sku", "category", "season", "barcode"]',
+        '"supplier": ["contact_person", "phone", "wechat", "payment_terms"]',
+        '"customer": ["phone", "wechat", "level", "source"]',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint002_drive_object_linking_and_summary_present():
+    portal = read("portal_v2.py")
+    summary = read("SPRINT002_OBJECT_ENGINE_SUMMARY.md")
+    for phrase in [
+        'select id,object_type,name from enterprise_objects',
+        'name="related_object_ref"',
+        "/api/objects/link-document",
+        "link_document_to_object",
+        "unlink_document_from_object",
+        "update documents set related_object_type=?",
+        "/object-center",
+    ]:
+        assert phrase in portal
+    for phrase in [
+        "Sprint002 Object Engine Summary",
+        "enterprise_objects",
+        "object_relations",
+        "GET /api/objects",
+        "POST /api/objects",
+        "PATCH /api/objects/:id",
+        "DELETE /api/objects/:id",
+        "Drive-to-object links",
+        "Sprint003",
+    ]:
+        assert phrase in summary

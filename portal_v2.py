@@ -1127,6 +1127,49 @@ create table if not exists ai_query_logs(
             conn.execute(idx)
         conn.execute(
             """
+create table if not exists enterprise_objects(
+ id integer primary key autoincrement,
+ object_type text not null,
+ name text not null,
+ code text,
+ description text,
+ status text not null default 'active',
+ tags text,
+ metadata text,
+ ai_summary text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null,
+ archived_at integer
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists object_relations(
+ id integer primary key autoincrement,
+ source_object_type text not null,
+ source_object_id integer not null,
+ target_object_type text not null,
+ target_object_id integer not null,
+ relation_type text not null default 'related_to',
+ description text,
+ confidence real not null default 0,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_enterprise_objects_type_status on enterprise_objects(object_type, status, archived_at)",
+            "create index if not exists idx_enterprise_objects_updated on enterprise_objects(updated_at)",
+            "create index if not exists idx_enterprise_objects_name on enterprise_objects(name)",
+            "create index if not exists idx_object_relations_source on object_relations(source_object_type, source_object_id)",
+            "create index if not exists idx_object_relations_target on object_relations(target_object_type, target_object_id)",
+        ]:
+            conn.execute(idx)
+        conn.execute(
+            """
 create table if not exists knowledge_query_history(
  id integer primary key autoincrement,
  user_id integer,
@@ -4100,7 +4143,7 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_second_brain_page(user)
         if path == "/drive":
             return self.drive_2_page(user)
-        if path == "/objects":
+        if path in ("/object-center", "/objects"):
             return self.object_engine_page(user)
         if path == "/knowledge-pipeline":
             return self.knowledge_pipeline_page(user)
@@ -4254,6 +4297,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_owner_os_get(user, path)
         if path.startswith("/api/second-brain"):
             return self.api_second_brain_get(user, path)
+        if path.startswith("/api/objects") or path == "/api/object-types":
+            return self.api_objects_get(user, path)
         if path.startswith(("/api/drive", "/api/object-engine", "/api/knowledge-pipeline", "/api/ceo-home")):
             return self.api_second_brain_v11_get(user, path)
         if path.startswith(("/api/ai-business-center", "/api/decision/today", "/api/forecast/sales", "/api/inventory/risk", "/api/purchase/recommend", "/api/profit/analysis", "/api/risk/list", "/api/business-memory")):
@@ -4430,6 +4475,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_workflow_automation_post(self.current_user(), path)
         if path.startswith("/api/drive"):
             return self.api_drive_post(self.current_user(), path)
+        if path.startswith("/api/objects"):
+            return self.api_objects_post(self.current_user(), path)
         if path.startswith(("/api/ai-business-center", "/api/ai/task/create")):
             return self.api_ai_business_center_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
@@ -4504,6 +4551,8 @@ class App(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.startswith("/api/drive"):
             return self.api_drive_post(self.current_user(), path)
+        if path.startswith("/api/objects"):
+            return self.api_objects_post(self.current_user(), path)
         if path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences"):
@@ -4530,12 +4579,16 @@ class App(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.startswith("/api/drive"):
             return self.api_drive_post(self.current_user(), path)
+        if path.startswith("/api/objects"):
+            return self.api_objects_post(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def do_DELETE(self):
         path = urlparse(self.path).path
         if path.startswith("/api/drive"):
             return self.api_drive_delete(self.current_user(), path)
+        if path.startswith("/api/objects"):
+            return self.api_objects_delete(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -5080,6 +5133,110 @@ class App(BaseHTTPRequestHandler):
             "updated_at": data.get("updated_at"),
             "deleted_at": data.get("deleted_at"),
         }
+
+    def object_types(self):
+        return [
+            {"key": "store", "label": U(r"\u95e8\u5e97"), "description": U(r"\u95e8\u5e97\u57fa\u672c\u8d44\u6599\u3001\u4eba\u5458\u3001\u9500\u552e\u548c\u5e93\u5b58\u5173\u8054")},
+            {"key": "employee", "label": U(r"\u5458\u5de5"), "description": U(r"\u5458\u5de5\u5c97\u4f4d\u3001\u95e8\u5e97\u3001\u57f9\u8bad\u548c\u7ee9\u6548\u5173\u8054")},
+            {"key": "brand", "label": U(r"\u54c1\u724c"), "description": U(r"\u54c1\u724c\u5b9a\u4f4d\u3001\u4f9b\u5e94\u5546\u3001\u4ea7\u54c1\u548c\u7ecf\u8425\u5173\u8054")},
+            {"key": "product", "label": U(r"\u4ea7\u54c1"), "description": U(r"\u4ea7\u54c1\u3001SKU\u3001\u5e93\u5b58\u3001\u9500\u552e\u548c\u6587\u4ef6\u5173\u8054")},
+            {"key": "supplier", "label": U(r"\u4f9b\u5e94\u5546"), "description": U(r"\u4f9b\u5e94\u5546\u8054\u7cfb\u3001\u8d26\u671f\u3001\u5408\u540c\u548c\u91c7\u8d2d\u5173\u8054")},
+            {"key": "customer", "label": U(r"\u5ba2\u6237"), "description": U(r"\u5ba2\u6237\u6863\u6848\u3001\u504f\u597d\u3001\u4f1a\u5458\u7b49\u7ea7\u548c\u4e8b\u4ef6\u5173\u8054")},
+            {"key": "contract", "label": U(r"\u5408\u540c"), "description": U(r"\u5408\u540c\u3001\u9644\u4ef6\u3001\u5ba1\u6279\u548c\u5230\u671f\u63d0\u9192\u5173\u8054")},
+            {"key": "project", "label": U(r"\u9879\u76ee"), "description": U(r"\u9879\u76ee\u76ee\u6807\u3001\u8d1f\u8d23\u4eba\u3001\u4efb\u52a1\u548c\u8fdb\u5c55\u5173\u8054")},
+            {"key": "meeting", "label": U(r"\u4f1a\u8bae"), "description": U(r"\u4f1a\u8bae\u7eaa\u8981\u3001\u51b3\u7b56\u3001\u4efb\u52a1\u548c\u6587\u4ef6\u5173\u8054")},
+            {"key": "task", "label": U(r"\u4efb\u52a1"), "description": U(r"\u4efb\u52a1\u3001\u6267\u884c\u4eba\u3001\u7ed3\u679c\u548c\u5bf9\u8c61\u5173\u8054")},
+        ]
+
+    def object_templates(self):
+        return {
+            "store": ["address", "area", "opening_date", "rent", "manager", "phone"],
+            "employee": ["role", "store", "join_date", "phone", "status"],
+            "brand": ["brand_origin", "supplier", "website", "positioning", "main_categories"],
+            "product": ["brand", "sku", "category", "season", "barcode"],
+            "supplier": ["contact_person", "phone", "wechat", "payment_terms"],
+            "customer": ["phone", "wechat", "level", "source"],
+            "contract": ["contract_no", "party", "start_date", "end_date", "amount"],
+            "project": ["owner", "start_date", "target_date", "budget", "stage"],
+            "meeting": ["date", "participants", "topic", "decisions", "followups"],
+            "task": ["owner", "priority", "due_date", "source", "result"],
+        }
+
+    def object_type_label(self, object_type):
+        labels = {item["key"]: item["label"] for item in self.object_types()}
+        return labels.get(object_type or "", object_type or "")
+
+    def object_metadata_from_form(self, form, object_type):
+        metadata_raw = (form.get("metadata", "") or "").strip()
+        if metadata_raw:
+            try:
+                parsed = json.loads(metadata_raw)
+                if isinstance(parsed, dict):
+                    return parsed
+            except Exception:
+                pass
+        metadata = {}
+        for field in self.object_templates().get(object_type, []):
+            if field in form and str(form.get(field, "")).strip():
+                metadata[field] = str(form.get(field, "")).strip()
+        return metadata
+
+    def generateObjectSummary(self, obj):
+        data = row_dict(obj) if obj else {}
+        if data.get("ai_summary"):
+            return data["ai_summary"]
+        label = self.object_type_label(data.get("object_type"))
+        desc = data.get("description") or U(r"\u6682\u65e0\u8be6\u7ec6\u5907\u6ce8")
+        return U(r"AI \u6458\u8981\u5360\u4f4d\uff1a") + "{} / {} / {}".format(label, data.get("name", ""), summarize_text(desc, 120))
+
+    def suggestRelations(self, object_id):
+        return {
+            "object_id": int(object_id) if str(object_id).isdigit() else object_id,
+            "status": "placeholder",
+            "suggestions": [],
+            "message": U(r"\u5173\u8054\u5bf9\u8c61\u5efa\u8bae\u5f15\u64ce\u5df2\u9884\u7559\uff0c\u540e\u7eed\u63a5\u5165\u77e5\u8bc6\u56fe\u8c31\u548c SAP \u6570\u636e\u3002"),
+        }
+
+    def object_timeline_placeholder(self, obj):
+        data = row_dict(obj) if obj else {}
+        return [
+            {"event_type": "created", "title": U(r"\u5bf9\u8c61\u5df2\u5efa\u7acb"), "created_at": data.get("created_at")},
+            {"event_type": "ai_ready", "title": U(r"\u7b49\u5f85 AI \u6458\u8981\u3001\u6587\u4ef6\u3001\u4efb\u52a1\u548c\u7ecf\u8425\u4e8b\u4ef6\u6301\u7eed\u8865\u5165"), "created_at": ts()},
+        ]
+
+    def enterprise_object_to_json(self, row, file_count=0):
+        data = row_dict(row) or {}
+        metadata = {}
+        if data.get("metadata"):
+            try:
+                parsed = json.loads(data.get("metadata") or "{}")
+                metadata = parsed if isinstance(parsed, dict) else {}
+            except Exception:
+                metadata = {}
+        return {
+            "id": data.get("id"),
+            "object_type": data.get("object_type"),
+            "object_type_label": self.object_type_label(data.get("object_type")),
+            "name": data.get("name"),
+            "code": data.get("code"),
+            "description": data.get("description"),
+            "status": data.get("status"),
+            "tags": data.get("tags"),
+            "metadata": metadata,
+            "ai_summary": data.get("ai_summary") or self.generateObjectSummary(data),
+            "related_file_count": file_count,
+            "created_by": data.get("created_by"),
+            "created_at": data.get("created_at"),
+            "updated_at": data.get("updated_at"),
+            "archived_at": data.get("archived_at"),
+        }
+
+    def object_file_count(self, conn, object_type, object_id):
+        row = conn.execute(
+            "select count(*) c from documents where deleted_at is null and related_object_type=? and related_object_id=?",
+            (object_type, object_id),
+        ).fetchone()
+        return row["c"] if row else 0
 
     def knowledge_status_text(self, row):
         status = (row["status"] if row and "status" in row.keys() else "") or "draft"
@@ -6149,6 +6306,8 @@ class App(BaseHTTPRequestHandler):
             self.card(str(entry).replace("_", " ").title(), center.get("purpose", ""), "#", "btn", True)
             for entry in center.get("entries", [])
         )
+        if center_key == "archive":
+            cards = self.card(U(r"\u5bf9\u8c61\u4e2d\u5fc3"), U(r"\u7edf\u4e00\u7ba1\u7406\u95e8\u5e97\u3001\u5458\u5de5\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u4f9b\u5e94\u5546\u3001\u5ba2\u6237\u3001\u5408\u540c\u3001\u9879\u76ee\u3001\u4f1a\u8bae\u548c\u4efb\u52a1\u3002"), "/object-center", "btn dark", True) + cards
         body = '<div class="panel"><h2>{}</h2><p class="small">{}</p></div><div class="grid">{}</div>'.format(
             esc(center.get("name", "FoxBrain Owner OS")),
             esc(center.get("purpose", "")),
@@ -6426,26 +6585,52 @@ class App(BaseHTTPRequestHandler):
             files = conn.execute("select * from documents where " + " and ".join(where) + " order by created_at desc limit 80", params).fetchall()
             recent = conn.execute("select * from documents where deleted_at is null order by created_at desc limit 6").fetchall()
             queue = conn.execute("select * from documents where deleted_at is null and processing_status in ('pending','processing','failed') order by updated_at desc limit 12").fetchall()
+            object_rows = conn.execute("select id,object_type,name from enterprise_objects where archived_at is null order by object_type,name limit 200").fetchall()
         categories = self.drive_categories()
         category_options = "".join('<option value="{}"{}>{}</option>'.format(esc(c), " selected" if c == category_filter else "", esc(c)) for c in categories)
         type_options = "".join('<option value="{}"{}>{}</option>'.format(esc(ext), " selected" if ext == ext_filter else "", esc(ext)) for ext in sorted(self.drive_supported_extensions()))
         category_cards = "".join(self.card(c, "FoxBrain Drive category", "/drive?category=" + esc(c), "btn", True) for c in categories)
+        object_options = '<option value="">{}</option>'.format(U(r"\u4e0d\u5173\u8054"))
+        object_options += "".join(
+            '<option value="{}:{}">{} / {}</option>'.format(
+                esc(row["object_type"]),
+                row["id"],
+                esc(self.object_type_label(row["object_type"])),
+                esc(row["name"]),
+            )
+            for row in object_rows
+        )
+        object_id_options = '<option value="">{}</option>'.format(U(r"\u9009\u62e9\u5bf9\u8c61"))
+        object_id_options += "".join(
+            '<option value="{}">{} / {}</option>'.format(row["id"], esc(self.object_type_label(row["object_type"])), esc(row["name"]))
+            for row in object_rows
+        )
         file_rows = ""
         for row in files:
             item = self.document_to_json(row)
-            file_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/api/drive/files/{}'>API</a> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form></td></tr>".format(
+            related_label = ""
+            if item.get("related_object_type") and item.get("related_object_id"):
+                related_label = "{} #{}".format(self.object_type_label(item.get("related_object_type")), item.get("related_object_id"))
+            link_form = "<form method='post' action='/api/objects/link-document' style='display:inline'><input type='hidden' name='document_id' value='{}'><select name='object_id'>{}</select><button>{}</button></form>".format(
+                item["id"],
+                object_id_options,
+                U(r"\u5173\u8054\u5230\u5bf9\u8c61"),
+            )
+            file_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/api/drive/files/{}'>API</a> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form> {}</td></tr>".format(
                 esc(item["original_filename"]),
                 esc(item["category"]),
                 esc(item["extension"]),
                 esc(str(item["size_bytes"])),
                 esc(item["processing_status"]),
                 esc(item["ai_summary"] or ""),
+                esc(related_label),
                 item["id"],
                 item["id"],
                 U(r"\u91cd\u5904\u7406"),
+                link_form,
             )
         if not file_rows:
-            file_rows = "<tr><td colspan='7' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0\u6587\u4ef6\uff0c\u53ef\u4ee5\u5148\u4e0a\u4f20 PDF\u3001Excel\u3001Word \u6216\u56fe\u7247\u3002"))
+            file_rows = "<tr><td colspan='8' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0\u6587\u4ef6\uff0c\u53ef\u4ee5\u5148\u4e0a\u4f20 PDF\u3001Excel\u3001Word \u6216\u56fe\u7247\u3002"))
         recent_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["category"] for row in recent] or [U(r"\u6682\u65e0\u6700\u8fd1\u6587\u4ef6")]
         queue_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["processing_status"] for row in queue] or [U(r"\u5f53\u524d\u65e0\u5f85\u5904\u7406\u961f\u5217")]
         body = """
@@ -6458,9 +6643,10 @@ class App(BaseHTTPRequestHandler):
     <label>{}</label>
     <select name="category"><option value="">{}</option>{}</select>
     <label>{}</label><input name="tags">
+    <label>{}</label><select name="related_object_ref">{}</select>
     <label>{}</label><input name="related_object_type" placeholder="brand / store / product">
     <label>{}</label><input name="related_object_id" placeholder="optional id">
-    <p><button>{}</button> <a class="btn" href="/api/drive/v2">API</a> <a class="btn" href="/knowledge-pipeline">{}</a></p>
+    <p><button>{}</button> <a class="btn" href="/api/drive/v2">API</a> <a class="btn" href="/knowledge-pipeline">{}</a> <a class="btn" href="/object-center">{}</a></p>
   </form>
 </div>
 <div class="panel">
@@ -6476,16 +6662,19 @@ class App(BaseHTTPRequestHandler):
   <div class="panel"><h2>{}</h2>{}</div>
 </div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
-<div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>""".format(
+<div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>""".format(
             U(r"\u4e0a\u4f20\u6587\u4ef6"),
             U(r"\u5206\u7c7b"),
             U(r"\u81ea\u52a8\u5206\u7c7b"),
             category_options,
             U(r"\u6807\u7b7e"),
+            U(r"\u5173\u8054\u5230\u5bf9\u8c61"),
+            object_options,
             U(r"\u5173\u8054\u5bf9\u8c61\u7c7b\u578b"),
             U(r"\u5173\u8054\u5bf9\u8c61 ID"),
             U(r"\u4e0a\u4f20\u5230 Drive"),
             U(r"\u77e5\u8bc6\u6d41\u6c34\u7ebf"),
+            U(r"\u5bf9\u8c61\u4e2d\u5fc3"),
             U(r"\u641c\u7d22"),
             esc(q),
             U(r"\u5206\u7c7b"),
@@ -6508,6 +6697,7 @@ class App(BaseHTTPRequestHandler):
             U(r"\u5927\u5c0f"),
             U(r"\u72b6\u6001"),
             U(r"AI \u6458\u8981"),
+            U(r"\u5173\u8054\u5bf9\u8c61"),
             U(r"\u64cd\u4f5c"),
             file_rows,
         )
@@ -6519,29 +6709,251 @@ class App(BaseHTTPRequestHandler):
             return
         if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
             return self.dashboard(user)
-        contract = build_object_engine_contract()
-        cards = "".join(
+        query = parse_qs(urlparse(self.path).query)
+        detail_id = (query.get("id", [""])[0] or "").strip()
+        if detail_id:
+            return self.object_detail_page(user, detail_id)
+        object_type = module_key(query.get("type", [""])[0] or "")
+        q = (query.get("q", [""])[0] or "").strip()
+        where = ["archived_at is null"]
+        params = []
+        if object_type:
+            where.append("object_type=?")
+            params.append(object_type)
+        if q:
+            like = "%" + q + "%"
+            where.append("(name like ? or coalesce(code,'') like ? or coalesce(description,'') like ? or coalesce(tags,'') like ?)")
+            params.extend([like, like, like, like])
+        with db() as conn:
+            count_rows = conn.execute("select object_type,count(*) c from enterprise_objects where archived_at is null group by object_type").fetchall()
+            objects = conn.execute("select * from enterprise_objects where " + " and ".join(where) + " order by updated_at desc limit 120", params).fetchall()
+            recent = conn.execute("select * from enterprise_objects where archived_at is null order by updated_at desc limit 8").fetchall()
+            file_counts = {
+                "{}:{}".format(row["object_type"], row["id"]): self.object_file_count(conn, row["object_type"], row["id"])
+                for row in objects
+            }
+        counts = {row["object_type"]: row["c"] for row in count_rows}
+        type_cards = "".join(
             self.card(
-                item.get("name", ""),
-                "sources: " + ", ".join(item.get("primary_sources", [])) + " / relationships: " + ", ".join(item.get("relationships", [])[:4]),
-                "#",
+                item["label"],
+                "{} {} / {}".format(counts.get(item["key"], 0), U(r"\u4e2a\u5bf9\u8c61"), item["description"]),
+                "/objects?type=" + item["key"],
                 "btn",
                 True,
             )
-            for item in contract.get("models", [])
+            for item in self.object_types()
         )
+        type_options = "".join(
+            '<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"]))
+            for item in self.object_types()
+        )
+        create_type_options = "".join(
+            '<option value="{}">{}</option>'.format(esc(item["key"]), esc(item["label"]))
+            for item in self.object_types()
+        )
+        rows = ""
+        for row in objects:
+            obj = self.enterprise_object_to_json(row, file_counts.get("{}:{}".format(row["object_type"], row["id"]), 0))
+            rows += "<tr><td><a href='/objects?id={}'>{}</a></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/objects?id={}'>{}</a> <form method='post' action='/api/objects/{}/archive' style='display:inline'><button>{}</button></form></td></tr>".format(
+                obj["id"],
+                esc(obj["name"]),
+                esc(obj["object_type_label"]),
+                esc(obj["status"] or ""),
+                esc(obj["tags"] or ""),
+                obj["related_file_count"],
+                esc(dt(obj["updated_at"])),
+                obj["id"],
+                U(r"\u67e5\u770b/\u7f16\u8f91"),
+                obj["id"],
+                U(r"\u5f52\u6863"),
+            )
+        if not rows:
+            rows = "<tr><td colspan='7' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0\u5bf9\u8c61\uff0c\u53ef\u4ee5\u5148\u65b0\u5efa\u95e8\u5e97\u3001\u5458\u5de5\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u4f9b\u5e94\u5546\u6216\u5ba2\u6237\u3002"))
+        recent_items = [
+            "{} / {} / {}".format(self.object_type_label(row["object_type"]), row["name"], dt(row["updated_at"]))
+            for row in recent
+        ] or [U(r"\u6682\u65e0\u6700\u8fd1\u66f4\u65b0\u5bf9\u8c61")]
+        contract = build_object_engine_contract()
         body = """
 <div class="panel">
-  <h2>Object Engine</h2>
-  <p class="small">{}</p>
-  <p><a class="btn dark" href="/api/object-engine">API</a> <a class="btn" href="/drive">{}</a></p>
+  <h2>{}</h2>
+  <p class="small">Everything is an Object. {}</p>
+  <p><a class="btn dark" href="/api/objects">API</a> <a class="btn" href="/api/object-engine">V1.1 Contract</a> <a class="btn" href="/drive">Drive 2.0</a></p>
 </div>
-<div class="grid">{}</div>""".format(
+<div class="panel">
+  <form method="get" action="/objects">
+    <label>{}</label><input name="q" value="{}" placeholder="Kailas / 南山店 / 合同 / 客户">
+    <label>{}</label><select name="type"><option value="">{}</option>{}</select>
+    <p><button>{}</button></p>
+  </form>
+</div>
+<div class="panel">
+  <h2>{}</h2>
+  <form method="post" action="/api/objects">
+    <label>{}</label><select name="object_type">{}</select>
+    <label>{}</label><input name="name" required>
+    <label>{}</label><input name="code">
+    <label>{}</label><input name="tags" placeholder="多个标签用逗号分隔">
+    <label>{}</label><textarea name="description"></textarea>
+    <label>{}</label><textarea name="metadata" placeholder='{{"address":"深圳","manager":"张三"}}'></textarea>
+    <p><button>{}</button></p>
+  </form>
+</div>
+<div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>AI Placeholder</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>""".format(
+            U(r"\u5bf9\u8c61\u4e2d\u5fc3"),
             esc(contract.get("canonical_rule", "")),
-            "Drive 2.0",
-            cards,
+            U(r"\u641c\u7d22"),
+            esc(q),
+            U(r"\u5bf9\u8c61\u7c7b\u578b"),
+            U(r"\u5168\u90e8"),
+            type_options,
+            U(r"\u67e5\u627e"),
+            U(r"\u5feb\u901f\u65b0\u5efa"),
+            U(r"\u7c7b\u578b"),
+            create_type_options,
+            U(r"\u540d\u79f0"),
+            U(r"\u7f16\u7801"),
+            U(r"\u6807\u7b7e"),
+            U(r"\u5907\u6ce8"),
+            U(r"\u6269\u5c55\u5b57\u6bb5 JSON"),
+            U(r"\u521b\u5efa\u5bf9\u8c61"),
+            U(r"\u5bf9\u8c61\u7c7b\u578b"),
+            type_cards,
+            U(r"\u6700\u8fd1\u66f4\u65b0"),
+            self.bullets(recent_items),
+            self.bullets([U(r"generateObjectSummary(objectId) \u5df2\u9884\u7559"), U(r"suggestRelations(objectId) \u5df2\u9884\u7559"), U(r"object timeline \u6570\u636e\u7ed3\u6784\u5df2\u9884\u7559")]),
+            U(r"\u5bf9\u8c61\u5217\u8868"),
+            U(r"\u540d\u79f0"),
+            U(r"\u7c7b\u578b"),
+            U(r"\u72b6\u6001"),
+            U(r"\u6807\u7b7e"),
+            U(r"\u5173\u8054\u6587\u4ef6"),
+            U(r"\u66f4\u65b0\u65f6\u95f4"),
+            U(r"\u64cd\u4f5c"),
+            rows,
         )
-        self.out(layout("Object Engine", body, user=user, wide=True))
+        self.out(layout(U(r"\u5bf9\u8c61\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def object_detail_page(self, user, object_id):
+        with db() as conn:
+            row = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (object_id,)).fetchone()
+            if not row:
+                return self.redir("/objects")
+            docs = conn.execute("select * from documents where deleted_at is null and related_object_type=? and related_object_id=? order by created_at desc limit 80", (row["object_type"], row["id"])).fetchall()
+            relations = conn.execute(
+                "select * from object_relations where (source_object_type=? and source_object_id=?) or (target_object_type=? and target_object_id=?) order by created_at desc limit 30",
+                (row["object_type"], row["id"], row["object_type"], row["id"]),
+            ).fetchall()
+        obj = self.enterprise_object_to_json(row, len(docs))
+        type_options = "".join(
+            '<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if item["key"] == obj["object_type"] else "", esc(item["label"]))
+            for item in self.object_types()
+        )
+        metadata_text = esc(json.dumps(obj["metadata"], ensure_ascii=False, indent=2))
+        doc_rows = ""
+        for doc in docs:
+            item = self.document_to_json(doc)
+            doc_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/api/drive/files/{}'>API</a> <form method='post' action='/api/objects/{}/documents/{}/unlink' style='display:inline'><button>{}</button></form></td></tr>".format(
+                esc(item["original_filename"]),
+                esc(item["category"]),
+                esc(dt(item["created_at"])),
+                item["id"],
+                obj["id"],
+                item["id"],
+                U(r"\u53d6\u6d88\u5173\u8054"),
+            )
+        if not doc_rows:
+            doc_rows = "<tr><td colspan='4' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0\u5173\u8054\u6587\u4ef6\uff0c\u53ef\u4ee5\u5728 Drive \u9875\u9762\u5c06\u6587\u4ef6\u5173\u8054\u5230\u6b64\u5bf9\u8c61\u3002"))
+        relation_items = [
+            "{} #{} -> {} #{} / {}".format(r["source_object_type"], r["source_object_id"], r["target_object_type"], r["target_object_id"], r["relation_type"])
+            for r in relations
+        ] or [self.suggestRelations(obj["id"])["message"]]
+        timeline_items = [
+            "{} / {}".format(item["title"], dt(item.get("created_at")))
+            for item in self.object_timeline_placeholder(row)
+        ]
+        body = """
+<div class="panel">
+  <h2>{}</h2>
+  <p class="small">{} / {} / {}</p>
+  <p><a class="btn" href="/objects">{}</a> <a class="btn dark" href="/api/objects/{}">API</a></p>
+</div>
+<div class="split">
+  <div class="panel">
+    <h2>{}</h2>
+    <form method="post" action="/api/objects/{}">
+      <label>{}</label><select name="object_type">{}</select>
+      <label>{}</label><input name="name" value="{}" required>
+      <label>{}</label><input name="code" value="{}">
+      <label>{}</label><select name="status"><option value="active"{}>active</option><option value="draft"{}>draft</option><option value="inactive"{}>inactive</option></select>
+      <label>{}</label><input name="tags" value="{}">
+      <label>{}</label><textarea name="description">{}</textarea>
+      <label>{}</label><textarea name="metadata">{}</textarea>
+      <p><button>{}</button></p>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>AI Summary</h2>
+    <p>{}</p>
+    <h2>{}</h2>
+    <form method="post" action="/api/objects/{}/documents/link">
+      <label>{}</label><input name="document_id" placeholder="Document ID">
+      <p><button>{}</button></p>
+    </form>
+  </div>
+</div>
+<div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>""".format(
+            esc(obj["name"]),
+            esc(obj["object_type_label"]),
+            esc(obj["status"] or ""),
+            esc(obj["tags"] or ""),
+            U(r"\u8fd4\u56de\u5bf9\u8c61\u4e2d\u5fc3"),
+            obj["id"],
+            U(r"\u57fa\u672c\u4fe1\u606f"),
+            obj["id"],
+            U(r"\u7c7b\u578b"),
+            type_options,
+            U(r"\u540d\u79f0"),
+            esc(obj["name"] or ""),
+            U(r"\u7f16\u7801"),
+            esc(obj["code"] or ""),
+            U(r"\u72b6\u6001"),
+            " selected" if obj["status"] == "active" else "",
+            " selected" if obj["status"] == "draft" else "",
+            " selected" if obj["status"] == "inactive" else "",
+            U(r"\u6807\u7b7e"),
+            esc(obj["tags"] or ""),
+            U(r"\u5907\u6ce8"),
+            esc(obj["description"] or ""),
+            U(r"\u6269\u5c55\u5b57\u6bb5 JSON"),
+            metadata_text,
+            U(r"\u4fdd\u5b58"),
+            esc(obj["ai_summary"] or ""),
+            U(r"\u5173\u8054\u5230\u6587\u4ef6"),
+            obj["id"],
+            U(r"\u6587\u4ef6 ID"),
+            U(r"\u5173\u8054"),
+            U(r"\u5173\u8054\u6587\u4ef6"),
+            U(r"\u6587\u4ef6"),
+            U(r"\u5206\u7c7b"),
+            U(r"\u65f6\u95f4"),
+            U(r"\u64cd\u4f5c"),
+            doc_rows,
+            U(r"\u5173\u8054\u5bf9\u8c61\u5360\u4f4d"),
+            self.bullets(relation_items),
+            U(r"\u65f6\u95f4\u8f74\u5360\u4f4d"),
+            self.bullets(timeline_items),
+        )
+        self.out(layout(U(r"\u5bf9\u8c61\u8be6\u60c5"), body, user=user, wide=True))
 
     def knowledge_pipeline_page(self, user):
         user = self.require_login(user)
@@ -6624,6 +7036,206 @@ class App(BaseHTTPRequestHandler):
         if path == "/api/ceo-home":
             return self.json_out(build_ceo_home_v11_contract())
         return self.json_out({"ok": False, "message": "unknown second brain v1.1 api"}, code=404)
+
+    def api_object_payload(self):
+        content_type = self.headers.get("Content-Type", "")
+        if "application/json" in content_type:
+            size = int(self.headers.get("Content-Length", "0") or 0)
+            try:
+                return json.loads(self.rfile.read(size).decode("utf-8") or "{}")
+            except Exception:
+                return {}
+        return self.form()
+
+    def api_objects_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/object-types":
+            return self.json_out({"ok": True, "object_types": self.object_types(), "templates": self.object_templates()})
+        m_docs = re.match(r"^/api/objects/(\d+)/documents$", path)
+        if m_docs:
+            with db() as conn:
+                obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (m_docs.group(1),)).fetchone()
+                if not obj:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                docs = conn.execute("select * from documents where deleted_at is null and related_object_type=? and related_object_id=? order by created_at desc limit 200", (obj["object_type"], obj["id"])).fetchall()
+            return self.json_out({"ok": True, "object": self.enterprise_object_to_json(obj, len(docs)), "documents": [self.document_to_json(row) for row in docs]})
+        m_detail = re.match(r"^/api/objects/(\d+)$", path)
+        if m_detail:
+            with db() as conn:
+                obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (m_detail.group(1),)).fetchone()
+                if not obj:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                docs = conn.execute("select * from documents where deleted_at is null and related_object_type=? and related_object_id=? order by created_at desc limit 100", (obj["object_type"], obj["id"])).fetchall()
+                relations = conn.execute(
+                    "select * from object_relations where (source_object_type=? and source_object_id=?) or (target_object_type=? and target_object_id=?) order by created_at desc limit 50",
+                    (obj["object_type"], obj["id"], obj["object_type"], obj["id"]),
+                ).fetchall()
+            return self.json_out({
+                "ok": True,
+                "object": self.enterprise_object_to_json(obj, len(docs)),
+                "documents": [self.document_to_json(row) for row in docs],
+                "relations": [row_dict(row) for row in relations],
+                "suggested_relations": self.suggestRelations(obj["id"]),
+                "timeline": self.object_timeline_placeholder(obj),
+            })
+        if path == "/api/objects":
+            query = parse_qs(urlparse(self.path).query)
+            object_type = module_key(query.get("type", [""])[0] or "")
+            q = (query.get("q", [""])[0] or "").strip()
+            include_archived = (query.get("include_archived", [""])[0] or "") == "1"
+            where = ["1=1"] if include_archived else ["archived_at is null"]
+            params = []
+            if object_type:
+                where.append("object_type=?")
+                params.append(object_type)
+            if q:
+                like = "%" + q + "%"
+                where.append("(name like ? or coalesce(code,'') like ? or coalesce(description,'') like ? or coalesce(tags,'') like ?)")
+                params.extend([like, like, like, like])
+            with db() as conn:
+                rows = conn.execute("select * from enterprise_objects where " + " and ".join(where) + " order by updated_at desc limit 300", params).fetchall()
+                count_rows = conn.execute("select object_type,count(*) c from enterprise_objects where archived_at is null group by object_type").fetchall()
+                objects = [self.enterprise_object_to_json(row, self.object_file_count(conn, row["object_type"], row["id"])) for row in rows]
+            return self.json_out({"ok": True, "objects": objects, "counts": {row["object_type"]: row["c"] for row in count_rows}, "object_types": self.object_types()})
+        return self.json_out({"ok": False, "message": "unknown objects api"}, code=404)
+
+    def api_objects_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/objects/link-document":
+            form = self.api_object_payload()
+            object_id = str(form.get("object_id", "")).strip()
+            document_id = str(form.get("document_id", "")).strip()
+            if not object_id or not document_id:
+                return self.json_out({"ok": False, "message": "object_id and document_id required"}, code=400)
+            ok, payload = self.link_document_to_object(user, object_id, document_id)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/drive" if ok else "/objects")
+            return self.json_out(payload, code=200 if ok else 404)
+        m_link_short = re.match(r"^/api/objects/(\d+)/documents/link$", path)
+        if m_link_short:
+            form = self.api_object_payload()
+            document_id = str(form.get("document_id", "")).strip()
+            ok, payload = self.link_document_to_object(user, m_link_short.group(1), document_id)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/objects?id=" + m_link_short.group(1))
+            return self.json_out(payload, code=200 if ok else 404)
+        m_link = re.match(r"^/api/objects/(\d+)/documents/(\d+)/link$", path)
+        if m_link:
+            ok, payload = self.link_document_to_object(user, m_link.group(1), m_link.group(2))
+            return self.json_out(payload, code=200 if ok else 404)
+        m_unlink = re.match(r"^/api/objects/(\d+)/documents/(\d+)/unlink$", path)
+        if m_unlink:
+            ok, payload = self.unlink_document_from_object(user, m_unlink.group(1), m_unlink.group(2))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/objects?id=" + m_unlink.group(1))
+            return self.json_out(payload, code=200 if ok else 404)
+        m_archive = re.match(r"^/api/objects/(\d+)/archive$", path)
+        if m_archive:
+            return self.archive_object(user, m_archive.group(1))
+        m_update = re.match(r"^/api/objects/(\d+)$", path)
+        form = self.api_object_payload()
+        now = ts()
+        allowed_types = {item["key"] for item in self.object_types()}
+        if path == "/api/objects":
+            object_type = module_key(form.get("object_type", "") or "")
+            if object_type not in allowed_types:
+                return self.json_out({"ok": False, "message": "invalid object_type"}, code=400)
+            name = (form.get("name", "") or "").strip()
+            if not name:
+                return self.json_out({"ok": False, "message": "name required"}, code=400)
+            metadata = self.object_metadata_from_form(form, object_type)
+            with db() as conn:
+                cur = conn.execute(
+                    "insert into enterprise_objects(object_type,name,code,description,status,tags,metadata,ai_summary,created_by,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (object_type, name, form.get("code", ""), form.get("description", ""), form.get("status", "active") or "active", form.get("tags", ""), json.dumps(metadata, ensure_ascii=False), form.get("ai_summary", ""), user["id"], now, now, None),
+                )
+                object_id = cur.lastrowid
+            self.log_action(user, "enterprise_object_create", "enterprise_object", object_id, name)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/objects?id=" + str(object_id))
+            return self.json_out({"ok": True, "id": object_id})
+        if m_update:
+            object_type = module_key(form.get("object_type", "") or "")
+            if object_type not in allowed_types:
+                return self.json_out({"ok": False, "message": "invalid object_type"}, code=400)
+            name = (form.get("name", "") or "").strip()
+            if not name:
+                return self.json_out({"ok": False, "message": "name required"}, code=400)
+            metadata = self.object_metadata_from_form(form, object_type)
+            with db() as conn:
+                row = conn.execute("select id from enterprise_objects where id=? and archived_at is null", (m_update.group(1),)).fetchone()
+                if not row:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                conn.execute(
+                    "update enterprise_objects set object_type=?,name=?,code=?,description=?,status=?,tags=?,metadata=?,ai_summary=?,updated_at=? where id=?",
+                    (object_type, name, form.get("code", ""), form.get("description", ""), form.get("status", "active") or "active", form.get("tags", ""), json.dumps(metadata, ensure_ascii=False), form.get("ai_summary", ""), now, m_update.group(1)),
+                )
+            self.log_action(user, "enterprise_object_update", "enterprise_object", m_update.group(1), name)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/objects?id=" + m_update.group(1))
+            return self.json_out({"ok": True, "id": int(m_update.group(1))})
+        return self.json_out({"ok": False, "message": "unknown objects post api"}, code=404)
+
+    def archive_object(self, user, object_id):
+        now = ts()
+        with db() as conn:
+            row = conn.execute("select id,name from enterprise_objects where id=? and archived_at is null", (object_id,)).fetchone()
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            conn.execute("update enterprise_objects set archived_at=?, status='archived', updated_at=? where id=?", (now, now, object_id))
+        self.log_action(user, "enterprise_object_archive", "enterprise_object", object_id, row["name"])
+        if "text/html" in (self.headers.get("Accept") or ""):
+            return self.redir("/objects")
+        return self.json_out({"ok": True, "id": int(object_id), "status": "archived"})
+
+    def link_document_to_object(self, user, object_id, document_id):
+        if not str(object_id).isdigit() or not str(document_id).isdigit():
+            return False, {"ok": False, "message": "invalid id"}
+        now = ts()
+        with db() as conn:
+            obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (object_id,)).fetchone()
+            doc = conn.execute("select id from documents where id=? and deleted_at is null", (document_id,)).fetchone()
+            if not obj or not doc:
+                return False, {"ok": False, "message": "not found"}
+            conn.execute(
+                "update documents set related_object_type=?, related_object_id=?, related_type=?, related_id=?, updated_at=? where id=?",
+                (obj["object_type"], obj["id"], obj["object_type"], obj["id"], now, document_id),
+            )
+        self.log_action(user, "object_document_link", "enterprise_object", object_id, "document " + str(document_id))
+        return True, {"ok": True, "object_id": int(object_id), "document_id": int(document_id), "related_object_type": obj["object_type"]}
+
+    def unlink_document_from_object(self, user, object_id, document_id):
+        if not str(object_id).isdigit() or not str(document_id).isdigit():
+            return False, {"ok": False, "message": "invalid id"}
+        now = ts()
+        with db() as conn:
+            obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (object_id,)).fetchone()
+            doc = conn.execute("select id from documents where id=? and deleted_at is null and related_object_type=? and related_object_id=?", (document_id, obj["object_type"] if obj else "", object_id)).fetchone()
+            if not obj or not doc:
+                return False, {"ok": False, "message": "not found"}
+            conn.execute("update documents set related_object_type=null, related_object_id=null, related_type=null, related_id=null, updated_at=? where id=?", (now, document_id))
+        self.log_action(user, "object_document_unlink", "enterprise_object", object_id, "document " + str(document_id))
+        return True, {"ok": True, "object_id": int(object_id), "document_id": int(document_id)}
+
+    def api_objects_delete(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        m_unlink = re.match(r"^/api/objects/(\d+)/documents/(\d+)/unlink$", path)
+        if m_unlink:
+            ok, payload = self.unlink_document_from_object(user, m_unlink.group(1), m_unlink.group(2))
+            return self.json_out(payload, code=200 if ok else 404)
+        m = re.match(r"^/api/objects/(\d+)$", path)
+        if m:
+            return self.archive_object(user, m.group(1))
+        return self.json_out({"ok": False, "message": "unknown objects delete api"}, code=404)
 
     def api_drive_get(self, user, path):
         if not user:
@@ -6762,6 +7374,11 @@ class App(BaseHTTPRequestHandler):
         tags_input = (form.getfirst("tags", "") or "").strip()
         related_object_type = module_key(form.getfirst("related_object_type", "") or "")
         related_object_id_raw = (form.getfirst("related_object_id", "") or "").strip()
+        related_object_ref = (form.getfirst("related_object_ref", "") or "").strip()
+        if ":" in related_object_ref:
+            ref_type, ref_id = related_object_ref.split(":", 1)
+            related_object_type = module_key(ref_type)
+            related_object_id_raw = ref_id.strip()
         folder = Path(UPLOAD_DIR) / "drive"
         folder.mkdir(parents=True, exist_ok=True)
         saved = uuid.uuid4().hex + ("." + extension if extension else "")
