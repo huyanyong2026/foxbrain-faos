@@ -18,7 +18,7 @@ import uuid
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 try:
     import psycopg2
@@ -1148,6 +1148,80 @@ create table if not exists ai_query_logs(
             "create index if not exists idx_documents_created on documents(created_at)",
             "create index if not exists idx_documents_related_object on documents(related_object_type, related_object_id)",
             "create index if not exists idx_datahub_ai_query_user on ai_query_logs(user_id, created_at)",
+        ]:
+            conn.execute(idx)
+        conn.execute(
+            """
+create table if not exists sap_import_batches(
+ id integer primary key autoincrement,
+ document_id integer,
+ import_type text not null,
+ filename text,
+ status text not null default 'pending',
+ row_count integer not null default 0,
+ success_count integer not null default 0,
+ failed_count integer not null default 0,
+ error_message text,
+ mapping text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sap_sales(
+ id integer primary key autoincrement,
+ batch_id integer not null,
+ sale_date text,
+ store_name text,
+ store_code text,
+ employee_name text,
+ employee_code text,
+ brand_name text,
+ category_name text,
+ product_code text,
+ product_name text,
+ barcode text,
+ quantity real,
+ amount real,
+ cost real,
+ gross_profit real,
+ raw_data text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sap_inventory(
+ id integer primary key autoincrement,
+ batch_id integer not null,
+ snapshot_date text,
+ store_name text,
+ store_code text,
+ brand_name text,
+ category_name text,
+ product_code text,
+ product_name text,
+ barcode text,
+ quantity real,
+ cost_amount real,
+ retail_amount real,
+ age_days integer,
+ raw_data text,
+ created_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_sap_import_batches_document on sap_import_batches(document_id)",
+            "create index if not exists idx_sap_import_batches_type_status on sap_import_batches(import_type, status, updated_at)",
+            "create index if not exists idx_sap_sales_batch on sap_sales(batch_id)",
+            "create index if not exists idx_sap_sales_lookup on sap_sales(store_name, brand_name, product_name)",
+            "create index if not exists idx_sap_inventory_batch on sap_inventory(batch_id)",
+            "create index if not exists idx_sap_inventory_lookup on sap_inventory(store_name, brand_name, product_name)",
         ]:
             conn.execute(idx)
         conn.execute(
@@ -4179,6 +4253,8 @@ class App(BaseHTTPRequestHandler):
             return self.v5_page(user, path)
         if path == "/sap-sync":
             return self.sap_sync(user)
+        if path in ("/sap-import", "/data-import"):
+            return self.sap_import_page(user)
         if path == "/data-pipeline":
             return self.data_pipeline_page(user)
         if path == "/apps":
@@ -4367,6 +4443,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_get(user, path)
         if path.startswith("/api/sap/sync") or path.startswith("/api/data-pipeline") or path.startswith("/api/system/data-freshness"):
             return self.api_sap_sync_get(user, path)
+        if path.startswith("/api/sap/import") or path.startswith("/api/sap/sales") or path.startswith("/api/sap/inventory") or path == "/api/sap/summary":
+            return self.api_sap_import_get(user, path)
         if path.startswith("/api/apps") or path.startswith("/api/desktop") or path.startswith("/api/command-center") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner") or path.startswith("/api/command-palette") or path.startswith("/api/object-actions") or path.startswith("/api/context-bar") or path.startswith("/api/work-queue") or path.startswith("/api/approvals") or path.startswith("/api/os/") or path.startswith("/api/system/upgrade"):
             return self.api_os_layer_get(user, path)
         if path.startswith(("/api/workflow-automation", "/api/workflow/")):
@@ -4563,6 +4641,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_post(self.current_user(), path)
         if path.startswith("/api/sap/sync"):
             return self.api_sap_sync_post(self.current_user(), path)
+        if path == "/api/sap/import":
+            return self.api_sap_import_post(self.current_user(), path)
         if path.startswith("/api/command-palette") or path.startswith("/api/approvals") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner"):
             return self.api_os_layer_post(self.current_user(), path)
         if path.startswith(("/api/workflow-automation", "/api/workflow/")):
@@ -5361,6 +5441,178 @@ class App(BaseHTTPRequestHandler):
             "deleted_at": data.get("deleted_at"),
         }
 
+    def sap_import_types(self):
+        return [
+            {"key": "sales", "label": U(r"\u9500\u552e\u6570\u636e")},
+            {"key": "inventory", "label": U(r"\u5e93\u5b58\u6570\u636e")},
+            {"key": "employee_sales", "label": U(r"\u5458\u5de5\u9500\u552e")},
+            {"key": "brand_sales", "label": U(r"\u54c1\u724c\u9500\u552e")},
+            {"key": "category_sales", "label": U(r"\u54c1\u7c7b\u9500\u552e")},
+            {"key": "purchase", "label": U(r"\u91c7\u8d2d\u6570\u636e")},
+        ]
+
+    def sap_supported_import_type(self, import_type):
+        keys = {item["key"] for item in self.sap_import_types()}
+        return import_type if import_type in keys else "sales"
+
+    def sap_field_aliases(self):
+        return {
+            "sale_date": ["sale_date", "date", "doc_date", "posting_date", "销售日期", "日期", "单据日期"],
+            "snapshot_date": ["snapshot_date", "date", "库存日期", "日期", "快照日期"],
+            "store_name": ["store_name", "store", "warehouse", "whs_name", "门店", "店铺", "仓库", "仓库名称"],
+            "store_code": ["store_code", "whs_code", "warehouse_code", "门店代码", "仓库代码"],
+            "employee_name": ["employee_name", "salesperson", "staff", "员工", "销售员", "营业员"],
+            "employee_code": ["employee_code", "slp_code", "员工代码", "销售员代码"],
+            "brand_name": ["brand_name", "brand", "品牌"],
+            "category_name": ["category_name", "category", "品类", "类别", "商品分类"],
+            "product_code": ["product_code", "item_code", "sku", "货号", "商品编码", "物料编码"],
+            "product_name": ["product_name", "item_name", "description", "商品名称", "产品名称", "物料名称"],
+            "barcode": ["barcode", "条码", "国际条码"],
+            "quantity": ["quantity", "qty", "数量", "销售数量", "库存数量"],
+            "amount": ["amount", "sales_amount", "line_total", "销售额", "金额", "含税金额"],
+            "cost": ["cost", "成本", "销售成本"],
+            "gross_profit": ["gross_profit", "毛利", "毛利额"],
+            "cost_amount": ["cost_amount", "stock_value", "成本金额", "库存成本"],
+            "retail_amount": ["retail_amount", "retail_value", "零售金额", "吊牌金额"],
+            "age_days": ["age_days", "库存天数", "库龄", "库龄天数"],
+        }
+
+    def sap_guess_import_type(self, filename, headers):
+        text = (filename + " " + " ".join(headers)).lower()
+        if any(x in text for x in ["inventory", "stock", "库存", "库龄"]):
+            return "inventory"
+        if any(x in text for x in ["employee", "salesperson", "员工", "营业员"]):
+            return "employee_sales"
+        if any(x in text for x in ["brand", "品牌"]):
+            return "brand_sales"
+        if any(x in text for x in ["category", "品类", "类别"]):
+            return "category_sales"
+        if any(x in text for x in ["purchase", "采购", "进货"]):
+            return "purchase"
+        return "sales"
+
+    def sap_read_rows_from_file(self, file_path, filename):
+        ext = Path(filename or file_path).suffix.lower()
+        rows = []
+        if ext == ".csv":
+            raw = Path(file_path).read_bytes()
+            text = ""
+            for enc in ("utf-8-sig", "gb18030", "utf-16"):
+                try:
+                    text = raw.decode(enc)
+                    break
+                except Exception:
+                    continue
+            if not text:
+                text = raw.decode("utf-8", errors="ignore")
+            try:
+                dialect = csv.Sniffer().sniff(text[:4096])
+            except Exception:
+                dialect = csv.excel
+            rows = list(csv.reader(io.StringIO(text), dialect))
+        elif ext in (".xlsx", ".xls"):
+            try:
+                import openpyxl
+            except Exception as exc:
+                raise RuntimeError("openpyxl is required to import Excel files: " + str(exc))
+            wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+            ws = wb.worksheets[0]
+            rows = [[("" if v is None else str(v)).strip() for v in row] for row in ws.iter_rows(values_only=True)]
+        else:
+            raise RuntimeError("unsupported SAP import file type: " + ext)
+        rows = [row for row in rows if any(str(cell).strip() for cell in row)]
+        if not rows:
+            return [], [], []
+        headers = [str(cell).strip() for cell in rows[0]]
+        data_rows = []
+        for raw_row in rows[1:]:
+            padded = list(raw_row) + [""] * max(0, len(headers) - len(raw_row))
+            data_rows.append({headers[i] or ("column_" + str(i + 1)): (padded[i] if i < len(padded) else "") for i in range(len(headers))})
+        return headers, data_rows, data_rows[:5]
+
+    def sap_build_mapping(self, headers, import_type):
+        normalized = {str(h).strip().lower(): h for h in headers}
+        mapping = {}
+        for field, aliases in self.sap_field_aliases().items():
+            for alias in aliases:
+                hit = normalized.get(str(alias).lower())
+                if hit:
+                    mapping[field] = hit
+                    break
+        if import_type == "inventory":
+            mapping.setdefault("snapshot_date", mapping.get("sale_date", ""))
+        else:
+            mapping.setdefault("sale_date", mapping.get("snapshot_date", ""))
+        return mapping
+
+    def sap_value(self, row, mapping, field):
+        key = mapping.get(field)
+        return row.get(key, "") if key else ""
+
+    def sap_float(self, value):
+        text = str(value or "").replace(",", "").replace("￥", "").replace("¥", "").strip()
+        if text.endswith("%"):
+            text = text[:-1]
+        try:
+            return float(text)
+        except Exception:
+            return None
+
+    def sap_int(self, value):
+        val = self.sap_float(value)
+        return int(val) if val is not None else None
+
+    def sap_import_summary(self):
+        with db() as conn:
+            return {
+                "recent_batches": [row_dict(r) for r in conn.execute("select * from sap_import_batches order by updated_at desc limit 8").fetchall()],
+                "sales_rows": conn.execute("select count(*) c from sap_sales").fetchone()["c"],
+                "inventory_rows": conn.execute("select count(*) c from sap_inventory").fetchone()["c"],
+                "last_import_at": (conn.execute("select max(updated_at) v from sap_import_batches").fetchone()["v"] or 0),
+                "safety": "production_sap_untouched_file_import_only",
+            }
+
+    def sap_import_document(self, user, document_id, import_type=""):
+        now = ts()
+        with db() as conn:
+            doc = conn.execute("select * from documents where id=? and deleted_at is null", (document_id,)).fetchone()
+            if not doc:
+                return {"ok": False, "message": "document not found"}, 404
+            item = self.document_to_json(doc)
+            headers, rows, preview = self.sap_read_rows_from_file(item["file_path"], item["original_filename"])
+            detected_type = self.sap_guess_import_type(item["original_filename"], headers)
+            import_type = self.sap_supported_import_type(import_type or detected_type)
+            mapping = self.sap_build_mapping(headers, import_type)
+            cur = conn.execute(
+                "insert into sap_import_batches(document_id,import_type,filename,status,row_count,success_count,failed_count,error_message,mapping,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (document_id, import_type, item["original_filename"], "processing", len(rows), 0, 0, "", json.dumps({"headers": headers, "mapping": mapping, "preview": preview, "detected_type": detected_type}, ensure_ascii=False), user["id"], now, now),
+            )
+            batch_id = cur.lastrowid
+            success = 0
+            failed = 0
+            target = "inventory" if import_type == "inventory" else "sales"
+            for raw in rows:
+                try:
+                    raw_json = json.dumps(raw, ensure_ascii=False)
+                    if target == "inventory":
+                        conn.execute(
+                            "insert into sap_inventory(batch_id,snapshot_date,store_name,store_code,brand_name,category_name,product_code,product_name,barcode,quantity,cost_amount,retail_amount,age_days,raw_data,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            (batch_id, self.sap_value(raw, mapping, "snapshot_date"), self.sap_value(raw, mapping, "store_name"), self.sap_value(raw, mapping, "store_code"), self.sap_value(raw, mapping, "brand_name"), self.sap_value(raw, mapping, "category_name"), self.sap_value(raw, mapping, "product_code"), self.sap_value(raw, mapping, "product_name"), self.sap_value(raw, mapping, "barcode"), self.sap_float(self.sap_value(raw, mapping, "quantity")), self.sap_float(self.sap_value(raw, mapping, "cost_amount")), self.sap_float(self.sap_value(raw, mapping, "retail_amount")), self.sap_int(self.sap_value(raw, mapping, "age_days")), raw_json, now),
+                        )
+                    else:
+                        conn.execute(
+                            "insert into sap_sales(batch_id,sale_date,store_name,store_code,employee_name,employee_code,brand_name,category_name,product_code,product_name,barcode,quantity,amount,cost,gross_profit,raw_data,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            (batch_id, self.sap_value(raw, mapping, "sale_date"), self.sap_value(raw, mapping, "store_name"), self.sap_value(raw, mapping, "store_code"), self.sap_value(raw, mapping, "employee_name"), self.sap_value(raw, mapping, "employee_code"), self.sap_value(raw, mapping, "brand_name"), self.sap_value(raw, mapping, "category_name"), self.sap_value(raw, mapping, "product_code"), self.sap_value(raw, mapping, "product_name"), self.sap_value(raw, mapping, "barcode"), self.sap_float(self.sap_value(raw, mapping, "quantity")), self.sap_float(self.sap_value(raw, mapping, "amount")), self.sap_float(self.sap_value(raw, mapping, "cost")), self.sap_float(self.sap_value(raw, mapping, "gross_profit")), raw_json, now),
+                        )
+                    success += 1
+                except Exception:
+                    failed += 1
+            status = "completed" if success else "failed"
+            conn.execute("update sap_import_batches set status=?, success_count=?, failed_count=?, updated_at=? where id=?", (status, success, failed, ts(), batch_id))
+            conn.execute("update documents set category=?, processing_status=?, updated_at=? where id=?", ("SAP" + U(r"\u6570\u636e"), "completed", ts(), document_id))
+        self.log_action(user, "sap_file_import", "sap_import_batch", batch_id, import_type)
+        return {"ok": True, "batch_id": batch_id, "import_type": import_type, "row_count": len(rows), "success_count": success, "failed_count": failed, "mapping": mapping, "preview": preview, "safety": "file_import_only_no_production_sap_connection"}, 200
+
     def object_types(self):
         return [
             {"key": "store", "label": U(r"\u95e8\u5e97"), "description": U(r"\u95e8\u5e97\u57fa\u672c\u8d44\u6599\u3001\u4eba\u5458\u3001\u9500\u552e\u548c\u5e93\u5b58\u5173\u8054")},
@@ -5573,6 +5825,32 @@ class App(BaseHTTPRequestHandler):
                     if not in_date(row["updated_at"]):
                         continue
                     results.append({"type": "memory", "icon": "MEM", "id": row["id"], "title": row["title"], "snippet": self.search_snippet((row["summary"] or "") + " " + (row["reason"] or "") + " " + (row["decision"] or "") + " " + (row["content"] or ""), q), "source": row["memory_type"] or "enterprise_memory", "related_object": "{} #{}".format(row["related_object_type"] or "", row["related_object_id"] or "").strip(), "url": "/memory/view?id={}".format(row["id"]), "score": 0.88, "updated_at": row["updated_at"]})
+            if want("sap_batch"):
+                for row in conn.execute("select * from sap_import_batches where filename like ? or import_type like ? or status like ? order by updated_at desc limit 50", (like, like, like)).fetchall():
+                    if not in_date(row["updated_at"] or row["created_at"]):
+                        continue
+                    snippet = "{} / {} / {}/{}".format(row["status"] or "", row["import_type"] or "", row["success_count"] or 0, row["row_count"] or 0)
+                    results.append({"type": "sap_batch", "icon": "SAP", "id": row["id"], "title": row["filename"] or "SAP import batch", "snippet": snippet, "source": "sap_import_batches", "related_object": "document #{}".format(row["document_id"] or ""), "url": "/api/sap/import-batches/{}".format(row["id"]), "score": 0.82, "updated_at": row["updated_at"]})
+            if want("sap_sales"):
+                sql = """select * from sap_sales
+where store_name like ? or store_code like ? or employee_name like ? or employee_code like ? or brand_name like ? or category_name like ? or product_code like ? or product_name like ? or barcode like ? or raw_data like ?
+order by created_at desc limit 50"""
+                for row in conn.execute(sql, (like, like, like, like, like, like, like, like, like, like)).fetchall():
+                    if not in_date(row["created_at"]):
+                        continue
+                    title = "{} / {} / {}".format(row["store_name"] or "", row["brand_name"] or "", row["product_name"] or row["product_code"] or "")
+                    snippet = "{} {} / amount {} / qty {}".format(row["sale_date"] or "", row["employee_name"] or "", row["amount"] or 0, row["quantity"] or 0)
+                    results.append({"type": "sap_sales", "icon": "SALE", "id": row["id"], "title": title, "snippet": snippet, "source": "sap_sales", "related_object": "batch #{}".format(row["batch_id"] or ""), "url": "/api/sap/sales?q={}".format(quote(q)), "score": 0.78, "updated_at": row["created_at"]})
+            if want("sap_inventory"):
+                sql = """select * from sap_inventory
+where store_name like ? or store_code like ? or brand_name like ? or category_name like ? or product_code like ? or product_name like ? or barcode like ? or raw_data like ?
+order by created_at desc limit 50"""
+                for row in conn.execute(sql, (like, like, like, like, like, like, like, like)).fetchall():
+                    if not in_date(row["created_at"]):
+                        continue
+                    title = "{} / {} / {}".format(row["store_name"] or "", row["brand_name"] or "", row["product_name"] or row["product_code"] or "")
+                    snippet = "{} / qty {} / retail {} / age {}".format(row["snapshot_date"] or "", row["quantity"] or 0, row["retail_amount"] or 0, row["age_days"] or 0)
+                    results.append({"type": "sap_inventory", "icon": "INV", "id": row["id"], "title": title, "snippet": snippet, "source": "sap_inventory", "related_object": "batch #{}".format(row["batch_id"] or ""), "url": "/api/sap/inventory?q={}".format(quote(q)), "score": 0.78, "updated_at": row["created_at"]})
         results.sort(key=lambda item: (item.get("score", 0), item.get("updated_at") or 0), reverse=True)
         return {"ok": True, "query": q, "total": len(results), "results": results[:120], "filters": {"type": result_type, "category": category, "object_type": object_type, "status": status, "date_from": date_from, "date_to": date_to}}
 
@@ -6279,8 +6557,79 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
 <div class="split">
   <div class="panel"><h2>{U(r'\u540c\u6b65\u5386\u53f2')}</h2>{self.bullets(history_items)}</div>
   <div class="panel"><h2>{U(r'\u914d\u7f6e\u72b6\u6001')}</h2>{self.bullets(status['config_status'])}</div>
-</div>"""
+        </div>"""
         self.out(layout(U(r"SAP B1 \u540c\u6b65"), body, user=user, wide=True))
+
+    def sap_import_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        summary = self.sap_import_summary()
+        with db() as conn:
+            docs = conn.execute("select * from documents where deleted_at is null and extension in ('csv','xlsx','xls') order by created_at desc limit 100").fetchall()
+            batches = conn.execute("select * from sap_import_batches order by updated_at desc limit 50").fetchall()
+        type_options = "".join('<option value="{}">{}</option>'.format(esc(item["key"]), esc(item["label"])) for item in self.sap_import_types())
+        doc_options = "".join('<option value="{}">#{} / {}</option>'.format(row["id"], row["id"], esc(self.document_to_json(row)["original_filename"])) for row in docs)
+        batch_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}/{}</td><td>{}</td><td><a class='btn' href='/api/sap/import-batches/{}'>API</a></td></tr>".format(
+                row["id"], esc(row["import_type"]), esc(row["status"]), row["success_count"], row["row_count"], esc(dt(row["updated_at"])), row["id"]
+            )
+            for row in batches
+        ) or "<tr><td colspan='6' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0 SAP \u5bfc\u5165\u6279\u6b21\u3002"))
+        body = """
+<div class="panel">
+  <h2>{}</h2>
+  <p class="small">{}</p>
+  <div class="metrics">{}{}{}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{}</h2>
+    <form method="post" action="/api/sap/import" enctype="multipart/form-data">
+      <label>{}</label><input type="file" name="file" accept=".csv,.xlsx,.xls">
+      <label>{}</label><select name="import_type"><option value="">{}</option>{}</select>
+      <p><button>{}</button></p>
+    </form>
+  </div>
+  <div class="panel form">
+    <h2>{}</h2>
+    <form method="post" action="/api/sap/import">
+      <label>{}</label><select name="document_id">{}</select>
+      <label>{}</label><select name="import_type"><option value="">{}</option>{}</select>
+      <p><button>{}</button></p>
+    </form>
+  </div>
+</div>
+<div class="panel"><h2>{}</h2><table><thead><tr><th>ID</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>API</th></tr></thead><tbody>{}</tbody></table></div>
+""".format(
+            U(r"SAP \u6570\u636e\u5bfc\u5165"),
+            U(r"\u4ec5\u652f\u6301 SAP \u5bfc\u51fa\u7684 Excel/CSV \u6587\u4ef6\u5bfc\u5165\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\uff0c\u4e0d\u5728 SAP \u670d\u52a1\u5668\u5b89\u88c5\u7a0b\u5e8f\u3002"),
+            self.metric(U(r"\u9500\u552e\u884c\u6570"), summary["sales_rows"], "sap_sales"),
+            self.metric(U(r"\u5e93\u5b58\u884c\u6570"), summary["inventory_rows"], "sap_inventory"),
+            self.metric(U(r"\u6700\u8fd1\u5bfc\u5165"), dt(summary["last_import_at"]) if summary["last_import_at"] else "-", "file import only"),
+            U(r"\u4e0a\u4f20\u5e76\u5bfc\u5165"),
+            U(r"SAP Excel / CSV"),
+            U(r"\u5bfc\u5165\u7c7b\u578b"),
+            U(r"\u81ea\u52a8\u5224\u65ad"),
+            type_options,
+            U(r"\u4e0a\u4f20\u5bfc\u5165"),
+            U(r"\u4ece Drive \u9009\u62e9\u6587\u4ef6\u5bfc\u5165"),
+            U(r"\u6587\u4ef6"),
+            doc_options,
+            U(r"\u5bfc\u5165\u7c7b\u578b"),
+            U(r"\u81ea\u52a8\u5224\u65ad"),
+            type_options,
+            U(r"\u5bfc\u5165"),
+            U(r"\u6700\u8fd1\u5bfc\u5165\u6279\u6b21"),
+            U(r"\u7c7b\u578b"),
+            U(r"\u72b6\u6001"),
+            U(r"\u6210\u529f/\u603b\u884c"),
+            U(r"\u66f4\u65b0"),
+            batch_rows,
+        )
+        self.out(layout(U(r"SAP \u6570\u636e\u5bfc\u5165"), body, user=user, wide=True))
 
     def dashboard(self, user):
         role = user["role"]
@@ -6643,11 +6992,15 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             timeline_events_total = count(conn, "select count(*) c from timeline_events")
             enterprise_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null")
             high_risk_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null and risk_level in ('high','critical')")
+            sap_import_batches_total = count(conn, "select count(*) c from sap_import_batches")
+            sap_sales_rows_total = count(conn, "select count(*) c from sap_sales")
+            sap_inventory_rows_total = count(conn, "select count(*) c from sap_inventory")
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
             recent_timeline = safe_rows(conn, "select id,entity_type,entity_id,event_type,title,description,source_type,occurred_at,created_at from timeline_events order by coalesce(occurred_at, created_at) desc limit 8")
             recent_memories = safe_rows(conn, "select id,title,memory_type,summary,risk_level,status,updated_at from enterprise_memories where archived_at is null order by updated_at desc limit 6")
+            recent_sap_imports = safe_rows(conn, "select * from sap_import_batches order by updated_at desc limit 6")
             checks = [
                 ("Drive Engine", documents_total >= 0, "documents"),
                 ("Object Engine", objects_total >= 0, "enterprise_objects"),
@@ -6670,18 +7023,23 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "timeline_events_total": timeline_events_total,
                 "enterprise_memories_total": enterprise_memories_total,
                 "high_risk_memories_total": high_risk_memories_total,
+                "sap_import_batches_total": sap_import_batches_total,
+                "sap_sales_rows_total": sap_sales_rows_total,
+                "sap_inventory_rows_total": sap_inventory_rows_total,
             },
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
             "recent_timeline": recent_timeline,
             "recent_memories": recent_memories,
+            "recent_sap_imports": recent_sap_imports,
             "system_status": status,
             "core_entries": [
                 {"title": "FoxBrain Drive", "url": "/drive", "status": "ready"},
                 {"title": U(r"\u5bf9\u8c61\u4e2d\u5fc3"), "url": "/object-center", "status": "ready"},
                 {"title": U(r"\u77e5\u8bc6\u4e2d\u5fc3"), "url": "/knowledge", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
+                {"title": U(r"SAP \u6570\u636e\u5bfc\u5165"), "url": "/sap-import", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
                 {"title": U(r"AI \u95ee\u4f01\u4e1a"), "url": "/jarvis", "status": "placeholder"},
@@ -6706,6 +7064,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             (U(r"\u65f6\u95f4\u8f74\u4e8b\u4ef6"), summary["timeline_events_total"], U(r"Timeline")),
             (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), summary["enterprise_memories_total"], U(r"Memory")),
             (U(r"\u9ad8\u98ce\u9669\u8bb0\u5fc6"), summary["high_risk_memories_total"], U(r"\u9700\u5173\u6ce8")),
+            (U(r"SAP \u5bfc\u5165\u6279\u6b21"), summary["sap_import_batches_total"], U(r"Excel/CSV")),
+            (U(r"SAP \u9500\u552e\u884c"), summary["sap_sales_rows_total"], U(r"sap_sales")),
+            (U(r"SAP \u5e93\u5b58\u884c"), summary["sap_inventory_rows_total"], U(r"sap_inventory")),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -6732,6 +7093,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "{} · {} · {}".format(esc(r.get("title") or ""), esc(r.get("memory_type") or ""), esc(r.get("risk_level") or ""))
             for r in payload["recent_memories"]
         ] or [U(r"\u6682\u65e0\u6700\u8fd1\u4f01\u4e1a\u8bb0\u5fc6\u3002")])
+        recent_sap_imports = self.bullets([
+            "#{} / {} / {}/{} / {}".format(r.get("id"), esc(r.get("import_type") or ""), r.get("success_count") or 0, r.get("row_count") or 0, esc(dt(r.get("updated_at"))))
+            for r in payload["recent_sap_imports"]
+        ] or [U(r"\u6682\u65e0 SAP Excel/CSV \u5bfc\u5165\u6279\u6b21\u3002")])
         status_html = "".join(
             "<div class='metric'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(esc(item["name"]), esc(item["status"]), esc(item["source"]))
             for item in payload["system_status"]
@@ -6774,6 +7139,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
   <div class="panel"><h2>{}</h2>{}</div>
 </div>
 <div class="panel"><h2>{}</h2>{}</div>
+<div class="panel"><h2>{}</h2>{}</div>
 <div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
 """.format(
@@ -6796,6 +7162,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             recent_timeline,
             U(r"\u6700\u8fd1\u4f01\u4e1a\u8bb0\u5fc6"),
             recent_memories,
+            U(r"\u6700\u8fd1 SAP \u5bfc\u5165"),
+            recent_sap_imports,
             U(r"\u7cfb\u7edf\u72b6\u6001"),
             status_html,
             U(r"\u66f4\u591a\u5165\u53e3"),
@@ -6819,7 +7187,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         date_from = query.get("date_from", [""])[0].strip()
         date_to = query.get("date_to", [""])[0].strip()
         payload = self.global_search_results(user, q, result_type, category, object_type, status, date_from, date_to)
-        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6"))])
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6")), ("sap_batch", U(r"SAP \u5bfc\u5165\u6279\u6b21")), ("sap_sales", U(r"SAP \u9500\u552e")), ("sap_inventory", U(r"SAP \u5e93\u5b58"))])
         object_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"])) for item in self.object_types())
         cards = "".join(
             "<div class='card'><div><h2>{} {}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
@@ -7210,6 +7578,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 object_id_options,
                 U(r"\u5173\u8054\u5230\u5bf9\u8c61"),
             )
+            sap_import_form = ""
+            if item.get("extension") in ("csv", "xlsx", "xls"):
+                sap_import_form = "<form method='post' action='/api/sap/import' style='display:inline'><input type='hidden' name='document_id' value='{}'><button>{}</button></form>".format(item["id"], U(r"\u5bfc\u5165\u4e3a SAP \u6570\u636e"))
             file_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/api/drive/files/{}'>API</a> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form> {}</td></tr>".format(
                 esc(item["original_filename"]),
                 esc(item["category"]),
@@ -7221,7 +7592,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 item["id"],
                 item["id"],
                 U(r"\u91cd\u5904\u7406"),
-                link_form,
+                link_form + " " + sap_import_form,
             )
         if not file_rows:
             file_rows = "<tr><td colspan='8' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0\u6587\u4ef6\uff0c\u53ef\u4ee5\u5148\u4e0a\u4f20 PDF\u3001Excel\u3001Word \u6216\u56fe\u7247\u3002"))
@@ -7934,6 +8305,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             item["download_url"] = "/api/drive/files/{}/download".format(item["id"])
             with db() as conn:
                 item["knowledge_processing"] = self.document_knowledge_metrics(conn, item["id"])
+                batches = conn.execute("select * from sap_import_batches where document_id=? order by updated_at desc", (item["id"],)).fetchall()
+                item["sap_import"] = {"imported": bool(batches), "batches": [row_dict(r) for r in batches]}
             return self.json_out({"ok": True, "file": item})
         if path == "/api/drive/files":
             query = parse_qs(urlparse(self.path).query)
@@ -11862,6 +12235,51 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": True, "sap_data_freshness": s["freshness"], "warning": s["warning"]})
         return self.json_out({"ok": False, "message": "unknown sap sync api"}, code=404)
 
+    def api_sap_import_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        query = parse_qs(urlparse(self.path).query)
+        if path == "/api/sap/summary":
+            return self.json_out({"ok": True, "summary": self.sap_import_summary(), "safety": "no_production_sap_connection"})
+        if path == "/api/sap/import-batches":
+            with db() as conn:
+                rows = conn.execute("select * from sap_import_batches order by updated_at desc limit 200").fetchall()
+            return self.json_out({"ok": True, "batches": [row_dict(r) for r in rows], "import_types": self.sap_import_types()})
+        m = re.match(r"^/api/sap/import-batches/(\d+)$", path)
+        if m:
+            with db() as conn:
+                batch = conn.execute("select * from sap_import_batches where id=?", (m.group(1),)).fetchone()
+                if not batch:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                sales = conn.execute("select * from sap_sales where batch_id=? limit 20", (m.group(1),)).fetchall()
+                inventory = conn.execute("select * from sap_inventory where batch_id=? limit 20", (m.group(1),)).fetchall()
+            return self.json_out({"ok": True, "batch": row_dict(batch), "sales_preview": [row_dict(r) for r in sales], "inventory_preview": [row_dict(r) for r in inventory]})
+        if path == "/api/sap/sales":
+            q = query.get("q", [""])[0].strip()
+            where, params = [], []
+            if q:
+                like = "%" + q + "%"
+                where.append("(store_name like ? or brand_name like ? or product_name like ? or product_code like ? or barcode like ?)")
+                params += [like, like, like, like, like]
+            sql = "select * from sap_sales" + (" where " + " and ".join(where) if where else "") + " order by id desc limit 300"
+            with db() as conn:
+                rows = conn.execute(sql, params).fetchall()
+            return self.json_out({"ok": True, "sales": [row_dict(r) for r in rows]})
+        if path == "/api/sap/inventory":
+            q = query.get("q", [""])[0].strip()
+            where, params = [], []
+            if q:
+                like = "%" + q + "%"
+                where.append("(store_name like ? or brand_name like ? or product_name like ? or product_code like ? or barcode like ?)")
+                params += [like, like, like, like, like]
+            sql = "select * from sap_inventory" + (" where " + " and ".join(where) if where else "") + " order by id desc limit 300"
+            with db() as conn:
+                rows = conn.execute(sql, params).fetchall()
+            return self.json_out({"ok": True, "inventory": [row_dict(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown sap import api"}, code=404)
+
     def api_sap_knowledge_engine_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
@@ -11910,6 +12328,49 @@ where ki.deleted_at is null"""
             result, code = self.run_sap_sync_stub("retry", user, retry_sync_id=sync_id)
             return self.json_out(result, code=code)
         return self.json_out({"ok": False, "message": "unknown sap sync write api"}, code=404)
+
+    def api_sap_import_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        content_type = self.headers.get("Content-Type", "")
+        if "multipart/form-data" in content_type:
+            form = self.multipart()
+            import_type = (form.getfirst("import_type", "") or "").strip()
+            item = form["file"] if "file" in form else None
+            if item is None or not getattr(item, "filename", ""):
+                return self.json_out({"ok": False, "message": "file required"}, code=400)
+            original = Path(item.filename).name
+            extension = Path(original).suffix.lower().lstrip(".")
+            if extension not in ("csv", "xlsx", "xls"):
+                return self.json_out({"ok": False, "message": "only csv/xlsx/xls supported"}, code=400)
+            folder = Path(UPLOAD_DIR) / "drive"
+            folder.mkdir(parents=True, exist_ok=True)
+            saved = uuid.uuid4().hex + "." + extension
+            file_path = folder / saved
+            data = item.file.read()
+            file_path.write_bytes(data)
+            extracted = self.drive_extract_text(str(file_path), original)
+            now = ts()
+            with db() as conn:
+                cur = conn.execute(
+                    """insert into documents(title,file_name,file_type,file_path,related_type,related_id,tags,summary,vector_status,uploaded_by,created_at,updated_at,filename,original_filename,storage_path,mime_type,extension,size_bytes,category,processing_status,ai_summary,extracted_text,extracted_text_path,related_object_type,related_object_id,version,created_by,deleted_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (original, saved, extension, str(file_path), "sap_import", None, "SAP", U(r"SAP Excel/CSV import source"), "pending", user["id"], now, now, saved, original, str(file_path), mimetypes.guess_type(original)[0] or "application/octet-stream", extension, len(data), "SAP" + U(r"\u6570\u636e"), "pending", U(r"SAP \u5bfc\u5165\u6e90\u6587\u4ef6"), extracted, "", "", None, 1, user["id"], None),
+                )
+                document_id = cur.lastrowid
+            result, code = self.sap_import_document(user, document_id, import_type)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sap-import")
+            return self.json_out(result, code=code)
+        form = self.form()
+        document_id = form.get("document_id", "").strip()
+        if not document_id.isdigit():
+            return self.json_out({"ok": False, "message": "document_id required"}, code=400)
+        result, code = self.sap_import_document(user, int(document_id), form.get("import_type", "").strip())
+        if "text/html" in (self.headers.get("Accept") or ""):
+            return self.redir("/sap-import")
+        return self.json_out(result, code=code)
 
     def app_permission_status(self, user, permission_required):
         if not user:

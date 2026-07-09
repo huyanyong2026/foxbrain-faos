@@ -3064,3 +3064,71 @@ def test_sprint006_summary_present():
         "Sprint007",
     ]:
         assert phrase in summary
+
+
+def test_sprint007_sap_import_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists sap_import_batches",
+        "create table if not exists sap_sales",
+        "create table if not exists sap_inventory",
+        "idx_sap_import_batches_document",
+        "idx_sap_sales_lookup",
+        "idx_sap_inventory_lookup",
+        "def sap_import_types",
+        "def sap_read_rows_from_file",
+        "def sap_import_document",
+        "def sap_import_page",
+        'if path in ("/sap-import", "/data-import")',
+        "def api_sap_import_get",
+        "def api_sap_import_post",
+        'if path == "/api/sap/import"',
+        '"/api/sap/import-batches"',
+        '"/api/sap/sales"',
+        '"/api/sap/inventory"',
+        '"/api/sap/summary"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint007_sap_import_integrations_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "production_sap_untouched_file_import_only",
+        "file_import_only_no_production_sap_connection",
+        "sap_import_batches_total",
+        "sap_sales_rows_total",
+        "sap_inventory_rows_total",
+        "recent_sap_imports",
+        "sap_import",
+        r"\u5bfc\u5165\u4e3a SAP \u6570\u636e",
+        '"type": "sap_batch"',
+        '"type": "sap_sales"',
+        '"type": "sap_inventory"',
+        '("sap_batch"',
+        '("sap_sales"',
+        '("sap_inventory"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint007_summary_present():
+    summary = read("SPRINT007_SAP_DATA_IMPORT_FOUNDATION_SUMMARY.md")
+    for phrase in [
+        "Sprint007 SAP Data Import Foundation Summary",
+        "sap_import_batches",
+        "sap_sales",
+        "sap_inventory",
+        "POST /api/sap/import",
+        "GET /api/sap/import-batches",
+        "GET /api/sap/sales",
+        "GET /api/sap/inventory",
+        "GET /api/sap/summary",
+        "Excel/CSV",
+        "no production SAP connection",
+        "does not require any program installed on the SAP production server",
+        "Dashboard integration",
+        "Search integration",
+        "Sprint008",
+    ]:
+        assert phrase in summary
