@@ -1708,6 +1708,23 @@ create table if not exists timeline_events(
 )
 """
         )
+        for col, ddl in [
+            ("entity_type", "entity_type text"),
+            ("entity_id", "entity_id integer"),
+            ("event_type", "event_type text"),
+            ("description", "description text"),
+            ("source_type", "source_type text"),
+            ("source_id", "source_id text"),
+            ("metadata", "metadata text"),
+            ("occurred_at", "occurred_at integer"),
+        ]:
+            ensure_column(conn, "timeline_events", col, ddl)
+        for idx in [
+            "create index if not exists idx_timeline_entity on timeline_events(entity_type, entity_id, occurred_at)",
+            "create index if not exists idx_timeline_source on timeline_events(source_type, source_id)",
+            "create index if not exists idx_timeline_event_type on timeline_events(event_type)",
+        ]:
+            conn.execute(idx)
         conn.execute(
             """
 create table if not exists relations(
@@ -3954,7 +3971,7 @@ def layout(title, body, user=None, msg="", wide=False):
     bottom_nav = ""
     if user:
         nav = (
-            '<div class="topbar"><div><strong>{}</strong><small>{} · {}</small></div>'
+            '<div class="topbar"><div><strong>{}</strong><small>{} 路 {}</small></div>'
             '<div><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
         ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), T["change_password"], T["logout"])
         search_placeholder = U(r"\u641c\u7d22\u5546\u54c1\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001SAP\u3001\u77e5\u8bc6")
@@ -4322,6 +4339,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_owner_os_get(user, path)
         if path.startswith("/api/second-brain"):
             return self.api_second_brain_get(user, path)
+        if path.startswith("/api/search") or path.startswith("/api/timeline"):
+            return self.api_search_timeline_get(user, path)
         if path.startswith("/api/objects") or path == "/api/object-types":
             return self.api_objects_get(user, path)
         if path.startswith(("/api/drive", "/api/object-engine", "/api/knowledge-pipeline", "/api/ceo-home")):
@@ -4504,6 +4523,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_drive_post(self.current_user(), path)
         if path.startswith("/api/objects"):
             return self.api_objects_post(self.current_user(), path)
+        if path.startswith("/api/timeline"):
+            return self.api_search_timeline_post(self.current_user(), path)
         if path.startswith(("/api/ai-business-center", "/api/ai/task/create")):
             return self.api_ai_business_center_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
@@ -5172,6 +5193,8 @@ class App(BaseHTTPRequestHandler):
                     "insert into knowledge_chunks(chunk_id,knowledge_id,document_id,chunk_index,chunk_text,token_count,embedding_status,created_at) values(?,?,?,?,?,?,?,?)",
                     (uuid.uuid4().hex, kid, document_id, idx, part, max(1, len(part)), "pending", now),
                 )
+                if item.get("related_object_type") and item.get("related_object_id"):
+                    self.add_timeline_event(conn, item.get("related_object_type"), item.get("related_object_id"), "knowledge_created", U(r"\u6587\u6863\u751f\u6210\u77e5\u8bc6"), title, "knowledge_item", kid, {"document_id": int(document_id), "knowledge_id": kid, "chunk_index": idx}, user["id"] if user else item.get("created_by"), now)
             conn.execute("update documents set processing_status='indexed', vector_status='pending', processing_error=null, updated_at=? where id=?", (ts(), document_id))
             metrics = self.document_knowledge_metrics(conn, document_id)
         self.log_action(user, "knowledge_pipeline_process_document", "document", document_id, "chunks={}; items={}".format(metrics["chunk_count"], metrics["knowledge_item_count"]))
@@ -5387,6 +5410,138 @@ class App(BaseHTTPRequestHandler):
             (object_type, object_id),
         ).fetchone()
         return row["c"] if row else 0
+
+    def search_snippet(self, text, query="", size=180):
+        text = re.sub(r"\s+", " ", str(text or "")).strip()
+        if not text:
+            return ""
+        q = (query or "").strip().lower()
+        if q and q in text.lower():
+            idx = text.lower().find(q)
+            start = max(0, idx - size // 3)
+            return text[start : start + size]
+        return summarize_text(text, size)
+
+    def global_search_results(self, user, q, result_type="", category="", object_type="", status="", date_from="", date_to=""):
+        q = (q or "").strip()
+        if not q:
+            return {"ok": True, "query": q, "total": 0, "results": [], "filters": {"type": result_type, "category": category, "object_type": object_type, "status": status}}
+        like = "%" + q + "%"
+        results = []
+        want = lambda key: not result_type or result_type == key
+        def in_date(row_time):
+            try:
+                value = int(row_time or 0)
+            except Exception:
+                return True
+            if date_from:
+                try:
+                    if value < int(time.mktime(time.strptime(date_from, "%Y-%m-%d"))):
+                        return False
+                except Exception:
+                    pass
+            if date_to:
+                try:
+                    if value > int(time.mktime(time.strptime(date_to, "%Y-%m-%d"))) + 86399:
+                        return False
+                except Exception:
+                    pass
+            return True
+        with db() as conn:
+            if want("file"):
+                where = ["deleted_at is null", "(coalesce(filename,'') like ? or coalesce(original_filename,'') like ? or coalesce(category,'') like ? or coalesce(tags,'') like ? or coalesce(ai_summary,'') like ? or coalesce(extracted_text,'') like ?)"]
+                params = [like, like, like, like, like, like]
+                if category:
+                    where.append("category=?")
+                    params.append(category)
+                if object_type:
+                    where.append("related_object_type=?")
+                    params.append(object_type)
+                if status:
+                    where.append("processing_status=?")
+                    params.append(status)
+                for row in conn.execute("select * from documents where " + " and ".join(where) + " order by updated_at desc limit 50", params).fetchall():
+                    if not in_date(row["updated_at"] or row["created_at"]):
+                        continue
+                    item = self.document_to_json(row)
+                    results.append({"type": "file", "icon": "FILE", "id": item["id"], "title": item["original_filename"], "snippet": self.search_snippet(item.get("ai_summary") or item.get("extracted_text") or item.get("category"), q), "source": item.get("category") or "Drive", "related_object": "{} #{}".format(item.get("related_object_type") or "", item.get("related_object_id") or "").strip(), "url": "/api/drive/files/{}".format(item["id"]), "score": 0.85, "updated_at": item.get("updated_at")})
+            if want("object"):
+                where = ["archived_at is null", "(name like ? or coalesce(description,'') like ? or coalesce(tags,'') like ? or coalesce(ai_summary,'') like ? or coalesce(metadata,'') like ?)"]
+                params = [like, like, like, like, like]
+                if object_type:
+                    where.append("object_type=?")
+                    params.append(object_type)
+                if status:
+                    where.append("status=?")
+                    params.append(status)
+                for row in conn.execute("select * from enterprise_objects where " + " and ".join(where) + " order by updated_at desc limit 50", params).fetchall():
+                    if not in_date(row["updated_at"]):
+                        continue
+                    results.append({"type": "object", "icon": "OBJ", "id": row["id"], "title": row["name"], "snippet": self.search_snippet((row["description"] or "") + " " + (row["ai_summary"] or "") + " " + (row["metadata"] or ""), q), "source": self.object_type_label(row["object_type"]), "related_object": "{} #{}".format(row["object_type"], row["id"]), "url": "/objects?id={}".format(row["id"]), "score": 0.9, "updated_at": row["updated_at"]})
+            if want("knowledge"):
+                where = ["deleted_at is null", "(title like ? or coalesce(content,body,'') like ? or coalesce(summary,'') like ? or coalesce(tags,'') like ?)"]
+                params = [like, like, like, like]
+                if category:
+                    where.append("category=?")
+                    params.append(category)
+                if object_type:
+                    where.append("object_type=?")
+                    params.append(object_type)
+                if status:
+                    where.append("status=?")
+                    params.append(status)
+                for row in conn.execute("select * from knowledge_items where " + " and ".join(where) + " order by updated_at desc limit 50", params).fetchall():
+                    if not self.can_view_knowledge(user, row) or not in_date(row["updated_at"]):
+                        continue
+                    results.append({"type": "knowledge", "icon": "KB", "id": row["id"], "title": row["title"], "snippet": self.search_snippet(row["summary"] or row["content"] or row["body"], q), "source": row["source_type"] or "knowledge", "related_object": "{} #{}".format(row["object_type"] or "", row["object_id"] or "").strip(), "url": "/knowledge/view?id={}".format(row["id"]), "score": 0.8, "updated_at": row["updated_at"]})
+            if want("chunk"):
+                for row in conn.execute("select * from document_chunks where content like ? or summary like ? order by updated_at desc limit 50", (like, like)).fetchall():
+                    if not in_date(row["updated_at"]):
+                        continue
+                    doc = conn.execute("select * from documents where id=? and deleted_at is null", (row["document_id"],)).fetchone()
+                    if not doc:
+                        continue
+                    if category and doc["category"] != category:
+                        continue
+                    if object_type and doc["related_object_type"] != object_type:
+                        continue
+                    results.append({"type": "chunk", "icon": "CHUNK", "id": row["id"], "title": (doc["original_filename"] or doc["title"] or "Document") + " / chunk " + str(row["chunk_index"]), "snippet": self.search_snippet(row["content"] or row["summary"], q), "source": "document_chunks", "related_object": "{} #{}".format(doc["related_object_type"] or "", doc["related_object_id"] or "").strip(), "url": "/api/documents/{}/chunks".format(row["document_id"]), "score": 0.7, "updated_at": row["updated_at"]})
+        results.sort(key=lambda item: (item.get("score", 0), item.get("updated_at") or 0), reverse=True)
+        return {"ok": True, "query": q, "total": len(results), "results": results[:120], "filters": {"type": result_type, "category": category, "object_type": object_type, "status": status, "date_from": date_from, "date_to": date_to}}
+
+    def add_timeline_event(self, conn, entity_type, entity_id, event_type, title, description="", source_type="system", source_id="", metadata=None, created_by=None, occurred_at=None):
+        now = ts()
+        entity_id_int = int(entity_id) if str(entity_id).isdigit() else 0
+        conn.execute(
+            """insert into timeline_events(
+ target_type,target_id,title,body,created_by,created_at,
+ entity_type,entity_id,event_type,description,source_type,source_id,metadata,occurred_at
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                entity_type,
+                entity_id_int,
+                title,
+                description,
+                created_by,
+                now,
+                entity_type,
+                entity_id_int,
+                event_type,
+                description,
+                source_type,
+                str(source_id or ""),
+                json.dumps(metadata or {}, ensure_ascii=False),
+                occurred_at or now,
+            ),
+        )
+
+    def timeline_rows_for_entity(self, conn, entity_type, entity_id, limit=80):
+        return conn.execute(
+            """select * from timeline_events
+where (entity_type=? and entity_id=?) or (target_type=? and target_id=?)
+order by coalesce(occurred_at, created_at) desc limit ?""",
+            (entity_type, entity_id, entity_type, entity_id, limit),
+        ).fetchall()
 
     def knowledge_status_text(self, row):
         status = (row["status"] if row and "status" in row.keys() else "") or "draft"
@@ -5639,12 +5794,12 @@ class App(BaseHTTPRequestHandler):
         if not row or not self.record_allowed(user, row["module"]):
             return self.redir("/")
         data = json.loads(row["data_json"] or "{}")
-        event_html = self.bullets([dt(e["created_at"]) + " " + e["title"] for e in events]) if events else "<p class='small'>暂无时间轴。</p>"
+        event_html = self.bullets([dt(e["created_at"]) + " " + e["title"] for e in events]) if events else "<p class='small'>暂无时间线。</p>"
         log_html = self.bullets([dt(l["created_at"]) + " " + l["action"] for l in logs]) if logs else "<p class='small'>暂无操作日志。</p>"
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
-  <p class="small">{module_title(row['module'])} ｜ {U(r'\u6807\u7b7e')}：{esc(row['tags'])} ｜ {U(r'\u66f4\u65b0')}：{esc(dt(row['updated_at']))}</p>
+  <p class="small">{module_title(row['module'])} · {U(r'\u6807\u7b7e')}：{esc(row['tags'])} · {U(r'\u66f4\u65b0')}：{esc(dt(row['updated_at']))}</p>
   <p>{esc(row['summary'])}</p>
   <div class="split">
     <div><h2>{U(r'\u8be6\u7ec6\u5185\u5bb9')}</h2><p>{esc(data.get('body',''))}</p></div>
@@ -5733,7 +5888,7 @@ class App(BaseHTTPRequestHandler):
     <label>{U(r'\u5173\u8054\u5bf9\u8c61\u7c7b\u578b')}</label><select name="object_type"><option value="">{U(r'\u6682\u4e0d\u5173\u8054')}</option>{object_opts}</select>
     <label>{U(r'\u5173\u8054\u5bf9\u8c61 ID')}</label><input name="object_id" placeholder="{U(r'\u53ef\u9009\uff1a\u6863\u6848 ID')}">
     <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="public_internal">{U(r'\u516c\u53f8\u5185\u90e8')}</option><option value="manager_only">{U(r'\u7ba1\u7406\u5c42')}</option><option value="finance_only">{U(r'\u8d22\u52a1')}</option><option value="owner_only">{U(r'\u4ec5\u521b\u5efa\u4eba')}</option><option value="restricted">{U(r'\u8001\u677f/\u7ba1\u7406\u5458')}</option></select>
-    <label>{U(r'\u6240\u5c5e\u5206\u7c7b')}</label><input name="category" placeholder="01_公司制度 / 02_产品资料 / 07_库存采购">
+    <label>{U(r'\u6240\u5c5e\u5206\u7c7b')}</label><input name="category" placeholder="01_鍏徃鍒跺害 / 02_浜у搧璧勬枡 / 07_搴撳瓨閲囪喘">
     <label>{U(r'\u8865\u5145\u8bf4\u660e')}</label><textarea name="description"></textarea>
     <p><button>{U(r'\u4e0a\u4f20\u5e76\u81ea\u52a8\u5165\u5e93')}</button></p>
   </form>
@@ -5829,7 +5984,7 @@ class App(BaseHTTPRequestHandler):
   <h2>{U(r'\u65b0\u5efa\u77e5\u8bc6')}</h2>
   <form method="post" action="/knowledge/save">
     <label>{U(r'\u6807\u9898')}</label><input name="title" required>
-    <label>{U(r'\u5206\u7c7b')}</label><input name="category" placeholder="01_公司制度">
+    <label>{U(r'\u5206\u7c7b')}</label><input name="category" placeholder="01_鍏徃鍒跺害">
     <label>{U(r'\u6807\u7b7e')}</label><input name="tags">
     <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="public_internal">{U(r'\u516c\u53f8\u5185\u90e8')}</option><option value="manager_only">{U(r'\u7ba1\u7406\u5c42')}</option><option value="finance_only">{U(r'\u8d22\u52a1')}</option><option value="owner_only">{U(r'\u4ec5\u521b\u5efa\u4eba')}</option><option value="restricted">{U(r'\u8001\u677f/\u7ba1\u7406\u5458')}</option></select>
     <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><select name="object_type"><option value="">{U(r'\u6682\u4e0d\u5173\u8054')}</option>{object_opts}</select>
@@ -5902,7 +6057,7 @@ class App(BaseHTTPRequestHandler):
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
-  <p class="small">{esc(row['category'])} ｜ {esc(row['tags'])} ｜ {esc(row['source_type'])}：{esc(row['source_ref'])}</p>
+  <p class="small">{esc(row['category'])} · {esc(row['tags'])} · {esc(row['source_type'])}：{esc(row['source_ref'])}</p>
   <h2>{U(r'AI \u6458\u8981')}</h2><p>{esc(row['ai_summary'])}</p>
   <h2>{U(r'\u6b63\u6587')}</h2><p>{esc(row['body'])}</p>
   <p><a class="btn" href="/ai-query">{U(r'\u7528 AI \u67e5\u8be2')}</a> <a class="btn gray" href="/knowledge">{U(r'\u8fd4\u56de')}</a></p>
@@ -6035,7 +6190,7 @@ class App(BaseHTTPRequestHandler):
         s = load_summary()
         status = self.sap_sync_status_payload()
         smart = self.smart_business_insights()
-        history_items = [h["sync_id"] + " · " + h["trigger_type"] + " · " + h["status"] for h in status["history"][:10]] or [U(r"\u6682\u65e0 SAP \u540c\u6b65\u5386\u53f2\u3002")]
+        history_items = [h["sync_id"] + " 路 " + h["trigger_type"] + " 路 " + h["status"] for h in status["history"][:10]] or [U(r"\u6682\u65e0 SAP \u540c\u6b65\u5386\u53f2\u3002")]
         body = f"""
 <div class="panel">
   <h2>SAP B1 {U(r'\u540c\u6b65\u72b6\u6001')}</h2>
@@ -6093,7 +6248,7 @@ class App(BaseHTTPRequestHandler):
         quick = f"""
 <div class="panel">
   <h2>{U(r'\u5feb\u901f\u7ecf\u8425\u63d0\u793a')}</h2>
-  <p class="small">{U(r'\u6628\u65e5\u9500\u552e')}：{U(r'\uffe5') + money(summary.get("yesterday_sales"))} ｜ {U(r'\u672c\u6708\u5b8c\u6210\u7387')}：{pct(summary.get("completion_rate"))} ｜ {U(r'\u6570\u636e\u65e5\u671f')}：{esc(summary.get("data_date"))}</p>
+  <p class="small">{U(r'\u6628\u65e5\u9500\u552e')}：{U(r'\uffe5') + money(summary.get("yesterday_sales"))} · {U(r'\u672c\u6708\u5b8c\u6210\u7387')}：{pct(summary.get("completion_rate"))} · {U(r'\u6570\u636e\u65e5\u671f')}：{esc(summary.get("data_date"))}</p>
 </div>"""
         cards = [
             self.card(U(r"\u6bcf\u65e5\u884c\u52a8\u677f"), U(r"\u4eca\u5929\u8981\u51b3\u7b56\u3001\u8981\u6267\u884c\u3001\u8981\u590d\u76d8\u7684\u4e8b\u9879\u3002"), "/action/today", "btn dark", True),
@@ -6127,7 +6282,7 @@ class App(BaseHTTPRequestHandler):
             self.card(U(r"\u5e93\u5b58\u91c7\u8d2d\u51b3\u7b56"), U(r"\u8865\u8d27\u3001\u8c03\u8d27\u3001\u964d\u4ef7\u3001\u6e05\u8d27\u3001\u671f\u8d27\u548c\u91c7\u8d2d\u51b3\u7b56\u6846\u67b6\u3002"), "/inventory-decision", "btn dark", can_manager),
             self.card(U(r"\u7cfb\u7edf\u7ba1\u7406"), U(r"\u5ba1\u6838\u5458\u5de5\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002"), "/admin", "btn dark", can_admin),
         ]
-        info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
+        info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} · {}：{} · {}：{}</p></div>'.format(
             U(r"\u5f53\u524d\u8d26\u53f7"),
             T["name"],
             esc(user["name"]),
@@ -6136,7 +6291,7 @@ class App(BaseHTTPRequestHandler):
             T["role"],
             esc(ROLES.get(role, role)),
         )
-        info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
+        info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} · {}：{} · {}：{}</p></div>'.format(
             U(r"\u5f53\u524d\u8d26\u53f7"), T["name"], esc(user["name"]), T["store"], esc(user["store"]), T["role"], esc(ROLES.get(role, role))
         )
         self.out(layout(T["brand"], quick + '<div class="grid">' + "".join(cards) + "</div>" + info, user=user, wide=True))
@@ -6182,7 +6337,7 @@ class App(BaseHTTPRequestHandler):
             stores = [s for s in stores if store_key in str(s.get("store", ""))] or stores[:1]
         store_rows = ""
         for item in stores[:8]:
-            store_rows += '<div class="store-row"><strong>{}</strong><span>{}：￥{}</span><span>{}：￥{}</span></div>'.format(
+            store_rows += '<div class="store-row"><strong>{}</strong><span>{}锛氾骏{}</span><span>{}锛氾骏{}</span></div>'.format(
                 esc(item.get("store", U(r"\u672a\u547d\u540d\u95e8\u5e97"))),
                 U(r"\u9500\u552e"),
                 money(item.get("sales")),
@@ -6431,53 +6586,68 @@ class App(BaseHTTPRequestHandler):
         user = self.require_login(user)
         if not user:
             return
-        q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
-        results = []
-        if q:
-            like = "%" + q + "%"
-            with db() as conn:
-                record_rows = conn.execute(
-                    "select title,summary,tags,updated_at,id from records where title like ? or summary like ? or tags like ? order by updated_at desc limit 12",
-                    (like, like, like),
-                ).fetchall()
-                knowledge_rows = conn.execute(
-                    "select title,summary,ai_summary,tags,updated_at,id from knowledge_items where title like ? or summary like ? or ai_summary like ? or tags like ? or body like ? order by updated_at desc limit 12",
-                    (like, like, like, like, like),
-                ).fetchall()
-            results.extend(
-                {
-                    "type": U(r"\u6863\u6848"),
-                    "title": row["title"],
-                    "summary": row["summary"] or row["tags"] or "",
-                    "url": "/records/view?id=" + str(row["id"]),
-                }
-                for row in record_rows
+        query = parse_qs(urlparse(self.path).query)
+        q = query.get("q", [""])[0].strip()
+        result_type = query.get("type", [""])[0].strip()
+        category = query.get("category", [""])[0].strip()
+        object_type = module_key(query.get("object_type", [""])[0] or "")
+        status = query.get("status", [""])[0].strip()
+        date_from = query.get("date_from", [""])[0].strip()
+        date_to = query.get("date_to", [""])[0].strip()
+        payload = self.global_search_results(user, q, result_type, category, object_type, status, date_from, date_to)
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5"))])
+        object_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"])) for item in self.object_types())
+        cards = "".join(
+            "<div class='card'><div><h2>{} {}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
+                esc(item["icon"]),
+                esc(item["title"]),
+                esc(item["snippet"]),
+                esc(item["source"]),
+                esc(item["related_object"]),
+                esc(dt(item["updated_at"])),
+                esc(item["url"]),
+                U(r"\u6253\u5f00"),
             )
-            results.extend(
-                {
-                    "type": U(r"\u77e5\u8bc6"),
-                    "title": row["title"],
-                    "summary": row["summary"] or row["ai_summary"] or row["tags"] or "",
-                    "url": "/knowledge/view?id=" + str(row["id"]),
-                }
-                for row in knowledge_rows
-            )
-        cards = "".join(self.card(item["title"], item["type"] + " / " + summarize_text(item["summary"], 90), item["url"], "btn", True) for item in results)
+            for item in payload["results"]
+        )
         if q and not cards:
-            cards = '<div class="panel"><p class="small">{}</p></div>'.format(U(r"\u6ca1\u627e\u5230\u5339\u914d\u5185\u5bb9\uff0c\u53ef\u4ee5\u76f4\u63a5\u95ee AI\u3002"))
+            cards = '<div class="panel"><p class="small">{}</p></div>'.format(U(r"\u6ca1\u627e\u5230\u5339\u914d\u5185\u5bb9\uff0c\u53ef\u4ee5\u8bd5\u8bd5\u54c1\u724c\u3001\u95e8\u5e97\u3001\u6587\u4ef6\u540d\u6216\u6807\u7b7e\u3002"))
+        if not q:
+            cards = '<div class="panel"><p class="small">{}</p></div>'.format(U(r"\u8f93\u5165\u5173\u952e\u8bcd\u540e\uff0c\u53ef\u540c\u65f6\u641c\u7d22\u6587\u4ef6\u3001\u5bf9\u8c61\u3001\u77e5\u8bc6\u548c\u6587\u6863\u7247\u6bb5\u3002"))
         body = """
 <div class="panel">
-  <form method="get" action="/os/search">
+  <h2>Global Search</h2>
+  <form method="get" action="/search">
     <label>{}</label>
     <input name="q" value="{}" placeholder="{}">
-    <p><button>{}</button> <a class="btn dark" href="/jarvis">AI</a></p>
+    <label>{}</label><select name="type">{}</select>
+    <label>{}</label><input name="category" value="{}">
+    <label>{}</label><select name="object_type"><option value="">{}</option>{}</select>
+    <label>{}</label><input name="status" value="{}">
+    <div class="inline"><input name="date_from" value="{}" placeholder="YYYY-MM-DD"><input name="date_to" value="{}" placeholder="YYYY-MM-DD"></div>
+    <p><button>{}</button> <a class="btn dark" href="/api/search?q={}">API</a></p>
   </form>
 </div>
+<div class="panel"><p class="small">{}: {}</p></div>
 <div class="grid">{}</div>""".format(
             U(r"\u5168\u5c40\u641c\u7d22"),
             esc(q),
-            U(r"\u8f93\u5165 OSPREY\u3001\u5357\u5c71\u5e97\u3001\u5458\u5de5\u3001SAP \u6216\u77e5\u8bc6\u5173\u952e\u8bcd"),
+            U(r"\u641c\u7d22\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u5408\u540c\u3001\u6587\u4ef6\u3001\u77e5\u8bc6..."),
+            U(r"\u7c7b\u578b"),
+            type_options,
+            U(r"\u5206\u7c7b"),
+            esc(category),
+            U(r"\u5bf9\u8c61\u7c7b\u578b"),
+            U(r"\u5168\u90e8"),
+            object_options,
+            U(r"\u72b6\u6001"),
+            esc(status),
+            esc(date_from),
+            esc(date_to),
             U(r"\u641c\u7d22"),
+            esc(q),
+            U(r"\u641c\u7d22\u7ed3\u679c"),
+            payload["total"],
             cards,
         )
         self.out(layout(U(r"\u5168\u5c40\u641c\u7d22"), body, user=user, wide=True))
@@ -6837,6 +7007,7 @@ class App(BaseHTTPRequestHandler):
 <div class="panel">
   <h2>FoxBrain Drive 2.0</h2>
   <p class="small">Enterprise Knowledge Drive</p>
+  <p><a class="btn dark" href="/search">{}</a></p>
   <form method="post" action="/api/drive/upload" enctype="multipart/form-data">
     <label>{}</label>
     <input name="file" type="file" required>
@@ -6863,6 +7034,7 @@ class App(BaseHTTPRequestHandler):
 </div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
 <div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>""".format(
+            U(r"\u5168\u5c40\u641c\u7d22"),
             U(r"\u4e0a\u4f20\u6587\u4ef6"),
             U(r"\u5206\u7c7b"),
             U(r"\u81ea\u52a8\u5206\u7c7b"),
@@ -6978,11 +7150,11 @@ class App(BaseHTTPRequestHandler):
 <div class="panel">
   <h2>{}</h2>
   <p class="small">Everything is an Object. {}</p>
-  <p><a class="btn dark" href="/api/objects">API</a> <a class="btn" href="/api/object-engine">V1.1 Contract</a> <a class="btn" href="/drive">Drive 2.0</a></p>
+  <p><a class="btn dark" href="/api/objects">API</a> <a class="btn" href="/api/object-engine">V1.1 Contract</a> <a class="btn" href="/drive">Drive 2.0</a> <a class="btn" href="/search">{}</a></p>
 </div>
 <div class="panel">
   <form method="get" action="/objects">
-    <label>{}</label><input name="q" value="{}" placeholder="Kailas / 南山店 / 合同 / 客户">
+    <label>{}</label><input name="q" value="{}" placeholder="Kailas / 鍗楀北搴?/ 鍚堝悓 / 瀹㈡埛">
     <label>{}</label><select name="type"><option value="">{}</option>{}</select>
     <p><button>{}</button></p>
   </form>
@@ -6993,9 +7165,9 @@ class App(BaseHTTPRequestHandler):
     <label>{}</label><select name="object_type">{}</select>
     <label>{}</label><input name="name" required>
     <label>{}</label><input name="code">
-    <label>{}</label><input name="tags" placeholder="多个标签用逗号分隔">
+    <label>{}</label><input name="tags" placeholder="澶氫釜鏍囩鐢ㄩ€楀彿鍒嗛殧">
     <label>{}</label><textarea name="description"></textarea>
-    <label>{}</label><textarea name="metadata" placeholder='{{"address":"深圳","manager":"张三"}}'></textarea>
+    <label>{}</label><textarea name="metadata" placeholder='{{"address":"娣卞湷","manager":"寮犱笁"}}'></textarea>
     <p><button>{}</button></p>
   </form>
 </div>
@@ -7007,6 +7179,7 @@ class App(BaseHTTPRequestHandler):
 <div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>""".format(
             U(r"\u5bf9\u8c61\u4e2d\u5fc3"),
             esc(contract.get("canonical_rule", "")),
+            U(r"\u5168\u5c40\u641c\u7d22"),
             U(r"\u641c\u7d22"),
             esc(q),
             U(r"\u5bf9\u8c61\u7c7b\u578b"),
@@ -7049,6 +7222,7 @@ class App(BaseHTTPRequestHandler):
                 "select * from object_relations where (source_object_type=? and source_object_id=?) or (target_object_type=? and target_object_id=?) order by created_at desc limit 30",
                 (row["object_type"], row["id"], row["object_type"], row["id"]),
             ).fetchall()
+            timeline_rows = self.timeline_rows_for_entity(conn, row["object_type"], row["id"], 80)
         obj = self.enterprise_object_to_json(row, len(docs))
         type_options = "".join(
             '<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if item["key"] == obj["object_type"] else "", esc(item["label"]))
@@ -7074,9 +7248,9 @@ class App(BaseHTTPRequestHandler):
             for r in relations
         ] or [self.suggestRelations(obj["id"])["message"]]
         timeline_items = [
-            "{} / {}".format(item["title"], dt(item.get("created_at")))
-            for item in self.object_timeline_placeholder(row)
-        ]
+            "{} / {} / {}".format(dt(event["occurred_at"] or event["created_at"]), event["event_type"] or event["title"], event["description"] or event["body"] or event["title"])
+            for event in timeline_rows
+        ] or [U(r"\u6682\u65e0\u65f6\u95f4\u8f74\u4e8b\u4ef6\u3002\u968f\u7740\u6587\u4ef6\u3001\u77e5\u8bc6\u548c\u7ecf\u8425\u8bb0\u5f55\u589e\u52a0\uff0c\u8fd9\u91cc\u4f1a\u81ea\u52a8\u5f62\u6210\u4f01\u4e1a\u8bb0\u5fc6\u3002")]
         body = """
 <div class="panel">
   <h2>{}</h2>
@@ -7110,7 +7284,7 @@ class App(BaseHTTPRequestHandler):
 <div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>
 <div class="split">
   <div class="panel"><h2>{}</h2>{}</div>
-  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}<form method="post" action="/api/timeline"><input type="hidden" name="entity_type" value="{}"><input type="hidden" name="entity_id" value="{}"><input type="hidden" name="event_type" value="manual_note"><label>{}</label><input name="title"><label>{}</label><textarea name="description"></textarea><p><button>{}</button></p></form></div>
 </div>""".format(
             esc(obj["name"]),
             esc(obj["object_type_label"]),
@@ -7150,8 +7324,13 @@ class App(BaseHTTPRequestHandler):
             doc_rows,
             U(r"\u5173\u8054\u5bf9\u8c61\u5360\u4f4d"),
             self.bullets(relation_items),
-            U(r"\u65f6\u95f4\u8f74\u5360\u4f4d"),
+            U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"),
             self.bullets(timeline_items),
+            esc(obj["object_type"]),
+            obj["id"],
+            U(r"\u624b\u52a8\u5907\u6ce8"),
+            U(r"\u63cf\u8ff0"),
+            U(r"\u5199\u5165\u65f6\u95f4\u8f74"),
         )
         self.out(layout(U(r"\u5bf9\u8c61\u8be6\u60c5"), body, user=user, wide=True))
 
@@ -7247,6 +7426,44 @@ class App(BaseHTTPRequestHandler):
                 return {}
         return self.form()
 
+    def api_search_timeline_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/search", "/api/search/global"):
+            query = parse_qs(urlparse(self.path).query)
+            return self.json_out(self.global_search_results(user, query.get("q", [""])[0], query.get("type", [""])[0], query.get("category", [""])[0], module_key(query.get("object_type", [""])[0]), query.get("status", [""])[0], query.get("date_from", [""])[0], query.get("date_to", [""])[0]))
+        if path == "/api/search/suggestions":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            payload = self.global_search_results(user, q, "", "", "", "", "", "")
+            return self.json_out({"ok": True, "query": q, "suggestions": [{"title": item["title"], "type": item["type"], "url": item["url"]} for item in payload["results"][:8]]})
+        if path == "/api/timeline":
+            query = parse_qs(urlparse(self.path).query)
+            entity_type = module_key(query.get("entity_type", [""])[0])
+            entity_id = query.get("entity_id", [""])[0]
+            with db() as conn:
+                if entity_type and str(entity_id).isdigit():
+                    rows = self.timeline_rows_for_entity(conn, entity_type, int(entity_id), 120)
+                else:
+                    rows = conn.execute("select * from timeline_events order by coalesce(occurred_at, created_at) desc limit 120").fetchall()
+            return self.json_out({"ok": True, "events": [row_dict(row) for row in rows]})
+        return self.json_out({"ok": False, "message": "unknown search/timeline api"}, code=404)
+
+    def api_search_timeline_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/timeline":
+            form = self.api_object_payload()
+            entity_type = module_key(form.get("entity_type", ""))
+            entity_id = form.get("entity_id", "")
+            if not entity_type or not str(entity_id).isdigit():
+                return self.json_out({"ok": False, "message": "entity_type and numeric entity_id required"}, code=400)
+            title = form.get("title", "").strip() or U(r"\u624b\u52a8\u5907\u6ce8")
+            description = form.get("description", "")
+            with db() as conn:
+                self.add_timeline_event(conn, entity_type, int(entity_id), form.get("event_type", "manual_note") or "manual_note", title, description, form.get("source_type", "manual") or "manual", form.get("source_id", ""), {"manual": True}, user["id"])
+            return self.json_out({"ok": True})
+        return self.json_out({"ok": False, "message": "unknown search/timeline write api"}, code=404)
+
     def api_objects_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
@@ -7254,6 +7471,14 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
         if path == "/api/object-types":
             return self.json_out({"ok": True, "object_types": self.object_types(), "templates": self.object_templates()})
+        m_timeline = re.match(r"^/api/objects/(\d+)/timeline$", path)
+        if m_timeline:
+            with db() as conn:
+                obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (m_timeline.group(1),)).fetchone()
+                if not obj:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                rows = self.timeline_rows_for_entity(conn, obj["object_type"], obj["id"], 120)
+            return self.json_out({"ok": True, "object_id": int(m_timeline.group(1)), "events": [row_dict(row) for row in rows]})
         m_docs = re.match(r"^/api/objects/(\d+)/documents$", path)
         if m_docs:
             with db() as conn:
@@ -7273,13 +7498,14 @@ class App(BaseHTTPRequestHandler):
                     "select * from object_relations where (source_object_type=? and source_object_id=?) or (target_object_type=? and target_object_id=?) order by created_at desc limit 50",
                     (obj["object_type"], obj["id"], obj["object_type"], obj["id"]),
                 ).fetchall()
+                timeline = self.timeline_rows_for_entity(conn, obj["object_type"], obj["id"], 80)
             return self.json_out({
                 "ok": True,
                 "object": self.enterprise_object_to_json(obj, len(docs)),
                 "documents": [self.document_to_json(row) for row in docs],
                 "relations": [row_dict(row) for row in relations],
                 "suggested_relations": self.suggestRelations(obj["id"]),
-                "timeline": self.object_timeline_placeholder(obj),
+                "timeline": [row_dict(row) for row in timeline] or self.object_timeline_placeholder(obj),
             })
         if path == "/api/objects":
             query = parse_qs(urlparse(self.path).query)
@@ -7356,6 +7582,7 @@ class App(BaseHTTPRequestHandler):
                     (object_type, name, form.get("code", ""), form.get("description", ""), form.get("status", "active") or "active", form.get("tags", ""), json.dumps(metadata, ensure_ascii=False), form.get("ai_summary", ""), user["id"], now, now, None),
                 )
                 object_id = cur.lastrowid
+                self.add_timeline_event(conn, object_type, object_id, "object_created", U(r"\u5bf9\u8c61\u5df2\u521b\u5efa"), name, "enterprise_object", object_id, {"name": name, "object_type": object_type}, user["id"], now)
             self.log_action(user, "enterprise_object_create", "enterprise_object", object_id, name)
             if "text/html" in (self.headers.get("Accept") or ""):
                 return self.redir("/objects?id=" + str(object_id))
@@ -7376,6 +7603,7 @@ class App(BaseHTTPRequestHandler):
                     "update enterprise_objects set object_type=?,name=?,code=?,description=?,status=?,tags=?,metadata=?,ai_summary=?,updated_at=? where id=?",
                     (object_type, name, form.get("code", ""), form.get("description", ""), form.get("status", "active") or "active", form.get("tags", ""), json.dumps(metadata, ensure_ascii=False), form.get("ai_summary", ""), now, m_update.group(1)),
                 )
+                self.add_timeline_event(conn, object_type, int(m_update.group(1)), "object_updated", U(r"\u5bf9\u8c61\u5df2\u66f4\u65b0"), name, "enterprise_object", m_update.group(1), {"name": name, "object_type": object_type}, user["id"], now)
             self.log_action(user, "enterprise_object_update", "enterprise_object", m_update.group(1), name)
             if "text/html" in (self.headers.get("Accept") or ""):
                 return self.redir("/objects?id=" + m_update.group(1))
@@ -7407,6 +7635,7 @@ class App(BaseHTTPRequestHandler):
                 "update documents set related_object_type=?, related_object_id=?, related_type=?, related_id=?, updated_at=? where id=?",
                 (obj["object_type"], obj["id"], obj["object_type"], obj["id"], now, document_id),
             )
+            self.add_timeline_event(conn, obj["object_type"], obj["id"], "document_linked", U(r"\u6587\u4ef6\u5df2\u5173\u8054"), "document #" + str(document_id), "document", document_id, {"document_id": int(document_id)}, user["id"], now)
         self.log_action(user, "object_document_link", "enterprise_object", object_id, "document " + str(document_id))
         return True, {"ok": True, "object_id": int(object_id), "document_id": int(document_id), "related_object_type": obj["object_type"]}
 
@@ -8655,7 +8884,7 @@ class App(BaseHTTPRequestHandler):
             self.card(U(r"\u5de5\u4f5c\u6d41"), U(r"\u91c7\u8d2d\u3001\u4ed8\u6b3e\u3001\u5408\u540c\u3001\u8bf7\u5047\u3001\u5185\u5bb9\u5ba1\u6838\u6d41\u7a0b\u9884\u7559\u3002"), "/workflow", "btn", True),
             self.card(U(r"\u7cfb\u7edf\u7ba1\u7406"), U(r"\u8d26\u53f7\u3001\u6743\u9650\u3001\u5ba1\u6838\u548c\u91cd\u7f6e\u5bc6\u7801\u3002"), "/admin", "btn dark", can_admin),
         ]
-        info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} ｜ {}：{} ｜ {}：{}</p></div>'.format(
+        info = '<div class="panel"><strong>{}</strong><p class="small">{}：{} · {}：{} · {}：{}</p></div>'.format(
             U(r"\u5f53\u524d\u8d26\u53f7"), T["name"], esc(user["name"]), T["store"], esc(user["store"]), T["role"], esc(ROLES.get(role, role))
         )
         primary_cards = cards[:6]
@@ -8888,7 +9117,7 @@ limit 200
             by_source = conn.execute("select coalesce(source_type,'unknown') name, count(*) c from knowledge_items group by source_type order by c desc limit 8").fetchall()
         rows = [r for r in all_rows if self.can_view_knowledge(user, r)]
         cards = "".join(
-            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div><a class='btn full' href='/knowledge/view?id={}'>{}</a></div>".format(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div><a class='btn full' href='/knowledge/view?id={}'>{}</a></div>".format(
                 esc(row["title"]),
                 esc((row["summary"] or row["ai_summary"] or U(r"\u7b49\u5f85 AI \u6458\u8981\u751f\u6210"))[:180]),
                 esc(row["source_type"]),
@@ -9289,7 +9518,7 @@ limit 200
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
-  <p class="small">{esc(row['knowledge_id'] or ('KB-' + str(row['id'])))} · {esc(row['category'])} · {esc(row['source_type'])} · {esc(row['source_ref'])}</p>
+  <p class="small">{esc(row['knowledge_id'] or ('KB-' + str(row['id'])))} 路 {esc(row['category'])} 路 {esc(row['source_type'])} 路 {esc(row['source_ref'])}</p>
   <div class="inline"><span class="pill">{esc(self.knowledge_status_text(row))}</span><span class="pill">{esc(row['visibility'])}</span><span class="pill">{esc(row['embedding_status'])}</span></div>
   <h2>{U(r'\u6458\u8981')}</h2><p>{esc(summary_text)}</p>
   <h2>{U(r'\u77e5\u8bc6\u7ba1\u7ebf')}</h2>{self.bullets(pipeline)}
@@ -9307,7 +9536,7 @@ limit 200
         answer_data = answer_data or self.build_ai_answer("", "all", [])
         citations = answer_data.get("cited_documents", [])
         citation_html = "".join(
-            "<li><a href='{}'>{}</a> <span class='small'>{} · {}</span></li>".format(esc(c["url"]), esc(c["title"]), esc(c["knowledge_id"]), esc(c["status"]))
+            "<li><a href='{}'>{}</a> <span class='small'>{} 路 {}</span></li>".format(esc(c["url"]), esc(c["title"]), esc(c["knowledge_id"]), esc(c["status"]))
             for c in citations
         )
         if not citation_html:
@@ -10047,7 +10276,7 @@ where ki.deleted_at is null"""
         default_wait = [data["empty_message"]]
         with db() as conn:
             memory_rows = conn.execute("select * from memories where status='approved' order by case importance when 'critical' then 0 when 'high' then 1 else 2 end, updated_at desc limit 6").fetchall()
-        memory_refs = [m["title"] + " · " + m["memory_type"] for m in memory_rows if self.can_view_memory(user, m)]
+        memory_refs = [m["title"] + " 路 " + m["memory_type"] for m in memory_rows if self.can_view_memory(user, m)]
         if not memory_refs:
             memory_refs = [U(r"\u6682\u65e0\u5df2\u5ba1\u6838\u8bb0\u5fc6\uff0cAI \u603b\u7ecf\u7406\u5c06\u5728\u51b3\u7b56\u548c\u539f\u5219\u5ba1\u6838\u540e\u5f15\u7528\u3002")]
         risk_items = [(i.get("title", "") + U(r"\uff1a") + i.get("text", "")) for i in smart["insights"]]
@@ -10157,9 +10386,9 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u9884\u671f\u8fd4\u70b9"), U(r"\uffe5") + money(s["expected_rebate"]), U(r"\u9700\u5ba1\u6838\u4e0d\u786e\u5b9a\u6027")),
             self.metric(U(r"\u5df2\u5230\u8fd4\u70b9"), U(r"\uffe5") + money(s["actual_rebate"]), U(r"\u4ee5\u8d22\u52a1\u786e\u8ba4\u4e3a\u51c6")),
         ])
-        profit_items = [r["object_type"] + " · " + str(r["object_id"]) + " · " + money(r["net_profit"]) for r in data["profit_records"]] or [self.finance_empty()]
-        expense_items = [r["expense_type"] + " · " + money(r["amount"]) + " · " + (r["period"] or "") for r in data["expenses"]] or [U(r"\u6682\u65e0\u8d39\u7528\u8bb0\u5f55\u3002")]
-        rebate_items = [r["brand_id"] + " · " + money(r["expected_rebate"]) + " · " + r["status"] for r in data["rebates"]] or [U(r"\u6682\u65e0\u8fd4\u70b9\u8bb0\u5f55\u3002")]
+        profit_items = [r["object_type"] + " 路 " + str(r["object_id"]) + " 路 " + money(r["net_profit"]) for r in data["profit_records"]] or [self.finance_empty()]
+        expense_items = [r["expense_type"] + " 路 " + money(r["amount"]) + " 路 " + (r["period"] or "") for r in data["expenses"]] or [U(r"\u6682\u65e0\u8d39\u7528\u8bb0\u5f55\u3002")]
+        rebate_items = [r["brand_id"] + " 路 " + money(r["expected_rebate"]) + " 路 " + r["status"] for r in data["rebates"]] or [U(r"\u6682\u65e0\u8fd4\u70b9\u8bb0\u5f55\u3002")]
         body = f"""
 <div class="panel"><h2>{U(r'\u8d22\u52a1\u4e0e\u5229\u6da6\u51b3\u7b56\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u5e2e\u8001\u677f\u770b\u6e05\u5229\u6da6\u3001\u8d39\u7528\u3001\u73b0\u91d1\u6d41\u3001\u8fd4\u70b9\u548c\u6298\u6263\u98ce\u9669\u3002\u65e0\u6570\u636e\u65f6\u53ea\u663e\u793a\u6a21\u677f\uff0c\u4e0d\u7f16\u9020\u8d22\u52a1\u7ed3\u8bba\u3002')}</p><div class="metrics">{metrics}</div></div>
 <div class="grid">
@@ -10387,9 +10616,9 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u57f9\u8bad\u8bb0\u5f55"), money(len(data["training"])), U(r"\u5458\u5de5\u6210\u957f")),
             self.metric(U(r"\u5019\u9009\u4eba"), money(data["candidate_count"]), U(r"\u62db\u8058\u6d41\u7a0b")),
         ])
-        perf_items = [r["employee_id"] + " · " + r["store_id"] + " · " + money(r["sales_amount"]) for r in data["performance"]] or [self.hr_empty()]
-        plan_items = [r["plan_name"] + " · " + (r["plan_type"] or "") + " · " + r["status"] for r in data["incentive_plans"]] or [U(r"\u6682\u65e0\u6fc0\u52b1\u65b9\u6848\u3002")]
-        training_items = [r["employee_id"] + " · " + r["training_title"] for r in data["training"]] or [U(r"\u6682\u65e0\u57f9\u8bad\u8bb0\u5f55\u3002")]
+        perf_items = [r["employee_id"] + " 路 " + r["store_id"] + " 路 " + money(r["sales_amount"]) for r in data["performance"]] or [self.hr_empty()]
+        plan_items = [r["plan_name"] + " 路 " + (r["plan_type"] or "") + " 路 " + r["status"] for r in data["incentive_plans"]] or [U(r"\u6682\u65e0\u6fc0\u52b1\u65b9\u6848\u3002")]
+        training_items = [r["employee_id"] + " 路 " + r["training_title"] for r in data["training"]] or [U(r"\u6682\u65e0\u57f9\u8bad\u8bb0\u5f55\u3002")]
         body = f"""
 <div class="panel"><h2>{U(r'\u4eba\u4e8b\u7ee9\u6548\u4e0e\u6fc0\u52b1\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ba1\u7406\u5458\u5de5\u6863\u6848\u3001\u95e8\u5e97\u7ee9\u6548\u3001\u6fc0\u52b1\u65b9\u6848\u3001\u57f9\u8bad\u6210\u957f\u548c\u62db\u8058\u8ddf\u8fdb\u3002\u4e0d\u81ea\u52a8\u751f\u6210\u6700\u7ec8\u4eba\u4e8b\u51b3\u7b56\u3002')}</p><div class="metrics">{metrics}</div></div>
 <div class="grid">
@@ -10575,9 +10804,9 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u79c1\u57df\u7fa4"), money(len(data["groups"])), U(r"\u4f01\u5fae\u9884\u7559")),
             self.metric(U(r"\u5f85\u8ddf\u8fdb"), money(len(data["followups"])), U(r"\u53ef\u8f6c\u4efb\u52a1")),
         ])
-        segment_items = [r["segment_name"] + " · " + r["priority"] + " · " + r["status"] for r in data["segments"]] or [self.customer_growth_empty()]
-        group_items = [r["group_name"] + " · " + (r["platform"] or "") + " · " + r["status"] for r in data["groups"]] or [U(r"\u6682\u65e0\u79c1\u57df\u7fa4\u3002")]
-        follow_items = [r["customer_id"] + " · " + (r["followup_type"] or "") + " · " + r["status"] for r in data["followups"]] or [U(r"\u6682\u65e0\u987e\u5ba2\u8ddf\u8fdb\u3002")]
+        segment_items = [r["segment_name"] + " 路 " + r["priority"] + " 路 " + r["status"] for r in data["segments"]] or [self.customer_growth_empty()]
+        group_items = [r["group_name"] + " 路 " + (r["platform"] or "") + " 路 " + r["status"] for r in data["groups"]] or [U(r"\u6682\u65e0\u79c1\u57df\u7fa4\u3002")]
+        follow_items = [r["customer_id"] + " 路 " + (r["followup_type"] or "") + " 路 " + r["status"] for r in data["followups"]] or [U(r"\u6682\u65e0\u987e\u5ba2\u8ddf\u8fdb\u3002")]
         body = f"""
 <div class="panel"><h2>{U(r'\u987e\u5ba2\u4f1a\u5458\u4e0e\u79c1\u57df\u589e\u957f\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ba1\u7406\u4f1a\u5458\u5206\u5c42\u3001\u987e\u5ba2\u6807\u7b7e\u3001\u79c1\u57df\u7fa4\u3001\u8ddf\u8fdb\u4efb\u52a1\u548c\u6d3b\u52a8\u9080\u7ea6\u3002\u987e\u5ba2\u9690\u79c1\u4f18\u5148\u3002')}</p><div class="metrics">{metrics}</div></div>
 <div class="grid">
@@ -10759,7 +10988,7 @@ where ki.deleted_at is null"""
             return
         if not self.can_view_system(user):
             return self.dashboard(user)
-        cards = "".join(self.card(name, key + " · healthy", route, "btn", True) for key, name, route, cat, perm in self.platform_modules())
+        cards = "".join(self.card(name, key + " 路 healthy", route, "btn", True) for key, name, route, cat, perm in self.platform_modules())
         self.out(layout(U(r"\u6a21\u5757\u5065\u5eb7"), f"<div class='grid'>{cards}</div>", user=user, wide=True))
 
     def data_readiness_payload(self):
@@ -10772,7 +11001,7 @@ where ki.deleted_at is null"""
             return
         if not self.can_view_system(user):
             return self.dashboard(user)
-        self.out(layout(U(r"\u6570\u636e\u5c31\u7eea\u5ea6"), "<div class='panel'>" + self.bullets([x["area"] + " · " + x["level"] for x in self.data_readiness_payload()]) + "</div>", user=user, wide=True))
+        self.out(layout(U(r"\u6570\u636e\u5c31\u7eea\u5ea6"), "<div class='panel'>" + self.bullets([x["area"] + " 路 " + x["level"] for x in self.data_readiness_payload()]) + "</div>", user=user, wide=True))
 
     def notification_center(self, user):
         user = self.require_login(user)
@@ -10780,7 +11009,7 @@ where ki.deleted_at is null"""
             return
         with db() as conn:
             rows = conn.execute("select * from notifications order by created_at desc limit 80").fetchall()
-        items = [r["title"] + " · " + r["status"] for r in rows] or [U(r"\u6682\u65e0\u901a\u77e5\u3002")]
+        items = [r["title"] + " 路 " + r["status"] for r in rows] or [U(r"\u6682\u65e0\u901a\u77e5\u3002")]
         self.out(layout(U(r"\u901a\u77e5\u4e2d\u5fc3"), "<div class='panel'>" + self.bullets(items) + "</div>", user=user, wide=True))
 
     def risk_center(self, user):
@@ -10791,7 +11020,7 @@ where ki.deleted_at is null"""
             return self.dashboard(user)
         with db() as conn:
             rows = conn.execute("select * from system_risks order by updated_at desc limit 80").fetchall()
-        items = [r["title"] + " · " + r["level"] + " · " + r["status"] for r in rows] or [U(r"\u6682\u65e0\u7edf\u4e00\u98ce\u9669\u8bb0\u5f55\u3002")]
+        items = [r["title"] + " 路 " + r["level"] + " 路 " + r["status"] for r in rows] or [U(r"\u6682\u65e0\u7edf\u4e00\u98ce\u9669\u8bb0\u5f55\u3002")]
         form = f"<div class='panel form'><h2>{U(r'\u65b0\u5efa\u98ce\u9669')}</h2><form method='post' action='/risks/save'><label>{U(r'\u6807\u9898')}</label><input name='title'><label>{U(r'\u7c7b\u578b')}</label><input name='risk_type'><label>{U(r'\u7b49\u7ea7')}</label><input name='level'><label>{U(r'\u5efa\u8bae')}</label><textarea name='recommended_action'></textarea><p><button>{U(r'\u4fdd\u5b58')}</button></p></form></div>"
         self.out(layout(U(r"\u98ce\u9669\u4e2d\u5fc3"), "<div class='panel'>" + self.bullets(items) + "</div>" + form, user=user, wide=True))
 
@@ -10800,10 +11029,11 @@ where ki.deleted_at is null"""
         if not user:
             return
         with db() as conn:
-            events = [row_dict(r) for r in conn.execute("select * from system_events order by created_at desc limit 80").fetchall()]
-            logs = [row_dict(r) for r in conn.execute("select * from audit_logs order by created_at desc limit 40").fetchall()] if "audit_logs" in {x[0] for x in conn.execute("select name from sqlite_master where type='table'").fetchall()} else []
-        items = [e["title"] + " · " + e["event_type"] for e in events] or [l.get("action","") + " · " + str(l.get("target_type","")) for l in logs] or [U(r"\u6682\u65e0\u5168\u5c40\u65f6\u95f4\u7ebf\u3002")]
-        self.out(layout(U(r"\u5168\u5c40\u65f6\u95f4\u7ebf"), "<div class='panel'>" + self.bullets(items) + "</div>", user=user, wide=True))
+            events = [row_dict(r) for r in conn.execute("select * from timeline_events order by coalesce(occurred_at, created_at) desc limit 120").fetchall()]
+            logs = []
+        items = ["{} / {} #{} / {} / {}".format(dt(e.get("occurred_at") or e.get("created_at")), e.get("entity_type") or e.get("target_type"), e.get("entity_id") or e.get("target_id"), e.get("event_type") or "", e.get("description") or e.get("body") or e.get("title")) for e in events] or [U(r"\u6682\u65e0\u5168\u5c40\u65f6\u95f4\u7ebf\u3002")]
+        body = "<div class='panel'><h2>Enterprise Timeline</h2><p><a class='btn dark' href='/api/timeline'>API</a></p>{}</div>".format(self.bullets(items))
+        self.out(layout(U(r"\u5168\u5c40\u65f6\u95f4\u7ebf"), body, user=user, wide=True))
 
     def risk_save(self):
         user = self.current_user()
@@ -11121,13 +11351,13 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u53ef\u8ffd\u6eaf\u5efa\u8bae"), len(data["recommendation_engine"]["recommendations"]), U(r"\u5f85\u5ba1\u6279")),
             self.metric(U(r"\u9ad8\u98ce\u9669"), U(r"\u4eba\u5de5\u5ba1\u6279"), U(r"\u4e0d\u81ea\u52a8\u6267\u884c")),
         ])
-        rec_items = [r["title"] + " · " + r["risk_level"] + " · " + ("approval" if r["approval_required"] else "no approval") for r in data["recommendation_engine"]["recommendations"]]
-        stored_items = [r["recommendation_id"] + " · " + r["title"] + " · " + r["approval_status"] for r in data["stored_recommendations"][:10]]
+        rec_items = [r["title"] + " 路 " + r["risk_level"] + " 路 " + ("approval" if r["approval_required"] else "no approval") for r in data["recommendation_engine"]["recommendations"]]
+        stored_items = [r["recommendation_id"] + " 路 " + r["title"] + " 路 " + r["approval_status"] for r in data["stored_recommendations"][:10]]
         body = f"""
 <div class="panel"><h2>Enterprise Digital Brain</h2><div class="metrics">{cards}</div>{self.bullets(data['principles'])}</div>
 <div class="split">
   <div class="panel"><h2>{U(r'\u53ef\u89e3\u91ca AI \u5efa\u8bae')}</h2>{self.bullets(rec_items)}</div>
-  <div class="panel"><h2>{U(r'\u8bc1\u636e\u94fe')}</h2>{self.bullets([x['source'] + ' · ' + x['endpoint'] for x in data['evidence_packet']['lineage']])}</div>
+  <div class="panel"><h2>{U(r'\u8bc1\u636e\u94fe')}</h2>{self.bullets([x['source'] + ' 路 ' + x['endpoint'] for x in data['evidence_packet']['lineage']])}</div>
 </div>
 <div class="panel form">
   <h2>{U(r'\u8bb0\u5f55\u6570\u5b57\u5927\u8111\u5efa\u8bae')}</h2>
@@ -11196,11 +11426,14 @@ where ki.deleted_at is null"""
             return self.json_out(self.health_payload())
         if path == "/api/system/data-readiness":
             return self.json_out({"ok": True, "readiness": self.data_readiness_payload()})
-        if path == "/api/search/global":
-            q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
-            with db() as conn:
-                rows = conn.execute("select title,summary,tags,updated_at,id from records where title like ? or summary like ? or tags like ? order by updated_at desc limit 20", (f"%{q}%", f"%{q}%", f"%{q}%")).fetchall() if q else []
-            return self.json_out({"ok": True, "query": q, "results": [{"type": "record", "title": r["title"], "summary": r["summary"], "tags": r["tags"], "updated_at": r["updated_at"], "url": "/records/view?id="+str(r["id"])} for r in rows]})
+        if path in ("/api/search", "/api/search/global"):
+            query = parse_qs(urlparse(self.path).query)
+            return self.json_out(self.global_search_results(user, query.get("q", [""])[0], query.get("type", [""])[0], query.get("category", [""])[0], module_key(query.get("object_type", [""])[0]), query.get("status", [""])[0], query.get("date_from", [""])[0], query.get("date_to", [""])[0]))
+        if path == "/api/search/suggestions":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+            payload = self.global_search_results(user, q, "", "", "", "", "", "")
+            suggestions = [{"title": item["title"], "type": item["type"], "url": item["url"]} for item in payload["results"][:8]]
+            return self.json_out({"ok": True, "query": q, "suggestions": suggestions})
         if path == "/api/workspace":
             return self.json_out(self.workspace_payload(user))
         if path == "/api/boss":
@@ -11392,7 +11625,7 @@ where ki.deleted_at is null"""
             return
         if not self.can_manage_sap_sync(user):
             return self.dashboard(user)
-        cards = "".join(self.card(p["name"], p["status"] + " · " + U(r"\u4e0b\u6b21 ") + str(p["next_run"]), p["url"], "btn", True) for p in self.data_pipeline_payload()["pipelines"])
+        cards = "".join(self.card(p["name"], p["status"] + " 路 " + U(r"\u4e0b\u6b21 ") + str(p["next_run"]), p["url"], "btn", True) for p in self.data_pipeline_payload()["pipelines"])
         self.out(layout(U(r"\u6570\u636e\u7ba1\u9053"), "<div class='grid'>" + cards + "</div>", user=user, wide=True))
 
     def api_sap_sync_get(self, user, path):
@@ -11499,7 +11732,7 @@ where ki.deleted_at is null"""
         if not user:
             return
         apps = self.os_apps_payload(user)["apps"]
-        cards = "".join(self.card(a["app_name"], a["category"] + " · " + a["permission_status"] + " · " + a["data_readiness"], a["route"] if a["permission_status"] == "allowed" else "/desktop", "btn" if a["permission_status"] == "allowed" else "btn gray", True) for a in apps)
+        cards = "".join(self.card(a["app_name"], a["category"] + " 路 " + a["permission_status"] + " 路 " + a["data_readiness"], a["route"] if a["permission_status"] == "allowed" else "/desktop", "btn" if a["permission_status"] == "allowed" else "btn gray", True) for a in apps)
         self.out(layout(U(r"\u5e94\u7528\u542f\u52a8\u5668"), "<div class='grid'>" + cards + "</div>", user=user, wide=True))
 
     def os_work_queue_payload(self, user):
@@ -11880,8 +12113,8 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u9ad8\u98ce\u9669"), data["summary"]["high_risk_manual"], U(r"\u4e0d\u81ea\u52a8\u6267\u884c")),
             self.metric(U(r"\u53cd\u9988"), data["summary"]["feedback_items"], U(r"\u95ed\u73af")),
         ])
-        plans = [p["plan_id"] + " · " + p["title"] + " · " + p["risk_level"] + " · " + p["approval_status"] + " · " + p["execution_status"] for p in data["plans"][:12]]
-        body = f"<div class='panel'><h2>AI Operations Center</h2><div class='metrics'>{metrics}</div>{self.bullets([data['safety_rule']])}</div><div class='split'><div class='panel'><h2>{U(r'\u8fd0\u8425\u8ba1\u5212')}</h2>{self.bullets(plans or [U(r'\u6682\u65e0 AI \u8fd0\u8425\u8ba1\u5212\u3002')])}<p><a class='btn dark' href='/ai-task-planner'>AI Task Planner</a></p></div><div class='panel'><h2>{U(r'\u53cd\u9988\u95ed\u73af')}</h2>{self.bullets([f.get('feedback_id','') + ' · ' + f.get('outcome','') for f in data['feedback'][:8]] or [U(r'\u6682\u65e0\u4e1a\u52a1\u53cd\u9988\u3002')])}</div></div>"
+        plans = [p["plan_id"] + " 路 " + p["title"] + " 路 " + p["risk_level"] + " 路 " + p["approval_status"] + " 路 " + p["execution_status"] for p in data["plans"][:12]]
+        body = f"<div class='panel'><h2>AI Operations Center</h2><div class='metrics'>{metrics}</div>{self.bullets([data['safety_rule']])}</div><div class='split'><div class='panel'><h2>{U(r'\u8fd0\u8425\u8ba1\u5212')}</h2>{self.bullets(plans or [U(r'\u6682\u65e0 AI \u8fd0\u8425\u8ba1\u5212\u3002')])}<p><a class='btn dark' href='/ai-task-planner'>AI Task Planner</a></p></div><div class='panel'><h2>{U(r'\u53cd\u9988\u95ed\u73af')}</h2>{self.bullets([f.get('feedback_id','') + ' 路 ' + f.get('outcome','') for f in data['feedback'][:8]] or [U(r'\u6682\u65e0\u4e1a\u52a1\u53cd\u9988\u3002')])}</div></div>"
         self.out(layout("AI Operations Center", body, user=user, wide=True))
 
     def auto_operation_payload(self, user):
@@ -11994,7 +12227,7 @@ where ki.deleted_at is null"""
         if not user:
             return
         data = self.ai_task_planner_payload(user)
-        steps = [s["title"] + " · " + s["risk_level"] + " · " + s["execution_rule"] for s in data["steps"]]
+        steps = [s["title"] + " 路 " + s["risk_level"] + " 路 " + s["execution_rule"] for s in data["steps"]]
         form = f"""
 <form method="post" action="/api/ai-task-planner/plans">
   <label>{U(r'\u76ee\u6807')}</label><input name="objective" value="{esc(data['objective'])}">
@@ -12010,14 +12243,14 @@ where ki.deleted_at is null"""
         if not user:
             return
         data = self.os_work_queue_payload(user)
-        self.out(layout(U(r"\u5de5\u4f5c\u961f\u5217"), "<div class='panel'>" + self.bullets([i["item_type"] + " · " + i["title"] + " · " + i["status"] for i in data["items"]] or [data["empty_message"]]) + "</div>", user=user, wide=True))
+        self.out(layout(U(r"\u5de5\u4f5c\u961f\u5217"), "<div class='panel'>" + self.bullets([i["item_type"] + " 路 " + i["title"] + " 路 " + i["status"] for i in data["items"]] or [data["empty_message"]]) + "</div>", user=user, wide=True))
 
     def approvals_page(self, user):
         user = self.require_login(user)
         if not user:
             return
         data = self.os_approvals_payload(user)
-        self.out(layout(U(r"\u5ba1\u6279\u6536\u4ef6\u7bb1"), "<div class='panel'>" + self.bullets([i["type"] + " · " + i["title"] + " · " + i["status"] for i in data["approvals"]] or [U(r"\u6682\u65e0\u5f85\u5ba1\u6279\u4e8b\u9879\u3002")]) + "</div>", user=user, wide=True))
+        self.out(layout(U(r"\u5ba1\u6279\u6536\u4ef6\u7bb1"), "<div class='panel'>" + self.bullets([i["type"] + " 路 " + i["title"] + " 路 " + i["status"] for i in data["approvals"]] or [U(r"\u6682\u65e0\u5f85\u5ba1\u6279\u4e8b\u9879\u3002")]) + "</div>", user=user, wide=True))
 
     def system_upgrade_page(self, user):
         user = self.require_login(user)
@@ -12213,9 +12446,9 @@ where ki.deleted_at is null"""
             rows = conn.execute("select * from tasks order by status='done', updated_at desc limit 100").fetchall()
         cards = ""
         for row in rows:
-            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {} · {}</p></div>{}</div>".format(
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {} 路 {}</p></div>{}</div>".format(
                 esc(row["title"]), esc(row["description"]), esc(row["owner"]), esc(row["priority"]), esc(row["status"]), esc(row["due_date"]),
-                "" if row["status"] == "done" else f"<form method='post' action='/tasks/complete'><input type='hidden' name='id' value='{row['id']}'><button>{U(r'完成')}</button></form>"
+                "" if row["status"] == "done" else f"<form method='post' action='/tasks/complete'><input type='hidden' name='id' value='{row['id']}'><button>{U(r'瀹屾垚')}</button></form>"
             )
         if not cards:
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u4efb\u52a1\uff0c\u53ef\u4ece AI \u5efa\u8bae\u6216\u65e5\u5e38\u7ecf\u8425\u4e2d\u521b\u5efa\u3002")))
@@ -12509,13 +12742,13 @@ where ki.deleted_at is null"""
             ]
         )
         template_cards = "".join(
-            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {}</p></div><span class='pill'>{}</span></div>".format(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {}</p></div><span class='pill'>{}</span></div>".format(
                 esc(t["name"]), esc(t["description"]), esc(t["trigger_type"]), esc(t["owner"]), esc(t["status"])
             )
             for t in data["templates"][:10]
         )
         automation_cards = "".join(
-            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div><span class='pill'>{}</span></div>".format(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div><span class='pill'>{}</span></div>".format(
                 esc(a["name"]), esc(a["description"]), esc(a["trigger_type"]), esc(a["action_type"]), esc(a["owner"]), esc(a["status"])
             )
             for a in data["automations"][:10]
@@ -12547,8 +12780,8 @@ where ki.deleted_at is null"""
 </div>
 <div class="panel"><h2>{U(r'\u5de5\u4f5c\u6d41\u6a21\u677f')}</h2><div class="grid">{template_cards}</div></div>
 <div class="panel"><h2>{U(r'\u81ea\u52a8\u5316\u4efb\u52a1')}</h2><div class="grid">{automation_cards}</div></div>
-<div class="panel"><h2>{U(r'\u6267\u884c\u5386\u53f2')}</h2>{self.bullets([dt(r['created_at']) + ' · ' + r['status'] + ' · ' + (r['message'] or '') for r in data['runs']] or [U(r'\u6682\u65e0\u6267\u884c\u8bb0\u5f55\u3002')])}</div>
-<div class="panel"><h2>{U(r'\u901a\u77e5\u4e2d\u5fc3')}</h2>{self.bullets([n['channel'] + ' · ' + n['title'] + ' · ' + n['status'] for n in data['notifications']] or [U(r'\u6682\u65e0\u901a\u77e5\u3002')])}</div>"""
+<div class="panel"><h2>{U(r'\u6267\u884c\u5386\u53f2')}</h2>{self.bullets([dt(r['created_at']) + ' 路 ' + r['status'] + ' 路 ' + (r['message'] or '') for r in data['runs']] or [U(r'\u6682\u65e0\u6267\u884c\u8bb0\u5f55\u3002')])}</div>
+<div class="panel"><h2>{U(r'\u901a\u77e5\u4e2d\u5fc3')}</h2>{self.bullets([n['channel'] + ' 路 ' + n['title'] + ' 路 ' + n['status'] for n in data['notifications']] or [U(r'\u6682\u65e0\u901a\u77e5\u3002')])}</div>"""
         self.out(layout(U(r"AI \u81ea\u52a8\u5316\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def automation_save(self):
@@ -12827,14 +13060,14 @@ where ki.deleted_at is null"""
         for row in rows:
             action = ""
             if self.can_approve_memory(user) and row["status"] == "pending_review":
-                action = f"<form method='post' action='/memory/action'><input type='hidden' name='id' value='{row['id']}'><button name='action' value='approve'>{U(r'审核通过')}</button><button class='gray' name='action' value='reject'>{U(r'拒绝')}</button></form>"
-            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {} · {}</p></div><a class='btn full' href='/memory/view?id={}'>{}</a>{}</div>".format(
-                esc(row["title"]), esc(summarize_text(row["content"], 160)), esc(row["memory_type"]), esc(row["importance"]), esc(row["status"]), esc(dt(row["updated_at"])), row["id"], U(r"查看"), action
+                action = f"<form method='post' action='/memory/action'><input type='hidden' name='id' value='{row['id']}'><button name='action' value='approve'>{U(r'瀹℃牳閫氳繃')}</button><button class='gray' name='action' value='reject'>{U(r'鎷掔粷')}</button></form>"
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {} 路 {}</p></div><a class='btn full' href='/memory/view?id={}'>{}</a>{}</div>".format(
+                esc(row["title"]), esc(summarize_text(row["content"], 160)), esc(row["memory_type"]), esc(row["importance"]), esc(row["status"]), esc(dt(row["updated_at"])), row["id"], U(r"鏌ョ湅"), action
             )
         if not cards:
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u8bb0\u5fc6\uff0cAI \u6216\u7ba1\u7406\u8005\u53ef\u5148\u521b\u5efa\u5f85\u5ba1\u6838\u8bb0\u5fc6\u3002")))
         pref_items = [f"{p['key']}: {p['value']} ({p['scope']})" for p in prefs] or [U(r"\u6682\u65e0\u504f\u597d\u8bbe\u7f6e\u3002")]
-        decision_items = [d["decision_title"] + " · " + (d["decision_date"] or "") for d in decisions] or [U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")]
+        decision_items = [d["decision_title"] + " 路 " + (d["decision_date"] or "") for d in decisions] or [U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")]
         body = f"""
 <div class="panel">
   <h2>{U(r'AI \u8bb0\u5fc6\u4e2d\u5fc3')}</h2>
@@ -12888,7 +13121,7 @@ where ki.deleted_at is null"""
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
-  <p class="small">{esc(row['memory_id'])} · {esc(row['memory_type'])} · {esc(row['importance'])} · {esc(row['confidence'])} · {esc(row['status'])}</p>
+  <p class="small">{esc(row['memory_id'])} 路 {esc(row['memory_type'])} 路 {esc(row['importance'])} 路 {esc(row['confidence'])} 路 {esc(row['status'])}</p>
   <p>{esc(row['content'])}</p>
   <h2>{U(r'\u5173\u8054\u5bf9\u8c61')}</h2><p>{esc(row['object_type'] or U(r'\u6682\u65e0'))} {esc(row['object_id'] or '')}</p>
   <p><a class="btn gray" href="/memory">{U(r'\u8fd4\u56de')}</a></p>
@@ -12957,7 +13190,7 @@ where ki.deleted_at is null"""
             return self.dashboard(user)
         with db() as conn:
             rows = conn.execute("select * from decision_memories order by updated_at desc limit 50").fetchall()
-        cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {}</p></div></div>".format(esc(r["decision_title"]), esc(r["reason"]), esc(r["owner"]), esc(r["decision_date"])) for r in rows)
+        cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {}</p></div></div>".format(esc(r["decision_title"]), esc(r["reason"]), esc(r["owner"]), esc(r["decision_date"])) for r in rows)
         if not cards:
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")))
         body = f"""
@@ -13200,14 +13433,14 @@ where ki.deleted_at is null"""
             connected = 0
             with db() as conn:
                 connected = conn.execute("select count(*) c from relations where (source_entity_type=? and source_entity_id=?) or (target_entity_type=? and target_entity_id=?) or (from_type=? and from_id=?) or (to_type=? and to_id=?)", (e["entity_type"], e["id"], e["entity_type"], e["id"], e["entity_type"], e["id"], e["entity_type"], e["id"])).fetchone()["c"]
-            entity_cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} connections</p></div><a class='btn full' href='/api/graph/entity-network?id={}'>{}</a></div>".format(esc(e["entity_name"]), esc(e["description"]), esc(e["entity_type"]), connected, e["id"], U(r"查看网络 JSON"))
+            entity_cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} connections</p></div><a class='btn full' href='/api/graph/entity-network?id={}'>{}</a></div>".format(esc(e["entity_name"]), esc(e["description"]), esc(e["entity_type"]), connected, e["id"], U(r"鏌ョ湅缃戠粶 JSON"))
         if not entity_cards:
             entity_cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u56fe\u8c31\u5b9e\u4f53\uff0c\u53ef\u5148\u8fd0\u884c\u89c4\u5219\u62bd\u53d6\u3002")))
         rel_items = []
         for r in data["relationships"][:12]:
             rel = self.relationship_to_json(r)
             rel_items.append(f"{rel.get('source_entity_type')} #{rel.get('source_entity_id')} -> {rel.get('target_entity_type')} #{rel.get('target_entity_id')} / {rel.get('relationship_type') or rel.get('relation_type')}")
-        risk_items = [f"{r['title']} · {r['risk_type']} · {r['level']}" for r in data["risks"][:10]] or [U(r"\u6682\u65e0\u98ce\u9669\u8bb0\u5f55\uff0c\u4e0d\u4f1a\u4f2a\u9020\u98ce\u9669\u503c\u3002")]
+        risk_items = [f"{r['title']} 路 {r['risk_type']} 路 {r['level']}" for r in data["risks"][:10]] or [U(r"\u6682\u65e0\u98ce\u9669\u8bb0\u5f55\uff0c\u4e0d\u4f1a\u4f2a\u9020\u98ce\u9669\u503c\u3002")]
         type_pills = "".join("<span class='pill'>{} {}</span>".format(esc(r["entity_type"]), r["c"]) for r in data["by_type"])
         body = f"""
 <div class="panel">
@@ -13484,11 +13717,11 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u7ee9\u6548\u8bb0\u5f55"), len(data["performance"]["records"]), U(r"\u53ef\u8ffd\u8e2a")),
         ])
         employee_items = [
-            e["digital_employee_id"] + " · " + e["agent_name"] + " · " + e["role_level"] + " · " + e["approval_rule"]
+            e["digital_employee_id"] + " 路 " + e["agent_name"] + " 路 " + e["role_level"] + " 路 " + e["approval_rule"]
             for e in data["employees"]
         ]
         high_risk_items = [
-            h["agent_name"] + " · " + h["tool_name"] + " · " + h["risk_level"] + " · approval_required"
+            h["agent_name"] + " 路 " + h["tool_name"] + " 路 " + h["risk_level"] + " 路 approval_required"
             for h in data["high_risk_tool_controls"][:12]
         ]
         body = f"""
@@ -13740,13 +13973,13 @@ where ki.deleted_at is null"""
             for r in data["roles"]
         )
         task_cards = "".join(
-            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div></div>".format(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div></div>".format(
                 esc(t["title"]), esc(t["description"]), esc(t["status"]), esc(t["priority"]), esc(t["human_review_status"])
             )
             for t in data["tasks"][:8]
         ) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u667a\u80fd\u4f53\u4efb\u52a1\u3002")))
-        discussion_items = [d["topic"] + " · " + d["human_review_status"] for d in data["discussions"]] or [U(r"\u6682\u65e0\u667a\u80fd\u4f53\u8ba8\u8bba\u3002")]
-        tool_items = [t["tool_name"] + " · " + t["permission_required"] for t in data["tools"]]
+        discussion_items = [d["topic"] + " 路 " + d["human_review_status"] for d in data["discussions"]] or [U(r"\u6682\u65e0\u667a\u80fd\u4f53\u8ba8\u8bba\u3002")]
+        tool_items = [t["tool_name"] + " 路 " + t["permission_required"] for t in data["tools"]]
         body = f"""
 <div class="panel">
   <h2>{U(r'\u591a\u667a\u80fd\u4f53\u534f\u540c\u4e2d\u5fc3')}</h2>
@@ -14005,7 +14238,7 @@ where ki.deleted_at is null"""
     <h2>{U(r'\u521b\u5efa\u5f85\u5ba1\u6279\u667a\u80fd\u4f53\u8ba1\u5212')}</h2>
     <form method="post" action="/api/agents/v1.2/plan">
       <label>{U(r'\u667a\u80fd\u4f53\u7c7b\u578b')}</label><select name="domain">{options}</select>
-      <label>{U(r'\u76ee\u6807')}</label><textarea name="objective" placeholder="例如：分析本周库存风险并提出补货建议" required></textarea>
+      <label>{U(r'\u76ee\u6807')}</label><textarea name="objective" placeholder="渚嬪锛氬垎鏋愭湰鍛ㄥ簱瀛橀闄╁苟鎻愬嚭琛ヨ揣寤鸿" required></textarea>
       <p><button>{U(r'\u63d0\u4ea4\u5ba1\u6279\u8ba1\u5212')}</button></p>
     </form>
   </div>
@@ -16534,9 +16767,9 @@ where ki.deleted_at is null"""
             self.card(U(r"AI \u95ee\u7b54"), U(r"\u624b\u673a\u76f4\u63a5\u95ee Jarvis\uff0c\u67e5\u77e5\u8bc6\u3001\u4efb\u52a1\u548c\u95e8\u5e97\u6267\u884c\u3002"), "/jarvis", "btn", True),
             self.card(U(r"\u6211\u7684\u63d0\u4ea4"), U(r"\u67e5\u770b\u81ea\u5df1\u63d0\u4ea4\u7684\u95e8\u5e97\u8bb0\u5f55\u3001\u987e\u5ba2\u53cd\u9988\u548c\u5e93\u5b58\u95ee\u9898\u3002"), "#my-submissions", "btn orange", True),
         ])
-        task_items = [t["title"] + " · " + t["status"] for t in tasks] or [U(r"\u6682\u65e0\u672a\u5b8c\u6210\u4efb\u52a1\u3002")]
-        notice_items = [n["title"] + " · " + n["status"] for n in notices] or [U(r"\u6682\u65e0\u901a\u77e5\u3002")]
-        sub_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {}</p></div></div>".format(esc(s["title"]), esc(summarize_text(s["content"], 120)), esc(s["submission_type"]), esc(s["status"])) for s in my) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u63d0\u4ea4\u3002")))
+        task_items = [t["title"] + " 路 " + t["status"] for t in tasks] or [U(r"\u6682\u65e0\u672a\u5b8c\u6210\u4efb\u52a1\u3002")]
+        notice_items = [n["title"] + " 路 " + n["status"] for n in notices] or [U(r"\u6682\u65e0\u901a\u77e5\u3002")]
+        sub_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {}</p></div></div>".format(esc(s["title"]), esc(summarize_text(s["content"], 120)), esc(s["submission_type"]), esc(s["status"])) for s in my) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u63d0\u4ea4\u3002")))
         body = f"""
 <div class="panel"><h2>{U(r'\u624b\u673a\u4e00\u7ebf\u8fd0\u8425\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ed9\u95e8\u5e97\u5458\u5de5\u7528\uff1a\u62cd\u7167\u3001\u8bb0\u5f55\u3001\u53cd\u9988\u3001\u63d0\u4ea4\u95ee\u9898\u3001\u5b8c\u6210\u4efb\u52a1\u3002')}</p></div>
 <div class="grid">{quick_cards}</div>
@@ -16595,7 +16828,7 @@ where ki.deleted_at is null"""
   <label>{U(r'\u7ed3\u679c\u7167\u7247')}</label><input name="photos" type="file" accept="image/*" multiple>
   <p><button>{U(r'\u6807\u8bb0\u5b8c\u6210')}</button></p>
 </form>"""
-            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div>{}</div>".format(esc(row["title"]), esc(row["description"]), esc(row["priority"]), esc(row["status"]), esc(row["due_date"]), action)
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div>{}</div>".format(esc(row["title"]), esc(row["description"]), esc(row["priority"]), esc(row["status"]), esc(row["due_date"]), action)
         if not cards:
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u4efb\u52a1\u3002")))
         self.out(layout(U(r"\u624b\u673a\u4efb\u52a1"), "<div class='panel'><h2>{}</h2><p class='small'>{}</p></div><div class='grid'>{}</div>".format(U(r"\u6211\u7684\u4efb\u52a1"), U(r"\u5458\u5de5\u53ef\u4ee5\u624b\u673a\u5b8c\u6210\u4efb\u52a1\u5e76\u4e0a\u4f20\u7ed3\u679c\u7167\u7247\u3002"), cards), user=user, wide=True))
@@ -16626,7 +16859,7 @@ where ki.deleted_at is null"""
         for r in rows:
             cards += """
 <div class="card">
-  <div><h2>{}</h2><p>{}</p><p class="small">{} · {} · {}</p></div>
+  <div><h2>{}</h2><p>{}</p><p class="small">{} 路 {} 路 {}</p></div>
   <div class="inline">
     <form method="post" action="/api/mobile/submissions/{}/approve"><button class="green">{}</button></form>
     <form method="post" action="/api/mobile/submissions/{}/reject"><button class="gray">{}</button></form>
@@ -16772,11 +17005,11 @@ where ki.deleted_at is null"""
             focus = conn.execute("select * from store_focus_items order by updated_at desc limit 30").fetchall()
             field_counts = conn.execute("select status,count(*) c from field_submissions group by status").fetchall()
         store_options = "".join("<option value='{}'>{}</option>".format(esc(s), esc(s)) for s in self.store_growth_stores())
-        plan_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div><form method='post' action='/api/store-growth/plans/{}/create-tasks'><button>{}</button></form></div>".format(esc(p["title"]), esc(p["goal"]), esc(p["store_id"]), esc(p["owner"]), esc(p["status"]), p["id"], U(r"\u751f\u6210\u4efb\u52a1")) for p in plans) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u589e\u957f\u8ba1\u5212\u3002")))
-        activity_items = [a["store_id"] + " · " + a["title"] + " · " + a["status"] for a in activities] or [U(r"\u6682\u65e0\u95e8\u5e97\u6d3b\u52a8\u3002")]
-        focus_items = [f["store_id"] + " · " + (f["brand_id"] or "") + " · " + (f["product_id"] or "") + " · " + f["status"] for f in focus] or [U(r"\u6682\u65e0\u4e3b\u63a8\u54c1\u724c/\u4ea7\u54c1\u3002")]
+        plan_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div><form method='post' action='/api/store-growth/plans/{}/create-tasks'><button>{}</button></form></div>".format(esc(p["title"]), esc(p["goal"]), esc(p["store_id"]), esc(p["owner"]), esc(p["status"]), p["id"], U(r"\u751f\u6210\u4efb\u52a1")) for p in plans) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u589e\u957f\u8ba1\u5212\u3002")))
+        activity_items = [a["store_id"] + " 路 " + a["title"] + " 路 " + a["status"] for a in activities] or [U(r"\u6682\u65e0\u95e8\u5e97\u6d3b\u52a8\u3002")]
+        focus_items = [f["store_id"] + " 路 " + (f["brand_id"] or "") + " 路 " + (f["product_id"] or "") + " 路 " + f["status"] for f in focus] or [U(r"\u6682\u65e0\u4e3b\u63a8\u54c1\u724c/\u4ea7\u54c1\u3002")]
         field_items = [r["status"] + ": " + str(r["c"]) for r in field_counts] or [U(r"\u6682\u65e0\u4e00\u7ebf\u63d0\u4ea4\u6570\u636e\u3002")]
-        diag_items = [d["store_id"] + " · " + d["status"] + " · " + dt(d["updated_at"]) for d in diagnoses] or [U(r"\u6682\u65e0\u95e8\u5e97\u8bca\u65ad\u3002")]
+        diag_items = [d["store_id"] + " 路 " + d["status"] + " 路 " + dt(d["updated_at"]) for d in diagnoses] or [U(r"\u6682\u65e0\u95e8\u5e97\u8bca\u65ad\u3002")]
         body = f"""
 <div class="panel">
   <h2>{U(r'\u95e8\u5e97\u589e\u957f\u5f15\u64ce')}</h2>
@@ -16878,7 +17111,7 @@ where ki.deleted_at is null"""
             for action in actions[:12]:
                 cur = conn.execute(
                     "insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    ("TASK-" + uuid.uuid4().hex[:10], action, plan["store_id"] + " · " + plan["title"], plan["owner"], "store_growth_plan", plan["id"], "normal", "todo", plan["end_date"] or "", "store_growth", plan["growth_plan_id"], user["id"], now, now),
+                    ("TASK-" + uuid.uuid4().hex[:10], action, plan["store_id"] + " 路 " + plan["title"], plan["owner"], "store_growth_plan", plan["id"], "normal", "todo", plan["end_date"] or "", "store_growth", plan["growth_plan_id"], user["id"], now, now),
                 )
                 created.append(cur.lastrowid)
             conn.execute("update store_growth_plans set status='active', updated_at=? where id=?", (now, plan_id))
@@ -17011,11 +17244,11 @@ where ki.deleted_at is null"""
             risks = conn.execute("select * from supplier_brand_risks order by updated_at desc limit 30").fetchall()
         brand_opts = "".join("<option value='{}'>{}</option>".format(esc(b), esc(b)) for b in self.brand_growth_brands())
         role_opts = "".join("<option value='{}'>{}</option>".format(esc(r), esc(r)) for r in self.brand_roles())
-        strategy_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} · {} · {}</p></div></div>".format(esc(s["strategy_title"]), esc(s["growth_goal"]), esc(s["brand_id"]), esc(s["brand_role"]), esc(s["status"])) for s in strategies) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u54c1\u724c\u7b56\u7565\u3002")))
-        diag_items = [d["brand_id"] + " · " + d["status"] + " · " + dt(d["updated_at"]) for d in diagnoses] or [U(r"\u6682\u65e0\u54c1\u724c\u8bca\u65ad\u3002")]
-        portfolio_items = [p["brand_id"] + " · " + (p["product_id"] or "") + " · " + (p["product_role"] or "") + " · " + p["status"] for p in portfolios] or [U(r"\u6682\u65e0\u4ea7\u54c1\u7ec4\u5408\u3002")]
-        pricing_items = [p["brand_id"] + " · " + (p["normal_discount"] or "") + " · " + (p["minimum_allowed_discount"] or "") + " · " + p["status"] for p in pricing] or [U(r"\u6682\u65e0\u5b9a\u4ef7\u7b56\u7565\u3002")]
-        risk_items = [r["brand_id"] + " · " + (r["rebate_uncertainty"] or "") + " · " + r["status"] for r in risks] or [U(r"\u6682\u65e0\u4f9b\u5e94\u5546\u4e0e\u8fd4\u70b9\u98ce\u9669\u3002")]
+        strategy_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div></div>".format(esc(s["strategy_title"]), esc(s["growth_goal"]), esc(s["brand_id"]), esc(s["brand_role"]), esc(s["status"])) for s in strategies) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u54c1\u724c\u7b56\u7565\u3002")))
+        diag_items = [d["brand_id"] + " 路 " + d["status"] + " 路 " + dt(d["updated_at"]) for d in diagnoses] or [U(r"\u6682\u65e0\u54c1\u724c\u8bca\u65ad\u3002")]
+        portfolio_items = [p["brand_id"] + " 路 " + (p["product_id"] or "") + " 路 " + (p["product_role"] or "") + " 路 " + p["status"] for p in portfolios] or [U(r"\u6682\u65e0\u4ea7\u54c1\u7ec4\u5408\u3002")]
+        pricing_items = [p["brand_id"] + " 路 " + (p["normal_discount"] or "") + " 路 " + (p["minimum_allowed_discount"] or "") + " 路 " + p["status"] for p in pricing] or [U(r"\u6682\u65e0\u5b9a\u4ef7\u7b56\u7565\u3002")]
+        risk_items = [r["brand_id"] + " 路 " + (r["rebate_uncertainty"] or "") + " 路 " + r["status"] for r in risks] or [U(r"\u6682\u65e0\u4f9b\u5e94\u5546\u4e0e\u8fd4\u70b9\u98ce\u9669\u3002")]
         body = f"""
 <div class="panel"><h2>{U(r'\u54c1\u724c\u589e\u957f + \u4ea7\u54c1\u7ec4\u5408\u5f15\u64ce')}</h2><p class="small">{U(r'\u7528\u4e8e\u533a\u5206\u54c1\u724c\u89d2\u8272\u3001\u4ea7\u54c1\u89d2\u8272\u3001\u5b9a\u4ef7\u98ce\u9669\u3001\u5e93\u5b58\u538b\u529b\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u3002\u6ca1\u6709\u771f\u5b9e\u6570\u636e\u65f6\u53ea\u663e\u793a\u6846\u67b6\u3002')}</p></div>
 <div class="split">
@@ -17101,7 +17334,7 @@ where ki.deleted_at is null"""
         ids = []
         with db() as conn:
             for action in actions[:10]:
-                cur = conn.execute("insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("TASK-" + uuid.uuid4().hex[:10], action, brand + " · " + U(r"\u54c1\u724c\u589e\u957f\u4efb\u52a1"), form.get("owner", user["name"]), "brand_growth", None, "normal", "todo", form.get("due_date", ""), "brand_growth", brand, user["id"], now, now))
+                cur = conn.execute("insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ("TASK-" + uuid.uuid4().hex[:10], action, brand + " 路 " + U(r"\u54c1\u724c\u589e\u957f\u4efb\u52a1"), form.get("owner", user["name"]), "brand_growth", None, "normal", "todo", form.get("due_date", ""), "brand_growth", brand, user["id"], now, now))
                 ids.append(cur.lastrowid)
         self.log_action(user, "brand_task_generated", "brand_growth", None, brand)
         return {"ok": True, "task_ids": ids}, 200
@@ -17166,12 +17399,12 @@ where ki.deleted_at is null"""
             markdowns = conn.execute("select * from markdown_suggestions order by created_at desc limit 30").fetchall()
             futures = conn.execute("select * from future_orders order by created_at desc limit 30").fetchall()
             purchases = conn.execute("select * from purchasing_plans order by created_at desc limit 30").fetchall()
-        risk_items = [r["brand_id"] + " · " + (r["risk_type"] or "") + " · " + (r["risk_level"] or "") for r in risks] or [self.inventory_decision_empty()]
-        replen_items = [r["store_id"] + " · " + r["brand_id"] + " · " + (r["suggested_quantity"] or "") + " · " + r["status"] for r in replenishment] or [U(r"\u6682\u65e0\u8865\u8d27\u5efa\u8bae\u3002")]
-        transfer_items = [t["from_store_id"] + " -> " + t["to_store_id"] + " · " + t["brand_id"] + " · " + t["status"] for t in transfers] or [U(r"\u6682\u65e0\u8c03\u8d27\u5efa\u8bae\u3002")]
-        markdown_items = [m["brand_id"] + " · " + (m["suggested_discount"] or "") + " · " + m["approval_status"] for m in markdowns] or [U(r"\u6682\u65e0\u964d\u4ef7/\u6e05\u8d27\u5efa\u8bae\u3002")]
-        future_items = [f["brand_id"] + " · " + (f["season"] or "") + " · " + f["decision_status"] for f in futures] or [U(r"\u6682\u65e0\u671f\u8d27\u51b3\u7b56\u8bb0\u5f55\u3002")]
-        purchase_items = [p["title"] + " · " + (p["brand_id"] or "") + " · " + p["status"] for p in purchases] or [U(r"\u6682\u65e0\u91c7\u8d2d\u8ba1\u5212\u3002")]
+        risk_items = [r["brand_id"] + " 路 " + (r["risk_type"] or "") + " 路 " + (r["risk_level"] or "") for r in risks] or [self.inventory_decision_empty()]
+        replen_items = [r["store_id"] + " 路 " + r["brand_id"] + " 路 " + (r["suggested_quantity"] or "") + " 路 " + r["status"] for r in replenishment] or [U(r"\u6682\u65e0\u8865\u8d27\u5efa\u8bae\u3002")]
+        transfer_items = [t["from_store_id"] + " -> " + t["to_store_id"] + " 路 " + t["brand_id"] + " 路 " + t["status"] for t in transfers] or [U(r"\u6682\u65e0\u8c03\u8d27\u5efa\u8bae\u3002")]
+        markdown_items = [m["brand_id"] + " 路 " + (m["suggested_discount"] or "") + " 路 " + m["approval_status"] for m in markdowns] or [U(r"\u6682\u65e0\u964d\u4ef7/\u6e05\u8d27\u5efa\u8bae\u3002")]
+        future_items = [f["brand_id"] + " 路 " + (f["season"] or "") + " 路 " + f["decision_status"] for f in futures] or [U(r"\u6682\u65e0\u671f\u8d27\u51b3\u7b56\u8bb0\u5f55\u3002")]
+        purchase_items = [p["title"] + " 路 " + (p["brand_id"] or "") + " 路 " + p["status"] for p in purchases] or [U(r"\u6682\u65e0\u91c7\u8d2d\u8ba1\u5212\u3002")]
         body = f"""
 <div class="panel"><h2>{U(r'\u5e93\u5b58\u91c7\u8d2d\u51b3\u7b56\u5f15\u64ce')}</h2><p class="small">{U(r'\u7528\u4e8e\u8865\u8d27\u3001\u8c03\u8d27\u3001\u964d\u4ef7\u3001\u6e05\u8d27\u3001\u671f\u8d27\u548c\u91c7\u8d2d\u51b3\u7b56\u3002\u4e0d\u81ea\u52a8\u751f\u6210\u91c7\u8d2d\u5355\u6216\u6539\u4ef7\u3002')}</p></div>
 <div class="grid">
@@ -17327,13 +17560,13 @@ where ki.deleted_at is null"""
         counts = {status: len([d for d in drafts if d["status"] == status]) for status in ("draft", "pending_review", "approved", "scheduled", "published")}
         cards = ""
         for d in drafts:
-            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div><div class='inline'><form method='post' action='/api/content/{}/generate'><button>{}</button></form><form method='post' action='/api/content/{}/submit-review'><button class='orange'>{}</button></form><form method='post' action='/api/content/{}/approve'><button class='green'>{}</button></form></div></div>".format(
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 璺?{} 璺?{}</p></div><div class='inline'><form method='post' action='/api/content/{}/generate'><button>{}</button></form><form method='post' action='/api/content/{}/submit-review'><button class='orange'>{}</button></form><form method='post' action='/api/content/{}/approve'><button class='green'>{}</button></form></div></div>".format(
                 esc(d["title"]), esc(summarize_text(d["summary"] or d["body"], 130)), esc(d["content_type"]), esc(d["target_platforms"]), esc(d["status"]), d["id"], U(r"\u751f\u6210"), d["id"], U(r"\u63d0\u5ba1"), d["id"], U(r"\u901a\u8fc7")
             )
         if not cards:
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u5185\u5bb9\u8349\u7a3f\uff0c\u53ef\u5148\u4ece\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u95e8\u5e97\u6545\u4e8b\u521b\u5efa\u3002")))
-        campaign_items = [c["campaign_name"] + " 路 " + (c["campaign_type"] or "") + " 路 " + c["status"] for c in campaigns] or [U(r"\u6682\u65e0\u6d3b\u52a8\u3002")]
-        queue_items = [q["platform"] + " 路 " + q["status"] for q in queue] or [U(r"\u53d1\u5e03\u63a5\u53e3\u9884\u7559\uff0c\u5f53\u524d\u4ec5\u652f\u6301\u8349\u7a3f\u4e0e\u5bfc\u51fa\u3002")]
+        campaign_items = [c["campaign_name"] + " 璺?" + (c["campaign_type"] or "") + " 璺?" + c["status"] for c in campaigns] or [U(r"\u6682\u65e0\u6d3b\u52a8\u3002")]
+        queue_items = [q["platform"] + " 璺?" + q["status"] for q in queue] or [U(r"\u53d1\u5e03\u63a5\u53e3\u9884\u7559\uff0c\u5f53\u524d\u4ec5\u652f\u6301\u8349\u7a3f\u4e0e\u5bfc\u51fa\u3002")]
         body = f"""
 <div class="panel">
   <h2>{U(r'\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce')}</h2>
@@ -17561,13 +17794,13 @@ where ki.deleted_at is null"""
         template_options = "".join("<option value='{}'>{}</option>".format(esc(t["report_type"]), esc(t["template_name"])) for t in templates)
         report_cards = ""
         for r in reports:
-            report_cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div><div class='inline'><form method='post' action='/api/reports/{}/generate'><button>{}</button></form><form method='post' action='/api/reports/{}/approve'><button class='green'>{}</button></form><form method='post' action='/api/reports/{}/reject'><button class='gray'>{}</button></form></div></div>".format(
+            report_cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 璺?{} 璺?{}</p></div><div class='inline'><form method='post' action='/api/reports/{}/generate'><button>{}</button></form><form method='post' action='/api/reports/{}/approve'><button class='green'>{}</button></form><form method='post' action='/api/reports/{}/reject'><button class='gray'>{}</button></form></div></div>".format(
                 esc(r["title"]), esc(summarize_text(r["summary"], 120)), esc(r["report_type"]), esc(r["status"]), esc(dt(r["updated_at"])), r["id"], U(r"\u751f\u6210"), r["id"], U(r"\u901a\u8fc7"), r["id"], U(r"\u9a73\u56de")
             )
         if not report_cards:
             report_cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u62a5\u544a\uff0c\u53ef\u5148\u751f\u6210 AI \u65e5\u62a5\u8349\u7a3f\u3002")))
-        template_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {}</p></div></div>".format(esc(t["template_name"]), esc(t["description"]), esc(t["report_type"]), esc(t["default_date_range"])) for t in templates)
-        schedule_items = [f"{s['frequency']} 路 {s['recipients']} 路 {'enabled' if s['enabled'] else 'disabled'}" for s in schedules] or [U(r"\u6682\u65e0\u5b9a\u65f6\u62a5\u544a\u3002")]
+        template_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 璺?{}</p></div></div>".format(esc(t["template_name"]), esc(t["description"]), esc(t["report_type"]), esc(t["default_date_range"])) for t in templates)
+        schedule_items = [f"{s['frequency']} 璺?{s['recipients']} 璺?{'enabled' if s['enabled'] else 'disabled'}" for s in schedules] or [U(r"\u6682\u65e0\u5b9a\u65f6\u62a5\u544a\u3002")]
         body = f"""
 <div class="panel">
   <h2>{U(r'\u62a5\u544a\u4e2d\u5fc3')}</h2>
@@ -17909,7 +18142,7 @@ where ki.deleted_at is null"""
             answer = "{}\n\n{}\n\n{}: {}\n{}: {}".format(
                 U(r"\u7ed3\u8bba\uff1a\u54c1\u724c\u95ee\u9898\u5148\u6309 SAP \u6458\u8981\u548c\u5e93\u5b58\u98ce\u9669\u5904\u7406\uff0c\u4e0d\u7f16\u9020\u54c1\u724c\u660e\u7ec6\u3002"),
                 U(r"\u5982\u679c\u662f Osprey\uff0c\u5148\u505a\u5e93\u5b58\u3001\u6298\u6263\u3001\u5916\u90e8\u4ef7\u683c\u4e09\u9879\u590d\u6838\uff0c\u518d\u51b3\u5b9a\u662f\u8c03\u62e8\u3001\u63a7\u6298\u6263\u8fd8\u662f\u6e05\u7406\u6ede\u9500\u3002"),
-                U(r"\u4f9d\u636e"), "；".join(evidence[:3]) if evidence else U(r"\u6682\u65e0\u54c1\u724c\u660e\u7ec6"),
+                U(r"\u4f9d\u636e"), "、".join(evidence[:3]) if evidence else U(r"\u6682\u65e0\u54c1\u724c\u660e\u7ec6"),
                 U(r"\u5efa\u8bae"), actions[0] if actions else U(r"\u6253\u5f00 Osprey \u5e93\u5b58\u51b3\u7b56\u9875\u505a\u4eba\u5de5\u590d\u6838\u3002"),
             )
         elif intent == "knowledge_query":
@@ -18021,7 +18254,7 @@ where ki.deleted_at is null"""
             U(r"\u628a\u4eca\u5929\u7684\u98ce\u9669\u53d8\u6210\u4efb\u52a1\u3002"),
         ]
         cfg = ai_provider_config()
-        ai_status_text = (U(r"\u5df2\u63a5\u5165\u5927\u6a21\u578b") + " · " + cfg["provider"] + " · " + cfg["model"]) if cfg["configured"] else U(r"\u672a\u914d\u7f6e\u5927\u6a21\u578b API\uff0c\u5f53\u524d\u4f7f\u7528\u5185\u7f6e\u7ecf\u8425\u52a9\u624b\u6a21\u5f0f")
+        ai_status_text = (U(r"\u5df2\u63a5\u5165\u5927\u6a21\u578b") + " 路 " + cfg["provider"] + " 路 " + cfg["model"]) if cfg["configured"] else U(r"\u672a\u914d\u7f6e\u5927\u6a21\u578b API\uff0c\u5f53\u524d\u4f7f\u7528\u5185\u7f6e\u7ecf\u8425\u52a9\u624b\u6a21\u5f0f")
         chips = "".join(
             "<button type='button' onclick=\"document.getElementById('jarvis-question').value='{}'\">{}</button>".format(esc(q), esc(q))
             for q in quick_questions
