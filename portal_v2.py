@@ -1727,6 +1727,80 @@ create table if not exists inventory_intelligence_rules(
             ("inventory_fast_moving_low_stock", "Fast moving opportunity: sales velocity high and inventory low", "opportunity_rule", {"sales_velocity_gte": 0.5, "inventory_quantity_lte": 3}, "medium"),
         ]:
             conn.execute("insert or ignore into inventory_intelligence_rules(rule_key,rule_name,rule_type,condition_json,severity,status,source,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (rule_key, rule_name, rule_type, json.dumps(condition, ensure_ascii=False), severity, "active", "Sprint013 rule-based inventory intelligence", seed_now, seed_now))
+        conn.execute(
+            """
+create table if not exists brand_intelligence_snapshots(
+ id integer primary key autoincrement,
+ snapshot_date text not null,
+ brand_id text not null,
+ brand_name text not null,
+ authority_score real not null default 0,
+ sales_score real not null default 0,
+ profit_score real not null default 0,
+ inventory_score real not null default 0,
+ growth_score real not null default 0,
+ overall_score real not null default 0,
+ sales_amount real not null default 0,
+ sales_share real not null default 0,
+ gross_profit real not null default 0,
+ gross_margin real not null default 0,
+ inventory_amount real not null default 0,
+ inventory_pressure real not null default 0,
+ growth_rate real not null default 0,
+ status text not null default 'normal',
+ summary text,
+ evidence_json text,
+ created_insight_id integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists brand_analysis_details(
+ id integer primary key autoincrement,
+ snapshot_id integer,
+ brand_id text not null,
+ brand_name text not null,
+ metric_type text not null,
+ metric_value real not null default 0,
+ status text not null default 'normal',
+ summary text,
+ evidence_json text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists brand_intelligence_rules(
+ id integer primary key autoincrement,
+ rule_key text unique not null,
+ rule_name text not null,
+ rule_type text not null,
+ condition_json text,
+ severity text not null default 'medium',
+ status text not null default 'active',
+ source text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_brand_intelligence_snapshots_date on brand_intelligence_snapshots(snapshot_date, overall_score)",
+            "create index if not exists idx_brand_intelligence_snapshots_brand on brand_intelligence_snapshots(brand_id, created_at)",
+            "create index if not exists idx_brand_analysis_details_brand on brand_analysis_details(brand_id, metric_type, created_at)",
+            "create index if not exists idx_brand_intelligence_rules_status on brand_intelligence_rules(status, rule_type)",
+        ]:
+            conn.execute(idx)
+        for rule_key, rule_name, rule_type, condition, severity in [
+            ("brand_inventory_pressure_high", "Brand inventory pressure is high", "risk_rule", {"inventory_pressure_gte": 0.65}, "high"),
+            ("brand_margin_below_25", "Brand gross margin below 25 percent", "risk_rule", {"gross_margin_lt": 0.25}, "medium"),
+            ("brand_dependency_over_60", "Brand sales dependency over 60 percent", "risk_rule", {"sales_share_gt": 0.60}, "medium"),
+            ("brand_growth_opportunity_high_score", "Brand growth opportunity with strong sales and low pressure", "opportunity_rule", {"sales_score_gte": 70, "inventory_pressure_lte": 0.35}, "medium"),
+        ]:
+            conn.execute("insert or ignore into brand_intelligence_rules(rule_key,rule_name,rule_type,condition_json,severity,status,source,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (rule_key, rule_name, rule_type, json.dumps(condition, ensure_ascii=False), severity, "active", "Sprint014 rule-based brand intelligence", seed_now, seed_now))
         for canonical, alias, alias_type in [
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97"), "canonical"),
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
@@ -4780,6 +4854,8 @@ class App(BaseHTTPRequestHandler):
             return self.business_health_page(user)
         if path == "/inventory-intelligence":
             return self.inventory_intelligence_page(user)
+        if path == "/brand-intelligence":
+            return self.brand_intelligence_page(user)
         if path == "/apps":
             return self.apps_launcher(user)
         if path == "/desktop":
@@ -4960,6 +5036,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_business_health_get(user, path)
         if path.startswith("/api/inventory-intelligence"):
             return self.api_inventory_intelligence_get(user, path)
+        if path.startswith("/api/brand-intelligence"):
+            return self.api_brand_intelligence_get(user, path)
         if path.startswith("/api/dashboard/"):
             return self.api_dashboard_get(user, path)
         if path == "/api/dashboard/ceo":
@@ -5196,6 +5274,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_business_health_post(self.current_user(), path)
         if path.startswith("/api/inventory-intelligence"):
             return self.api_inventory_intelligence_post(self.current_user(), path)
+        if path.startswith("/api/brand-intelligence"):
+            return self.api_brand_intelligence_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -7644,6 +7724,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             rule_metrics = self.business_rule_summary(conn)
             health_metrics = self.business_health_summary(conn)
             inventory_intelligence = self.inventory_intelligence_summary(conn)
+            brand_intelligence = self.brand_intelligence_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7658,6 +7739,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Business Rule Engine", rule_metrics["business_rules_active"] >= 0, "business_rules"),
                 ("Business Health Engine", health_metrics["overall_score"] >= 0, "business_health_snapshots"),
                 ("Inventory Intelligence", inventory_intelligence["total_inventory_quantity"] >= 0, "inventory_intelligence_snapshots"),
+                ("Brand Intelligence", brand_intelligence["brand_count"] >= 0, "brand_intelligence_snapshots"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7707,12 +7789,17 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "inventory_intelligence_critical": inventory_intelligence["critical_risk_count"],
                 "inventory_intelligence_slow_stock": inventory_intelligence["slow_stock_count"],
                 "inventory_intelligence_opportunity": inventory_intelligence["opportunity_count"],
+                "brand_intelligence_count": brand_intelligence["brand_count"],
+                "brand_intelligence_avg_health": brand_intelligence["avg_brand_health"],
+                "brand_intelligence_risky": len(brand_intelligence["risky_brands"]),
+                "brand_intelligence_opportunity": len(brand_intelligence["opportunity_brands"]),
             },
             "business_metrics": business_metrics,
             "decision_metrics": decision_metrics,
             "rule_metrics": rule_metrics,
             "health_metrics": health_metrics,
             "inventory_intelligence": inventory_intelligence,
+            "brand_intelligence": brand_intelligence,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -7731,6 +7818,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "Business Rule Engine", "url": "/business-rules", "status": "ready"},
                 {"title": "Business Health Engine", "url": "/business-health", "status": "ready"},
                 {"title": "Inventory Intelligence", "url": "/inventory-intelligence", "status": "ready"},
+                {"title": "Brand Intelligence", "url": "/brand-intelligence", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7776,6 +7864,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ("High Rule Triggers", summary["business_rule_triggered_high"], "high/critical"),
             ("Business Health", "{:.1f}/100".format(summary["business_health_score"]), summary["business_health_status"]),
             (U(r"\u5e93\u5b58\u5065\u5eb7"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), "Inventory Intelligence"),
+            (U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), "risk {} / opp {}".format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7824,6 +7913,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "Latest rule run: " + (str(latest_rule_run.get("id")) + " / " + str(latest_rule_run.get("status")) if latest_rule_run else "none"),
             "Business Health: {:.1f}/100 / {}".format(summary["business_health_score"], summary["business_health_status"]),
             "Inventory Intelligence: high={} critical={} slow={} opportunity={}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"], summary["inventory_intelligence_slow_stock"], summary["inventory_intelligence_opportunity"]),
+            "Brand Intelligence: brands={} avg_health={:.1f} risky={} opportunity={}".format(summary["brand_intelligence_count"], summary["brand_intelligence_avg_health"], summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
@@ -15943,6 +16033,7 @@ order by gross_profit asc limit 300
         store_count = int(conn.execute("select count(distinct store_name) c from business_metrics_snapshots where snapshot_type='store_sales' and coalesce(store_name,'')!=''").fetchone()["c"] or 0)
         brand_total = float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount'").fetchone()["v"] or 0)
         top_brand = conn.execute("select brand_name, metric_value sales_amount, id from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount' and coalesce(brand_name,'')!='' order by metric_value desc limit 1").fetchone()
+        brand_intel = conn.execute("select avg(overall_score) avg_score, sum(case when status in ('risk','watch') then 1 else 0 end) risk_count, count(*) brand_count, max(created_at) latest_at from brand_intelligence_snapshots where created_at=(select max(created_at) from brand_intelligence_snapshots)").fetchone()
         brand_share = float(top_brand["sales_amount"] or 0) / brand_total if top_brand and brand_total > 0 else 0
         dimensions = []
         def add(dimension, score, summary, evidence, entity_type="", entity_id=None):
@@ -15968,7 +16059,13 @@ order by gross_profit asc limit 300
         brand_score = 82 if brand_total > 0 else 55
         if brand_share > 0.6:
             brand_score = 62
-        add("brand_health", brand_score, "Top brand share {:.1%}.".format(brand_share), [{"source_type": "business_metrics_snapshots", "source_id": str(top_brand["id"] if top_brand else "brand_sales"), "evidence_title": "Brand sales share", "evidence_summary": "top_brand={} share={:.4f}".format(top_brand["brand_name"] if top_brand else "", brand_share), "confidence": 0.8}])
+        brand_evidence = [{"source_type": "business_metrics_snapshots", "source_id": str(top_brand["id"] if top_brand else "brand_sales"), "evidence_title": "Brand sales share", "evidence_summary": "top_brand={} share={:.4f}".format(top_brand["brand_name"] if top_brand else "", brand_share), "confidence": 0.8}]
+        if brand_intel and brand_intel["brand_count"]:
+            brand_score = min(brand_score, float(brand_intel["avg_score"] or brand_score))
+            if int(brand_intel["risk_count"] or 0) > 0:
+                brand_score = min(brand_score, 58)
+            brand_evidence.append({"source_type": "brand_intelligence_snapshots", "source_id": str(brand_intel["latest_at"]), "evidence_title": "Brand Intelligence health snapshot", "evidence_summary": "avg_score={:.2f} risk_count={} brand_count={}".format(float(brand_intel["avg_score"] or 0), int(brand_intel["risk_count"] or 0), int(brand_intel["brand_count"] or 0)), "confidence": 0.86})
+        add("brand_health", brand_score, "Top brand share {:.1%}.".format(brand_share), brand_evidence)
         store_score = 80 if store_count > 0 else 55
         add("store_health", store_score, "Store sales dimensions available: {}.".format(store_count), [{"source_type": "business_metrics_snapshots", "source_id": "store_sales", "evidence_title": "Store sales coverage", "evidence_summary": "store_count={}".format(store_count), "confidence": 0.8}])
         op_score = 82
@@ -16301,6 +16398,218 @@ group by coalesce(store_name,''), coalesce(product_code,'')
                 return self.redir("/inventory-intelligence")
             return self.json_out(payload)
         return self.json_out({"ok": False, "message": "unknown inventory intelligence write api"}, code=404)
+
+    def brand_status(self, score, inventory_pressure=0, gross_margin=0):
+        if inventory_pressure >= 0.75:
+            return "risk"
+        if gross_margin and gross_margin < 0.18:
+            return "risk"
+        if score >= 78:
+            return "opportunity"
+        if score >= 60:
+            return "healthy"
+        return "watch"
+
+    def brand_detail_to_json(self, row):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        return data
+
+    def brand_snapshot_to_json(self, row):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        return data
+
+    def brand_intelligence_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            latest_ts_row = conn.execute("select max(created_at) v from brand_intelligence_snapshots").fetchone()
+            latest_ts = latest_ts_row["v"] if latest_ts_row else None
+            rows = [self.brand_snapshot_to_json(r) for r in conn.execute("select * from brand_intelligence_snapshots where created_at=coalesce(?, created_at) order by overall_score desc, sales_amount desc limit 50", (latest_ts,)).fetchall()] if latest_ts else []
+            risky = [r for r in rows if r.get("status") in ("risk", "watch")][:10]
+            opportunities = [r for r in rows if r.get("status") == "opportunity"][:10]
+            return {
+                "brand_snapshot_at": latest_ts,
+                "brand_count": len(rows),
+                "top_brands": rows[:10],
+                "risky_brands": risky,
+                "opportunity_brands": opportunities,
+                "best_profit_brands": sorted(rows, key=lambda x: float(x.get("gross_profit") or 0), reverse=True)[:10],
+                "inventory_pressure_brands": sorted(rows, key=lambda x: float(x.get("inventory_pressure") or 0), reverse=True)[:10],
+                "avg_brand_health": round(sum(float(r.get("overall_score") or 0) for r in rows) / len(rows), 2) if rows else 0,
+                "evidence_rule": "all_brand_analysis_and_recommendations_must_include_evidence",
+                "safety": "brand_intelligence_file_import_only_no_production_sap_no_external_ai_api",
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def brand_recommendation(self, status, sales_share, gross_margin, inventory_pressure):
+        if inventory_pressure >= 0.75:
+            return "Review brand inventory pressure before further purchase; require CEO/purchasing approval for markdown or purchase actions."
+        if gross_margin and gross_margin < 0.25:
+            return "Review brand margin and discount policy with evidence before adjusting strategy."
+        if sales_share > 0.60:
+            return "Brand dependency is high; review portfolio risk before concentrating more resources."
+        if status == "opportunity":
+            return "Brand shows investment opportunity; review replenishment, display and content plan with supporting evidence."
+        return "Continue monitoring brand sales, margin and inventory pressure."
+
+    def calculate_brand_intelligence(self, user=None):
+        now = ts()
+        snapshot_date = time.strftime("%Y-%m-%d", time.localtime(now))
+        with db() as conn:
+            sales_rows = conn.execute("""
+select coalesce(brand_name,'') brand_name,
+       sum(coalesce(amount,0)) sales_amount,
+       sum(coalesce(quantity,0)) sales_quantity,
+       sum(coalesce(gross_profit,0)) gross_profit,
+       min(id) source_id,
+       group_concat(id) evidence_ids
+from sap_sales
+where coalesce(brand_name,'')!=''
+group by coalesce(brand_name,'')
+""").fetchall()
+            inventory_rows = conn.execute("""
+select coalesce(brand_name,'') brand_name,
+       sum(coalesce(quantity,0)) inventory_quantity,
+       sum(coalesce(retail_amount,cost_amount,0)) inventory_amount,
+       max(coalesce(age_days,0)) max_age_days,
+       min(id) source_id,
+       group_concat(id) evidence_ids
+from sap_inventory
+where coalesce(brand_name,'')!=''
+group by coalesce(brand_name,'')
+""").fetchall()
+            inventory_lookup = {self.canonical_brand_name(conn, r["brand_name"]): r for r in inventory_rows}
+            sales_total = sum(float(r["sales_amount"] or 0) for r in sales_rows) or 0
+            inventory_total = sum(float(r["inventory_amount"] or 0) for r in inventory_rows) or 0
+            brand_names = sorted(set([self.canonical_brand_name(conn, r["brand_name"]) for r in sales_rows] + list(inventory_lookup.keys())))
+            created = []
+            for brand in brand_names:
+                sales = next((r for r in sales_rows if self.canonical_brand_name(conn, r["brand_name"]) == brand), None)
+                inv = inventory_lookup.get(brand)
+                sales_amount = float(sales["sales_amount"] if sales else 0)
+                sales_quantity = float(sales["sales_quantity"] if sales else 0)
+                gross_profit = float(sales["gross_profit"] if sales else 0)
+                gross_margin = gross_profit / sales_amount if sales_amount else 0
+                inventory_amount = float(inv["inventory_amount"] if inv else 0)
+                inventory_quantity = float(inv["inventory_quantity"] if inv else 0)
+                sales_share = sales_amount / sales_total if sales_total else 0
+                inventory_pressure = inventory_amount / inventory_total if inventory_total else 0
+                sales_score = min(100, sales_share * 180 + 45) if sales_amount else 35
+                profit_score = 90 if gross_margin >= 0.35 else (75 if gross_margin >= 0.25 else (55 if gross_margin > 0 else 40))
+                inventory_score = max(25, 90 - inventory_pressure * 80)
+                growth_rate = 0.0
+                prev = conn.execute("select * from brand_intelligence_snapshots where brand_id=? order by created_at desc limit 1", (brand,)).fetchone()
+                if prev and float(prev["sales_amount"] or 0) > 0:
+                    growth_rate = (sales_amount - float(prev["sales_amount"] or 0)) / float(prev["sales_amount"] or 1)
+                growth_score = 70 + max(-25, min(25, growth_rate * 100)) if prev else 65
+                authority_score = min(100, 45 + sales_share * 120 + max(0, gross_margin) * 40)
+                overall = sales_score * 0.28 + profit_score * 0.24 + inventory_score * 0.22 + growth_score * 0.14 + authority_score * 0.12
+                status = self.brand_status(overall, inventory_pressure, gross_margin)
+                evidence = [
+                    {"source_type": "sap_sales", "source_id": str(sales["evidence_ids"] if sales else "no_sales_rows"), "evidence_title": "Brand sales rows", "evidence_summary": "brand={} sales_amount={} sales_share={:.4f} gross_profit={} gross_margin={:.4f}".format(brand, sales_amount, sales_share, gross_profit, gross_margin), "confidence": 0.86},
+                    {"source_type": "sap_inventory", "source_id": str(inv["evidence_ids"] if inv else "no_inventory_rows"), "evidence_title": "Brand inventory rows", "evidence_summary": "brand={} inventory_amount={} inventory_pressure={:.4f} inventory_quantity={}".format(brand, inventory_amount, inventory_pressure, inventory_quantity), "confidence": 0.84},
+                    {"source_type": "brand_intelligence_rules", "source_id": status, "evidence_title": "Rule-based brand status", "evidence_summary": "status={} overall={:.2f} sales_score={:.2f} profit_score={:.2f} inventory_score={:.2f}".format(status, overall, sales_score, profit_score, inventory_score), "confidence": 0.76},
+                ]
+                summary = "Brand {} score {:.1f}; sales_share {:.1%}; gross_margin {:.1%}; inventory_pressure {:.1%}.".format(brand, overall, sales_share, gross_margin, inventory_pressure)
+                cur = conn.execute(
+                    "insert into brand_intelligence_snapshots(snapshot_date,brand_id,brand_name,authority_score,sales_score,profit_score,inventory_score,growth_score,overall_score,sales_amount,sales_share,gross_profit,gross_margin,inventory_amount,inventory_pressure,growth_rate,status,summary,evidence_json,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (snapshot_date, brand, brand, authority_score, sales_score, profit_score, inventory_score, growth_score, overall, sales_amount, sales_share, gross_profit, gross_margin, inventory_amount, inventory_pressure, growth_rate, status, summary, json.dumps(evidence, ensure_ascii=False), now),
+                )
+                snapshot_id = cur.lastrowid
+                created.append(snapshot_id)
+                for metric_type, metric_value, metric_status, metric_summary in [
+                    ("brand_sales_amount", sales_amount, "normal" if sales_amount > 0 else "missing", "Brand sales amount from SAP sales export."),
+                    ("brand_sales_share", sales_share, "risk" if sales_share > 0.60 else "normal", "Brand sales contribution share."),
+                    ("brand_gross_profit", gross_profit, "normal" if gross_profit >= 0 else "risk", "Brand gross profit from SAP sales export."),
+                    ("brand_gross_margin", gross_margin, "risk" if gross_margin and gross_margin < 0.25 else "normal", "Brand gross margin."),
+                    ("brand_inventory_amount", inventory_amount, "normal" if inventory_amount >= 0 else "unknown", "Brand inventory amount from SAP inventory export."),
+                    ("brand_inventory_pressure", inventory_pressure, "risk" if inventory_pressure >= 0.65 else "normal", "Brand inventory pressure share."),
+                    ("brand_growth_rate", growth_rate, "normal", "Brand growth rate compared with previous brand intelligence snapshot when available."),
+                    ("brand_health_score", overall, status, "Overall brand health score."),
+                ]:
+                    conn.execute("insert into brand_analysis_details(snapshot_id,brand_id,brand_name,metric_type,metric_value,status,summary,evidence_json,created_at) values(?,?,?,?,?,?,?,?,?)", (snapshot_id, brand, brand, metric_type, metric_value, metric_status, metric_summary, json.dumps(evidence, ensure_ascii=False), now))
+                brand_node = self.upsert_kg_node(conn, "brand", None, brand, {"brand_health_score": overall, "status": status, "sales_share": sales_share, "inventory_pressure": inventory_pressure}, "brand_intelligence_snapshots", snapshot_id)
+                if sales:
+                    sales_node = self.upsert_kg_node(conn, "sales", None, brand + " sales", {"sales_amount": sales_amount, "gross_profit": gross_profit}, "sap_sales", sales["source_id"])
+                    self.upsert_kg_edge(conn, brand_node, sales_node, "HAS_SALES", 0.82, "brand_intelligence_snapshots", snapshot_id, {"sales_amount": sales_amount})
+                if inv:
+                    inv_node = self.upsert_kg_node(conn, "inventory", None, brand + " inventory", {"inventory_amount": inventory_amount, "inventory_quantity": inventory_quantity}, "sap_inventory", inv["source_id"])
+                    self.upsert_kg_edge(conn, brand_node, inv_node, "HAS_INVENTORY", 0.82, "brand_intelligence_snapshots", snapshot_id, {"inventory_amount": inventory_amount})
+                insight_id = None
+                if status in ("risk", "opportunity") or sales_share > 0.60 or (gross_margin and gross_margin < 0.25):
+                    insight_type = "brand_growth_opportunity" if status == "opportunity" else "brand_performance"
+                    severity = "high" if status == "risk" else "medium"
+                    recommendation = self.brand_recommendation(status, sales_share, gross_margin, inventory_pressure)
+                    insight_id = self.upsert_decision_insight(conn, insight_type, "Brand intelligence: {} / {}".format(status, brand), recommendation, severity, "brand_intelligence", snapshot_id, {"brand_name": brand, "entity_name": brand, "overall_score": overall, "sales_share": sales_share, "gross_margin": gross_margin, "inventory_pressure": inventory_pressure}, evidence, recommendation, [{"title": "Review brand strategy", "description": recommendation, "action_type": "manual_review", "owner": "boss"}], user)
+                    if insight_id:
+                        conn.execute("update brand_intelligence_snapshots set created_insight_id=? where id=?", (insight_id, snapshot_id))
+                        decision_node = self.upsert_kg_node(conn, "decision", insight_id, "Brand decision: " + brand, {"status": status}, "decision_insights", insight_id)
+                        self.upsert_kg_edge(conn, decision_node, brand_node, "DECISION_ABOUT", 0.84, "brand_intelligence_snapshots", snapshot_id, {"status": status})
+            self.add_timeline_event(conn, "brand_intelligence", None, "brand_intelligence_snapshot_created", "Brand Intelligence Snapshot Created", "brands={}".format(len(created)), "brand_intelligence_snapshots", ",".join(map(str, created[:20])), {"brand_snapshot_ids": created[:50]}, user["id"] if user else None, now)
+        return {"ok": True, "brand_snapshots": len(created), "snapshot_ids": created, "safety": "brand_intelligence_all_recommendations_have_evidence_no_production_sap"}
+
+    def brand_intelligence_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        summary = self.brand_intelligence_summary()
+        metrics = "".join([
+            self.metric(U(r"\u54c1\u724c\u6570"), summary["brand_count"], "brands"),
+            self.metric(U(r"\u5e73\u5747\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["avg_brand_health"]), "score"),
+            self.metric(U(r"\u98ce\u9669\u54c1\u724c"), len(summary["risky_brands"]), "risk/watch"),
+            self.metric(U(r"\u673a\u4f1a\u54c1\u724c"), len(summary["opportunity_brands"]), "opportunity"),
+        ])
+        rank_cards = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>sales {} / margin {:.1%} / inventory pressure {:.1%}</p><p class='small'>evidence {}</p></div>".format(esc(r.get("brand_name") or ""), float(r.get("overall_score") or 0), esc(r.get("status") or ""), money(r.get("sales_amount") or 0), float(r.get("gross_margin") or 0), float(r.get("inventory_pressure") or 0), len(r.get("evidence_json") or [])) for r in summary["top_brands"]) or self.empty_state("No brand intelligence snapshot yet.")
+        risk_items = self.bullets(["{} / {} / pressure {:.1%}".format(esc(r.get("brand_name") or ""), esc(r.get("status") or ""), float(r.get("inventory_pressure") or 0)) for r in summary["risky_brands"]] or ["No risky brands yet."])
+        opportunity_items = self.bullets(["{} / score {:.1f}".format(esc(r.get("brand_name") or ""), float(r.get("overall_score") or 0)) for r in summary["opportunity_brands"]] or ["No opportunity brands yet."])
+        pressure_items = self.bullets(["{} / pressure {:.1%} / {}".format(esc(r.get("brand_name") or ""), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_brands"]] or ["No inventory pressure yet."])
+        body = """
+<div class="panel"><h2>Brand Intelligence</h2><p class="small">Evidence-backed brand sales, profit, inventory pressure and strategic health analysis. No production SAP connection.</p><form method="post" action="/api/brand-intelligence/recalculate" style="display:inline"><button>Analyze Brands</button></form> <a class="btn dark" href="/api/brand-intelligence">API</a><div class="metrics">{}</div></div>
+<div class="split"><div class="panel"><h2>Risks</h2>{}</div><div class="panel"><h2>Opportunities</h2>{}</div></div>
+<div class="panel"><h2>Inventory Pressure</h2>{}</div>
+<div class="panel"><h2>Brand Ranking</h2><div class="grid">{}</div></div>""".format(metrics, risk_items, opportunity_items, pressure_items, rank_cards)
+        self.out(layout("Brand Intelligence", body, user=user, wide=True))
+
+    def api_brand_intelligence_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/brand-intelligence":
+            return self.json_out({"ok": True, **self.brand_intelligence_summary()})
+        if path == "/api/brand-intelligence/snapshots":
+            with db() as conn:
+                rows = conn.execute("select * from brand_intelligence_snapshots order by created_at desc, overall_score desc limit 300").fetchall()
+            return self.json_out({"ok": True, "snapshots": [self.brand_snapshot_to_json(r) for r in rows]})
+        if path == "/api/brand-intelligence/details":
+            q = parse_qs(urlparse(self.path).query)
+            brand_id = q.get("brand_id", [""])[0]
+            with db() as conn:
+                if brand_id:
+                    rows = conn.execute("select * from brand_analysis_details where brand_id=? order by created_at desc, metric_type limit 300", (brand_id,)).fetchall()
+                else:
+                    rows = conn.execute("select * from brand_analysis_details order by created_at desc, metric_type limit 300").fetchall()
+            return self.json_out({"ok": True, "details": [self.brand_detail_to_json(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown brand intelligence api"}, code=404)
+
+    def api_brand_intelligence_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/brand-intelligence/recalculate":
+            payload = self.calculate_brand_intelligence(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/brand-intelligence")
+            return self.json_out(payload)
+        return self.json_out({"ok": False, "message": "unknown brand intelligence write api"}, code=404)
 
     def can_view_graph(self, user):
         return bool(user)

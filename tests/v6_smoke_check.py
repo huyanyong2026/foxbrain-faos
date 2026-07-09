@@ -3592,3 +3592,77 @@ def test_sprint013_summary_and_report_present():
         "no external AI API",
     ]:
         assert phrase in report
+
+
+def test_sprint014_brand_intelligence_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists brand_intelligence_snapshots",
+        "create table if not exists brand_analysis_details",
+        "create table if not exists brand_intelligence_rules",
+        "idx_brand_intelligence_snapshots_date",
+        "idx_brand_analysis_details_brand",
+        "idx_brand_intelligence_rules_status",
+        "def brand_intelligence_summary",
+        "def calculate_brand_intelligence",
+        "def brand_intelligence_page",
+        "def api_brand_intelligence_get",
+        "def api_brand_intelligence_post",
+        '"/brand-intelligence"',
+        '"/api/brand-intelligence"',
+        '"/api/brand-intelligence/recalculate"',
+        '"/api/brand-intelligence/snapshots"',
+        '"/api/brand-intelligence/details"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint014_brand_intelligence_evidence_integrations_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "all_brand_analysis_and_recommendations_must_include_evidence",
+        "brand_intelligence_all_recommendations_have_evidence_no_production_sap",
+        "brand_intelligence_file_import_only_no_production_sap_no_external_ai_api",
+        "brand_intelligence_snapshot_created",
+        "brand_intelligence_snapshots",
+        "brand_analysis_details",
+        "brand_intelligence_rules",
+        "upsert_decision_insight",
+        "upsert_kg_node",
+        "upsert_kg_edge",
+        "Brand Intelligence",
+        "brand_intelligence_avg_health",
+        "brand_intelligence_risky",
+        "brand_health",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint014_summary_and_report_present():
+    summary = read("SPRINT014_BRAND_INTELLIGENCE_SUMMARY.md")
+    report = read("SPRINT014_BRAND_INTELLIGENCE_TEST_REPORT.md")
+    for phrase in [
+        "Sprint014 Brand Intelligence Summary",
+        "brand_intelligence_snapshots",
+        "brand_analysis_details",
+        "brand_intelligence_rules",
+        "GET /api/brand-intelligence",
+        "POST /api/brand-intelligence/recalculate",
+        "Decision Engine Integration",
+        "Business Health Integration",
+        "Knowledge Graph Integration",
+        "Dashboard Integration",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint014 Brand Intelligence Test Report",
+        "Schema Checks",
+        "Runtime Checks",
+        "Decision Engine Checks",
+        "Business Health Checks",
+        "Knowledge Graph Checks",
+        "Guardrail Checks",
+        "no production SAP connection",
+        "no external AI API",
+    ]:
+        assert phrase in report
