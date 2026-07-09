@@ -2918,3 +2918,71 @@ def test_sprint004_summary_present():
         "Sprint005",
     ]:
         assert phrase in summary
+
+
+def test_sprint005_ceo_dashboard_home_and_api_present():
+    portal = read("portal_v2.py")
+    final_dashboard = portal.rsplit("def dashboard(self, user):", 1)[1].split("def os_layer_cards", 1)[0]
+    for phrase in [
+        "ceo_dashboard_payload",
+        "FoxBrain CEO Brain",
+        "FoxBrain CEO Home",
+        'method="get" action="/search"',
+        r"\u4eca\u65e5\u6458\u8981",
+        r"\u6838\u5fc3\u5165\u53e3",
+        r"\u6700\u8fd1\u6587\u4ef6",
+        r"\u6700\u8fd1\u5bf9\u8c61",
+        r"\u6700\u8fd1\u77e5\u8bc6",
+        r"\u6700\u8fd1\u65f6\u95f4\u8f74",
+        r"\u7cfb\u7edf\u72b6\u6001",
+    ]:
+        assert phrase in final_dashboard
+    for phrase in [
+        r"\u4f01\u4e1a\u7b2c\u4e8c\u5927\u8111",
+        "/drive",
+        "/object-center",
+        "/knowledge",
+        "/search",
+        "/timeline",
+        "/jarvis",
+    ]:
+        assert phrase in portal
+    for phrase in [
+        '"documents_total"',
+        '"documents_pending"',
+        '"documents_processed"',
+        '"objects_total"',
+        '"knowledge_items_total"',
+        '"timeline_events_total"',
+        '"recent_documents"',
+        '"recent_objects"',
+        '"recent_knowledge"',
+        '"recent_timeline"',
+        '"system_status"',
+        '"core_entries"',
+        'if path == "/api/dashboard/ceo"',
+        "return self.json_out(self.ceo_dashboard_payload(user))",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint005_summary_present():
+    summary = read("SPRINT005_CEO_DASHBOARD_SUMMARY.md")
+    for phrase in [
+        "Sprint005 CEO Dashboard Summary",
+        "FoxBrain CEO Brain",
+        "GET /api/dashboard/ceo",
+        "documents",
+        "enterprise_objects",
+        "knowledge_items",
+        "timeline_events",
+        "FoxBrain Drive",
+        "Object Engine",
+        "Knowledge Engine",
+        "Search Engine",
+        "Timeline Engine",
+        "does not build ai.vafox.com",
+        "does not require any external AI API",
+        "Sprint006",
+    ]:
+        assert phrase in summary
