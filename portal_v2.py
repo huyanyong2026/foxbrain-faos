@@ -20,6 +20,203 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+try:
+    import psycopg2
+    import psycopg2.extras
+except Exception:
+    psycopg2 = None
+
+try:
+    from foxbrain_os.architecture import enterprise_v1_architecture_contract
+    from foxbrain_os.agent_orchestration import build_agent_orchestration_contract, build_agent_plan_request, find_agent_domain
+    from foxbrain_os.auto_operation import build_auto_operation_contract, build_daily_loop_plan
+    from foxbrain_os.knowledge_training_quality import build_ai_learning_plan, build_knowledge_training_quality_contract, score_knowledge_quality
+    from foxbrain_os.knowledge_brain import build_enterprise_knowledge_brain, build_query_plan, build_sap_data_understanding
+    from foxbrain_os.sap_knowledge_engine import build_model_catalog, build_sap_knowledge_engine_contract, build_warehouse_readiness
+    from foxbrain_os.multi_agent_system import build_agent_collaboration_plan, build_multi_agent_system_contract, build_shared_sap_context
+    from foxbrain_os.knowledge_fusion import build_agent_fusion_context, build_fusion_context, build_knowledge_fusion_contract
+    from foxbrain_os.knowledge_training_rules_engine import build_ai_decision_logic, build_knowledge_training_engine_contract, build_operating_rule_library, build_training_cycle_plan
+    from foxbrain_os.ai_business_management import build_ai_business_center_contract, build_ai_task_plan, build_daily_business_report, build_inventory_analysis, build_profit_analysis, build_purchase_recommendation, build_risk_alerts, build_sales_forecast
+    from foxbrain_os.workflow_automation_engine import build_ai_operating_task, build_business_case_template, build_decision_feedback_learning, build_inventory_warning_workflow, build_notification_plan, build_periodic_report_plan, build_workflow_acceptance_plan, build_workflow_automation_contract
+    from foxbrain_os.enterprise_knowledge_graph import build_ai_permission_matrix, build_business_map_payload, build_customer_ai_profile_contract, build_employee_ai_profile_contract, build_employee_fit_analysis, build_enterprise_knowledge_graph_contract, build_kg_builder_plan, build_relationship_query_plan
+    from foxbrain_os.digital_twin_simulation import build_board_assistant_pack, build_brand_mix_scenario, build_cashflow_forecast, build_company_twin_model, build_digital_twin_simulation_contract, build_discount_adjustment_scenario, build_employee_twin_model, build_inventory_twin_forecast, build_new_store_scenario, build_strategy_agent_report
+    from foxbrain_os.business_autopilot import build_action_plan, build_biggest_risk_analysis, build_business_autopilot_contract, build_ceo_dashboard_payload, build_chairman_agent_brief, build_daily_inspection_plan, build_early_warning_forecast, build_learning_record_template, build_rule_evolution_plan, calculate_business_health_score
+    from foxbrain_os.ecosystem_integration_hub import build_api_gateway_plan, build_content_factory_plan, build_crm_manager_plan, build_ecommerce_connector_plan, build_ecosystem_hub_contract, build_enterprise_data_lake_plan, build_omnichannel_analysis, build_vip_recall_workflow, build_wecom_crm_agent
+    from foxbrain_os.ux_information_architecture import build_ux_information_architecture_contract
+    from foxbrain_os.owner_enterprise_planning import build_owner_enterprise_planning_contract, build_sync_policy, classify_data_domain
+    from foxbrain_os.owner_os_foundation import build_master_blueprint_contract, build_owner_home_contract, build_owner_os_foundation_contract
+except Exception:
+    def enterprise_v1_architecture_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
+    def build_agent_orchestration_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.2", "message": "agent orchestration unavailable", "domains": []}
+    def build_agent_plan_request(domain_key, objective, created_by_role=""):
+        return {"ok": False, "domain": {"key": domain_key}, "objective": objective, "approval_required": True, "risk_level": "high"}
+    def find_agent_domain(domain_key):
+        return {"key": domain_key or "business", "name": "Business Operations Agent"}
+    def build_auto_operation_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.3", "message": "auto operation unavailable", "stages": []}
+    def build_daily_loop_plan(sap_status, ai_context, briefing, task_plan, approvals):
+        return {"ok": False, "approval_required": True, "risk_level": "high"}
+    def build_sap_knowledge_engine_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.4", "message": "sap knowledge engine unavailable", "knowledge_models": []}
+    def build_warehouse_readiness(sync_status, sap_knowledge_metrics=None):
+        return {"ok": False, "datasets": []}
+    def build_model_catalog(model_key=""):
+        return {"ok": False, "models": []}
+    def build_knowledge_training_quality_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.5", "message": "knowledge quality unavailable"}
+    def score_knowledge_quality(metrics):
+        return {"ok": False, "score": 0, "level": "unavailable", "metrics": metrics}
+    def build_ai_learning_plan(quality_score, boss_experience):
+        return {"ok": False, "quality_level": quality_score.get("level"), "boss_experience": boss_experience}
+    def build_sap_data_understanding(metrics=None, sap_status=None, sap_knowledge=None):
+        return {"ok": False, "message": "knowledge brain unavailable"}
+    def build_enterprise_knowledge_brain(knowledge_metrics=None, sap_understanding=None, recent_sources=None):
+        return {"ok": False, "message": "knowledge brain unavailable"}
+    def build_query_plan(question, scope="all"):
+        return {"ok": False, "message": "knowledge brain unavailable", "question": question, "scope": scope}
+    def build_multi_agent_system_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6", "message": "multi-agent system unavailable", "roles": [], "collaboration_flows": []}
+    def build_shared_sap_context(sap_engine=None, knowledge_quality=None):
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6", "message": "shared SAP context unavailable"}
+    def build_agent_collaboration_plan(objective, agents=None):
+        return {"ok": False, "objective": objective, "agents": agents or [], "approval_required": True, "risk_level": "high"}
+    def build_knowledge_fusion_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.5", "message": "knowledge fusion unavailable", "layers": []}
+    def build_fusion_context(sap_engine=None, knowledge_quality=None, external_knowledge=None):
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.5", "message": "fusion context unavailable"}
+    def build_agent_fusion_context(agent_key, fusion_context=None):
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.5", "agent": {"agent_key": agent_key}, "fusion_context": fusion_context or {}}
+    def build_knowledge_training_engine_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "message": "knowledge training engine unavailable"}
+    def build_operating_rule_library(domain=""):
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "rules": []}
+    def build_training_cycle_plan(fusion_context=None, knowledge_quality=None):
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "approval_required": True}
+    def build_ai_decision_logic(fusion_context=None, operating_metrics=None):
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "decision_logic": {}}
+    def build_ai_business_center_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.7", "message": "AI business center unavailable", "modules": []}
+    def build_daily_business_report(metrics, knowledge_context=None, operating_rules=None):
+        return {"ok": False, "approval_required": True, "data_sources": []}
+    def build_sales_forecast(metrics, forecast_period="7d"):
+        return {"ok": False, "forecast_period": forecast_period, "approval_required": True}
+    def build_inventory_analysis(metrics):
+        return {"ok": False, "approval_required": True}
+    def build_purchase_recommendation(metrics, inventory_analysis=None):
+        return {"ok": False, "approval_required": True}
+    def build_profit_analysis(metrics):
+        return {"ok": False, "approval_required": True}
+    def build_risk_alerts(metrics):
+        return []
+    def build_ai_task_plan(question, context=None):
+        return {"ok": False, "question": question, "approval_required": True, "risk_level": "high"}
+    def build_workflow_automation_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.8", "message": "workflow automation unavailable", "node_types": []}
+    def build_inventory_warning_workflow():
+        return {"ok": False, "approval_required": True, "nodes": []}
+    def build_ai_operating_task(problem, source="risk_engine", owner="store_manager"):
+        return {"ok": False, "task_name": problem, "approval_required": True}
+    def build_notification_plan(task):
+        return {"ok": False, "approval_required": True, "channels_reserved": []}
+    def build_decision_feedback_learning(advice, decision="pending", result=""):
+        return {"ok": False, "approval_required": True}
+    def build_business_case_template(title=""):
+        return {"ok": False, "title": title}
+    def build_periodic_report_plan(period="daily"):
+        return {"ok": False, "period": period, "approval_required": True}
+    def build_workflow_acceptance_plan(request_text):
+        return {"ok": False, "request": request_text, "approval_required": True}
+    def build_enterprise_knowledge_graph_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V1.9", "message": "enterprise knowledge graph unavailable"}
+    def build_kg_builder_plan():
+        return {"ok": False, "schedule": "02:30 daily"}
+    def build_relationship_query_plan(question):
+        return {"ok": False, "question": question, "permission_check_required": True}
+    def build_employee_fit_analysis(role_or_brand="Kailas"):
+        return {"ok": False, "target": role_or_brand}
+    def build_ai_permission_matrix(user_role="boss"):
+        return {"ok": False, "user_role": user_role, "data_scope": []}
+    def build_customer_ai_profile_contract():
+        return {"ok": False}
+    def build_employee_ai_profile_contract():
+        return {"ok": False}
+    def build_business_map_payload():
+        return {"ok": False, "mobile_ready": True}
+    def build_digital_twin_simulation_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V2.1"}
+    def build_company_twin_model(metrics=None):
+        return {"ok": False, "current_metrics": metrics or {}}
+    def build_discount_adjustment_scenario(brand="Osprey", current_discount=0.62, target_discount=0.59):
+        return {"ok": False, "approval_required": True}
+    def build_new_store_scenario(area=1000, store_type="flagship"):
+        return {"ok": False, "approval_required": True}
+    def build_brand_mix_scenario(reduce_brand="legacy_brand", increase_brand="VAFOX"):
+        return {"ok": False, "approval_required": True}
+    def build_cashflow_forecast(period_days=90):
+        return {"ok": False, "approval_required": True}
+    def build_inventory_twin_forecast(period_days=60):
+        return {"ok": False}
+    def build_employee_twin_model():
+        return {"ok": False}
+    def build_strategy_agent_report(question):
+        return {"ok": False, "question": question, "approval_required": True}
+    def build_board_assistant_pack():
+        return {"ok": False, "approval_required": True}
+    def build_business_autopilot_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V2.2"}
+    def calculate_business_health_score(metrics=None):
+        return {"ok": False, "score": 0}
+    def build_daily_inspection_plan():
+        return {"ok": False}
+    def build_early_warning_forecast():
+        return {"ok": False}
+    def build_action_plan(problem=""):
+        return {"ok": False, "approval_required": True}
+    def build_ceo_dashboard_payload():
+        return {"ok": False}
+    def build_rule_evolution_plan():
+        return {"ok": False, "approval_required": True}
+    def build_learning_record_template():
+        return {"ok": False}
+    def build_chairman_agent_brief():
+        return {"ok": False}
+    def build_biggest_risk_analysis():
+        return {"ok": False, "approval_required": True}
+    def build_ecosystem_hub_contract():
+        return {"ok": False, "version": "FoxBrain OS Enterprise V2.3"}
+    def build_enterprise_data_lake_plan():
+        return {"ok": False, "sources": []}
+    def build_wecom_crm_agent():
+        return {"ok": False}
+    def build_crm_manager_plan():
+        return {"ok": False}
+    def build_ecommerce_connector_plan():
+        return {"ok": False}
+    def build_content_factory_plan():
+        return {"ok": False}
+    def build_api_gateway_plan():
+        return {"ok": False}
+    def build_omnichannel_analysis(question=""):
+        return {"ok": False, "question": question, "approval_required": True}
+    def build_vip_recall_workflow():
+        return {"ok": False, "external_send_requires_approval": True}
+    def build_ux_information_architecture_contract():
+        return {"ok": False, "version": "FoxBrain OS UX 2.0", "layers": []}
+    def build_owner_enterprise_planning_contract():
+        return {"ok": False, "version": "FoxBrain Owner/Enterprise OS 7.9", "systems": []}
+    def build_sync_policy():
+        return {"ok": False, "allowed_domains": [], "blocked_domains": []}
+    def classify_data_domain(domain_key):
+        return {"ok": False, "domain": domain_key, "sync_allowed": False, "approval_required": True}
+    def build_owner_os_foundation_contract():
+        return {"ok": False, "version": "FoxBrain Owner OS V1 Foundation", "centers": []}
+    def build_owner_home_contract():
+        return {"ok": False, "home_entries": []}
+    def build_master_blueprint_contract():
+        return {"ok": False, "documents": []}
+
 
 APP_DIR = os.environ.get("APP_DIR", "/opt/firefox-portal")
 DB = APP_DIR + "/portal.db"
@@ -53,7 +250,7 @@ load_env_file()
 
 T = {
     "brand": U(r"\u706b\u72d0\u72f8 AI \u4f01\u4e1a\u7ecf\u8425\u7cfb\u7edf"),
-    "subtitle": U(r"FireFox AI Operating System\uff1aAI + ERP + CRM + OA + \u77e5\u8bc6\u5e93 + BI + \u667a\u80fd\u4f53\u5e73\u53f0\u7684\u7edf\u4e00\u5165\u53e3\u3002"),
+    "subtitle": "",
     "login": U(r"\u767b\u5f55"),
     "register": U(r"\u65b0\u5458\u5de5\u6ce8\u518c"),
     "logout": U(r"\u9000\u51fa"),
@@ -157,6 +354,127 @@ def safe_json(value, fallback=None):
         return json.loads(value or "")
     except Exception:
         return fallback if fallback is not None else {}
+
+
+def pg_config():
+    host = os.environ.get("PG_HOST") or os.environ.get("POSTGRES_HOST") or "postgres"
+    dbname = os.environ.get("PG_DB") or os.environ.get("POSTGRES_DB")
+    user = os.environ.get("PG_USER") or os.environ.get("POSTGRES_USER")
+    password = os.environ.get("PG_PASSWORD") or os.environ.get("POSTGRES_PASSWORD")
+    if not all([host, dbname, user, password]):
+        return None
+    return {
+        "host": host,
+        "port": int(os.environ.get("PG_PORT") or os.environ.get("POSTGRES_PORT") or "5432"),
+        "dbname": dbname,
+        "user": user,
+        "password": password,
+        "connect_timeout": int(os.environ.get("PG_CONNECT_TIMEOUT", "3")),
+    }
+
+
+def pg_query(sql, params=None):
+    cfg = pg_config()
+    if not cfg or not psycopg2:
+        return []
+    try:
+        with psycopg2.connect(**cfg) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(sql, params or ())
+                return [dict(row) for row in cur.fetchall()]
+    except Exception:
+        return []
+
+
+def sap_live_summary():
+    latest_rows = pg_query(
+        """
+select sales_date, sales_amount, gross_profit
+from sap_daily_sales_summary
+where sales_date = (select max(sales_date) from sap_daily_sales_summary)
+"""
+    )
+    if not latest_rows:
+        return None
+    latest = latest_rows[0]
+    data_date = latest.get("sales_date")
+    month_rows = pg_query(
+        """
+select coalesce(sum(sales_amount),0) as month_sales, coalesce(sum(gross_profit),0) as month_gross_profit
+from sap_daily_sales_summary
+where date_trunc('month', sales_date) = date_trunc('month', %s::date)
+""",
+        (data_date,),
+    )
+    store_rows = pg_query(
+        """
+select whs_code as store, coalesce(sum(sales_amount),0) as sales, coalesce(sum(gross_profit),0) as gross_profit
+from sap_store_sales_summary
+where date_trunc('month', sales_date) = date_trunc('month', %s::date)
+group by whs_code
+order by coalesce(sum(sales_amount),0) desc
+limit 12
+""",
+        (data_date,),
+    )
+    inv_rows = pg_query(
+        """
+select
+ coalesce(sum(on_hand * avg_price),0) as inventory_amount,
+ count(*) filter (where on_hand > 20 and coalesce(is_commited,0) = 0) as risk_count
+from sap_stock_by_whs
+where on_hand > 0
+"""
+    )
+    run_rows = pg_query("select status, finished_at from sap_sync_runs order by started_at desc, id desc limit 1")
+    month = month_rows[0] if month_rows else {}
+    inv = inv_rows[0] if inv_rows else {}
+    yesterday_sales = float(latest.get("sales_amount") or 0)
+    yesterday_gross_profit = float(latest.get("gross_profit") or 0)
+    month_sales = float(month.get("month_sales") or 0)
+    month_gross_profit = float(month.get("month_gross_profit") or 0)
+    month_target = float(os.environ.get("MONTH_TARGET", "900000") or 900000)
+    gross_margin = yesterday_gross_profit / yesterday_sales * 100 if yesterday_sales else 0
+    completion = month_sales / month_target * 100 if month_target else 0
+    top_stores = [
+        {
+            "store": row.get("store") or U(r"\u672a\u5206\u95e8\u5e97"),
+            "sales": float(row.get("sales") or 0),
+            "gross_profit": float(row.get("gross_profit") or 0),
+        }
+        for row in store_rows
+    ]
+    risk_count = int(inv.get("risk_count") or 0)
+    suggestions = [
+        U(r"\u672c\u6708\u9500\u552e\u5b8c\u6210\u7387 ") + pct(completion) + U(r"\uff0c\u4eca\u5929\u4f18\u5148\u770b\u95e8\u5e97\u6392\u884c\u548c\u5dee\u989d\u3002"),
+        U(r"\u6700\u65b0\u65e5\u6bdb\u5229\u7387 ") + pct(gross_margin) + U(r"\uff0c\u4f4e\u6bdb\u5229\u5355\u636e\u8981\u56de\u5230 SAP \u660e\u7ec6\u590d\u6838\u3002"),
+        U(r"\u5e93\u5b58\u98ce\u9669\u6570\u91cf ") + money(risk_count) + U(r"\uff0c\u5148\u6309\u95e8\u5e97\u548c\u53ef\u8c03\u62e8\u4f18\u5148\u7ea7\u62c6\u89e3\u3002"),
+    ]
+    return {
+        "data_date": str(data_date or ""),
+        "yesterday_sales": yesterday_sales,
+        "yesterday_gross_profit": yesterday_gross_profit,
+        "yesterday_gross_margin": gross_margin,
+        "month_sales": month_sales,
+        "month_gross_profit": month_gross_profit,
+        "month_target": month_target,
+        "completion_rate": completion,
+        "inventory_amount": float(inv.get("inventory_amount") or 0),
+        "risk_count": risk_count,
+        "top_stores": top_stores,
+        "top_brands": [],
+        "ai_suggestions": suggestions,
+        "todos": [
+            U(r"\u6253\u5f00\u9500\u552e\u548c\u6bdb\u5229\u5f02\u5e38\u95e8\u5e97\u6e05\u5355\u3002"),
+            U(r"\u628a\u5e93\u5b58\u98ce\u9669\u6309\u54c1\u724c\u3001\u95e8\u5e97\u3001\u5c3a\u7801\u5206\u7ec4\u5904\u7406\u3002"),
+            U(r"\u786e\u8ba4\u4eca\u665a SAP B1 \u540c\u6b65\u8c03\u5ea6\u662f\u5426\u6b63\u5e38\u6267\u884c\u3002"),
+        ],
+        "_source": "postgres:sap_*",
+        "_is_fallback": False,
+        "_loaded_at": ts(),
+        "_last_sync_status": (run_rows[0].get("status") if run_rows else ""),
+        "_last_sync_time": str(run_rows[0].get("finished_at") or "") if run_rows else "",
+    }
 
 
 def csv_values(value):
@@ -374,6 +692,9 @@ def load_summary():
         "_source": SAP_SUMMARY_FILE,
         "_is_fallback": True,
     }
+    live = sap_live_summary()
+    if live:
+        return {**fallback, **live}
     try:
         if os.path.exists(SAP_SUMMARY_FILE):
             with open(SAP_SUMMARY_FILE, "r", encoding="utf-8") as f:
@@ -785,6 +1106,63 @@ create table if not exists knowledge_query_history(
         conn.execute("create index if not exists idx_query_history_user on knowledge_query_history(user_id, created_at)")
         conn.execute(
             """
+create table if not exists sap_knowledge_mappings(
+ id integer primary key autoincrement,
+ mapping_id text unique not null,
+ sap_table text not null,
+ sap_key_field text not null,
+ entity_type text not null,
+ knowledge_category text not null,
+ title_template text,
+ summary_template text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_sap_knowledge_mappings_entity on sap_knowledge_mappings(entity_type, status)")
+        conn.execute(
+            """
+create table if not exists sap_knowledge_jobs(
+ id integer primary key autoincrement,
+ job_id text unique not null,
+ job_type text not null default 'sap_to_knowledge',
+ status text not null default 'draft',
+ scope text,
+ generated_count integer not null default 0,
+ matched_count integer not null default 0,
+ failed_count integer not null default 0,
+ evidence_json text,
+ approval_required integer not null default 0,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_sap_knowledge_jobs_status on sap_knowledge_jobs(status, created_at)")
+        conn.execute(
+            """
+create table if not exists sap_knowledge_snapshots(
+ id integer primary key autoincrement,
+ snapshot_id text unique not null,
+ entity_type text not null,
+ entity_key text not null,
+ knowledge_id integer,
+ title text not null,
+ summary text,
+ source_table text,
+ source_payload_json text,
+ match_status text not null default 'generated',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_sap_knowledge_snapshots_entity on sap_knowledge_snapshots(entity_type, entity_key)")
+        conn.execute(
+            """
 create table if not exists activity_log(
  id integer primary key autoincrement,
  user_id integer,
@@ -991,6 +1369,82 @@ create table if not exists api_gateway_routes(
         )
         conn.execute(
             """
+create table if not exists platform_plugins(
+ id integer primary key autoincrement,
+ plugin_id text unique not null,
+ name text not null,
+ version text not null,
+ category text not null,
+ status text not null default 'registered',
+ permissions_json text,
+ approval_policy_json text,
+ risk_level text not null default 'medium',
+ approval_required integer not null default 1,
+ audit_status text not null default 'required',
+ installed_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_platform_plugins_status on platform_plugins(status, risk_level)")
+        conn.execute(
+            """
+create table if not exists integration_hub_connections(
+ id integer primary key autoincrement,
+ connection_id text unique not null,
+ connector_key text not null,
+ connector_name text not null,
+ provider text,
+ category text not null,
+ status text not null default 'registered',
+ health_status text not null default 'unknown',
+ permission_scope text,
+ approval_required integer not null default 1,
+ audit_status text not null default 'required',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_integration_hub_connections_status on integration_hub_connections(status, health_status)")
+        conn.execute(
+            """
+create table if not exists api_governance_policies(
+ id integer primary key autoincrement,
+ policy_id text unique not null,
+ route_pattern text not null,
+ method text not null default 'GET',
+ owner text not null default 'platform',
+ auth_required integer not null default 1,
+ rate_limit text,
+ risk_level text not null default 'medium',
+ approval_required integer not null default 1,
+ audit_required integer not null default 1,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_api_governance_policies_route on api_governance_policies(route_pattern, method)")
+        conn.execute(
+            """
+create table if not exists platform_tenants(
+ id integer primary key autoincrement,
+ tenant_id text unique not null,
+ company_name text not null,
+ brand_scope text,
+ data_scope text not null default 'sap_read_only',
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_platform_tenants_status on platform_tenants(status)")
+        conn.execute(
+            """
 create table if not exists event_bus_events(
  id integer primary key autoincrement,
  event_id text unique,
@@ -1059,6 +1513,67 @@ create table if not exists observability_metrics(
         for route_key, method, route_path, service in seed_routes:
             if not conn.execute("select id from api_gateway_routes where route_key=?", (route_key,)).fetchone():
                 conn.execute("insert into api_gateway_routes(route_key,method,path,service_name,auth_required,rate_limit,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (route_key, method, route_path, service, 1, "60/min", "active", now_kernel, now_kernel))
+        seed_plugins = [
+            ("foxbrain.core.sap-datahub", "SAP DataHub Adapter", "1.0.0", "Data Connector", ["sap.read.sales", "sap.read.inventory"], "high"),
+            ("foxbrain.core.ai-operations", "AI Operations Center", "1.0.0", "AI Governance", ["ai.plan", "approval.read"], "high"),
+            ("foxbrain.core.digital-brain", "Enterprise Digital Brain", "1.0.0", "AI Reasoning", ["recommendation.write", "audit.read"], "high"),
+            ("foxbrain.dev.sdk-marketplace", "SDK Marketplace", "1.0.0", "Developer Platform", ["plugin.read", "plugin.register"], "medium"),
+        ]
+        for plugin_id, name, version, category, permissions, risk in seed_plugins:
+            if not conn.execute("select id from platform_plugins where plugin_id=?", (plugin_id,)).fetchone():
+                approval = {"risk_level": risk, "human_approval_required": risk == "high", "auto_execute_allowed": risk != "high"}
+                conn.execute(
+                    "insert into platform_plugins(plugin_id,name,version,category,status,permissions_json,approval_policy_json,risk_level,approval_required,audit_status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (plugin_id, name, version, category, "registered", json.dumps(permissions), json.dumps(approval), risk, 1 if risk == "high" else 0, "required", now_kernel, now_kernel),
+                )
+        seed_hub_connections = [
+            ("ih-sap-b1", "sap_b1", "SAP Business One", "SAP", "erp", "sap.read_only"),
+            ("ih-postgresql", "postgresql", "PostgreSQL", "PostgreSQL", "database", "platform.data.read"),
+            ("ih-dify", "dify", "Dify", "Dify", "ai_platform", "ai.invoke.draft_only"),
+            ("ih-n8n", "n8n", "n8n", "n8n", "automation", "workflow.trigger.approval_gated"),
+        ]
+        for connection_id, key, name, provider, category, scope in seed_hub_connections:
+            if not conn.execute("select id from integration_hub_connections where connection_id=?", (connection_id,)).fetchone():
+                conn.execute(
+                    "insert into integration_hub_connections(connection_id,connector_key,connector_name,provider,category,status,health_status,permission_scope,approval_required,audit_status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (connection_id, key, name, provider, category, "registered", "unknown", scope, 1 if category in ("erp", "automation", "ai_platform") else 0, "required", now_kernel, now_kernel),
+                )
+        seed_api_policies = [
+            ("apigov-platform", "/api/enterprise-ai-platform/*", "GET", "platform", "medium", 1),
+            ("apigov-sap", "/api/sap/*", "GET", "datahub", "high", 1),
+            ("apigov-approval", "/api/approvals/*", "POST", "operations", "high", 1),
+            ("apigov-plugins", "/api/extensions/*", "POST", "developer_platform", "high", 1),
+        ]
+        for policy_id, pattern, method, owner, risk, approval in seed_api_policies:
+            if not conn.execute("select id from api_governance_policies where policy_id=?", (policy_id,)).fetchone():
+                conn.execute(
+                    "insert into api_governance_policies(policy_id,route_pattern,method,owner,auth_required,rate_limit,risk_level,approval_required,audit_required,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (policy_id, pattern, method, owner, 1, "60/min", risk, approval, 1, "active", now_kernel, now_kernel),
+                )
+        seed_tenants = [
+            ("tenant-fox-hq", U(r"\u706b\u72d0\u72f8\u603b\u90e8"), "all_brands", "sap_read_only"),
+            ("tenant-retail-ops", U(r"\u96f6\u552e\u8fd0\u8425\u516c\u53f8"), "store_and_brand_ops", "sap_read_only"),
+            ("tenant-brand-lab", U(r"\u54c1\u724c\u589e\u957f\u4e2d\u5fc3"), "brand_growth", "sap_read_only_and_knowledge"),
+        ]
+        for tenant_id, company_name, brand_scope, data_scope in seed_tenants:
+            if not conn.execute("select id from platform_tenants where tenant_id=?", (tenant_id,)).fetchone():
+                conn.execute(
+                    "insert into platform_tenants(tenant_id,company_name,brand_scope,data_scope,status,created_at,updated_at) values(?,?,?,?,?,?,?)",
+                    (tenant_id, company_name, brand_scope, data_scope, "active", now_kernel, now_kernel),
+                )
+        seed_sap_knowledge_mappings = [
+            ("sap-map-brand", "sap_items", "brand", "brand", U(r"\u54c1\u724c\u77e5\u8bc6"), U(r"SAP \u54c1\u724c\uff1a{name}"), U(r"\u57fa\u4e8e SAP \u5546\u54c1\u548c\u5e93\u5b58\u6c47\u603b\u7684\u54c1\u724c\u77e5\u8bc6\u5361\u3002")),
+            ("sap-map-product", "sap_items", "item_code", "product", U(r"\u5546\u54c1\u77e5\u8bc6"), U(r"SAP \u5546\u54c1\uff1a{name}"), U(r"\u57fa\u4e8e SAP \u5546\u54c1\u6863\u6848\u3001\u9500\u552e\u548c\u5e93\u5b58\u7684\u5546\u54c1\u77e5\u8bc6\u5361\u3002")),
+            ("sap-map-store", "sap_store_sales_summary", "whs_code", "store", U(r"\u95e8\u5e97\u77e5\u8bc6"), U(r"SAP \u95e8\u5e97/\u4ed3\uff1a{name}"), U(r"\u57fa\u4e8e SAP \u95e8\u5e97\u9500\u552e\u548c\u5e93\u5b58\u6458\u8981\u7684\u7ecf\u8425\u77e5\u8bc6\u5361\u3002")),
+            ("sap-map-customer", "sap_customers", "card_code", "customer", U(r"\u5ba2\u6237\u77e5\u8bc6"), U(r"SAP \u5ba2\u6237\uff1a{name}"), U(r"\u57fa\u4e8e SAP \u5ba2\u6237\u4e3b\u6570\u636e\u7684\u5ba2\u6237\u77e5\u8bc6\u5361\u3002")),
+            ("sap-map-supplier", "sap_suppliers", "card_code", "supplier", U(r"\u4f9b\u5e94\u5546\u77e5\u8bc6"), U(r"SAP \u4f9b\u5e94\u5546\uff1a{name}"), U(r"\u57fa\u4e8e SAP \u4f9b\u5e94\u5546\u4e3b\u6570\u636e\u7684\u4f9b\u5e94\u5546\u77e5\u8bc6\u5361\u3002")),
+        ]
+        for mapping_id, sap_table, key_field, entity_type, category, title_tpl, summary_tpl in seed_sap_knowledge_mappings:
+            if not conn.execute("select id from sap_knowledge_mappings where mapping_id=?", (mapping_id,)).fetchone():
+                conn.execute(
+                    "insert into sap_knowledge_mappings(mapping_id,sap_table,sap_key_field,entity_type,knowledge_category,title_template,summary_template,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (mapping_id, sap_table, key_field, entity_type, category, title_tpl, summary_tpl, "active", now_kernel, now_kernel),
+                )
         default_agents = [
             ("CEO Agent", "ceo_agent", U(r"\u603b\u7ecf\u7406\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u7ecf\u8425\u5206\u6790\u548c\u884c\u52a8\u5efa\u8bae\u3002"), "dashboard,sap,knowledge,tasks"),
             ("Sales Agent", "sales_agent", U(r"\u9500\u552e\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u5ba2\u6237\u9700\u6c42\u548c\u9500\u552e\u8bdd\u672f\u3002"), "customers,products,knowledge"),
@@ -1129,6 +1644,21 @@ create table if not exists tasks(
         conn.execute("create index if not exists idx_tasks_related on tasks(related_object_type, related_object_id)")
         conn.execute(
             """
+create table if not exists task_logs(
+ id integer primary key autoincrement,
+ log_id text unique,
+ task_id text,
+ action text not null,
+ note text,
+ result_json text,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_task_logs_task on task_logs(task_id, created_at)")
+        conn.execute(
+            """
 create table if not exists workflow_templates(
  id integer primary key autoincrement,
  template_id text unique,
@@ -1147,6 +1677,42 @@ create table if not exists workflow_templates(
 """
         )
         conn.execute("create index if not exists idx_workflow_templates_status on workflow_templates(status)")
+        conn.execute(
+            """
+create table if not exists workflows(
+ id integer primary key autoincrement,
+ workflow_id text unique,
+ name text not null,
+ description text,
+ trigger_type text,
+ status text not null default 'draft',
+ owner text,
+ approval_required integer not null default 1,
+ approval_status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_workflows_status on workflows(status, approval_status)")
+        conn.execute(
+            """
+create table if not exists workflow_nodes(
+ id integer primary key autoincrement,
+ node_id text unique,
+ workflow_id text,
+ node_key text not null,
+ node_type text not null,
+ name text not null,
+ config_json text,
+ sort_order integer not null default 0,
+ approval_required integer not null default 0,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_workflow_nodes_workflow on workflow_nodes(workflow_id, sort_order)")
         conn.execute(
             """
 create table if not exists automations(
@@ -1221,6 +1787,642 @@ create table if not exists notifications(
 """
         )
         conn.execute("create index if not exists idx_notifications_status on notifications(status)")
+        conn.execute(
+            """
+create table if not exists approvals(
+ id integer primary key autoincrement,
+ approval_id text unique,
+ title text not null,
+ approval_type text not null default 'workflow',
+ related_object_type text,
+ related_object_id text,
+ status text not null default 'pending_review',
+ risk_level text not null default 'high',
+ evidence_json text,
+ requested_by integer,
+ reviewed_by integer,
+ created_at integer not null,
+ reviewed_at integer,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_approvals_status on approvals(status, risk_level)")
+        conn.execute(
+            """
+create table if not exists ai_memory(
+ id integer primary key autoincrement,
+ memory_id text unique,
+ agent_key text,
+ memory_type text not null default 'workflow_learning',
+ title text not null,
+ content text,
+ source text,
+ status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_memory_agent on ai_memory(agent_key, status)")
+        conn.execute(
+            """
+create table if not exists decision_feedback(
+ id integer primary key autoincrement,
+ feedback_id text unique,
+ recommendation_id text,
+ approval_id text,
+ ai_advice text,
+ boss_decision text,
+ actual_result text,
+ accuracy_score real not null default 0,
+ learning_status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_decision_feedback_status on decision_feedback(learning_status, created_at)")
+        conn.execute(
+            """
+create table if not exists business_cases(
+ id integer primary key autoincrement,
+ case_id text unique,
+ title text not null,
+ case_type text not null default 'business_decision_case',
+ historical_problem text,
+ boss_decision text,
+ execution_process text,
+ final_result text,
+ ai_reuse_rule text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_business_cases_type on business_cases(case_type, status)")
+        conn.execute(
+            """
+create table if not exists entities(
+ id integer primary key autoincrement,
+ entity_id text unique,
+ entity_type text not null,
+ entity_key text,
+ entity_name text not null,
+ attributes_json text,
+ source_type text,
+ source_id text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_entities_type on entities(entity_type, entity_key)")
+        conn.execute(
+            """
+create table if not exists entity_relations(
+ id integer primary key autoincrement,
+ relation_id text unique,
+ from_entity_id text,
+ from_entity_type text,
+ to_entity_id text,
+ to_entity_type text,
+ relation_type text not null,
+ strength text not null default 'normal',
+ evidence_json text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_entity_relations_from on entity_relations(from_entity_id, relation_type)")
+        conn.execute("create index if not exists idx_entity_relations_to on entity_relations(to_entity_id, relation_type)")
+        conn.execute(
+            """
+create table if not exists knowledge_graph_nodes(
+ id integer primary key autoincrement,
+ node_id text unique,
+ entity_id text,
+ node_type text not null,
+ label text not null,
+ properties_json text,
+ source_json text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_kg_nodes_type on knowledge_graph_nodes(node_type, label)")
+        conn.execute(
+            """
+create table if not exists knowledge_graph_edges(
+ id integer primary key autoincrement,
+ edge_id text unique,
+ from_node_id text,
+ to_node_id text,
+ edge_type text not null,
+ weight real not null default 1,
+ evidence_json text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_kg_edges_from on knowledge_graph_edges(from_node_id, edge_type)")
+        conn.execute(
+            """
+create table if not exists digital_employees(
+ id integer primary key autoincrement,
+ digital_employee_id text unique,
+ name text not null,
+ role_key text not null,
+ position text,
+ permission_scope text,
+ knowledge_scope text,
+ workflow_scope text,
+ memory_scope text,
+ performance_policy text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_digital_employees_role on digital_employees(role_key, status)")
+        conn.execute(
+            """
+create table if not exists ai_permissions(
+ id integer primary key autoincrement,
+ permission_id text unique,
+ role_key text not null,
+ data_scope text,
+ tool_scope text,
+ approval_rule text,
+ permission_level text not null default 'role_based',
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_permissions_role on ai_permissions(role_key, status)")
+        conn.execute(
+            """
+create table if not exists employee_ai_profiles(
+ id integer primary key autoincrement,
+ profile_id text unique,
+ employee_id text,
+ user_id integer,
+ sales_scope text,
+ commission_scope text,
+ target_scope text,
+ training_scope text,
+ ai_guidance_json text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_employee_ai_profiles_user on employee_ai_profiles(user_id, status)")
+        conn.execute(
+            """
+create table if not exists customer_ai_profiles(
+ id integer primary key autoincrement,
+ profile_id text unique,
+ customer_id text,
+ user_id integer,
+ purchase_scope text,
+ points_scope text,
+ preference_json text,
+ ai_service_json text,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_customer_ai_profiles_customer on customer_ai_profiles(customer_id, status)")
+        conn.execute(
+            """
+create table if not exists business_relationships(
+ id integer primary key autoincrement,
+ relationship_id text unique,
+ relationship_type text not null,
+ subject_type text,
+ subject_id text,
+ object_type text,
+ object_id text,
+ relationship_summary text,
+ evidence_json text,
+ confidence real not null default 0,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_business_relationships_type on business_relationships(relationship_type, status)")
+        conn.execute(
+            """
+create table if not exists digital_twin_models(
+ id integer primary key autoincrement,
+ model_id text unique,
+ model_type text not null,
+ name text not null,
+ scope_json text,
+ source_json text,
+ version text not null default '2.1',
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_digital_twin_models_type on digital_twin_models(model_type, status)")
+        conn.execute(
+            """
+create table if not exists business_scenarios(
+ id integer primary key autoincrement,
+ scenario_id text unique,
+ scenario_type text not null,
+ title text not null,
+ input_json text,
+ status text not null default 'draft',
+ approval_required integer not null default 1,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_business_scenarios_type on business_scenarios(scenario_type, status)")
+        conn.execute(
+            """
+create table if not exists simulation_results(
+ id integer primary key autoincrement,
+ result_id text unique,
+ scenario_id text,
+ result_json text,
+ risk_level text not null default 'medium',
+ confidence real not null default 0,
+ feedback_status text not null default 'waiting_actual',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_simulation_results_scenario on simulation_results(scenario_id, feedback_status)")
+        conn.execute(
+            """
+create table if not exists strategy_reports(
+ id integer primary key autoincrement,
+ report_id text unique,
+ title text not null,
+ report_type text not null,
+ question text,
+ content_json text,
+ approval_status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_strategy_reports_type on strategy_reports(report_type, approval_status)")
+        conn.execute(
+            """
+create table if not exists cashflow_forecasts(
+ id integer primary key autoincrement,
+ forecast_id text unique,
+ period_days integer not null,
+ forecast_json text,
+ warning text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_cashflow_forecasts_period on cashflow_forecasts(period_days, created_at)")
+        conn.execute(
+            """
+create table if not exists store_models(
+ id integer primary key autoincrement,
+ store_model_id text unique,
+ store_id text,
+ store_name text,
+ model_json text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_store_models_store on store_models(store_id, status)")
+        conn.execute(
+            """
+create table if not exists employee_models(
+ id integer primary key autoincrement,
+ employee_model_id text unique,
+ employee_id text,
+ employee_name text,
+ model_json text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_employee_models_employee on employee_models(employee_id, status)")
+        conn.execute(
+            """
+create table if not exists investment_models(
+ id integer primary key autoincrement,
+ investment_model_id text unique,
+ title text not null,
+ model_json text,
+ payback_period text,
+ risk_level text not null default 'medium',
+ status text not null default 'draft',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_investment_models_status on investment_models(status, risk_level)")
+        conn.execute(
+            """
+create table if not exists business_health_scores(
+ id integer primary key autoincrement,
+ score_id text unique,
+ score_date text,
+ total_score integer not null default 0,
+ dimension_scores_json text,
+ strengths_json text,
+ risks_json text,
+ suggestions_json text,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_business_health_scores_date on business_health_scores(score_date, created_at)")
+        conn.execute(
+            """
+create table if not exists monitor_rules(
+ id integer primary key autoincrement,
+ rule_id text unique,
+ rule_type text not null,
+ name text not null,
+ condition_json text,
+ action_json text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_monitor_rules_type on monitor_rules(rule_type, status)")
+        conn.execute(
+            """
+create table if not exists business_alerts(
+ id integer primary key autoincrement,
+ alert_id text unique,
+ alert_type text not null,
+ title text not null,
+ description text,
+ level text not null default 'medium',
+ reason_json text,
+ impact_json text,
+ solution_json text,
+ status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_business_alerts_status on business_alerts(status, level)")
+        conn.execute(
+            """
+create table if not exists action_tasks(
+ id integer primary key autoincrement,
+ action_id text unique,
+ title text not null,
+ owner text,
+ due_date text,
+ source_alert_id text,
+ plan_json text,
+ status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_action_tasks_status on action_tasks(status, owner)")
+        conn.execute(
+            """
+create table if not exists action_results(
+ id integer primary key autoincrement,
+ result_id text unique,
+ action_id text,
+ execution_result text,
+ evidence_json text,
+ effect_json text,
+ reviewed_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_action_results_action on action_results(action_id, created_at)")
+        conn.execute(
+            """
+create table if not exists ai_learning_records(
+ id integer primary key autoincrement,
+ learning_id text unique,
+ problem text,
+ ai_advice text,
+ boss_decision text,
+ execution_result text,
+ final_effect text,
+ case_type text,
+ status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_learning_records_status on ai_learning_records(status, case_type)")
+        conn.execute(
+            """
+create table if not exists rule_evolution(
+ id integer primary key autoincrement,
+ evolution_id text unique,
+ rule_name text not null,
+ old_rule_json text,
+ new_rule_json text,
+ evidence_json text,
+ approval_status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_rule_evolution_status on rule_evolution(approval_status, rule_name)")
+        conn.execute(
+            """
+create table if not exists ceo_daily_reports(
+ id integer primary key autoincrement,
+ report_id text unique,
+ report_date text,
+ title text not null,
+ top_metrics_json text,
+ top_focus_json text,
+ suggestions_json text,
+ approval_status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ceo_daily_reports_date on ceo_daily_reports(report_date, approval_status)")
+        conn.execute(
+            """
+create table if not exists data_sources(
+ id integer primary key autoincrement,
+ source_id text unique,
+ source_key text not null,
+ source_name text not null,
+ source_type text,
+ status text not null default 'planned',
+ sync_schedule text,
+ config_json text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_data_sources_key on data_sources(source_key, status)")
+        conn.execute(
+            """
+create table if not exists sync_jobs(
+ id integer primary key autoincrement,
+ job_id text unique,
+ source_key text not null,
+ job_name text not null,
+ schedule_rule text,
+ status text not null default 'planned',
+ last_run_at integer,
+ next_run_at integer,
+ result_json text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_sync_jobs_source on sync_jobs(source_key, status)")
+        conn.execute(
+            """
+create table if not exists customer_profiles(
+ id integer primary key autoincrement,
+ profile_id text unique,
+ customer_id text,
+ customer_name text,
+ lifecycle_stage text,
+ segment_tags text,
+ purchase_summary_json text,
+ preference_json text,
+ churn_risk_score real not null default 0,
+ total_consumption real not null default 0,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_customer_profiles_stage on customer_profiles(lifecycle_stage, churn_risk_score)")
+        conn.execute(
+            """
+create table if not exists channel_orders(
+ id integer primary key autoincrement,
+ order_id text unique,
+ channel text not null,
+ customer_id text,
+ product_json text,
+ amount real not null default 0,
+ order_status text,
+ order_time text,
+ raw_json text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_channel_orders_channel on channel_orders(channel, order_time)")
+        conn.execute(
+            """
+create table if not exists content_assets(
+ id integer primary key autoincrement,
+ asset_id text unique,
+ platform text,
+ asset_type text,
+ title text not null,
+ body text,
+ tags text,
+ status text not null default 'draft',
+ approval_status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_content_assets_platform on content_assets(platform, status)")
+        conn.execute(
+            """
+create table if not exists integration_logs(
+ id integer primary key autoincrement,
+ log_id text unique,
+ source_key text,
+ event_type text not null,
+ status text not null default 'logged',
+ request_json text,
+ response_json text,
+ error_message text,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_integration_logs_source on integration_logs(source_key, status, created_at)")
         conn.execute(
             """
 create table if not exists memories(
@@ -1374,6 +2576,13 @@ create table if not exists agent_roles(
 """
         )
         conn.execute("create index if not exists idx_agent_roles_status on agent_roles(status)")
+        ensure_column(conn, "agent_roles", "digital_employee_id", "digital_employee_id text")
+        ensure_column(conn, "agent_roles", "role_level", "role_level text not null default 'specialist'")
+        ensure_column(conn, "agent_roles", "approval_rule", "approval_rule text not null default 'risk_based_human_approval'")
+        ensure_column(conn, "agent_roles", "audit_policy", "audit_policy text not null default 'activity_log_and_ai_agent_runs'")
+        ensure_column(conn, "agent_roles", "performance_policy", "performance_policy text not null default 'quality_speed_adoption_safety'")
+        ensure_column(conn, "agent_roles", "manager_role", "manager_role text not null default 'boss_or_admin'")
+        conn.execute("create index if not exists idx_agent_roles_digital_employee on agent_roles(digital_employee_id)")
         conn.execute(
             """
 create table if not exists agent_tasks(
@@ -1445,6 +2654,63 @@ create table if not exists agent_tools(
         conn.execute("create index if not exists idx_agent_tools_risk on agent_tools(risk_level, approval_required)")
         conn.execute(
             """
+create table if not exists digital_workforce_performance(
+ id integer primary key autoincrement,
+ evaluation_id text unique,
+ digital_employee_id text not null,
+ agent_name text,
+ period_start text,
+ period_end text,
+ tasks_planned integer not null default 0,
+ tasks_completed integer not null default 0,
+ approvals_requested integer not null default 0,
+ high_risk_blocked integer not null default 0,
+ feedback_score real not null default 0,
+ quality_score real not null default 0,
+ safety_score real not null default 100,
+ manager_review text,
+ status text not null default 'draft',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_digital_workforce_perf_employee on digital_workforce_performance(digital_employee_id, period_start)")
+        conn.execute(
+            """
+create table if not exists enterprise_digital_brain_recommendations(
+ id integer primary key autoincrement,
+ recommendation_id text unique,
+ title text not null,
+ recommendation_type text not null default 'business',
+ business_area text,
+ summary text,
+ explanation text,
+ evidence_json text,
+ lineage_json text,
+ cited_sap_records text,
+ cited_knowledge text,
+ cited_memory text,
+ risk_level text not null default 'medium',
+ approval_required integer not null default 1,
+ approval_status text not null default 'pending_review',
+ audit_status text not null default 'logged',
+ audit_ref text,
+ confidence real not null default 0,
+ status text not null default 'draft',
+ created_by integer,
+ reviewed_by integer,
+ created_at integer not null,
+ reviewed_at integer,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_digital_brain_recs_status on enterprise_digital_brain_recommendations(status, approval_status)")
+        conn.execute("create index if not exists idx_digital_brain_recs_risk on enterprise_digital_brain_recommendations(risk_level, approval_required)")
+        conn.execute(
+            """
 create table if not exists jarvis_conversations(
  id integer primary key autoincrement,
  conversation_id text unique,
@@ -1494,6 +2760,147 @@ create table if not exists jarvis_action_confirmations(
 """
         )
         conn.execute("create index if not exists idx_jarvis_actions_status on jarvis_action_confirmations(status)")
+        conn.execute(
+            """
+create table if not exists ai_operation_plans(
+ id integer primary key autoincrement,
+ plan_id text unique,
+ title text not null,
+ objective text,
+ action_type text not null default 'create_task',
+ risk_level text not null default 'low',
+ approval_required integer not null default 1,
+ approval_status text not null default 'pending_review',
+ execution_status text not null default 'not_started',
+ execution_mode text not null default 'approval_then_execute',
+ payload_json text,
+ evidence_json text,
+ result_json text,
+ feedback_status text not null default 'waiting',
+ created_by integer,
+ approved_by integer,
+ executed_by integer,
+ created_at integer not null,
+ approved_at integer,
+ executed_at integer,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_operation_plans_status on ai_operation_plans(approval_status, execution_status)")
+        conn.execute("create index if not exists idx_ai_operation_plans_risk on ai_operation_plans(risk_level, approval_required)")
+        conn.execute(
+            """
+create table if not exists ai_operation_feedback(
+ id integer primary key autoincrement,
+ feedback_id text unique,
+ plan_id text,
+ outcome text not null default 'pending',
+ business_result text,
+ operator_note text,
+ next_action text,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_operation_feedback_plan on ai_operation_feedback(plan_id, created_at)")
+        conn.execute(
+            """
+create table if not exists sales_forecasts(
+ id integer primary key autoincrement,
+ forecast_id text unique,
+ store_id text,
+ brand_id text,
+ forecast_period text not null,
+ forecast_sales real not null default 0,
+ confidence real not null default 0,
+ analysis text,
+ recommendation text,
+ source_json text,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_sales_forecasts_period on sales_forecasts(forecast_period, created_at)")
+        conn.execute(
+            """
+create table if not exists inventory_analysis(
+ id integer primary key autoincrement,
+ analysis_id text unique,
+ product_id text,
+ brand_id text,
+ store_id text,
+ health_score integer not null default 0,
+ risk_level text,
+ slow_moving_items text,
+ inventory_amount real not null default 0,
+ expected_sales_cycle text,
+ recommendation text,
+ source_json text,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_inventory_analysis_risk on inventory_analysis(risk_level, created_at)")
+        conn.execute(
+            """
+create table if not exists risk_alerts(
+ id integer primary key autoincrement,
+ alert_id text unique,
+ type text not null,
+ level text not null,
+ description text,
+ source text,
+ suggestion text,
+ status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_risk_alerts_status on risk_alerts(status, level, created_at)")
+        conn.execute(
+            """
+create table if not exists business_memory(
+ id integer primary key autoincrement,
+ memory_id text unique,
+ title text not null,
+ content text,
+ memory_type text not null default 'boss_experience',
+ source text,
+ status text not null default 'approved',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_business_memory_status on business_memory(status, memory_type)")
+        conn.execute(
+            """
+create table if not exists ai_recommendation_history(
+ id integer primary key autoincrement,
+ recommendation_id text unique,
+ title text not null,
+ recommendation_type text not null default 'business',
+ problem text,
+ cause text,
+ suggestion text,
+ execution_plan text,
+ evidence_json text,
+ approval_plan_id text,
+ status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ai_recommendation_history_status on ai_recommendation_history(status, recommendation_type, created_at)")
         conn.execute(
             """
 create table if not exists reports(
@@ -2440,14 +3847,25 @@ init()
 
 def layout(title, body, user=None, msg="", wide=False):
     nav = ""
+    bottom_nav = ""
     if user:
         nav = (
             '<div class="topbar"><div><strong>{}</strong><small>{} · {}</small></div>'
             '<div><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
         ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), T["change_password"], T["logout"])
+        search_placeholder = U(r"\u641c\u7d22\u5546\u54c1\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001SAP\u3001\u77e5\u8bc6")
+        nav = (
+            '<div class="topbar os-topbar"><div><strong>{}</strong><small>{} / {}</small></div>'
+            '<form class="global-search" method="get" action="/os/search"><input name="q" value="" placeholder="{}"></form>'
+            '<div class="top-actions"><a href="/jarvis">AI</a><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
+        ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), esc(search_placeholder), T["change_password"], T["logout"])
+        bottom_nav = (
+            '<nav class="bottom-nav"><a href="/os/business">{}</a><a href="/os/ai">AI</a>'
+            '<a href="/os/messages">{}</a><a href="/os/me">{}</a></nav>'
+        ).format(U(r"\u7ecf\u8425"), U(r"\u6d88\u606f"), U(r"\u6211\u7684"))
     alert = f'<div class="alert">{esc(msg)}</div>' if msg else ""
     max_width = "1180px" if wide else "980px"
-    subtitle_html = "" if user else "<p class=\"lead\">{}</p>".format(T["subtitle"])
+    subtitle_html = "" if user or not T.get("subtitle") else "<p class=\"lead\">{}</p>".format(T["subtitle"])
     return f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)}</title>
@@ -2458,7 +3876,8 @@ h1{{font-size:30px;margin:8px 0 6px;line-height:1.2}}h2{{font-size:20px;margin:0
 a,button,.btn,input,select,textarea{{touch-action:manipulation}}img,video,canvas,svg{{max-width:100%;height:auto}}pre,code{{white-space:pre-wrap;word-break:break-word}}
 .panel,.card,.metric,td,th,p,li,h1,h2,h3,strong,span,label,.btn,button{{min-width:0;overflow-wrap:anywhere;word-break:break-word}}
 .topbar{{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:12px 14px;margin-bottom:18px}}
-.topbar>div{{min-width:0}}.topbar small{{display:block;color:#666;margin-top:3px}}.topbar a{{margin-left:12px;color:#1849a9;text-decoration:none;font-weight:700}}
+.topbar>div{{min-width:0}}.topbar small{{display:block;color:#666;margin-top:3px}}.topbar a{{margin-left:12px;color:#1849a9;text-decoration:none;font-weight:700}}.os-topbar{{position:sticky;top:10px;z-index:10}}.global-search{{flex:1;min-width:180px;max-width:460px}}.global-search input{{height:42px;padding:10px 13px;border-radius:999px}}.top-actions{{white-space:nowrap}}
+.bottom-nav{{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 10px 26px rgba(0,0,0,.12);grid-template-columns:repeat(4,1fr);overflow:hidden}}.bottom-nav a{{padding:12px 6px;text-align:center;text-decoration:none;color:#1849a9;font-weight:800}}
 .panel,.card{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.panel{{padding:18px;margin:14px 0}}.form{{max-width:520px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}}.card{{padding:18px;min-height:154px;display:flex;flex-direction:column;justify-content:space-between}}
 .metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}}.metric{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;min-height:92px}}.metric strong{{display:block;font-size:22px;margin-top:7px;line-height:1.15}}.metric span{{font-size:13px;color:#666}}
@@ -2470,9 +3889,9 @@ label{{display:block;font-weight:800;margin:12px 0 7px}}input,select,textarea{{w
 button,.btn{{display:inline-block;max-width:100%;border:0;border-radius:8px;background:#1849a9;color:#fff;text-decoration:none;font-weight:800;padding:13px 16px;cursor:pointer;font-size:16px;text-align:center;line-height:1.25}}
 .btn.full{{width:100%}}.red{{background:#ad1f15}}.green{{background:#18704c}}.dark{{background:#222}}.gray{{background:#777}}.orange{{background:#b45f06}}
 .alert{{padding:12px;background:#fff7d6;border:1px solid #ecd27a;border-radius:8px;margin:12px 0}}table{{width:100%;border-collapse:collapse;table-layout:auto}}th,td{{border-bottom:1px solid #eee;padding:10px;text-align:left;vertical-align:top}}th{{white-space:nowrap}}.inline{{display:flex;gap:8px;align-items:center;flex-wrap:wrap}}.inline form{{display:inline}}.small{{font-size:13px;color:#666}}
-@media(max-width:820px){{main{{width:calc(100% - 16px);padding:10px 0 34px;overflow:hidden}}section{{padding:0 2px}}h1{{font-size:24px;line-height:1.22}}h2{{font-size:18px}}.lead{{font-size:14px;line-height:1.55}}.grid,.metrics,.split,.chat-shell{{grid-template-columns:1fr;gap:12px}}.panel{{padding:14px;margin:10px 0;border-radius:8px;overflow:hidden}}.card{{min-height:0;padding:14px}}.metric{{min-height:0;padding:12px}}.metric strong{{font-size:20px}}.store-row{{grid-template-columns:1fr}}.btn,button{{width:100%;padding:15px;min-height:48px}}.chat-input{{position:static;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;margin:10px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.chat-input p{{margin-bottom:0}}.chipbar{{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding:4px 0 0}}.chipbar button{{width:100%;min-height:44px;text-align:left;white-space:normal;line-height:1.35}}.topbar{{align-items:flex-start;flex-direction:column;padding:12px;position:sticky;top:0;z-index:5}}.topbar a{{margin:0 12px 0 0;display:inline-block;padding:8px 0}}table,tbody,tr,td,th{{display:block;width:100%}}thead{{display:none}}tr{{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px;background:#fff;overflow:hidden}}td{{border:0;padding:7px 4px}}td:empty{{display:none}}.inline{{display:grid;grid-template-columns:1fr;gap:8px}}.inline form{{display:block;margin-top:0}}.pill{{border-radius:8px}}}}
+@media(max-width:820px){{main{{width:calc(100% - 16px);padding:10px 0 86px;overflow:hidden}}section{{padding:0 2px}}h1{{font-size:24px;line-height:1.22}}h2{{font-size:18px}}.lead{{font-size:14px;line-height:1.55}}.grid,.metrics,.split,.chat-shell{{grid-template-columns:1fr;gap:12px}}.panel{{padding:14px;margin:10px 0;border-radius:8px;overflow:hidden}}.card{{min-height:0;padding:14px}}.metric{{min-height:0;padding:12px}}.metric strong{{font-size:20px}}.store-row{{grid-template-columns:1fr}}.btn,button{{width:100%;padding:15px;min-height:48px}}.chat-input{{position:static;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;margin:10px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.chat-input p{{margin-bottom:0}}.chipbar{{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding:4px 0 0}}.chipbar button{{width:100%;min-height:44px;text-align:left;white-space:normal;line-height:1.35}}.topbar{{align-items:stretch;flex-direction:column;padding:12px;position:sticky;top:0;z-index:5}}.topbar a{{margin:0 12px 0 0;display:inline-block;padding:8px 0}}.global-search{{max-width:none;width:100%}}.top-actions{{white-space:normal}}.bottom-nav{{display:grid}}table,tbody,tr,td,th{{display:block;width:100%}}thead{{display:none}}tr{{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px;background:#fff;overflow:hidden}}td{{border:0;padding:7px 4px}}td:empty{{display:none}}.inline{{display:grid;grid-template-columns:1fr;gap:8px}}.inline form{{display:block;margin-top:0}}.pill{{border-radius:8px}}}}
 @media(max-width:420px){{main{{width:calc(100% - 12px)}}h1{{font-size:22px}}.panel,.card{{padding:12px}}input,select,textarea{{padding:13px}}.metrics{{gap:8px}}}}
-</style></head><body><main>{nav}<section><h1>{esc(title)}</h1>{subtitle_html}</section>{alert}{body}</main></body></html>"""
+</style></head><body><main>{nav}<section><h1>{esc(title)}</h1>{subtitle_html}</section>{alert}{body}</main>{bottom_nav}</body></html>"""
 
 
 class App(BaseHTTPRequestHandler):
@@ -2571,10 +3990,20 @@ class App(BaseHTTPRequestHandler):
             return self.jarvis_center(user)
         if path == "/agents":
             return self.agents(user)
+        if path in ("/agents/v1.2", "/agents/orchestration"):
+            return self.agent_orchestration_center(user)
+        if path in ("/agents/v1.6", "/agents/multi-agent"):
+            return self.multi_agent_system_center(user)
+        if path == "/digital-workforce":
+            return self.digital_workforce_center(user)
         if path == "/agents/collaboration":
             return self.agent_collaboration(user)
         if path == "/decision-center":
             return self.v64_decision_center(user)
+        if path == "/digital-brain":
+            return self.enterprise_digital_brain_center(user)
+        if path in ("/enterprise-ai-platform", "/integration-hub", "/developer-platform", "/platform-monitoring"):
+            return self.enterprise_ai_platform_center(user)
         if path in ("/enterprise-kernel", "/system/kernel-v7"):
             return self.v71_kernel_center(user)
         if path in ("/mcp", "/mcp-gateway"):
@@ -2591,6 +4020,22 @@ class App(BaseHTTPRequestHandler):
             return self.role_desktop(user)
         if path == "/command-center":
             return self.command_center(user)
+        if path == "/ai-operations":
+            return self.ai_operations_center(user)
+        if path in ("/workflow-automation", "/ai-auto-operation", "/workflow-engine"):
+            return self.workflow_automation_center(user)
+        if path in ("/enterprise-knowledge-graph", "/entity-center", "/ai-permissions"):
+            return self.enterprise_knowledge_graph_center(user)
+        if path in ("/ai-strategy-center", "/strategy-sandbox", "/digital-twin-sandbox"):
+            return self.v21_ai_strategy_center(user)
+        if path in ("/business-autopilot", "/ai-autopilot", "/autonomous-operation"):
+            return self.v22_business_autopilot_center(user)
+        if path in ("/ecosystem-hub", "/ai-ecosystem", "/enterprise-hub"):
+            return self.v23_ecosystem_center(user)
+        if path in ("/auto-operation", "/operation-loop-v1.3"):
+            return self.auto_operation_center(user)
+        if path == "/ai-task-planner":
+            return self.ai_task_planner_page(user)
         if path == "/work-queue":
             return self.work_queue_page(user)
         if path == "/approvals":
@@ -2603,6 +4048,24 @@ class App(BaseHTTPRequestHandler):
             return self.workflow_center(user)
         if path == "/business-overview":
             return self.business_overview(user)
+        if path in ("/os/business", "/business"):
+            return self.os_business_layer(user)
+        if path in ("/os/ai", "/ai"):
+            return self.os_ai_layer(user)
+        if path in ("/os/messages", "/messages"):
+            return self.os_messages_layer(user)
+        if path in ("/os/me", "/me"):
+            return self.os_me_layer(user)
+        if path in ("/os/search", "/search"):
+            return self.os_global_search(user)
+        if path == "/owner-enterprise-plan":
+            return self.owner_enterprise_plan(user)
+        if path.startswith("/owner/"):
+            return self.owner_os_center_page(user, path)
+        if path == "/business-radar":
+            return self.business_radar(user)
+        if path in ("/ai-business-center", "/ai-management-center"):
+            return self.ai_business_center(user)
         if path == "/overview":
             return self.business_overview(user)
         if path == "/finance":
@@ -2679,6 +4142,10 @@ class App(BaseHTTPRequestHandler):
             return self.knowledge(user)
         if path == "/knowledge/dashboard":
             return self.knowledge(user)
+        if path in ("/knowledge/sap", "/knowledge/sap-intelligence"):
+            return self.sap_knowledge_center(user)
+        if path in ("/knowledge/brain", "/knowledge/ai-brain"):
+            return self.ai_knowledge_brain_center(user)
         if path == "/inventory":
             return self.inventory(user)
         if path == "/records/new":
@@ -2719,8 +4186,26 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_get(user, path)
         if path.startswith("/api/sap/sync") or path.startswith("/api/data-pipeline") or path.startswith("/api/system/data-freshness"):
             return self.api_sap_sync_get(user, path)
-        if path.startswith("/api/apps") or path.startswith("/api/desktop") or path.startswith("/api/command-center") or path.startswith("/api/command-palette") or path.startswith("/api/object-actions") or path.startswith("/api/context-bar") or path.startswith("/api/work-queue") or path.startswith("/api/approvals") or path.startswith("/api/os/") or path.startswith("/api/system/upgrade"):
+        if path.startswith("/api/apps") or path.startswith("/api/desktop") or path.startswith("/api/command-center") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner") or path.startswith("/api/command-palette") or path.startswith("/api/object-actions") or path.startswith("/api/context-bar") or path.startswith("/api/work-queue") or path.startswith("/api/approvals") or path.startswith("/api/os/") or path.startswith("/api/system/upgrade"):
             return self.api_os_layer_get(user, path)
+        if path.startswith(("/api/workflow-automation", "/api/workflow/")):
+            return self.api_workflow_automation_get(user, path)
+        if path.startswith("/api/enterprise-knowledge-graph"):
+            return self.api_enterprise_knowledge_graph_get(user, path)
+        if path.startswith("/api/v2.1"):
+            return self.api_v21_get(user, path)
+        if path.startswith("/api/v2.2"):
+            return self.api_v22_get(user, path)
+        if path.startswith("/api/v2.3"):
+            return self.api_v23_get(user, path)
+        if path.startswith("/api/ux"):
+            return self.api_ux_get(user, path)
+        if path.startswith("/api/owner-enterprise"):
+            return self.api_owner_enterprise_get(user, path)
+        if path.startswith("/api/owner-os"):
+            return self.api_owner_os_get(user, path)
+        if path.startswith(("/api/ai-business-center", "/api/decision/today", "/api/forecast/sales", "/api/inventory/risk", "/api/purchase/recommend", "/api/profit/analysis", "/api/risk/list", "/api/business-memory")):
+            return self.api_ai_business_center_get(user, path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_get(user, path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -2729,12 +4214,20 @@ class App(BaseHTTPRequestHandler):
             return self.api_portal_get(user, path)
         if path.startswith("/api/brain"):
             return self.api_brain_get(user, path)
+        if path.startswith("/api/digital-brain"):
+            return self.api_digital_brain_get(user, path)
+        if path.startswith("/api/enterprise-ai-platform"):
+            return self.api_enterprise_ai_platform_get(user, path)
+        if path.startswith("/api/business-radar"):
+            return self.api_business_radar_get(user, path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
             return self.api_memory_get(user, path)
         if path.startswith("/api/graph"):
             return self.api_graph_get(user, path)
         if path.startswith("/api/agents"):
             return self.api_agents_get(user, path)
+        if path.startswith("/api/digital-workforce"):
+            return self.api_digital_workforce_get(user, path)
         if path.startswith("/api/v6.4"):
             return self.api_v64_get(user, path)
         if path.startswith("/api/v7.1") or path.startswith("/api/mcp"):
@@ -2759,6 +4252,10 @@ class App(BaseHTTPRequestHandler):
             return self.api_store_growth_get(user, path)
         if path.startswith("/api/brand-growth"):
             return self.api_brand_growth_get(user, path)
+        if path.startswith("/api/sap-knowledge-engine"):
+            return self.api_sap_knowledge_engine_get(user, path)
+        if path.startswith("/api/knowledge-quality") or path.startswith("/api/ai-learning") or path.startswith("/api/boss-experience"):
+            return self.api_knowledge_quality_get(user, path)
         if path.startswith("/api/knowledge"):
             return self.api_knowledge_get(user, path)
         if path.startswith(("/api/operating-loop", "/api/strategy", "/api/strategy-center", "/api/university", "/api/learning", "/api/growth-engine", "/api/executive-command-center", "/api/digital-twin", "/api/decision-engine", "/api/kernel", "/api/data-fabric", "/api/data-intelligence", "/api/kpi", "/api/insights", "/api/trends", "/api/data-sources", "/api/data-catalog", "/api/data-lineage", "/api/data-quality", "/api/data-freshness", "/api/data-ai-ready", "/api/data-access", "/api/integrations", "/api/security", "/api/operations", "/api/sdk", "/api/extensions", "/api/marketplace", "/api/product", "/api/help", "/api/onboarding", "/api/feedback", "/api/action")):
@@ -2875,14 +4372,22 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_post(self.current_user(), path)
         if path.startswith("/api/sap/sync"):
             return self.api_sap_sync_post(self.current_user(), path)
-        if path.startswith("/api/command-palette") or path.startswith("/api/approvals"):
+        if path.startswith("/api/command-palette") or path.startswith("/api/approvals") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner"):
             return self.api_os_layer_post(self.current_user(), path)
+        if path.startswith(("/api/workflow-automation", "/api/workflow/")):
+            return self.api_workflow_automation_post(self.current_user(), path)
+        if path.startswith(("/api/ai-business-center", "/api/ai/task/create")):
+            return self.api_ai_business_center_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
             return self.api_automation_post(self.current_user(), path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
             return self.api_memory_post(self.current_user(), path)
+        if path.startswith("/api/digital-brain"):
+            return self.api_digital_brain_post(self.current_user(), path)
+        if path.startswith("/api/enterprise-ai-platform"):
+            return self.api_enterprise_ai_platform_post(self.current_user(), path)
         if path.startswith("/api/graph"):
             return self.api_graph_post(self.current_user(), path)
         if path.startswith("/api/hr"):
@@ -2891,6 +4396,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_put(self.current_user(), path)
         if path.startswith("/api/agents"):
             return self.api_agents_post(self.current_user(), path)
+        if path.startswith("/api/digital-workforce"):
+            return self.api_digital_workforce_post(self.current_user(), path)
         if path.startswith("/api/v6.4"):
             return self.api_v64_post(self.current_user(), path)
         if path.startswith("/api/v7.1") or path.startswith("/api/mcp"):
@@ -4018,12 +5525,24 @@ class App(BaseHTTPRequestHandler):
         if not user:
             return
         s = load_summary()
+        smart = self.smart_business_insights()
         metrics = "".join([
             self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(s.get("month_sales")), pct(s.get("completion_rate"))),
             self.metric(U(r"\u672c\u6708\u6bdb\u5229"), U(r"\uffe5") + money(s.get("month_gross_profit")), U(r"\u6bdb\u5229\u7387 ") + pct(s.get("yesterday_gross_margin"))),
             self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), U(r"\uffe5") + money(s.get("inventory_amount")), U(r"\u98ce\u9669 ") + money(s.get("risk_count"))),
+            self.metric(U(r"\u6570\u636e\u65e5\u671f"), s.get("data_date") or "-", s.get("_source") or "SAP"),
         ])
-        body = f"<div class='panel'><h2>{U(r'\u7ecf\u8425\u603b\u89c8')}</h2><div class='metrics'>{metrics}</div>{self.bullets(s.get('ai_suggestions', []))}</div>"
+        body = f"""
+<div class='panel'><h2>{U(r'\u7ecf\u8425\u603b\u89c8')}</h2><div class='metrics'>{metrics}</div></div>
+{self.insight_cards(smart['insights'][:4])}
+<div class='split'>
+  <div class='panel'><h2>{U(r'\u95e8\u5e97\u6392\u884c')}</h2>{self.store_score_table(s.get('top_stores', []))}</div>
+  <div class='panel'><h2>{U(r'AI \u7ecf\u8425\u5efa\u8bae')}</h2>{self.bullets((s.get('ai_suggestions', []) or [])[:6])}</div>
+</div>
+<div class='split'>
+  <div class='panel'><h2>{U(r'\u4eca\u65e5\u52a8\u4f5c')}</h2>{self.bullets(smart['actions'])}</div>
+  <div class='panel'><h2>{U(r'\u6570\u636e\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}</div>
+</div>"""
         self.out(layout(U(r"\u7ecf\u8425\u603b\u89c8"), body, user=user, wide=True))
 
     def sap_sync(self, user):
@@ -4349,33 +5868,1257 @@ class App(BaseHTTPRequestHandler):
 
     def dashboard(self, user):
         role = user["role"]
-        can_boss = role in ("boss", "admin", "finance", "purchasing")
-        can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
-        can_admin = role == "admin"
-        if can_boss:
-            data = self.cockpit_data()
-            smart = self.smart_business_insights()
-            m = data["metrics"]
-            metrics = "".join(
-                [
-                    self.metric(U(r"\u6628\u65e5\u9500\u552e"), U(r"\uffe5") + money(m["yesterday_sales"]), U(r"\u6570\u636e\u65e5\u671f ") + str(m["data_date"])),
-                    self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(m["month_sales"]), U(r"\u5b8c\u6210\u7387 ") + pct(m["completion_rate"])),
-                    self.metric(U(r"\u6bdb\u5229\u60c5\u51b5"), U(r"\uffe5") + money(m["gross_profit"]), U(r"\u6bdb\u5229\u7387 ") + pct(m["gross_margin"])),
-                    self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), money(m["risk_count"]), U(r"\u5e93\u5b58 \uffe5") + money(m["inventory_amount"])),
-                ]
+        owner_roles = ("boss", "admin", "finance")
+        minimal_links = [
+            (U(r"\u4f01\u4e1a"), "/owner/enterprise", role in owner_roles),
+            (U(r"\u8d44\u4ea7"), "/owner/assets", role in owner_roles),
+            (U(r"\u6863\u6848"), "/owner/archive", role in owner_roles),
+            (U(r"\u77e5\u8bc6"), "/owner/knowledge", role in owner_roles),
+            ("AI", "/jarvis", True),
+            (U(r"\u51b3\u7b56"), "/owner/decision", role in owner_roles),
+            (U(r"\u6570\u636e"), "/owner/data", role in owner_roles),
+            (U(r"\u9879\u76ee"), "/owner/projects", role in owner_roles),
+            (U(r"\u6218\u7565"), "/owner/strategy", role in owner_roles),
+            (U(r"\u7cfb\u7edf"), "/owner/system", role in ("boss", "admin")),
+        ]
+        buttons = "".join(
+            '<a class="btn full" href="{}">{}</a>'.format(esc(href), esc(label))
+            for label, href, allowed in minimal_links
+            if allowed
+        )
+        body = '<div class="panel"><h2>FoxBrain OS</h2><div class="grid">{}</div></div>'.format(buttons)
+        return self.out(layout(T["brand"], body, user=user, wide=False))
+
+    def os_layer_cards(self, items):
+        return "".join(self.card(label, note, href, "btn", allowed) for label, note, href, allowed in items if allowed)
+
+    def os_global_search(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+        results = []
+        if q:
+            like = "%" + q + "%"
+            with db() as conn:
+                record_rows = conn.execute(
+                    "select title,summary,tags,updated_at,id from records where title like ? or summary like ? or tags like ? order by updated_at desc limit 12",
+                    (like, like, like),
+                ).fetchall()
+                knowledge_rows = conn.execute(
+                    "select title,summary,ai_summary,tags,updated_at,id from knowledge_items where title like ? or summary like ? or ai_summary like ? or tags like ? or body like ? order by updated_at desc limit 12",
+                    (like, like, like, like, like),
+                ).fetchall()
+            results.extend(
+                {
+                    "type": U(r"\u6863\u6848"),
+                    "title": row["title"],
+                    "summary": row["summary"] or row["tags"] or "",
+                    "url": "/records/view?id=" + str(row["id"]),
+                }
+                for row in record_rows
             )
-            command_panel = f"""
+            results.extend(
+                {
+                    "type": U(r"\u77e5\u8bc6"),
+                    "title": row["title"],
+                    "summary": row["summary"] or row["ai_summary"] or row["tags"] or "",
+                    "url": "/knowledge/view?id=" + str(row["id"]),
+                }
+                for row in knowledge_rows
+            )
+        cards = "".join(self.card(item["title"], item["type"] + " / " + summarize_text(item["summary"], 90), item["url"], "btn", True) for item in results)
+        if q and not cards:
+            cards = '<div class="panel"><p class="small">{}</p></div>'.format(U(r"\u6ca1\u627e\u5230\u5339\u914d\u5185\u5bb9\uff0c\u53ef\u4ee5\u76f4\u63a5\u95ee AI\u3002"))
+        body = """
+<div class="panel">
+  <form method="get" action="/os/search">
+    <label>{}</label>
+    <input name="q" value="{}" placeholder="{}">
+    <p><button>{}</button> <a class="btn dark" href="/jarvis">AI</a></p>
+  </form>
+</div>
+<div class="grid">{}</div>""".format(
+            U(r"\u5168\u5c40\u641c\u7d22"),
+            esc(q),
+            U(r"\u8f93\u5165 OSPREY\u3001\u5357\u5c71\u5e97\u3001\u5458\u5de5\u3001SAP \u6216\u77e5\u8bc6\u5173\u952e\u8bcd"),
+            U(r"\u641c\u7d22"),
+            cards,
+        )
+        self.out(layout(U(r"\u5168\u5c40\u641c\u7d22"), body, user=user, wide=True))
+
+    def owner_os_center_page(self, user, path):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance")):
+            return self.dashboard(user)
+        contract = build_owner_os_foundation_contract()
+        center_key = path.rsplit("/", 1)[-1]
+        aliases = {"assets": "assets", "enterprise": "enterprise", "knowledge": "knowledge", "decision": "decision", "system": "system", "archive": "archive", "data": "data", "projects": "project", "strategy": "strategy"}
+        center_key = aliases.get(center_key, center_key)
+        centers = {item.get("key"): item for item in contract.get("centers", [])}
+        if path == "/owner/ai":
+            return self.redir("/jarvis")
+        center = centers.get(center_key)
+        if not center:
+            center = {
+                "name": "FoxBrain Owner OS",
+                "purpose": contract.get("positioning", ""),
+                "entries": [item.get("name") for item in contract.get("home", {}).get("home_entries", [])],
+            }
+        cards = "".join(
+            self.card(str(entry).replace("_", " ").title(), center.get("purpose", ""), "#", "btn", True)
+            for entry in center.get("entries", [])
+        )
+        body = '<div class="panel"><h2>{}</h2><p class="small">{}</p></div><div class="grid">{}</div>'.format(
+            esc(center.get("name", "FoxBrain Owner OS")),
+            esc(center.get("purpose", "")),
+            cards,
+        )
+        self.out(layout(esc(center.get("name", "FoxBrain Owner OS")), body, user=user, wide=True))
+
+    def os_business_layer(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        role = user["role"]
+        can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
+        items = [
+            (U(r"\u603b\u7ecf\u7406\u9a7e\u9a76\u8231"), U(r"\u7ecf\u8425\u603b\u89c8\u3002"), "/business-overview", role in ("boss", "admin", "finance", "purchasing")),
+            (U(r"\u95e8\u5e97"), U(r"\u95e8\u5e97\u6863\u6848\u548c\u7ecf\u8425\u3002"), "/stores", can_manager),
+            (U(r"\u5458\u5de5"), U(r"\u5458\u5de5\u6863\u6848\u3002"), "/employees", can_manager),
+            (U(r"\u5546\u54c1"), U(r"\u5546\u54c1\u3001\u5e93\u5b58\u548c\u9500\u552e\u3002"), "/products", True),
+            (U(r"\u54c1\u724c"), U(r"\u54c1\u724c\u8d44\u6599\u3002"), "/brands", can_manager),
+            (U(r"\u987e\u5ba2"), U(r"\u4f1a\u5458\u548c\u79c1\u57df\u3002"), "/members", True),
+            (U(r"\u4f9b\u5e94\u5546"), U(r"\u4f9b\u5e94\u5546\u548c\u91c7\u8d2d\u3002"), "/suppliers", role in ("boss", "admin", "purchasing", "finance")),
+            (U(r"\u8d22\u52a1"), U(r"\u5229\u6da6\u3001\u8d39\u7528\u3001\u8d44\u91d1\u3002"), "/finance", role in ("boss", "admin", "finance")),
+        ]
+        body = '<div class="panel"><h2>{}</h2></div><div class="grid">{}</div>'.format(U(r"\u7ecf\u8425"), self.os_layer_cards(items))
+        self.out(layout(U(r"\u7ecf\u8425"), body, user=user, wide=True))
+
+    def os_ai_layer(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        role = user["role"]
+        items = [
+            (U(r"AI\u52a9\u624b"), U(r"\u50cf ChatGPT \u4e00\u6837\u76f4\u63a5\u95ee\u3002"), "/jarvis", True),
+            (U(r"AI\u77e5\u8bc6\u5e93"), U(r"\u77e5\u8bc6\u3001\u6587\u6863\u3001SAP\u7406\u89e3\u3002"), "/knowledge", True),
+            (U(r"AI\u667a\u80fd\u4f53"), U(r"\u6570\u5b57\u5458\u5de5\u548c\u591a\u667a\u80fd\u4f53\u3002"), "/agents", role in ("boss", "admin", "finance", "purchasing", "store_manager")),
+            (U(r"AI\u4efb\u52a1"), U(r"\u8ba1\u5212\u3001\u6267\u884c\u3001\u5ba1\u6279\u524d\u7f6e\u3002"), "/ai-task-planner", True),
+        ]
+        body = '<div class="panel"><h2>FoxBrain AI</h2><p><a class="btn dark full" href="/jarvis">{}</a></p></div><div class="grid">{}</div>'.format(
+            U(r"\u4eca\u5929\u6709\u4ec0\u4e48\u9700\u8981\u6211\u5e2e\u5fd9\uff1f"),
+            self.os_layer_cards(items),
+        )
+        self.out(layout("FoxBrain AI", body, user=user, wide=True))
+
+    def os_messages_layer(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        role = user["role"]
+        items = [
+            (U(r"AI\u65e5\u62a5"), U(r"\u8001\u677f\u65e5\u62a5\u548cCEO\u6458\u8981\u3002"), "/business-autopilot", role in ("boss", "admin", "finance", "purchasing")),
+            (U(r"\u5ba1\u6279"), U(r"\u5f85\u5904\u7406\u548c\u9ad8\u98ce\u9669\u5ba1\u6279\u3002"), "/approvals", role in ("boss", "admin", "store_manager", "purchasing", "finance")),
+            (U(r"\u901a\u77e5"), U(r"\u7cfb\u7edf\u548c\u7ecf\u8425\u6d88\u606f\u3002"), "/notifications", True),
+            (U(r"\u5f85\u529e"), U(r"\u4eca\u65e5\u4efb\u52a1\u3002"), "/tasks", True),
+        ]
+        body = '<div class="panel"><h2>{}</h2></div><div class="grid">{}</div>'.format(U(r"\u6d88\u606f"), self.os_layer_cards(items))
+        self.out(layout(U(r"\u6d88\u606f"), body, user=user, wide=True))
+
+    def os_me_layer(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        role = user["role"]
+        items = [
+            (U(r"\u4e2a\u4eba\u8d44\u6599"), U(r"\u8d26\u53f7\u548c\u95e8\u5e97\u3002"), "/workspace", True),
+            (U(r"\u6743\u9650"), U(r"\u89d2\u8272\u548cAI\u6743\u9650\u3002"), "/settings", role in ("boss", "admin")),
+            (U(r"\u4e3b\u9898"), U(r"\u754c\u9762\u548c\u504f\u597d\u3002"), "/settings", True),
+            (U(r"\u8bbe\u7f6e"), U(r"\u7cfb\u7edf\u8bbe\u7f6e\u3002"), "/settings", True),
+            (U(r"\u7cfb\u7edf"), U(r"\u5e73\u53f0\u548c\u5065\u5eb7\u3002"), "/system/health", role in ("boss", "admin")),
+        ]
+        body = '<div class="panel"><h2>{}</h2><p class="small">{} / {}</p></div><div class="grid">{}</div>'.format(
+            U(r"\u6211\u7684"),
+            esc(user["name"]),
+            esc(ROLES.get(role, role)),
+            self.os_layer_cards(items),
+        )
+        self.out(layout(U(r"\u6211\u7684"), body, user=user, wide=True))
+
+    def api_ux_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/ux", "/api/ux/information-architecture", "/api/ux/v2"):
+            return self.json_out(build_ux_information_architecture_contract())
+        return self.json_out({"ok": False, "message": "unknown ux api"}, code=404)
+
+    def owner_enterprise_plan(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance")):
+            return self.dashboard(user)
+        contract = build_owner_enterprise_planning_contract()
+        systems = contract.get("systems", [])
+        system_cards = "".join(
+            self.card(
+                item.get("name", ""),
+                item.get("domain", "") + " / " + item.get("positioning", ""),
+                item.get("domain", "#") if str(item.get("domain", "")).startswith("http") else "#",
+                "btn dark" if item.get("key") == "owner_os" else "btn",
+                True,
+            )
+            for item in systems
+        )
+        sync = contract.get("sync_policy", {})
+        allowed = [
+            item.get("name", "") + " / " + item.get("policy", "")
+            for item in sync.get("allowed_domains", [])
+        ]
+        blocked = sync.get("blocked_domains", [])
+        body = """
+<div class="panel">
+  <h2>{}</h2>
+  <p class="small">{}</p>
+</div>
+<div class="grid">{}</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2>{}</div>""".format(
+            U(r"\u4e00\u79c1\u4e00\u516c\uff0c\u4e24\u5957\u7cfb\u7edf"),
+            "huyan.vafox.com = FoxBrain Owner OS / ai.vafox.com = FoxBrain Enterprise OS",
+            system_cards,
+            U(r"\u53ef\u90e8\u5206\u540c\u6b65"),
+            self.bullets(allowed),
+            U(r"\u4e0d\u5f97\u4e92\u901a"),
+            self.bullets(blocked),
+            U(r"\u6570\u636e\u4e2d\u53f0\u6d41\u7a0b"),
+            self.bullets(contract.get("data_middle_platform_flow", [])),
+        )
+        self.out(layout("FoxBrain Owner/Enterprise OS", body, user=user, wide=True))
+
+    def api_owner_enterprise_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path in ("/api/owner-enterprise", "/api/owner-enterprise/contract"):
+            return self.json_out(build_owner_enterprise_planning_contract())
+        if path == "/api/owner-enterprise/sync-policy":
+            return self.json_out(build_sync_policy())
+        if path == "/api/owner-enterprise/classify":
+            domain = parse_qs(urlparse(self.path).query).get("domain", [""])[0]
+            return self.json_out(classify_data_domain(domain))
+        return self.json_out({"ok": False, "message": "unknown owner enterprise api"}, code=404)
+
+    def api_owner_os_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path in ("/api/owner-os", "/api/owner-os/foundation"):
+            return self.json_out(build_owner_os_foundation_contract())
+        if path == "/api/owner-os/home":
+            return self.json_out(build_owner_home_contract())
+        if path == "/api/owner-os/master-blueprint":
+            return self.json_out(build_master_blueprint_contract())
+        if path == "/api/owner-os/product-principles":
+            return self.json_out({"ok": True, "principles": build_master_blueprint_contract().get("product_principles", {})})
+        if path == "/api/owner-os/v1-blueprint":
+            blueprint = build_master_blueprint_contract()
+            return self.json_out({"ok": True, "sections": blueprint.get("v1_blueprint_sections", [])})
+        if path == "/api/owner-os/delivery-plan":
+            blueprint = build_master_blueprint_contract()
+            return self.json_out({"ok": True, "delivery_plan": blueprint.get("delivery_plan", [])})
+        return self.json_out({"ok": False, "message": "unknown owner os api"}, code=404)
+
+    def business_radar_payload(self, user):
+        data = self.cockpit_data()
+        smart = self.smart_business_insights()
+        metrics = data["metrics"]
+        return {
+            "ok": True,
+            "module": "business_radar",
+            "version": "independent_section",
+            "page_route": "/business-radar",
+            "api_route": "/api/business-radar",
+            "homepage_policy": "entry_only_no_expanded_metrics_or_insights",
+            "metrics": metrics,
+            "insights": smart.get("insights", []),
+            "actions": smart.get("actions", []),
+            "evidence": smart.get("evidence", []),
+            "source_rule": "business_radar_reads_operating_data_after_click_through_only",
+        }
+
+    def business_radar(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
+            return self.dashboard(user)
+        payload = self.business_radar_payload(user)
+        m = payload["metrics"]
+        metrics = "".join(
+            [
+                self.metric(U(r"\u6628\u65e5\u9500\u552e"), U(r"\uffe5") + money(m["yesterday_sales"]), U(r"\u6570\u636e\u65e5\u671f ") + str(m["data_date"])),
+                self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(m["month_sales"]), U(r"\u5b8c\u6210\u7387 ") + pct(m["completion_rate"])),
+                self.metric(U(r"\u6bdb\u5229\u60c5\u51b5"), U(r"\uffe5") + money(m["gross_profit"]), U(r"\u6bdb\u5229\u7387 ") + pct(m["gross_margin"])),
+                self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), money(m["risk_count"]), U(r"\u5e93\u5b58 \uffe5") + money(m["inventory_amount"])),
+            ]
+        )
+        body = f"""
 <div class="panel">
   <h2>{U(r'\u7ecf\u8425\u96f7\u8fbe')}</h2>
   <div class="metrics">{metrics}</div>
 </div>
-{self.insight_cards(smart['insights'][:3])}
+{self.insight_cards(payload['insights'][:3])}
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u52a8\u4f5c')}</h2>{self.bullets(smart['actions'][:3])}<p><a class="btn dark" href="/ai-ceo">{U(r'AI \u603b\u7ecf\u7406')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u6570\u636e\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'][:4])}<p><a class="btn" href="/business-overview">{U(r'\u7ecf\u8425\u603b\u89c8')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u4eca\u65e5\u52a8\u4f5c')}</h2>{self.bullets(payload['actions'][:3])}<p><a class="btn dark" href="/ai-ceo">{U(r'AI \u603b\u7ecf\u7406')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u6570\u636e\u4f9d\u636e')}</h2>{self.bullets(payload['evidence'][:4])}<p><a class="btn" href="/business-overview">{U(r'\u7ecf\u8425\u603b\u89c8')}</a></p></div>
 </div>"""
-        else:
-            command_panel = f"""
+        self.out(layout(U(r"\u7ecf\u8425\u96f7\u8fbe"), body, user=user, wide=True))
+
+    def api_business_radar_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path in ("/api/business-radar", "/api/business-radar/status"):
+            return self.json_out(self.business_radar_payload(user))
+        if path == "/api/business-radar/home-policy":
+            return self.json_out({
+                "ok": True,
+                "module": "business_radar",
+                "homepage_policy": "entry_only_no_expanded_metrics_or_insights",
+                "page_route": "/business-radar",
+                "api_route": "/api/business-radar",
+            })
+        return self.json_out({"ok": False, "message": "unknown business radar api"}, code=404)
+
+    def ai_business_center_payload(self, user):
+        data = self.cockpit_data()
+        metrics = data["metrics"]
+        fusion = self.knowledge_fusion_payload(user)
+        training = self.knowledge_training_engine_payload(user)
+        inventory = build_inventory_analysis(metrics)
+        risks = build_risk_alerts(metrics)
+        payload = {
+            "ok": True,
+            "module": "ai_business_management_center",
+            "version": "FoxBrain OS Enterprise V1.7",
+            "page_route": "/ai-business-center",
+            "mobile_ready": True,
+            "contract": build_ai_business_center_contract(),
+            "daily_report": build_daily_business_report(metrics, fusion, training.get("operating_rule_library")),
+            "sales_forecast": build_sales_forecast(metrics, "7d"),
+            "sales_forecast_30d": build_sales_forecast(metrics, "30d"),
+            "inventory_analysis": inventory,
+            "purchase_recommendation": build_purchase_recommendation(metrics, inventory),
+            "profit_analysis": build_profit_analysis(metrics),
+            "risk_alerts": risks,
+            "ai_suggestions": [
+                {
+                    "title": "Review Nanshan store operating condition",
+                    "problem": "Recent operation needs SAP sales and inventory verification.",
+                    "cause": "Possible data delay, inventory pressure or brand mix change.",
+                    "suggestion": "Analyze SAP sales, inventory, brand profile and operating rules together.",
+                    "execution_plan": "Create AI task, wait for boss approval, then assign follow-up.",
+                    "status": "pending_review",
+                }
+            ],
+            "approval_policy": "all_high_risk_business_actions_require_boss_approval_no_auto_execution",
+            "data_sources": ["SAP readonly", "enterprise knowledge", "external knowledge", "boss memory", "operating rules"],
+        }
+        return payload
+
+    def persist_ai_business_snapshot(self, user, payload):
+        now = ts()
+        uid = user["id"] if user else None
+        forecast = payload["sales_forecast"]
+        inventory = payload["inventory_analysis"]
+        risks = payload["risk_alerts"]
+        advice = payload["ai_suggestions"][0]
+        with db() as conn:
+            conn.execute(
+                "insert into sales_forecasts(forecast_id,store_id,brand_id,forecast_period,forecast_sales,confidence,analysis,recommendation,source_json,created_by,created_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "SF-" + uuid.uuid4().hex[:10],
+                    "nanshan",
+                    "",
+                    forecast.get("forecast_period", "7d"),
+                    float(forecast.get("forecast_sales") or 0),
+                    float(forecast.get("confidence") or 0),
+                    json.dumps(forecast.get("analysis", {}), ensure_ascii=False),
+                    forecast.get("recommendation", ""),
+                    json.dumps(forecast.get("source", []), ensure_ascii=False),
+                    uid,
+                    now,
+                ),
+            )
+            conn.execute(
+                "insert into inventory_analysis(analysis_id,product_id,brand_id,store_id,health_score,risk_level,slow_moving_items,inventory_amount,expected_sales_cycle,recommendation,source_json,created_by,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "IA-" + uuid.uuid4().hex[:10],
+                    "",
+                    "",
+                    "",
+                    int(inventory.get("health_score") or 0),
+                    inventory.get("risk_level", ""),
+                    json.dumps(inventory.get("slow_moving_items", []), ensure_ascii=False),
+                    float(inventory.get("inventory_amount") or 0),
+                    inventory.get("expected_sales_cycle", ""),
+                    inventory.get("recommendation", ""),
+                    json.dumps(inventory.get("source", []), ensure_ascii=False),
+                    uid,
+                    now,
+                ),
+            )
+            for alert in risks:
+                conn.execute(
+                    "insert into risk_alerts(alert_id,type,level,description,source,suggestion,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        "RA-" + uuid.uuid4().hex[:10],
+                        alert.get("type", "business_risk"),
+                        alert.get("level", "watch"),
+                        alert.get("description", ""),
+                        alert.get("source", ""),
+                        alert.get("suggestion", ""),
+                        alert.get("status", "pending_review"),
+                        uid,
+                        now,
+                        now,
+                    ),
+                )
+            conn.execute(
+                "insert into ai_recommendation_history(recommendation_id,title,recommendation_type,problem,cause,suggestion,execution_plan,evidence_json,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "AIR-" + uuid.uuid4().hex[:10],
+                    advice["title"],
+                    "business_decision",
+                    advice["problem"],
+                    advice["cause"],
+                    advice["suggestion"],
+                    advice["execution_plan"],
+                    json.dumps({"data_sources": payload["data_sources"], "approval_policy": payload["approval_policy"]}, ensure_ascii=False),
+                    "pending_review",
+                    uid,
+                    now,
+                    now,
+                ),
+            )
+        return {"ok": True, "persisted_tables": ["sales_forecasts", "inventory_analysis", "risk_alerts", "ai_recommendation_history"], "created_at": now}
+
+    def ai_business_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
+            return self.dashboard(user)
+        payload = self.ai_business_center_payload(user)
+        report = payload["daily_report"]
+        forecast = payload["sales_forecast"]
+        inventory = payload["inventory_analysis"]
+        profit = payload["profit_analysis"]
+        risk_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(r["type"]), esc(r["level"]), esc(r["description"]), esc(r["suggestion"]))
+            for r in payload["risk_alerts"]
+        )
+        if not risk_rows:
+            risk_rows = '<tr><td colspan="4" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u9ad8\u98ce\u9669\u9884\u8b66"))
+        metrics = "".join([
+            self.metric(U(r"\u4eca\u65e5\u7ecf\u8425\u62a5\u544a"), U(r"08:00"), U(r"SAP+\u77e5\u8bc6+\u89c4\u5219")),
+            self.metric(U(r"\u9500\u552e\u9884\u6d4b"), U(r"\uffe5") + money(forecast.get("forecast_sales", 0)), U(r"\u7f6e\u4fe1\u5ea6 ") + pct(forecast.get("confidence", 0))),
+            self.metric(U(r"\u5e93\u5b58\u5065\u5eb7"), money(inventory.get("health_score", 0)), esc(inventory.get("risk_level", ""))),
+            self.metric(U(r"\u6bdb\u5229\u7387"), pct(profit.get("gross_margin", 0)), U(r"\u5229\u6da6\u4f18\u5148")),
+        ])
+        body = f"""
+<div class="panel">
+  <h2>{U(r'AI\u7ecf\u8425\u4e2d\u5fc3')}</h2>
+  <div class="metrics">{metrics}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u4eca\u65e5\u7ecf\u8425\u62a5\u544a')}</h2>{self.bullets(report.get('ai_advice', []))}<p class="small">{esc(payload['approval_policy'])}</p></div>
+  <div class="panel"><h2>{U(r'\u9500\u552e\u9884\u6d4b')}</h2>{self.bullets([forecast.get('recommendation', ''), U(r'\u5357\u5c71\u5e97\u9884\u8ba1 +15% \uff0c\u539f\u56e0\uff1a\u5468\u672b\u6d3b\u52a8')])}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u5e93\u5b58\u5206\u6790')}</h2>{self.bullets([inventory.get('recommendation', ''), U(r'\u6ede\u9500\u5546\u54c1\u9700\u4ece SAP \u5e93\u5b58\u5e74\u9f84\u590d\u6838')])}</div>
+  <div class="panel"><h2>{U(r'\u91c7\u8d2d\u5efa\u8bae')}</h2>{self.bullets([r['brand'] + ': ' + r['action'] for r in payload['purchase_recommendation'].get('recommendations', [])])}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u5229\u6da6\u5206\u6790')}</h2>{self.bullets([r['brand'] + ': ' + r['basis'] for r in profit.get('real_profit_contribution_ranking', [])])}</div>
+  <div class="panel"><h2>{U(r'AI\u5efa\u8bae')}</h2>{self.bullets([s['title'] + ' - ' + s['status'] for s in payload['ai_suggestions']])}<p><a class="btn" href="/approvals">{U(r'\u53bb\u5ba1\u6279')}</a></p></div>
+</div>
+<div class="panel"><h2>{U(r'\u98ce\u9669\u9884\u8b66')}</h2><table><thead><tr><th>Type</th><th>Level</th><th>Description</th><th>Suggestion</th></tr></thead><tbody>{risk_rows}</tbody></table></div>
+<div class="panel form"><h2>{U(r'AI\u4efb\u52a1\u4e2d\u5fc3')}</h2><form method="post" action="/api/ai/task/create"><label>{U(r'\u8f93\u5165\u7ecf\u8425\u95ee\u9898')}</label><textarea name="question" rows="4" placeholder="{U(r'\u5206\u6790\u4e00\u4e0b\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u60c5\u51b5')}"></textarea><p><button>{U(r'\u751f\u6210\u5ba1\u6279\u4efb\u52a1')}</button></p></form></div>
+"""
+        self.out(layout(U(r"AI\u7ecf\u8425\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def api_ai_business_center_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.ai_business_center_payload(user)
+        if path in ("/api/ai-business-center", "/api/ai-business-center/status"):
+            return self.json_out(payload)
+        if path == "/api/decision/today":
+            self.persist_ai_business_snapshot(user, payload)
+            return self.json_out(payload["daily_report"])
+        if path == "/api/forecast/sales":
+            self.persist_ai_business_snapshot(user, payload)
+            return self.json_out(payload["sales_forecast"])
+        if path == "/api/inventory/risk":
+            self.persist_ai_business_snapshot(user, payload)
+            return self.json_out(payload["inventory_analysis"])
+        if path == "/api/purchase/recommend":
+            self.persist_ai_business_snapshot(user, payload)
+            return self.json_out(payload["purchase_recommendation"])
+        if path == "/api/profit/analysis":
+            self.persist_ai_business_snapshot(user, payload)
+            return self.json_out(payload["profit_analysis"])
+        if path == "/api/risk/list":
+            self.persist_ai_business_snapshot(user, payload)
+            return self.json_out({"ok": True, "risk_alerts": payload["risk_alerts"]})
+        if path == "/api/business-memory":
+            with db() as conn:
+                rows = [row_dict(r) for r in conn.execute("select * from business_memory order by updated_at desc, id desc limit 50").fetchall()]
+            return self.json_out({"ok": True, "business_memory": rows, "rule": "boss_experience_must_be_reviewed_before_active_use"})
+        return self.json_out({"ok": False, "message": "unknown ai business center api"}, code=404)
+
+    def api_ai_business_center_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/ai/task/create":
+            form = self.form()
+            question = form.get("question", "").strip() or U(r"\u5206\u6790\u4e00\u4e0b\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u60c5\u51b5")
+            context = self.ai_business_center_payload(user)
+            plan = build_ai_task_plan(question, context)
+            now = ts()
+            task_id = "TASK-" + uuid.uuid4().hex[:10]
+            approval = self.create_ai_operation_plan(
+                user,
+                U(r"AI\u7ecf\u8425\u5206\u6790\u4efb\u52a1"),
+                question,
+                "ai_business_high_risk_analysis",
+                plan,
+                {"required_calls": plan.get("required_calls", []), "data_sources": context.get("data_sources", [])},
+            )
+            with db() as conn:
+                conn.execute("update ai_operation_plans set risk_level='high', execution_status='blocked_manual_required' where plan_id=?", (approval["plan_id"],))
+                conn.execute(
+                    "insert into ai_tasks(title,description,task_type,assigned_agent,priority,status,result,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        question[:80],
+                        U(r"AI\u4efb\u52a1\u4e2d\u5fc3\u751f\u6210\uff1a\u9700\u8c03\u7528 SAP \u9500\u552e\u3001\u5e93\u5b58\u3001\u54c1\u724c\u8d44\u6599\u548c\u8fd0\u8425\u89c4\u5219\u3002") + "\n" + json.dumps(plan, ensure_ascii=False),
+                        "ai_business_analysis",
+                        "business_agent",
+                        "high",
+                        "pending_review",
+                        "",
+                        user["id"],
+                        now,
+                        now,
+                    ),
+                )
+            return self.json_out({"ok": True, "task_id": task_id, "approval_plan_id": approval["plan_id"], "approval_required": True, "risk_level": "high", "plan": plan})
+        return self.json_out({"ok": False, "message": "unknown ai business center api"}, code=404)
+
+    def workflow_automation_payload(self, user):
+        contract = build_workflow_automation_contract()
+        inventory_workflow = build_inventory_warning_workflow()
+        daily_report = build_periodic_report_plan("daily")
+        weekly_report = build_periodic_report_plan("weekly")
+        monthly_report = build_periodic_report_plan("monthly")
+        with db() as conn:
+            workflows = [row_dict(r) for r in conn.execute("select * from workflows order by updated_at desc, id desc limit 20").fetchall()]
+            tasks_rows = [row_dict(r) for r in conn.execute("select * from tasks order by updated_at desc, id desc limit 20").fetchall()]
+            approvals_rows = [row_dict(r) for r in conn.execute("select * from approvals order by updated_at desc, id desc limit 20").fetchall()]
+            notifications_rows = [row_dict(r) for r in conn.execute("select * from notifications order by created_at desc, id desc limit 20").fetchall()]
+            feedback_rows = [row_dict(r) for r in conn.execute("select * from decision_feedback order by updated_at desc, id desc limit 20").fetchall()]
+            cases = [row_dict(r) for r in conn.execute("select * from business_cases order by updated_at desc, id desc limit 20").fetchall()]
+        return {
+            "ok": True,
+            "module": "workflow_automation_engine",
+            "version": "FoxBrain OS Enterprise V1.8",
+            "page_route": "/workflow-automation",
+            "contract": contract,
+            "workflow_builder": inventory_workflow,
+            "ai_task_center": {"tasks": tasks_rows, "statuses": ["todo", "doing", "pending_review", "done", "closed"]},
+            "approval_center": {"approvals": approvals_rows, "rule": "ai_suggestion_then_boss_approval_then_execution"},
+            "notification_center": {"notifications": notifications_rows, "reserved_channels": ["enterprise_wechat", "email", "sms", "app_push", "feishu", "dingtalk"]},
+            "digital_employees": contract.get("digital_employees", []),
+            "decision_feedback": feedback_rows,
+            "business_cases": cases,
+            "periodic_reports": [daily_report, weekly_report, monthly_report],
+            "guardrail": "ai_can_create_tasks_notifications_and_approval_records_but_high_risk_execution_waits_for_human_approval",
+        }
+
+    def create_v18_inventory_workflow_run(self, user, request_text=""):
+        now = ts()
+        request_text = (request_text or "").strip() or U(r"\u68c0\u67e5\u6700\u8fd1\u5e93\u5b58\u98ce\u9669")
+        acceptance = build_workflow_acceptance_plan(request_text)
+        workflow = build_inventory_warning_workflow()
+        task_plan = build_ai_operating_task(U(r"\u68c0\u67e5\u6700\u8fd1\u5e93\u5b58\u98ce\u9669"), "workflow_engine", "purchase_manager")
+        notification_plan = build_notification_plan(task_plan)
+        feedback = build_decision_feedback_learning(task_plan.get("ai_advice", ""), "pending", "")
+        case_template = build_business_case_template()
+        workflow_id = "WF-" + uuid.uuid4().hex[:10]
+        approval_id = "APV-" + uuid.uuid4().hex[:10]
+        task_id = "TASK-" + uuid.uuid4().hex[:10]
+        notification_id = "NTF-" + uuid.uuid4().hex[:10]
+        with db() as conn:
+            conn.execute(
+                "insert into workflows(workflow_id,name,description,trigger_type,status,owner,approval_required,approval_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                (workflow_id, workflow["name"], request_text, workflow["trigger"], "pending_review", "ai_general_manager", 1, "pending_review", user["id"], now, now),
+            )
+            for idx, node in enumerate(workflow.get("nodes", []), start=1):
+                conn.execute(
+                    "insert into workflow_nodes(node_id,workflow_id,node_key,node_type,name,config_json,sort_order,approval_required,created_at) values(?,?,?,?,?,?,?,?,?)",
+                    ("WFN-" + uuid.uuid4().hex[:10], workflow_id, node.get("key", ""), node.get("type", ""), node.get("name", ""), json.dumps(node, ensure_ascii=False), idx, 1 if node.get("requires_approval") or node.get("required") else 0, now),
+                )
+            cur = conn.execute(
+                "insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (task_id, task_plan["task_name"], task_plan["ai_advice"], task_plan["owner"], "workflow", None, task_plan["priority"], "pending_review", "+3 days", "workflow_engine", workflow_id, user["id"], now, now),
+            )
+            conn.execute(
+                "insert into task_logs(log_id,task_id,action,note,result_json,created_by,created_at) values(?,?,?,?,?,?,?)",
+                ("TL-" + uuid.uuid4().hex[:10], task_id, "created_by_ai_workflow", request_text, json.dumps(acceptance, ensure_ascii=False), user["id"], now),
+            )
+            conn.execute(
+                "insert into approvals(approval_id,title,approval_type,related_object_type,related_object_id,status,risk_level,evidence_json,requested_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                (approval_id, U(r"AI\u5de5\u4f5c\u6d41\u6267\u884c\u5ba1\u6279"), "workflow", "task", task_id, "pending_review", "high", json.dumps({"workflow": workflow, "acceptance": acceptance, "task": task_plan}, ensure_ascii=False), user["id"], now, now),
+            )
+            conn.execute(
+                "insert into notifications(notification_id,channel,title,body,recipient_user_id,status,related_object_type,related_object_id,created_by,created_at) values(?,?,?,?,?,?,?,?,?,?)",
+                (notification_id, notification_plan["default_channel"], notification_plan["title"], notification_plan["body"], user["id"], "pending", "task", cur.lastrowid, user["id"], now),
+            )
+            conn.execute(
+                "insert into decision_feedback(feedback_id,recommendation_id,approval_id,ai_advice,boss_decision,actual_result,accuracy_score,learning_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                ("DF-" + uuid.uuid4().hex[:10], task_id, approval_id, feedback["ai_advice"], feedback["boss_decision"], feedback["actual_result"], 0, "pending_review", user["id"], now, now),
+            )
+            conn.execute(
+                "insert into business_cases(case_id,title,case_type,historical_problem,boss_decision,execution_process,final_result,ai_reuse_rule,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("BC-" + uuid.uuid4().hex[:10], case_template["title"], case_template["case_type"], case_template["example"]["historical_problem"], case_template["example"]["boss_decision"], case_template["example"]["execution_process"], case_template["example"]["final_result"], case_template["knowledge_upgrade"], "active", user["id"], now, now),
+            )
+        return {
+            "ok": True,
+            "workflow_id": workflow_id,
+            "task_id": task_id,
+            "approval_id": approval_id,
+            "notification_id": notification_id,
+            "approval_required": True,
+            "execution_status": "waiting_for_human_approval",
+            "acceptance_plan": acceptance,
+        }
+
+    def workflow_automation_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        payload = self.workflow_automation_payload(user)
+        workflow = payload["workflow_builder"]
+        metrics = "".join([
+            self.metric(U(r"\u5de5\u4f5c\u6d41"), len(payload["ai_task_center"]["tasks"]), U(r"\u4efb\u52a1\u8fde\u63a5")),
+            self.metric(U(r"\u5f85\u5ba1\u6279"), len(payload["approval_center"]["approvals"]), U(r"\u8001\u677f\u786e\u8ba4")),
+            self.metric(U(r"\u901a\u77e5"), len(payload["notification_center"]["notifications"]), U(r"\u4f01\u5fae/\u90ae\u4ef6/\u77ed\u4fe1\u9884\u7559")),
+            self.metric(U(r"\u6848\u4f8b"), len(payload["business_cases"]), U(r"\u7ecf\u9a8c\u5e93")),
+        ])
+        nodes = [n["name"] + " / " + n["type"] for n in workflow.get("nodes", [])]
+        employees = [e["name"] + " / " + ", ".join(e["responsibilities"][:2]) for e in payload["digital_employees"]]
+        reports = [r["title"] + " / " + r["schedule"] for r in payload["periodic_reports"]]
+        body = f"""
+<div class="panel">
+  <h2>{U(r'AI\u81ea\u52a8\u8fd0\u8425')}</h2>
+  <div class="metrics">{metrics}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u5de5\u4f5c\u6d41\u4e2d\u5fc3')}</h2>{self.bullets(nodes)}<p><a class="btn" href="/api/workflow-automation/builder">{U(r'Workflow Builder API')}</a></p></div>
+  <div class="panel form"><h2>{U(r'\u81ea\u52a8\u4efb\u52a1')}</h2><form method="post" action="/api/workflow/run-inventory-risk"><label>{U(r'\u7ecf\u8425\u6307\u4ee4')}</label><textarea name="request_text" rows="4">{U(r'\u68c0\u67e5\u6700\u8fd1\u5e93\u5b58\u98ce\u9669')}</textarea><p><button>{U(r'\u751f\u6210\u5f85\u5ba1\u6279\u5de5\u4f5c\u6d41')}</button></p></form></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'AI\u6570\u5b57\u5458\u5de5')}</h2>{self.bullets(employees)}</div>
+  <div class="panel"><h2>{U(r'\u81ea\u52a8\u65e5\u62a5/\u5468\u62a5/\u6708\u62a5')}</h2>{self.bullets(reports)}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</h2>{self.bullets([a.get('title','') + ' / ' + a.get('status','') for a in payload['approval_center']['approvals'][:8]] or [U(r'\u6682\u65e0\u5f85\u5ba1\u6279\u9879')])}<p><a class="btn" href="/approvals">{U(r'\u53bb\u5ba1\u6279')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u901a\u77e5\u4e2d\u5fc3')}</h2>{self.bullets([n.get('title','') + ' / ' + n.get('status','') for n in payload['notification_center']['notifications'][:8]] or [U(r'\u6682\u65e0\u901a\u77e5')])}<p><a class="btn" href="/notifications">{U(r'\u67e5\u770b\u901a\u77e5')}</a></p></div>
+</div>
+<div class="panel"><h2>{U(r'\u7ecf\u8425\u95ed\u73af\u5b66\u4e60')}</h2>{self.bullets([payload['guardrail'], U(r'AI\u5efa\u8bae -> \u8001\u677f\u51b3\u5b9a -> \u5b9e\u9645\u7ed3\u679c -> AI\u51c6\u786e\u7387\u590d\u76d8')])}</div>
+"""
+        self.out(layout(U(r"AI\u81ea\u52a8\u8fd0\u8425"), body, user=user, wide=True))
+
+    def api_workflow_automation_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.workflow_automation_payload(user)
+        if path in ("/api/workflow-automation", "/api/workflow-automation/status"):
+            return self.json_out(payload)
+        if path == "/api/workflow-automation/builder":
+            return self.json_out(payload["workflow_builder"])
+        if path == "/api/workflow-automation/tasks":
+            return self.json_out(payload["ai_task_center"])
+        if path == "/api/workflow-automation/approvals":
+            return self.json_out(payload["approval_center"])
+        if path == "/api/workflow-automation/notifications":
+            return self.json_out(payload["notification_center"])
+        if path == "/api/workflow-automation/digital-employees":
+            return self.json_out({"ok": True, "digital_employees": payload["digital_employees"]})
+        if path == "/api/workflow-automation/feedback":
+            return self.json_out({"ok": True, "decision_feedback": payload["decision_feedback"]})
+        if path == "/api/workflow-automation/business-cases":
+            return self.json_out({"ok": True, "business_cases": payload["business_cases"], "template": build_business_case_template()})
+        if path == "/api/workflow-automation/reports":
+            return self.json_out({"ok": True, "periodic_reports": payload["periodic_reports"]})
+        return self.json_out({"ok": False, "message": "unknown workflow automation api"}, code=404)
+
+    def api_workflow_automation_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path in ("/api/workflow/run-inventory-risk", "/api/workflow-automation/run-inventory-risk"):
+            form = self.form()
+            return self.json_out(self.create_v18_inventory_workflow_run(user, form.get("request_text", "")), code=202)
+        return self.json_out({"ok": False, "message": "unknown workflow automation api"}, code=404)
+
+    def enterprise_knowledge_graph_payload(self, user):
+        contract = build_enterprise_knowledge_graph_contract()
+        role = user["role"] if user else "employee"
+        with db() as conn:
+            entities_rows = [row_dict(r) for r in conn.execute("select * from entities order by updated_at desc, id desc limit 30").fetchall()]
+            relation_rows = [row_dict(r) for r in conn.execute("select * from entity_relations order by updated_at desc, id desc limit 30").fetchall()]
+            node_rows = [row_dict(r) for r in conn.execute("select * from knowledge_graph_nodes order by updated_at desc, id desc limit 30").fetchall()]
+            edge_rows = [row_dict(r) for r in conn.execute("select * from knowledge_graph_edges order by updated_at desc, id desc limit 30").fetchall()]
+            employee_rows = [row_dict(r) for r in conn.execute("select * from digital_employees order by updated_at desc, id desc limit 30").fetchall()]
+            permission_rows = [row_dict(r) for r in conn.execute("select * from ai_permissions order by updated_at desc, id desc limit 30").fetchall()]
+        return {
+            "ok": True,
+            "module": "enterprise_knowledge_graph",
+            "version": "FoxBrain OS Enterprise V1.9",
+            "page_route": "/enterprise-knowledge-graph",
+            "contract": contract,
+            "kg_builder": build_kg_builder_plan(),
+            "entity_center": {"models": contract.get("entity_models", []), "entities": entities_rows},
+            "relations": relation_rows,
+            "knowledge_graph": {"nodes": node_rows, "edges": edge_rows},
+            "digital_employees": employee_rows or contract.get("permission_roles", []),
+            "ai_permissions": permission_rows,
+            "permission_matrix": build_ai_permission_matrix(role),
+            "employee_ai_assistant": build_employee_ai_profile_contract(),
+            "customer_ai_assistant": build_customer_ai_profile_contract(),
+            "business_map": build_business_map_payload(),
+            "guardrail": "ai_permissions_are_role_based_and_high_risk_actions_require_human_approval",
+        }
+
+    def seed_enterprise_knowledge_graph(self, user):
+        now = ts()
+        contract = build_enterprise_knowledge_graph_contract()
+        with db() as conn:
+            for model in contract.get("entity_models", []):
+                entity_id = "ENT-" + model["key"]
+                if not conn.execute("select id from entities where entity_id=?", (entity_id,)).fetchone():
+                    conn.execute(
+                        "insert into entities(entity_id,entity_type,entity_key,entity_name,attributes_json,source_type,source_id,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                        (entity_id, model["key"], model["key"], model["name"], json.dumps(model, ensure_ascii=False), "v19_contract", "entity_model", "active", user["id"] if user else None, now, now),
+                    )
+                    conn.execute(
+                        "insert into knowledge_graph_nodes(node_id,entity_id,node_type,label,properties_json,source_json,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                        ("KGN-" + model["key"], entity_id, model["key"], model["name"], json.dumps(model, ensure_ascii=False), json.dumps({"source": "v19_seed"}, ensure_ascii=False), "active", now, now),
+                    )
+            edges = [("company", "store", "owns"), ("company", "brand", "operates"), ("brand", "product", "has_product"), ("store", "employee", "has_employee"), ("customer", "product", "purchased")]
+            for src, dst, rel in edges:
+                edge_id = "KGE-" + src + "-" + dst
+                if not conn.execute("select id from knowledge_graph_edges where edge_id=?", (edge_id,)).fetchone():
+                    conn.execute(
+                        "insert into knowledge_graph_edges(edge_id,from_node_id,to_node_id,edge_type,weight,evidence_json,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                        (edge_id, "KGN-" + src, "KGN-" + dst, rel, 1, json.dumps({"source": "v19_seed"}, ensure_ascii=False), "active", now, now),
+                    )
+                    conn.execute(
+                        "insert into entity_relations(relation_id,from_entity_id,from_entity_type,to_entity_id,to_entity_type,relation_type,strength,evidence_json,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                        ("REL-" + src + "-" + dst, "ENT-" + src, src, "ENT-" + dst, dst, rel, "normal", json.dumps({"source": "v19_seed"}, ensure_ascii=False), "active", user["id"] if user else None, now, now),
+                    )
+            for role in contract.get("permission_roles", []):
+                if not conn.execute("select id from digital_employees where digital_employee_id=?", (role["key"],)).fetchone():
+                    conn.execute(
+                        "insert into digital_employees(digital_employee_id,name,role_key,position,permission_scope,knowledge_scope,workflow_scope,memory_scope,performance_policy,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (role["key"], role["name"], role["key"], role["name"], json.dumps(role["data_scope"], ensure_ascii=False), json.dumps(role["data_scope"], ensure_ascii=False), json.dumps(role["tool_scope"], ensure_ascii=False), "role_based_memory", "quality_speed_safety_business_result", "active", user["id"] if user else None, now, now),
+                    )
+                    conn.execute(
+                        "insert into ai_permissions(permission_id,role_key,data_scope,tool_scope,approval_rule,permission_level,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                        ("AIP-" + role["key"], role["key"], json.dumps(role["data_scope"], ensure_ascii=False), json.dumps(role["tool_scope"], ensure_ascii=False), role["approval_rule"], "role_based", "active", user["id"] if user else None, now, now),
+                    )
+        return {"ok": True, "seeded": True, "tables": ["entities", "entity_relations", "knowledge_graph_nodes", "knowledge_graph_edges", "digital_employees", "ai_permissions"]}
+
+    def enterprise_knowledge_graph_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        payload = self.enterprise_knowledge_graph_payload(user)
+        metrics = "".join([
+            self.metric(U(r"\u5b9e\u4f53"), len(payload["entity_center"]["entities"]), U(r"\u516c\u53f8/\u95e8\u5e97/\u54c1\u724c")),
+            self.metric(U(r"\u5173\u7cfb"), len(payload["relations"]), U(r"\u4e1a\u52a1\u8fde\u63a5")),
+            self.metric(U(r"AI\u5458\u5de5"), len(payload["digital_employees"]), U(r"\u6743\u9650\u9694\u79bb")),
+            self.metric(U(r"\u56fe\u8c31\u66f4\u65b0"), payload["kg_builder"]["schedule"], U(r"\u6bcf\u65e5")),
+        ])
+        models = [m["name"] + " / " + ", ".join(m["relations"][:3]) for m in payload["contract"].get("entity_models", [])]
+        roles = [r.get("name", "") + " / " + r.get("approval_rule", "") for r in payload["contract"].get("permission_roles", [])[:6]]
+        body = f"""
+<div class="panel"><h2>{U(r'\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31')}</h2><div class="metrics">{metrics}</div></div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u4f01\u4e1a\u5b9e\u4f53\u4e2d\u5fc3')}</h2>{self.bullets(models)}<p><a class="btn" href="/api/enterprise-knowledge-graph/seed">{U(r'\u521d\u59cb\u5316\u56fe\u8c31')}</a></p></div>
+  <div class="panel"><h2>{U(r'AI\u6743\u9650\u7cfb\u7edf')}</h2>{self.bullets(roles)}<p class="small">{esc(payload['guardrail'])}</p></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u5458\u5de5AI\u52a9\u624b')}</h2>{self.bullets(payload['employee_ai_assistant'].get('connected_data', []))}</div>
+  <div class="panel"><h2>{U(r'\u987e\u5ba2AI\u52a9\u624b')}</h2>{self.bullets(payload['customer_ai_assistant'].get('supported_questions', []))}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u7ecf\u8425\u9a7e\u9a76\u8231\u5730\u56fe')}</h2>{self.bullets([i['store'] + ' / ' + i['trend'] for i in payload['business_map'].get('example', [])])}</div>
+  <div class="panel form"><h2>{U(r'\u5173\u7cfb\u5206\u6790')}</h2><form method="get" action="/api/enterprise-knowledge-graph/query"><label>{U(r'\u95ee\u9898')}</label><input name="q" value="{U(r'\u4e3a\u4ec0\u4e48\u5357\u5c71\u5e97Kailas\u9500\u552e\u589e\u957f\uff1f')}"><p><button>{U(r'\u5206\u6790')}</button></p></form></div>
+</div>
+"""
+        self.out(layout(U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31"), body, user=user, wide=True))
+
+    def api_enterprise_knowledge_graph_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager", "employee")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path in ("/api/enterprise-knowledge-graph", "/api/enterprise-knowledge-graph/status"):
+            return self.json_out(self.enterprise_knowledge_graph_payload(user))
+        if path == "/api/enterprise-knowledge-graph/seed":
+            return self.json_out(self.seed_enterprise_knowledge_graph(user))
+        if path == "/api/enterprise-knowledge-graph/entities":
+            return self.json_out(self.enterprise_knowledge_graph_payload(user)["entity_center"])
+        if path == "/api/enterprise-knowledge-graph/graph":
+            return self.json_out(self.enterprise_knowledge_graph_payload(user)["knowledge_graph"])
+        if path == "/api/enterprise-knowledge-graph/permissions":
+            return self.json_out({"ok": True, "permission_matrix": build_ai_permission_matrix(user["role"]), "roles": build_enterprise_knowledge_graph_contract().get("permission_roles", [])})
+        if path == "/api/enterprise-knowledge-graph/digital-employees":
+            return self.json_out({"ok": True, "digital_employees": self.enterprise_knowledge_graph_payload(user)["digital_employees"]})
+        if path == "/api/enterprise-knowledge-graph/customer-assistant":
+            return self.json_out(build_customer_ai_profile_contract())
+        if path == "/api/enterprise-knowledge-graph/employee-assistant":
+            return self.json_out(build_employee_ai_profile_contract())
+        if path == "/api/enterprise-knowledge-graph/business-map":
+            return self.json_out(build_business_map_payload())
+        if path == "/api/enterprise-knowledge-graph/kg-builder":
+            return self.json_out(build_kg_builder_plan())
+        if path == "/api/enterprise-knowledge-graph/employee-fit":
+            q = parse_qs(urlparse(self.path).query).get("target", ["Kailas"])[0]
+            return self.json_out(build_employee_fit_analysis(q))
+        if path == "/api/enterprise-knowledge-graph/query":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            return self.json_out(build_relationship_query_plan(q))
+        return self.json_out({"ok": False, "message": "unknown enterprise knowledge graph api"}, code=404)
+
+    def v21_strategy_payload(self, user):
+        metrics = self.cockpit_data().get("metrics", {})
+        with db() as conn:
+            scenarios = [row_dict(r) for r in conn.execute("select * from business_scenarios order by updated_at desc, id desc limit 20").fetchall()]
+            results = [row_dict(r) for r in conn.execute("select * from simulation_results order by updated_at desc, id desc limit 20").fetchall()]
+            reports = [row_dict(r) for r in conn.execute("select * from strategy_reports order by updated_at desc, id desc limit 20").fetchall()]
+        return {
+            "ok": True,
+            "module": "digital_twin_simulation",
+            "version": "FoxBrain OS Enterprise V2.1",
+            "page_route": "/ai-strategy-center",
+            "contract": build_digital_twin_simulation_contract(),
+            "company_twin": build_company_twin_model(metrics),
+            "discount_simulation": build_discount_adjustment_scenario(),
+            "new_store_simulation": build_new_store_scenario(),
+            "brand_mix_simulation": build_brand_mix_scenario(),
+            "cashflow_forecast": build_cashflow_forecast(90),
+            "inventory_twin": build_inventory_twin_forecast(60),
+            "employee_twin": build_employee_twin_model(),
+            "board_assistant": build_board_assistant_pack(),
+            "stored_scenarios": scenarios,
+            "simulation_results": results,
+            "strategy_reports": reports,
+            "compatibility": ["SAP data", "enterprise knowledge graph", "AI digital employees", "workflow automation", "AI permission engine"],
+            "guardrail": "simulation_outputs_are_sandboxed_and_execution_requires_human_approval",
+        }
+
+    def persist_v21_simulation(self, user, scenario, result):
+        now = ts()
+        scenario_id = "SCN-" + uuid.uuid4().hex[:10]
+        result_id = "SIM-" + uuid.uuid4().hex[:10]
+        with db() as conn:
+            conn.execute(
+                "insert into business_scenarios(scenario_id,scenario_type,title,input_json,status,approval_required,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                (scenario_id, scenario.get("scenario_type", "strategy"), scenario.get("title", scenario.get("scenario_type", "strategy")), json.dumps(scenario, ensure_ascii=False), "simulated", 1, user["id"] if user else None, now, now),
+            )
+            conn.execute(
+                "insert into simulation_results(result_id,scenario_id,result_json,risk_level,confidence,feedback_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                (result_id, scenario_id, json.dumps(result, ensure_ascii=False), "high" if result.get("approval_required") else "medium", 0.62, "waiting_actual", user["id"] if user else None, now, now),
+            )
+        return {"scenario_id": scenario_id, "result_id": result_id}
+
+    def create_v21_strategy_report(self, user, question):
+        now = ts()
+        report = build_strategy_agent_report(question)
+        report_id = "STR-" + uuid.uuid4().hex[:10]
+        with db() as conn:
+            conn.execute(
+                "insert into strategy_reports(report_id,title,report_type,question,content_json,approval_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                (report_id, U(r"AI\u6218\u7565\u51b3\u7b56\u62a5\u544a"), report.get("report_type", "strategy_report"), question, json.dumps(report, ensure_ascii=False), "pending_review", user["id"] if user else None, now, now),
+            )
+        return {**report, "report_id": report_id}
+
+    def v21_ai_strategy_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
+            return self.dashboard(user)
+        payload = self.v21_strategy_payload(user)
+        metrics = "".join([
+            self.metric(U(r"\u6570\u5b57\u5b6a\u751f"), len(payload["contract"].get("models", [])), U(r"\u516c\u53f8/\u95e8\u5e97/\u5e93\u5b58")),
+            self.metric(U(r"\u6a21\u62df\u573a\u666f"), len(payload["contract"].get("scenario_types", [])), U(r"\u6c99\u76d8")),
+            self.metric(U(r"\u73b0\u91d1\u6d41"), payload["cashflow_forecast"].get("period_days", 90), U(r"\u5929\u9884\u6d4b")),
+            self.metric(U(r"\u5f85\u590d\u76d8"), len(payload["simulation_results"]), U(r"\u6a21\u578b\u4f18\u5316")),
+        ])
+        scenarios = [s["name"] + " / " + ", ".join(s["outputs"][:3]) for s in payload["contract"].get("scenario_types", [])]
+        board = payload["board_assistant"]
+        body = f"""
+<div class="panel"><h2>{U(r'AI\u6218\u7565\u4e2d\u5fc3')}</h2><div class="metrics">{metrics}</div></div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u4f01\u4e1a\u6570\u5b57\u5b6a\u751f')}</h2>{self.bullets(payload['company_twin'].get('company_structure', []))}</div>
+  <div class="panel"><h2>{U(r'\u7ecf\u8425\u6a21\u62df\u6c99\u76d8')}</h2>{self.bullets(scenarios)}<p><a class="btn" href="/api/v2.1/scenario/osprey-discount">{U(r'Osprey\u6298\u6263\u6a21\u62df')}</a></p></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u73b0\u91d1\u6d41\u9884\u6d4b')}</h2>{self.bullets([payload['cashflow_forecast'].get('warning',''), payload['cashflow_forecast'].get('suggestion','')])}</div>
+  <div class="panel"><h2>{U(r'\u5e93\u5b58\u6570\u5b57\u5b6a\u751f')}</h2>{self.bullets(payload['inventory_twin'].get('flow', []))}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u5458\u5de5\u7ecf\u8425\u6a21\u578b')}</h2>{self.bullets(payload['employee_twin'].get('dimensions', []))}</div>
+  <div class="panel"><h2>{U(r'AI\u8463\u4e8b\u4f1a\u52a9\u624b')}</h2>{self.bullets(board.get('materials', []))}</div>
+</div>
+<div class="panel form"><h2>{U(r'AI\u6218\u7565\u987e\u95ee')}</h2><form method="get" action="/api/v2.1/strategy/report"><label>{U(r'\u95ee\u9898')}</label><input name="q" value="{U(r'\u4eca\u5e74300\u4e07Osprey\u671f\u8d27\u662f\u5426\u5e94\u8be5\u5168\u90e8\u63d0\u8d27\uff1f')}"><p><button>{U(r'\u751f\u6210\u51b3\u7b56\u62a5\u544a')}</button></p></form></div>
+<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([payload['guardrail'], U(r'\u6a21\u62df\u4e0d\u4fee\u6539 SAP \u548c\u4efb\u4f55\u751f\u4ea7\u6570\u636e'), U(r'\u6267\u884c\u65b9\u6848\u5fc5\u987b\u8fdb\u5165\u4eba\u5de5\u5ba1\u6279')])}</div>
+"""
+        self.out(layout(U(r"AI\u6218\u7565\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def api_v21_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.v21_strategy_payload(user)
+        if path in ("/api/v2.1", "/api/v2.1/status", "/api/v2.1/strategy-center"):
+            return self.json_out(payload)
+        if path == "/api/v2.1/digital-twin":
+            return self.json_out(payload["company_twin"])
+        if path == "/api/v2.1/scenario/osprey-discount":
+            scenario = {"scenario_type": "discount_adjustment", "title": "Osprey 62 to 59 discount simulation"}
+            result = build_discount_adjustment_scenario("Osprey", 0.62, 0.59)
+            ids = self.persist_v21_simulation(user, scenario, result)
+            return self.json_out({**result, **ids})
+        if path == "/api/v2.1/scenario/new-store":
+            result = build_new_store_scenario()
+            ids = self.persist_v21_simulation(user, {"scenario_type": "new_store", "title": "1000sqm flagship store"}, result)
+            return self.json_out({**result, **ids})
+        if path == "/api/v2.1/scenario/brand-mix":
+            result = build_brand_mix_scenario()
+            ids = self.persist_v21_simulation(user, {"scenario_type": "brand_mix", "title": "Increase VAFOX own brand"}, result)
+            return self.json_out({**result, **ids})
+        if path == "/api/v2.1/cashflow/forecast":
+            return self.json_out(payload["cashflow_forecast"])
+        if path == "/api/v2.1/inventory/forecast":
+            return self.json_out(payload["inventory_twin"])
+        if path == "/api/v2.1/store/model":
+            return self.json_out(build_new_store_scenario())
+        if path == "/api/v2.1/employee/model":
+            return self.json_out(payload["employee_twin"])
+        if path == "/api/v2.1/investment/model":
+            return self.json_out(build_new_store_scenario())
+        if path == "/api/v2.1/board-assistant":
+            return self.json_out(payload["board_assistant"])
+        if path == "/api/v2.1/strategy/report":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            return self.json_out(self.create_v21_strategy_report(user, q))
+        return self.json_out({"ok": False, "message": "unknown v2.1 api"}, code=404)
+
+    def v22_autopilot_payload(self, user):
+        metrics = self.cockpit_data().get("metrics", {})
+        with db() as conn:
+            health_rows = [row_dict(r) for r in conn.execute("select * from business_health_scores order by created_at desc, id desc limit 10").fetchall()]
+            alerts = [row_dict(r) for r in conn.execute("select * from business_alerts order by updated_at desc, id desc limit 20").fetchall()]
+            actions = [row_dict(r) for r in conn.execute("select * from action_tasks order by updated_at desc, id desc limit 20").fetchall()]
+            learning = [row_dict(r) for r in conn.execute("select * from ai_learning_records order by updated_at desc, id desc limit 20").fetchall()]
+            reports = [row_dict(r) for r in conn.execute("select * from ceo_daily_reports order by updated_at desc, id desc limit 10").fetchall()]
+        return {
+            "ok": True,
+            "module": "business_autopilot",
+            "version": "FoxBrain OS Enterprise V2.2",
+            "page_route": "/business-autopilot",
+            "contract": build_business_autopilot_contract(),
+            "health_score": calculate_business_health_score(metrics),
+            "daily_inspection": build_daily_inspection_plan(),
+            "early_warning": build_early_warning_forecast(),
+            "action_center": build_action_plan(),
+            "ceo_dashboard": build_ceo_dashboard_payload(),
+            "rule_evolution": build_rule_evolution_plan(),
+            "learning_center": build_learning_record_template(),
+            "chairman_agent": build_chairman_agent_brief(),
+            "stored": {"health_scores": health_rows, "alerts": alerts, "actions": actions, "learning": learning, "reports": reports},
+            "compatibility": ["SAP sync", "enterprise knowledge graph", "digital twin", "AI digital employees", "workflow system"],
+            "guardrail": "autopilot_creates_alerts_tasks_and_reports_but_high_risk_execution_requires_human_approval",
+        }
+
+    def run_v22_risk_scan(self, user):
+        now = ts()
+        today = time.strftime("%Y-%m-%d")
+        health = calculate_business_health_score(self.cockpit_data().get("metrics", {}))
+        risk = build_biggest_risk_analysis()
+        action = build_action_plan(risk["top_5_risks"][0]["risk"])
+        chairman = build_chairman_agent_brief()
+        rule = build_rule_evolution_plan()
+        score_id = "BHS-" + uuid.uuid4().hex[:10]
+        alert_id = "BAL-" + uuid.uuid4().hex[:10]
+        action_id = "ACT-" + uuid.uuid4().hex[:10]
+        learning_id = "LRN-" + uuid.uuid4().hex[:10]
+        report_id = "CEO-" + uuid.uuid4().hex[:10]
+        with db() as conn:
+            conn.execute(
+                "insert into business_health_scores(score_id,score_date,total_score,dimension_scores_json,strengths_json,risks_json,suggestions_json,created_by,created_at) values(?,?,?,?,?,?,?,?,?)",
+                (score_id, today, int(health.get("score") or 0), json.dumps(health.get("dimensions", {}), ensure_ascii=False), json.dumps(health.get("strengths", []), ensure_ascii=False), json.dumps(health.get("risks", []), ensure_ascii=False), json.dumps(health.get("suggestions", []), ensure_ascii=False), user["id"] if user else None, now),
+            )
+            first_risk = risk["top_5_risks"][0]
+            conn.execute(
+                "insert into business_alerts(alert_id,alert_type,title,description,level,reason_json,impact_json,solution_json,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (alert_id, "autopilot_risk", first_risk["risk"], first_risk["risk"], "high", json.dumps({"required_calls": risk["required_calls"]}, ensure_ascii=False), json.dumps({"impact": first_risk["impact"]}, ensure_ascii=False), json.dumps({"solution": first_risk["solution"]}, ensure_ascii=False), "pending_review", user["id"] if user else None, now, now),
+            )
+            conn.execute(
+                "insert into action_tasks(action_id,title,owner,due_date,source_alert_id,plan_json,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                (action_id, action["task"]["title"], action["task"]["owner"], "+7 days", alert_id, json.dumps(action, ensure_ascii=False), "pending_review", user["id"] if user else None, now, now),
+            )
+            conn.execute(
+                "insert into ai_learning_records(learning_id,problem,ai_advice,boss_decision,execution_result,final_effect,case_type,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                (learning_id, first_risk["risk"], first_risk["solution"], "pending", "", "", "autopilot_risk", "pending_review", user["id"] if user else None, now, now),
+            )
+            conn.execute(
+                "insert into rule_evolution(evolution_id,rule_name,old_rule_json,new_rule_json,evidence_json,approval_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                ("RUL-" + uuid.uuid4().hex[:10], rule["example_rule"], "{}", json.dumps(rule["purchase_weights"], ensure_ascii=False), json.dumps({"source": "autopilot_feedback"}, ensure_ascii=False), "pending_review", user["id"] if user else None, now, now),
+            )
+            conn.execute(
+                "insert into ceo_daily_reports(report_id,report_date,title,top_metrics_json,top_focus_json,suggestions_json,approval_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                (report_id, today, U(r"CEO\u81ea\u52a8\u9a7e\u9a76\u65e5\u62a5"), json.dumps(build_ceo_dashboard_payload()["top_10_metrics"], ensure_ascii=False), json.dumps(chairman["top_focus"], ensure_ascii=False), json.dumps(chairman["suggested_schedule"], ensure_ascii=False), "pending_review", user["id"] if user else None, now, now),
+            )
+        return {"ok": True, "score_id": score_id, "alert_id": alert_id, "action_id": action_id, "learning_id": learning_id, "report_id": report_id, "risk_analysis": risk, "approval_required": True}
+
+    def v22_business_autopilot_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        payload = self.v22_autopilot_payload(user)
+        health = payload["health_score"]
+        metrics = "".join([
+            self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7"), health.get("score", 0), U(r"100\u5206")),
+            self.metric(U(r"\u5de1\u68c0"), payload["daily_inspection"].get("schedule", "06:00 daily"), U(r"\u6bcf\u65e5")),
+            self.metric(U(r"\u9884\u8b66"), len(payload["early_warning"].get("risks", [])), U(r"7/30/90\u5929")),
+            self.metric(U(r"\u5f85\u884c\u52a8"), len(payload["stored"]["actions"]), U(r"\u8ddf\u8e2a")),
+        ])
+        top10 = payload["ceo_dashboard"].get("top_10_metrics", [])
+        jobs = [j["schedule"] + " / " + j["name"] for j in payload["contract"].get("autopilot_jobs", [])]
+        focus = payload["chairman_agent"].get("top_focus", [])
+        body = f"""
+<div class="panel"><h2>{U(r'AI\u81ea\u52a8\u9a7e\u9a76')}</h2><div class="metrics">{metrics}</div></div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u4f01\u4e1a\u5065\u5eb7\u76d1\u63a7')}</h2>{self.bullets(health.get('suggestions', []))}</div>
+  <div class="panel"><h2>CEO Dashboard</h2>{self.bullets(top10)}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'AI\u6bcf\u65e5\u5de1\u68c0')}</h2>{self.bullets(jobs)}</div>
+  <div class="panel"><h2>Chairman Agent</h2>{self.bullets(focus)}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u5f02\u5e38\u9884\u6d4b')}</h2>{self.bullets([r['type'] + ' / ' + r['prediction'] for r in payload['early_warning'].get('risks', [])])}</div>
+  <div class="panel form"><h2>{U(r'\u6700\u5927\u7ecf\u8425\u98ce\u9669')}</h2><form method="get" action="/api/v2.2/risk/biggest"><p><button>{U(r'\u68c0\u67e5\u706b\u72d0\u72f8\u76ee\u524d\u6700\u5927\u7ecf\u8425\u98ce\u9669')}</button></p></form></div>
+</div>
+<div class="panel"><h2>{U(r'\u5b66\u4e60\u4e2d\u5fc3')}</h2>{self.bullets(payload['learning_center'].get('case_library', []))}</div>
+"""
+        self.out(layout(U(r"AI\u81ea\u52a8\u9a7e\u9a76"), body, user=user, wide=True))
+
+    def api_v22_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.v22_autopilot_payload(user)
+        if path in ("/api/v2.2", "/api/v2.2/status", "/api/v2.2/autopilot"):
+            return self.json_out(payload)
+        if path == "/api/v2.2/health-score":
+            return self.json_out(payload["health_score"])
+        if path == "/api/v2.2/inspection/daily":
+            return self.json_out(payload["daily_inspection"])
+        if path == "/api/v2.2/alerts":
+            return self.json_out({"ok": True, "alerts": payload["stored"]["alerts"], "early_warning": payload["early_warning"]})
+        if path == "/api/v2.2/actions":
+            return self.json_out({"ok": True, "actions": payload["stored"]["actions"], "action_plan": payload["action_center"]})
+        if path == "/api/v2.2/ceo-dashboard":
+            return self.json_out(payload["ceo_dashboard"])
+        if path == "/api/v2.2/learning":
+            return self.json_out({"ok": True, "learning_records": payload["stored"]["learning"], "template": payload["learning_center"]})
+        if path == "/api/v2.2/rules/evolution":
+            return self.json_out(payload["rule_evolution"])
+        if path == "/api/v2.2/chairman-agent":
+            return self.json_out(payload["chairman_agent"])
+        if path == "/api/v2.2/risk/biggest":
+            return self.json_out(self.run_v22_risk_scan(user))
+        return self.json_out({"ok": False, "message": "unknown v2.2 api"}, code=404)
+
+    def v23_ecosystem_payload(self, user):
+        with db() as conn:
+            sources = [row_dict(r) for r in conn.execute("select * from data_sources order by updated_at desc, id desc limit 30").fetchall()]
+            jobs = [row_dict(r) for r in conn.execute("select * from sync_jobs order by updated_at desc, id desc limit 30").fetchall()]
+            profiles = [row_dict(r) for r in conn.execute("select * from customer_profiles order by updated_at desc, id desc limit 20").fetchall()]
+            orders = [row_dict(r) for r in conn.execute("select * from channel_orders order by updated_at desc, id desc limit 20").fetchall()]
+            assets = [row_dict(r) for r in conn.execute("select * from content_assets order by updated_at desc, id desc limit 20").fetchall()]
+            logs = [row_dict(r) for r in conn.execute("select * from integration_logs order by created_at desc, id desc limit 20").fetchall()]
+        return {
+            "ok": True,
+            "module": "enterprise_ecosystem_hub",
+            "version": "FoxBrain OS Enterprise V2.3",
+            "page_route": "/ecosystem-hub",
+            "contract": build_ecosystem_hub_contract(),
+            "data_lake": build_enterprise_data_lake_plan(),
+            "wecom_crm": build_wecom_crm_agent(),
+            "crm_manager": build_crm_manager_plan(),
+            "ecommerce": build_ecommerce_connector_plan(),
+            "content_factory": build_content_factory_plan(),
+            "api_gateway": build_api_gateway_plan(),
+            "vip_recall_workflow": build_vip_recall_workflow(),
+            "stored": {"sources": sources, "sync_jobs": jobs, "customer_profiles": profiles, "channel_orders": orders, "content_assets": assets, "integration_logs": logs},
+            "compatibility": ["SAP", "knowledge_base", "knowledge_graph", "digital_twin", "AI digital employees", "business_autopilot"],
+            "guardrail": "external_channel_execution_and_api_permission_changes_require_human_approval",
+        }
+
+    def seed_v23_ecosystem(self, user):
+        now = ts()
+        contract = build_ecosystem_hub_contract()
+        with db() as conn:
+            for c in contract.get("connectors", []):
+                if not conn.execute("select id from data_sources where source_key=?", (c["key"],)).fetchone():
+                    conn.execute(
+                        "insert into data_sources(source_id,source_key,source_name,source_type,status,sync_schedule,config_json,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                        ("DS-" + c["key"], c["key"], c["name"], "ecosystem_connector", "planned", c["sync_schedule"], json.dumps(c, ensure_ascii=False), user["id"] if user else None, now, now),
+                    )
+                    conn.execute(
+                        "insert into sync_jobs(job_id,source_key,job_name,schedule_rule,status,result_json,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                        ("SYNC-" + c["key"], c["key"], c["name"] + " sync", c["sync_schedule"], "planned", "{}", user["id"] if user else None, now, now),
+                    )
+            conn.execute(
+                "insert into integration_logs(log_id,source_key,event_type,status,request_json,response_json,created_by,created_at) values(?,?,?,?,?,?,?,?)",
+                ("ILOG-" + uuid.uuid4().hex[:10], "ecosystem", "v23_seed", "logged", "{}", json.dumps({"connectors": len(contract.get("connectors", []))}, ensure_ascii=False), user["id"] if user else None, now),
+            )
+        return {"ok": True, "seeded": True, "connectors": [c["key"] for c in contract.get("connectors", [])]}
+
+    def run_v23_churn_recall(self, user, question=""):
+        now = ts()
+        analysis = build_omnichannel_analysis(question or U(r"\u627e\u51fa\u6700\u8fd190\u5929\u6d41\u5931\u98ce\u9669\u6700\u9ad8\u7684100\u4e2a\u5ba2\u6237\uff0c\u5e76\u5236\u5b9a\u53ec\u56de\u65b9\u6848\u3002"))
+        workflow = build_vip_recall_workflow()
+        with db() as conn:
+            conn.execute(
+                "insert into customer_profiles(profile_id,customer_id,customer_name,lifecycle_stage,segment_tags,purchase_summary_json,preference_json,churn_risk_score,total_consumption,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("CP-" + uuid.uuid4().hex[:10], "sample_churn_top_100", "highest churn risk customers", "churn_risk_customer", "VIP outdoor player,churn risk", json.dumps({"window_days": 90}, ensure_ascii=False), json.dumps({"source": "SAP+CRM+WeCom"}, ensure_ascii=False), 0.92, 0, "pending_review", user["id"] if user else None, now, now),
+            )
+            conn.execute(
+                "insert into integration_logs(log_id,source_key,event_type,status,request_json,response_json,created_by,created_at) values(?,?,?,?,?,?,?,?)",
+                ("ILOG-" + uuid.uuid4().hex[:10], "crm", "churn_recall_analysis", "pending_review", json.dumps({"question": question}, ensure_ascii=False), json.dumps({"analysis": analysis, "workflow": workflow}, ensure_ascii=False), user["id"] if user else None, now),
+            )
+        return {"ok": True, "analysis": analysis, "workflow": workflow, "approval_required": True}
+
+    def v23_ecosystem_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.dashboard(user)
+        payload = self.v23_ecosystem_payload(user)
+        metrics = "".join([
+            self.metric(U(r"\u8fde\u63a5\u5668"), len(payload["contract"].get("connectors", [])), U(r"\u751f\u6001")),
+            self.metric(U(r"\u540c\u6b65\u4efb\u52a1"), len(payload["data_lake"].get("sync_jobs", [])), U(r"\u6bcf\u65e5")),
+            self.metric("CRM", len(payload["crm_manager"].get("segments", [])), U(r"\u5206\u7fa4")),
+            self.metric("API", len(payload["api_gateway"].get("managed_apis", [])), "Gateway"),
+        ])
+        connectors = [c["name"] + " / " + c["sync_schedule"] for c in payload["contract"].get("connectors", [])]
+        sync_jobs = [j["time"] + " / " + j["job"] for j in payload["data_lake"].get("sync_jobs", [])]
+        body = f"""
+<div class="panel"><h2>{U(r'AI\u751f\u6001\u4e2d\u5fc3')}</h2><div class="metrics">{metrics}</div></div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u6570\u636e\u8fde\u63a5\u4e2d\u5fc3')}</h2>{self.bullets(connectors)}<p><a class="btn" href="/api/v2.3/seed">{U(r'\u521d\u59cb\u5316\u8fde\u63a5')}</a></p></div>
+  <div class="panel"><h2>{U(r'\u81ea\u52a8\u540c\u6b65')}</h2>{self.bullets(sync_jobs)}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u4f01\u5faeCRM')}</h2>{self.bullets(payload['wecom_crm'].get('connections', []))}</div>
+  <div class="panel"><h2>{U(r'\u4f1a\u5458CRM')}</h2>{self.bullets(payload['crm_manager'].get('segments', []))}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u7535\u5546\u6570\u636e')}</h2>{self.bullets(payload['ecommerce'].get('platforms', []))}</div>
+  <div class="panel"><h2>AI Content Factory</h2>{self.bullets(list(payload['content_factory'].get('outputs', {}).keys()))}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>API Gateway</h2>{self.bullets(payload['api_gateway'].get('managed_apis', []))}</div>
+  <div class="panel form"><h2>{U(r'\u6d41\u5931\u5ba2\u6237\u53ec\u56de')}</h2><form method="get" action="/api/v2.3/churn-recall"><p><button>{U(r'\u751f\u6210\u53ec\u56de\u65b9\u6848')}</button></p></form></div>
+</div>
+<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([payload['guardrail'], U(r'\u5916\u90e8\u6e20\u9053\u53d1\u9001\u5fc5\u987b\u4eba\u5de5\u786e\u8ba4'), U(r'\u6240\u6709\u63a5\u53e3\u8c03\u7528\u9700\u8bb0\u5f55\u65e5\u5fd7')])}</div>
+"""
+        self.out(layout(U(r"AI\u751f\u6001\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def api_v23_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "purchasing", "store_manager")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.v23_ecosystem_payload(user)
+        if path in ("/api/v2.3", "/api/v2.3/status", "/api/v2.3/ecosystem"):
+            return self.json_out(payload)
+        if path == "/api/v2.3/seed":
+            return self.json_out(self.seed_v23_ecosystem(user))
+        if path == "/api/v2.3/data-lake":
+            return self.json_out(payload["data_lake"])
+        if path == "/api/v2.3/wecom":
+            return self.json_out(payload["wecom_crm"])
+        if path == "/api/v2.3/crm":
+            return self.json_out(payload["crm_manager"])
+        if path == "/api/v2.3/ecommerce":
+            return self.json_out(payload["ecommerce"])
+        if path == "/api/v2.3/content-factory":
+            return self.json_out(payload["content_factory"])
+        if path == "/api/v2.3/api-gateway":
+            return self.json_out(payload["api_gateway"])
+        if path == "/api/v2.3/omnichannel-analysis":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            return self.json_out(build_omnichannel_analysis(q))
+        if path == "/api/v2.3/churn-recall":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            return self.json_out(self.run_v23_churn_recall(user, q))
+        if path == "/api/v2.3/integration-logs":
+            return self.json_out({"ok": True, "integration_logs": payload["stored"]["integration_logs"]})
+        return self.json_out({"ok": False, "message": "unknown v2.3 api"}, code=404)
+
+    def legacy_dashboard_detail(self, user):
+        role = user["role"]
+        can_boss = role in ("boss", "admin", "finance", "purchasing")
+        can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
+        can_admin = role == "admin"
+        command_panel = f"""
 <div class="panel">
   <h2>{U(r'\u5de5\u4f5c\u53f0')}</h2>
 </div>"""
@@ -4481,14 +7224,80 @@ class App(BaseHTTPRequestHandler):
     def sap_api_placeholder(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
-        mapping = {
-            "/api/sap/business-analysis": "business analysis",
-            "/api/sap/profit-analysis": "profit analysis",
-            "/api/sap/inventory-analysis": "inventory analysis",
-            "/api/sap/sales-trend": "sales trend",
-            "/api/sap/ai-analysis": "ai analysis",
+        if path in ("/api/sap/datahub", "/api/sap/tables"):
+            counts = {}
+            for table in ("sap_customers", "sap_items", "sap_warehouses", "sap_salespersons", "sap_stock_by_whs", "sap_sales_invoices", "sap_sales_invoice_lines", "sap_purchase_orders"):
+                rows = pg_query(f"select count(*) as c from {table}")
+                counts[table] = int(rows[0]["c"]) if rows else 0
+            return self.json_out({"ok": True, "data_source": "postgres:sap_*", "counts": counts, "freshness": self.sap_sync_status_payload()})
+        if path == "/api/sap/items":
+            rows = pg_query("select item_code, item_name, item_group, code_bars, on_hand, is_commited, on_order, buy_unit, sale_unit from sap_items order by item_code limit 200")
+            return self.json_out({"ok": True, "items": rows, "count": len(rows), "data_source": "postgres:sap_items"})
+        if path == "/api/sap/inventory":
+            rows = pg_query(
+                """
+select s.item_code, i.item_name, s.whs_code, s.on_hand, s.is_commited, s.on_order, s.avg_price,
+       coalesce(s.on_hand,0) * coalesce(s.avg_price,0) as stock_amount
+from sap_stock_by_whs s
+left join sap_items i on i.item_code = s.item_code
+where coalesce(s.on_hand,0) > 0
+order by coalesce(s.on_hand,0) * coalesce(s.avg_price,0) desc
+limit 200
+"""
+            )
+            return self.json_out({"ok": True, "inventory": rows, "count": len(rows), "data_source": "postgres:sap_stock_by_whs"})
+        if path == "/api/sap/customers":
+            rows = pg_query("select card_code, card_name, card_type, phone1, cellular, balance, credit_line, create_date, update_date from sap_customers order by update_date desc nulls last limit 200")
+            return self.json_out({"ok": True, "customers": rows, "count": len(rows), "data_source": "postgres:sap_customers"})
+        if path == "/api/sap/sales":
+            rows = pg_query("select doc_num, doc_date, card_code, card_name, doc_total, gross_profit, slp_code, doc_status from sap_sales_invoices where coalesce(canceled,'N')='N' order by doc_date desc, doc_num desc limit 200")
+            return self.json_out({"ok": True, "sales": rows, "count": len(rows), "data_source": "postgres:sap_sales_invoices"})
+        data = self.cockpit_data()
+        smart = self.smart_business_insights()
+        payload = {
+            "ok": True,
+            "endpoint": path,
+            "data_source": data["source"],
+            "freshness": self.sap_sync_status_payload(),
+            "metrics": data["metrics"],
+            "rankings": {
+                "stores": data.get("top_stores", []),
+                "brands": data.get("top_brands", []),
+            },
+            "insights": smart["insights"],
+            "actions": smart["actions"],
+            "evidence": smart["evidence"],
+            "limitations": [data["empty_message"]] if not data["has_data"] else [],
         }
-        return self.json_out({"ok": True, "endpoint": mapping.get(path, "sap placeholder"), "data": load_summary(), "note": "placeholder; existing SAP sync is unchanged"})
+        if path == "/api/sap/profit-analysis":
+            payload["focus"] = {
+                "gross_profit": data["metrics"].get("gross_profit", 0),
+                "gross_margin": data["metrics"].get("gross_margin", 0),
+                "low_margin_stores": [
+                    row for row in data.get("top_stores", [])
+                    if self.num(row.get("sales")) and self.num(row.get("gross_profit")) / self.num(row.get("sales")) * 100 < 5
+                ],
+            }
+        elif path == "/api/sap/inventory-analysis":
+            payload["focus"] = {
+                "inventory_amount": data["metrics"].get("inventory_amount", 0),
+                "risk_count": data["metrics"].get("risk_count", 0),
+                "risk_rule": "on_hand > 20 and committed = 0",
+            }
+        elif path == "/api/sap/sales-trend":
+            payload["focus"] = {
+                "data_date": data["metrics"].get("data_date"),
+                "yesterday_sales": data["metrics"].get("yesterday_sales", 0),
+                "month_sales": data["metrics"].get("month_sales", 0),
+                "completion_rate": data["metrics"].get("completion_rate", 0),
+            }
+        elif path == "/api/sap/ai-analysis":
+            payload["focus"] = {"recommendations": data.get("ai_suggestions", []), "todos": data.get("todos", [])}
+        elif path != "/api/sap/business-analysis":
+            payload["ok"] = False
+            payload["message"] = "unknown sap api"
+            return self.json_out(payload, code=404)
+        return self.json_out(payload)
 
     def api_ceo_dashboard(self, user):
         if not user:
@@ -4582,7 +7391,7 @@ class App(BaseHTTPRequestHandler):
 <div class="panel">
   <h2>{U(r'\u77e5\u8bc6\u5f15\u64ce\u4e2d\u5fc3')}</h2>
   <p class="small">{U(r'\u8fd9\u91cc\u662f FoxBrain \u7684\u4f01\u4e1a\u957f\u671f\u8bb0\u5fc6\uff1a\u6587\u6863\u3001\u5236\u5ea6\u3001\u5408\u540c\u3001SAP \u6458\u8981\u3001\u57f9\u8bad\u548c AI \u95ee\u7b54\u90fd\u4f1a\u6c89\u6dc0\u5230\u8fd9\u91cc\u3002')}</p>
-  <div class="inline"><a class="btn" href="/upload">{U(r'\u4e0a\u4f20\u6587\u4ef6')}</a><a class="btn green" href="/knowledge/new">{U(r'\u65b0\u5efa\u77e5\u8bc6')}</a><a class="btn dark" href="/ai-query">{U(r'AI \u67e5\u8be2')}</a><a class="btn orange" href="/web-search">{U(r'\u5916\u7f51\u4fdd\u5b58')}</a></div>
+  <div class="inline"><a class="btn" href="/upload">{U(r'\u4e0a\u4f20\u6587\u4ef6')}</a><a class="btn green" href="/knowledge/new">{U(r'\u65b0\u5efa\u77e5\u8bc6')}</a><a class="btn dark" href="/ai-query">{U(r'AI \u67e5\u8be2')}</a><a class="btn orange" href="/knowledge/sap">{U(r'SAP \u77e5\u8bc6\u5316')}</a><a class="btn" href="/knowledge/brain">{U(r'AI \u77e5\u8bc6\u5927\u8111')}</a><a class="btn gray" href="/web-search">{U(r'\u5916\u7f51\u4fdd\u5b58')}</a></div>
 </div>
 <div class="metrics">
   {self.metric(U(r'\u77e5\u8bc6\u603b\u6570'), total, U(r'\u5168\u90e8\u6761\u76ee'))}
@@ -4598,8 +7407,329 @@ class App(BaseHTTPRequestHandler):
   </form>
   <div>{source_pills}</div>
 </div>
-<div class="grid">{cards}</div>"""
+        <div class="grid">{cards}</div>"""
         self.out(layout(U(r"\u77e5\u8bc6\u5f15\u64ce\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def sap_knowledge_source_rows(self, scope="all", limit=80):
+        scope = scope or "all"
+        rows = []
+        with db() as conn:
+            if scope in ("all", "brand", "brands"):
+                for r in conn.execute("select * from brands order by updated_at desc limit ?", (limit,)).fetchall():
+                    rows.append({"entity_type": "brand", "entity_key": r["brand_code"] or str(r["id"]), "name": r["name"], "source_table": "brands", "payload": row_dict(r)})
+            if scope in ("all", "product", "products"):
+                for r in conn.execute("select * from products order by updated_at desc limit ?", (limit,)).fetchall():
+                    rows.append({"entity_type": "product", "entity_key": r["product_code"] or r["sku"] or str(r["id"]), "name": r["name"], "source_table": "products", "payload": row_dict(r)})
+            if scope in ("all", "store", "stores"):
+                for r in conn.execute("select * from stores order by updated_at desc limit ?", (limit,)).fetchall():
+                    rows.append({"entity_type": "store", "entity_key": r["store_code"] or str(r["id"]), "name": r["name"], "source_table": "stores", "payload": row_dict(r)})
+            if scope in ("all", "employee", "employees"):
+                for r in conn.execute("select * from employees order by updated_at desc limit ?", (limit,)).fetchall():
+                    rows.append({"entity_type": "employee", "entity_key": r["employee_code"] or str(r["id"]), "name": r["name"], "source_table": "employees", "payload": row_dict(r)})
+            if scope in ("all", "customer", "customers"):
+                for r in conn.execute("select * from customers order by updated_at desc limit ?", (limit,)).fetchall():
+                    rows.append({"entity_type": "customer", "entity_key": r["customer_code"] or r["phone"] or str(r["id"]), "name": r["name"] or r["customer_code"] or r["phone"], "source_table": "customers", "payload": row_dict(r)})
+            if scope in ("all", "supplier", "suppliers"):
+                for r in conn.execute("select * from suppliers order by updated_at desc limit ?", (limit,)).fetchall():
+                    rows.append({"entity_type": "supplier", "entity_key": r["supplier_code"] or str(r["id"]), "name": r["name"], "source_table": "suppliers", "payload": row_dict(r)})
+        summary = load_summary()
+        for store in summary.get("top_stores", [])[:20]:
+            key = str(store.get("store") or "")
+            if key and scope in ("all", "store", "stores"):
+                rows.append({"entity_type": "store", "entity_key": key, "name": key, "source_table": "sap_summary.top_stores", "payload": store})
+        for brand in summary.get("top_brands", [])[:20]:
+            key = str(brand.get("brand") or brand.get("name") or "")
+            if key and scope in ("all", "brand", "brands"):
+                rows.append({"entity_type": "brand", "entity_key": key, "name": key, "source_table": "sap_summary.top_brands", "payload": brand})
+        seen = {}
+        for item in rows:
+            seen[(item["entity_type"], item["entity_key"])] = item
+        return list(seen.values())[:limit]
+
+    def sap_knowledge_card_text(self, item):
+        payload = item.get("payload") or {}
+        lines = [
+            U(r"\u6765\u6e90\uff1a") + item.get("source_table", ""),
+            U(r"\u5bf9\u8c61\u7c7b\u578b\uff1a") + item.get("entity_type", ""),
+            U(r"\u5bf9\u8c61\u7f16\u7801\uff1a") + str(item.get("entity_key", "")),
+            U(r"\u540d\u79f0\uff1a") + str(item.get("name", "")),
+        ]
+        for key in ["category", "country", "season", "status", "city", "address", "role", "membership_level", "payment_terms", "sales", "gross_profit", "inventory_amount", "risk_count"]:
+            if payload.get(key) not in (None, ""):
+                lines.append(str(key) + ": " + str(payload.get(key)))
+        notes = payload.get("notes")
+        if notes:
+            lines.append(U(r"\u5907\u6ce8\uff1a") + str(notes))
+        lines.append(U(r"\u9650\u5236\uff1a\u672c\u5361\u7247\u53ea\u6839\u636e\u5df2\u540c\u6b65 SAP/\u672c\u5730\u4e1a\u52a1\u6570\u636e\u751f\u6210\uff0c\u4e0d\u4ee3\u8868\u5df2\u4eba\u5de5\u590d\u6838\u3002"))
+        return "\n".join(lines)
+
+    def generate_sap_knowledge_items(self, user, scope="all", limit=80):
+        now = ts()
+        candidates = self.sap_knowledge_source_rows(scope, limit)
+        generated = 0
+        matched = 0
+        failed = 0
+        with db() as conn:
+            job = conn.execute(
+                "insert into sap_knowledge_jobs(job_id,job_type,status,scope,evidence_json,approval_required,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                ("SAPKB-" + uuid.uuid4().hex[:10], "sap_to_knowledge", "running", scope, json.dumps({"candidate_count": len(candidates)}, ensure_ascii=False), 0, user["id"] if user else None, now, now),
+            )
+            job_id = job.lastrowid
+            for item in candidates:
+                try:
+                    source_id = item["entity_type"] + ":" + str(item["entity_key"])
+                    existing = conn.execute("select * from knowledge_items where source_type='sap_knowledge' and source_id=? and deleted_at is null", (source_id,)).fetchone()
+                    title = "SAP " + item["entity_type"] + " - " + str(item.get("name") or item.get("entity_key"))
+                    body = self.sap_knowledge_card_text(item)
+                    summary = summarize_text(body, 260)
+                    tags = "SAP," + item["entity_type"] + "," + extract_tags(body)
+                    if existing:
+                        conn.execute(
+                            "update knowledge_items set title=?,body=?,summary=?,ai_summary=?,keywords=?,tags=?,status='ready',embedding_status='pending',updated_at=? where id=?",
+                            (title, body, summary, summary, tags, tags, now, existing["id"]),
+                        )
+                        kid = existing["id"]
+                        matched += 1
+                    else:
+                        cur = conn.execute(
+                            """insert into knowledge_items(
+ title,category,tags,body,ai_summary,source_type,source_ref,created_by,created_at,updated_at,
+ knowledge_id,source_id,object_type,object_id,summary,keywords,status,visibility,auto_tags,manual_tags,embedding_status
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                            (title, U(r"SAP \u667a\u80fd\u77e5\u8bc6"), tags, body, summary, "sap_knowledge", item.get("source_table"), user["id"] if user else None, now, now, "SAPKB-" + uuid.uuid4().hex[:12], source_id, item["entity_type"], None, summary, tags, "ready", "manager_only", tags, "", "pending"),
+                        )
+                        kid = cur.lastrowid
+                        generated += 1
+                    self.create_chunks(conn, kid, None, body, now)
+                    snapshot_id = "SNAP-" + uuid.uuid4().hex[:12]
+                    conn.execute(
+                        "insert into sap_knowledge_snapshots(snapshot_id,entity_type,entity_key,knowledge_id,title,summary,source_table,source_payload_json,match_status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                        (snapshot_id, item["entity_type"], str(item["entity_key"]), kid, title, summary, item.get("source_table"), json.dumps(item.get("payload"), ensure_ascii=False), "matched" if matched else "generated", now, now),
+                    )
+                except Exception:
+                    failed += 1
+            conn.execute("update sap_knowledge_jobs set status=?,generated_count=?,matched_count=?,failed_count=?,updated_at=? where id=?", ("completed" if failed == 0 else "completed_with_errors", generated, matched, failed, ts(), job_id))
+        self.log_action(user, "sap_knowledge_generated", "knowledge", None, f"scope={scope}; generated={generated}; matched={matched}; failed={failed}")
+        return {"ok": True, "scope": scope, "candidate_count": len(candidates), "generated_count": generated, "matched_count": matched, "failed_count": failed}
+
+    def sap_knowledge_payload(self, user):
+        with db() as conn:
+            mappings = conn.execute("select * from sap_knowledge_mappings order by entity_type").fetchall()
+            jobs = conn.execute("select * from sap_knowledge_jobs order by created_at desc limit 20").fetchall()
+            snapshots = conn.execute("select * from sap_knowledge_snapshots order by updated_at desc limit 30").fetchall()
+            sap_items = conn.execute("select count(*) c from knowledge_items where source_type='sap_knowledge' and deleted_at is null").fetchone()["c"]
+        candidates = self.sap_knowledge_source_rows("all", 40)
+        return {
+            "ok": True,
+            "version": "FoxBrain OS 6.1",
+            "service": "sap_smart_knowledge_base",
+            "sap_core_rule": "SAP_B1_is_the_core_business_data_source",
+            "writeback_rule": "read_only_knowledge_generation_no_sap_writeback",
+            "approval_rule": "high_risk_actions_require_human_approval",
+            "mappings": [row_dict(r) for r in mappings],
+            "jobs": [row_dict(r) for r in jobs],
+            "snapshots": [row_dict(r) for r in snapshots],
+            "candidate_preview": candidates[:12],
+            "metrics": {"sap_knowledge_items": sap_items, "candidate_count": len(candidates), "mapping_count": len(mappings)},
+            "api": {
+                "status": "/api/knowledge/sap-intelligence",
+                "generate": "/api/knowledge/sap-generate",
+                "mappings": "/api/knowledge/sap-mappings",
+                "snapshots": "/api/knowledge/sap-snapshots",
+            },
+        }
+
+    def sap_knowledge_engine_payload(self, user):
+        sap_knowledge = self.sap_knowledge_payload(user)
+        sync_status = self.sap_sync_status_payload()
+        contract = build_sap_knowledge_engine_contract()
+        warehouse = build_warehouse_readiness(sync_status, sap_knowledge.get("metrics", {}))
+        models = build_model_catalog()
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.4",
+            "module": "sap_knowledge_engine",
+            "contract": contract,
+            "read_only_sync_layer": contract.get("read_only_sync_layers", []),
+            "ai_data_warehouse": warehouse,
+            "knowledge_models": models,
+            "sap_knowledge_base": sap_knowledge,
+            "production_boundary": contract.get("production_boundary", {}),
+            "rule": "do_not_directly_connect_modify_sap_production_database",
+        }
+
+    def knowledge_training_quality_payload(self, user):
+        with db() as conn:
+            total = conn.execute("select count(*) c from knowledge_items where deleted_at is null").fetchone()["c"]
+            reviewed = conn.execute("select count(*) c from knowledge_items where deleted_at is null and status in ('ready','approved','parsed')").fetchone()["c"]
+            with_source = conn.execute("select count(*) c from knowledge_items where deleted_at is null and coalesce(source_type,'')!=''").fetchone()["c"]
+            with_summary = conn.execute("select count(*) c from knowledge_items where deleted_at is null and (coalesce(summary,'')!='' or coalesce(ai_summary,'')!='' or coalesce(human_summary,'')!='')").fetchone()["c"]
+            with_keywords = conn.execute("select count(*) c from knowledge_items where deleted_at is null and (coalesce(keywords,'')!='' or coalesce(tags,'')!='' or coalesce(auto_tags,'')!='' or coalesce(manual_tags,'')!='')").fetchone()["c"]
+            sap_items = conn.execute("select count(*) c from knowledge_items where deleted_at is null and source_type='sap_knowledge'").fetchone()["c"]
+            approved_memory = conn.execute("select count(*) c from memories where status='approved'").fetchone()["c"]
+            pending_memory = conn.execute("select count(*) c from memories where status='pending_review'").fetchone()["c"]
+            decisions = conn.execute("select count(*) c from decision_memories").fetchone()["c"]
+            feedback = conn.execute("select count(*) c from ai_operation_feedback").fetchone()["c"]
+            recent_memory = [row_dict(r) for r in conn.execute("select id,memory_id,title,memory_type,importance,confidence,status,updated_at from memories order by updated_at desc limit 10").fetchall()]
+            recent_decisions = [row_dict(r) for r in conn.execute("select id,decision_id,decision_title,selected_option,reason,owner,decision_date,updated_at from decision_memories order by updated_at desc limit 10").fetchall()]
+        metrics = {
+            "total": total,
+            "reviewed": reviewed,
+            "with_source": with_source,
+            "with_summary": with_summary,
+            "with_keywords": with_keywords,
+            "sap_items": sap_items,
+            "approved_memory": approved_memory,
+            "pending_memory": pending_memory,
+            "decisions": decisions,
+            "feedback": feedback,
+        }
+        quality = score_knowledge_quality(metrics)
+        boss_experience = {
+            "approved_memory": approved_memory,
+            "pending_memory": pending_memory,
+            "decision_memories": decisions,
+            "operation_feedback": feedback,
+            "recent_memory": recent_memory,
+            "recent_decisions": recent_decisions,
+            "rule": "boss_experience_requires_review_before_active_memory",
+        }
+        learning_plan = build_ai_learning_plan(quality, boss_experience)
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.5",
+            "module": "knowledge_training_quality",
+            "contract": build_knowledge_training_quality_contract(),
+            "knowledge_quality": quality,
+            "ai_learning": learning_plan,
+            "boss_experience": boss_experience,
+            "source_tables": ["knowledge_items", "memories", "decision_memories", "ai_operation_feedback", "user_preferences"],
+            "approval_rule": "AI learning uses reviewed knowledge and reviewable boss experience only.",
+        }
+
+    def external_industry_knowledge_payload(self, user):
+        with db() as conn:
+            rows = conn.execute(
+                """
+                select id,title,category,source_type,status,summary,ai_summary,human_summary,keywords,tags,updated_at
+                from knowledge_items
+                where deleted_at is null
+                  and status in ('ready','approved','parsed')
+                  and (
+                    source_type in ('external','industry','external_research','document','web')
+                    or lower(coalesce(category,'')) like '%industry%'
+                    or lower(coalesce(category,'')) like '%market%'
+                    or lower(coalesce(tags,'')) like '%industry%'
+                    or lower(coalesce(tags,'')) like '%market%'
+                  )
+                order by updated_at desc
+                limit 20
+                """
+            ).fetchall()
+        items = []
+        for row in rows:
+            item = row_dict(row)
+            item["summary_text"] = item.get("human_summary") or item.get("ai_summary") or item.get("summary") or ""
+            item["review_rule"] = "reviewed_external_knowledge_context_only_not_final_business_truth"
+            items.append(item)
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.6.5",
+            "module": "external_industry_knowledge",
+            "items": items,
+            "item_count": len(items),
+            "source_table": "knowledge_items",
+            "rule": "external_industry_knowledge_must_be_reviewed_and_must_not_override_sap_facts",
+        }
+
+    def knowledge_fusion_payload(self, user):
+        sap_engine = self.sap_knowledge_engine_payload(user)
+        quality = self.knowledge_training_quality_payload(user)
+        external = self.external_industry_knowledge_payload(user)
+        fusion_context = build_fusion_context(sap_engine, quality, external)
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.6.5",
+            "module": "knowledge_fusion",
+            "contract": build_knowledge_fusion_contract(),
+            "fusion_context": fusion_context,
+            "sap_enterprise_knowledge": sap_engine,
+            "external_industry_knowledge": external,
+            "boss_experience_knowledge": quality.get("boss_experience", {}),
+            "agent_usage_rule": "existing_agents_call_fusion_knowledge_before_drafting_recommendations",
+            "approval_rule": "fusion_recommendations_are_explainable_traceable_auditable_and_high_risk_actions_require_human_approval",
+        }
+
+    def agent_fusion_knowledge_payload(self, user, agent_key="ceo"):
+        fusion = self.knowledge_fusion_payload(user)
+        return build_agent_fusion_context(agent_key, fusion.get("fusion_context", {}))
+
+    def knowledge_training_engine_payload(self, user):
+        fusion = self.knowledge_fusion_payload(user)
+        quality = self.knowledge_training_quality_payload(user)
+        metrics = self.cockpit_data().get("metrics", {})
+        fusion_context = fusion.get("fusion_context", {})
+        training_cycle = build_training_cycle_plan(fusion_context, quality)
+        decision_logic = build_ai_decision_logic(fusion_context, metrics)
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.6.6",
+            "module": "knowledge_training_rules_engine",
+            "contract": build_knowledge_training_engine_contract(),
+            "fusion_knowledge": fusion_context,
+            "training_cycle": training_cycle,
+            "operating_rule_library": build_operating_rule_library(),
+            "ai_decision_logic": decision_logic,
+            "fire_fox_logic_rule": "ai_decisions_must_follow_reviewed_fire_fox_operating_rules",
+            "source_tables": ["knowledge_items", "sap_knowledge_snapshots", "memories", "decision_memories", "ai_operation_feedback"],
+            "approval_rule": "rule_changes_and_high_risk_execution_require_human_approval",
+        }
+
+    def sap_knowledge_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        payload = self.sap_knowledge_payload(user)
+        mapping_items = [m["entity_type"] + " <- " + m["sap_table"] for m in payload["mappings"]]
+        job_items = [j["job_id"] + " / " + j["status"] + " / +" + str(j["generated_count"]) + " / =" + str(j["matched_count"]) for j in payload["jobs"]]
+        candidate_items = [c["entity_type"] + " / " + str(c["name"]) + " / " + str(c["source_table"]) for c in payload["candidate_preview"]]
+        body = f"""
+<div class="panel">
+  <h2>FoxBrain OS 6.1 SAP {U(r'\u667a\u80fd\u77e5\u8bc6\u5e93')}</h2>
+  <p class="small">{U(r'\u4ece SAP/\u672c\u5730\u540c\u6b65\u6570\u636e\u6574\u7406\u54c1\u724c\u3001\u5546\u54c1\u3001\u95e8\u5e97\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001\u4f9b\u5e94\u5546\u77e5\u8bc6\u5361\uff0c\u4f9b Jarvis \u548c AI \u67e5\u8be2\u5f15\u7528\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'SAP \u77e5\u8bc6'), payload['metrics']['sap_knowledge_items'], U(r'\u5df2\u5165\u5e93'))}{self.metric(U(r'\u5019\u9009\u6570\u636e'), payload['metrics']['candidate_count'], U(r'\u53ef\u751f\u6210'))}{self.metric(U(r'\u6620\u5c04'), payload['metrics']['mapping_count'], U(r'\u7c7b\u578b'))}</div>
+  <form method="post" action="/api/knowledge/sap-generate"><input type="hidden" name="scope" value="all"><button>{U(r'\u751f\u6210/\u66f4\u65b0 SAP \u77e5\u8bc6\u5361')}</button></form>
+</div>
+<div class="split"><div class="panel"><h2>{U(r'\u6620\u5c04\u6a21\u677f')}</h2>{self.bullets(mapping_items)}</div><div class="panel"><h2>{U(r'\u6700\u8fd1\u4efb\u52a1')}</h2>{self.bullets(job_items or [U(r'\u6682\u65e0\u751f\u6210\u4efb\u52a1')])}</div></div>
+<div class="panel"><h2>{U(r'\u5019\u9009\u6570\u636e\u9884\u89c8')}</h2>{self.bullets(candidate_items or [U(r'\u6682\u65e0 SAP/\u672c\u5730\u540c\u6b65\u5019\u9009\u6570\u636e')])}</div>
+<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([U(r'\u53ea\u8bfb\u751f\u6210\u77e5\u8bc6\uff0c\u4e0d\u56de\u5199 SAP'), U(r'\u9ad8\u98ce\u9669\u52a8\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279'), U(r'\u77e5\u8bc6\u6761\u76ee\u4fdd\u7559\u6765\u6e90\u3001\u6458\u8981\u3001\u5207\u7247\u548c\u5ba1\u8ba1\u65e5\u5fd7')])}</div>
+"""
+        self.out(layout("FoxBrain OS 6.1 SAP Knowledge", body, user=user, wide=True))
+
+    def ai_knowledge_brain_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        payload = self.ai_knowledge_brain_payload(user)
+        sap = payload.get("sap_understanding", {})
+        signal_items = [
+            s.get("name", "") + " / " + s.get("status", "") + " / " + s.get("next_action", "")
+            for s in sap.get("signals", [])
+        ]
+        gap_items = payload.get("knowledge_gaps", []) or [U(r"\u6682\u65e0\u7ed3\u6784\u6027\u7f3a\u53e3")]
+        flow_items = payload.get("query_flow", [])
+        guardrail_items = [k + " = " + str(v) for k, v in payload.get("guardrails", {}).items()]
+        body = f"""
+<div class="panel">
+  <h2>FoxBrain OS Enterprise V1.1 AI {U(r'\u77e5\u8bc6\u5927\u8111')}</h2>
+  <p class="small">{U(r'\u628a SAP \u6570\u636e\u7406\u89e3\u3001\u4f01\u4e1a\u77e5\u8bc6\u5e93\u3001\u6743\u9650\u8fc7\u6ee4\u3001\u5f15\u7528\u548c\u9ad8\u98ce\u9669\u5ba1\u6279\u8fde\u6210\u7edf\u4e00 AI \u4e0a\u4e0b\u6587\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u77e5\u8bc6'), payload['knowledge_metrics']['knowledge_items'], U(r'\u6761\u76ee'))}{self.metric(U(r'\u5207\u7247'), payload['knowledge_metrics']['chunks'], U(r'AI \u68c0\u7d22'))}{self.metric(U(r'\u5f85\u590d\u6838'), payload['knowledge_metrics']['pending_review'], U(r'\u77e5\u8bc6'))}</div>
+</div>
+<div class="split"><div class="panel"><h2>SAP {U(r'\u6570\u636e\u7406\u89e3')}</h2>{self.bullets(signal_items)}</div><div class="panel"><h2>{U(r'\u77e5\u8bc6\u7f3a\u53e3')}</h2>{self.bullets(gap_items)}</div></div>
+<div class="split"><div class="panel"><h2>{U(r'\u67e5\u8be2\u6d41\u7a0b')}</h2>{self.bullets(flow_items)}</div><div class="panel"><h2>{U(r'\u62a4\u680f')}</h2>{self.bullets(guardrail_items)}</div></div>
+<div class="panel"><h2>{U(r'\u5feb\u6377\u5165\u53e3')}</h2><div class="inline"><a class="btn" href="/api/knowledge/brain">API</a><a class="btn orange" href="/knowledge/sap">SAP {U(r'\u77e5\u8bc6\u5316')}</a><a class="btn dark" href="/ai-query">AI {U(r'\u67e5\u8be2')}</a></div></div>
+"""
+        self.out(layout("FoxBrain OS Enterprise V1.1 AI Knowledge Brain", body, user=user, wide=True))
 
     def knowledge_view(self, user):
         user = self.require_login(user)
@@ -4801,9 +7931,74 @@ class App(BaseHTTPRequestHandler):
             },
         }
 
+    def ai_knowledge_brain_payload(self, user):
+        platform = self.knowledge_platform_payload(user)
+        sap_knowledge = self.sap_knowledge_payload(user)
+        sap_understanding = build_sap_data_understanding(
+            self.cockpit_data()["metrics"],
+            self.sap_sync_status_payload(),
+            sap_knowledge,
+        )
+        with db() as conn:
+            recent = conn.execute(
+                "select id,knowledge_id,title,source_type,source_ref,status,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 10"
+            ).fetchall()
+        return build_enterprise_knowledge_brain(
+            platform.get("metrics", {}),
+            sap_understanding,
+            [row_dict(r) for r in recent],
+        )
+
+    def sap_data_understanding_payload(self, user):
+        return build_sap_data_understanding(
+            self.cockpit_data()["metrics"],
+            self.sap_sync_status_payload(),
+            self.sap_knowledge_payload(user),
+        )
+
     def api_knowledge_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/knowledge/sap-engine", "/api/knowledge/sap-knowledge-engine", "/api/knowledge/v1.4"):
+            return self.json_out(self.sap_knowledge_engine_payload(user))
+        if path in ("/api/knowledge/quality", "/api/knowledge/training-quality", "/api/knowledge/v1.5"):
+            return self.json_out(self.knowledge_training_quality_payload(user))
+        if path in ("/api/knowledge/fusion", "/api/knowledge/v1.6.5", "/api/knowledge/knowledge-fusion"):
+            return self.json_out(self.knowledge_fusion_payload(user))
+        if path in ("/api/knowledge-training-engine", "/api/knowledge/v1.6.6", "/api/knowledge/training-engine"):
+            return self.json_out(self.knowledge_training_engine_payload(user))
+        if path in ("/api/knowledge-training-engine/contract", "/api/knowledge/v1.6.6/contract"):
+            return self.json_out(build_knowledge_training_engine_contract())
+        if path in ("/api/knowledge-training-engine/rules", "/api/knowledge/v1.6.6/rules"):
+            return self.json_out(build_operating_rule_library())
+        if path in ("/api/knowledge-training-engine/training-cycle", "/api/knowledge/v1.6.6/training-cycle"):
+            payload = self.knowledge_training_engine_payload(user)
+            return self.json_out(payload["training_cycle"])
+        if path in ("/api/knowledge-training-engine/decision-logic", "/api/knowledge/v1.6.6/decision-logic"):
+            payload = self.knowledge_training_engine_payload(user)
+            return self.json_out(payload["ai_decision_logic"])
+        m_training = re.match(r"^/api/knowledge-training-engine/rules/(business|inventory|product|member|content|governance)$", path)
+        if m_training:
+            return self.json_out(build_operating_rule_library(m_training.group(1)))
+        if path in ("/api/knowledge/fusion/external-industry", "/api/knowledge/external-industry"):
+            return self.json_out(self.external_industry_knowledge_payload(user))
+        if path in ("/api/knowledge/fusion/contract", "/api/knowledge/v1.6.5/contract"):
+            return self.json_out(build_knowledge_fusion_contract())
+        m_fusion = re.match(r"^/api/knowledge/fusion/agents/(ceo|business|inventory|product|member|content)$", path)
+        if m_fusion:
+            return self.json_out(self.agent_fusion_knowledge_payload(user, m_fusion.group(1)))
+        if path == "/api/knowledge/sap-engine/warehouse":
+            return self.json_out(self.sap_knowledge_engine_payload(user)["ai_data_warehouse"])
+        m = re.match(r"^/api/knowledge/sap-engine/models/(product|sales|inventory|member)$", path)
+        if m:
+            return self.json_out(build_model_catalog(m.group(1)))
+        if path in ("/api/knowledge/brain", "/api/knowledge/ai-brain", "/api/knowledge/v1.1"):
+            return self.json_out(self.ai_knowledge_brain_payload(user))
+        if path in ("/api/knowledge/sap-understanding", "/api/sap/understanding"):
+            return self.json_out(self.sap_data_understanding_payload(user))
+        if path == "/api/knowledge/query-plan":
+            query = parse_qs(urlparse(self.path).query)
+            return self.json_out(build_query_plan(query.get("q", [""])[0], query.get("scope", ["all"])[0]))
         if path == "/api/knowledge/platform":
             return self.json_out(self.knowledge_platform_payload(user))
         if path == "/api/knowledge/ingestion/status":
@@ -4827,6 +8022,16 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(self.knowledge_retrieval_contract_payload())
         if path == "/api/knowledge/graph-contract":
             return self.json_out(self.knowledge_graph_contract_payload())
+        if path in ("/api/knowledge/sap-intelligence", "/api/knowledge/sap-knowledge", "/api/sap/knowledge-snapshot"):
+            return self.json_out(self.sap_knowledge_payload(user))
+        if path == "/api/knowledge/sap-mappings":
+            with db() as conn:
+                rows = conn.execute("select * from sap_knowledge_mappings order by entity_type").fetchall()
+            return self.json_out({"ok": True, "mappings": [row_dict(r) for r in rows]})
+        if path == "/api/knowledge/sap-snapshots":
+            with db() as conn:
+                rows = conn.execute("select * from sap_knowledge_snapshots order by updated_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "snapshots": [row_dict(r) for r in rows]})
         if path in ("/api/knowledge", "/api/knowledge/search"):
             query = parse_qs(urlparse(self.path).query)
             q = query.get("q", [""])[0].strip()
@@ -4864,6 +8069,17 @@ class App(BaseHTTPRequestHandler):
     def api_knowledge_post(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/knowledge/query-plan":
+            form = self.form()
+            return self.json_out(build_query_plan(form.get("question", ""), form.get("scope", "all")))
+        if path in ("/api/knowledge/sap-generate", "/api/sap/knowledge-snapshot"):
+            if user["role"] not in ("boss", "admin", "purchasing", "finance"):
+                return self.json_out({"ok": False, "message": "permission denied"}, code=403)
+            form = self.form()
+            scope = form.get("scope", "all")
+            limit = int(form.get("limit", "80") or 80)
+            limit = max(1, min(limit, 200))
+            return self.json_out(self.generate_sap_knowledge_items(user, scope, limit))
         if path in ("/api/knowledge", "/api/knowledge/from-document"):
             form = self.form()
             title = form.get("title", "").strip() or U(r"\u672a\u547d\u540d\u77e5\u8bc6")
@@ -6167,6 +9383,200 @@ class App(BaseHTTPRequestHandler):
             "recommendation_contract": self.brain_recommendation_contract_payload()["contract"],
         }
 
+    def digital_brain_evidence_packet(self, user):
+        cockpit = self.cockpit_data()
+        sap = self.sap_sync_status_payload()
+        with db() as conn:
+            memories = [row_dict(r) for r in conn.execute("select id,title,memory_type,status,updated_at from memories where status='approved' order by updated_at desc limit 8").fetchall()]
+            decisions = [row_dict(r) for r in conn.execute("select id,decision_title,decision_date,owner,created_at from decision_memories order by created_at desc limit 8").fetchall()]
+            risks = [row_dict(r) for r in conn.execute("select risk_id,title,risk_type,level,status,updated_at from system_risks where status!='resolved' order by updated_at desc limit 8").fetchall()]
+        return {
+            "sap_core": {
+                "source_of_record": "SAP B1",
+                "freshness": sap["freshness"],
+                "last_sync_time": sap["last_sync_time"],
+                "metrics": cockpit["metrics"],
+                "rankings": {"stores": cockpit.get("top_stores", []), "brands": cockpit.get("top_brands", [])},
+            },
+            "knowledge_memory": {"approved_memories": memories, "decision_history": decisions},
+            "risk_context": risks,
+            "lineage": [
+                {"source": "sap_summary_or_postgres_sap_tables", "endpoint": "/api/sap/business-analysis"},
+                {"source": "enterprise_memory", "endpoint": "/api/brain/memory"},
+                {"source": "decision_history", "endpoint": "/api/memory/decision-history"},
+                {"source": "risk_center", "endpoint": "/api/risks"},
+            ],
+        }
+
+    def digital_brain_recommendations_payload(self, user):
+        evidence = self.digital_brain_evidence_packet(user)
+        metrics = evidence["sap_core"]["metrics"]
+        recommendations = []
+        basis = [
+            {"source": "SAP B1", "field": "month_sales", "value": metrics.get("month_sales", 0)},
+            {"source": "SAP B1", "field": "gross_margin", "value": metrics.get("gross_margin", 0)},
+            {"source": "SAP B1", "field": "risk_count", "value": metrics.get("risk_count", 0)},
+        ]
+        recommendations.append({
+            "recommendation_id": "EDB-sales-inventory-review",
+            "title": U(r"\u590d\u6838\u9500\u552e\u3001\u6bdb\u5229\u548c\u5e93\u5b58\u98ce\u9669"),
+            "summary": U(r"\u57fa\u4e8e SAP \u9500\u552e\u3001\u6bdb\u5229\u548c\u5e93\u5b58\u98ce\u9669\u6570\u636e\uff0c\u4eca\u65e5\u5e94\u5148\u505a\u95e8\u5e97\u548c\u5e93\u5b58\u590d\u6838\u3002"),
+            "explanation": U(r"\u8be5\u5efa\u8bae\u53ea\u4f9d\u636e\u5df2\u540c\u6b65\u7684 SAP \u6307\u6807\u548c\u672c\u5730\u98ce\u9669\u6570\u636e\uff0c\u4e0d\u4ee3\u8868\u6700\u7ec8\u7ecf\u8425\u51b3\u7b56\u3002"),
+            "basis": basis,
+            "lineage": evidence["lineage"],
+            "risk_level": "medium",
+            "approval_required": True,
+            "audit_status": "logged",
+            "limitations": [self.cockpit_data()["empty_message"]] if not self.cockpit_data()["has_data"] else [],
+        })
+        if metrics.get("risk_count", 0):
+            recommendations.append({
+                "recommendation_id": "EDB-inventory-risk-task",
+                "title": U(r"\u751f\u6210\u5e93\u5b58\u98ce\u9669\u590d\u6838\u4efb\u52a1"),
+                "summary": U(r"\u5e93\u5b58\u98ce\u9669\u6570\u91cf\u5b58\u5728\uff0c\u5efa\u8bae\u8fdb\u5165 AI Operations \u751f\u6210\u5f85\u5ba1\u6279\u4efb\u52a1\u3002"),
+                "explanation": U(r"\u8be5\u52a8\u4f5c\u662f\u5185\u90e8\u4efb\u52a1\u5efa\u8bae\uff0c\u4e0d\u81ea\u52a8\u964d\u4ef7\u3001\u8c03\u8d27\u6216\u91c7\u8d2d\u3002"),
+                "basis": [{"source": "SAP B1", "field": "risk_count", "value": metrics.get("risk_count", 0)}],
+                "lineage": evidence["lineage"],
+                "risk_level": "medium",
+                "approval_required": True,
+                "audit_status": "logged",
+                "limitations": [],
+            })
+        return {"ok": True, "recommendations": recommendations, "explainable": True, "traceable": True, "auditable": True}
+
+    def enterprise_digital_brain_payload(self, user):
+        evidence = self.digital_brain_evidence_packet(user)
+        recs = self.digital_brain_recommendations_payload(user)
+        with db() as conn:
+            stored = [row_dict(r) for r in conn.execute("select * from enterprise_digital_brain_recommendations order by updated_at desc limit 30").fetchall()]
+        return {
+            "ok": True,
+            "platform": "Enterprise Digital Brain",
+            "version": "FoxBrain OS 5.0",
+            "sap_core_data_source": "SAP B1",
+            "principles": [
+                "sap_remains_core_business_data_source",
+                "all_ai_recommendations_must_be_explainable",
+                "all_ai_recommendations_must_be_traceable",
+                "all_ai_recommendations_must_be_auditable",
+                "high_risk_operations_require_human_approval",
+            ],
+            "evidence_packet": evidence,
+            "recommendation_engine": recs,
+            "stored_recommendations": stored,
+            "integrations": {
+                "enterprise_brain": self.enterprise_brain_payload(user),
+                "digital_workforce": self.digital_workforce_payload(user),
+                "ai_operations": self.ai_operations_summary(),
+                "approval_policy": self.agent_approval_policy_payload()["approval"],
+                "audit_contract": self.agent_audit_contract_payload()["audit"],
+            },
+            "high_risk_policy": {
+                "manual_approval_required": True,
+                "auto_execute": False,
+                "blocked_types": ["price_change", "finance_payment", "contract_execution", "sap_write_back", "external_publish", "bulk_data_change", "delete"],
+            },
+        }
+
+    def save_digital_brain_recommendation(self, user):
+        if not user or user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return {"ok": False, "message": "no permission"}, 403
+        form = self.form()
+        now = ts()
+        rec_id = "EDB-" + uuid.uuid4().hex[:10]
+        title = form.get("title", U(r"\u4f01\u4e1a\u6570\u5b57\u5927\u8111\u5efa\u8bae"))
+        text = " ".join([title, form.get("summary", ""), form.get("recommendation_type", ""), form.get("business_area", "")])
+        risk = self.ai_operation_risk_level(text)
+        evidence = self.digital_brain_evidence_packet(user)
+        with db() as conn:
+            conn.execute(
+                "insert into enterprise_digital_brain_recommendations(recommendation_id,title,recommendation_type,business_area,summary,explanation,evidence_json,lineage_json,cited_sap_records,cited_knowledge,cited_memory,risk_level,approval_required,approval_status,audit_status,audit_ref,confidence,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    rec_id,
+                    title,
+                    form.get("recommendation_type", "business"),
+                    form.get("business_area", ""),
+                    form.get("summary", ""),
+                    form.get("explanation", ""),
+                    json.dumps(evidence, ensure_ascii=False),
+                    json.dumps(evidence["lineage"], ensure_ascii=False),
+                    json.dumps(evidence["sap_core"], ensure_ascii=False),
+                    form.get("cited_knowledge", "[]"),
+                    form.get("cited_memory", "[]"),
+                    risk,
+                    1,
+                    "pending_review",
+                    "logged",
+                    "activity_log",
+                    self.finance_number(form, "confidence"),
+                    "draft",
+                    user["id"],
+                    now,
+                    now,
+                ),
+            )
+        self.log_action(user, "digital_brain_recommendation_created", "enterprise_digital_brain", None, rec_id)
+        return {"ok": True, "recommendation_id": rec_id, "risk_level": risk, "approval_required": True, "approval_status": "pending_review"}, 200
+
+    def enterprise_digital_brain_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return self.dashboard(user)
+        data = self.enterprise_digital_brain_payload(user)
+        metrics = data["evidence_packet"]["sap_core"]["metrics"]
+        cards = "".join([
+            self.metric(U(r"SAP \u65b0\u9c9c\u5ea6"), data["evidence_packet"]["sap_core"]["freshness"], data["evidence_packet"]["sap_core"]["last_sync_time"]),
+            self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(metrics.get("month_sales", 0)), U(r"SAP B1")),
+            self.metric(U(r"\u53ef\u8ffd\u6eaf\u5efa\u8bae"), len(data["recommendation_engine"]["recommendations"]), U(r"\u5f85\u5ba1\u6279")),
+            self.metric(U(r"\u9ad8\u98ce\u9669"), U(r"\u4eba\u5de5\u5ba1\u6279"), U(r"\u4e0d\u81ea\u52a8\u6267\u884c")),
+        ])
+        rec_items = [r["title"] + " · " + r["risk_level"] + " · " + ("approval" if r["approval_required"] else "no approval") for r in data["recommendation_engine"]["recommendations"]]
+        stored_items = [r["recommendation_id"] + " · " + r["title"] + " · " + r["approval_status"] for r in data["stored_recommendations"][:10]]
+        body = f"""
+<div class="panel"><h2>Enterprise Digital Brain</h2><div class="metrics">{cards}</div>{self.bullets(data['principles'])}</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u53ef\u89e3\u91ca AI \u5efa\u8bae')}</h2>{self.bullets(rec_items)}</div>
+  <div class="panel"><h2>{U(r'\u8bc1\u636e\u94fe')}</h2>{self.bullets([x['source'] + ' · ' + x['endpoint'] for x in data['evidence_packet']['lineage']])}</div>
+</div>
+<div class="panel form">
+  <h2>{U(r'\u8bb0\u5f55\u6570\u5b57\u5927\u8111\u5efa\u8bae')}</h2>
+  <form method="post" action="/api/digital-brain/recommendations">
+    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
+    <label>{U(r'\u4e1a\u52a1\u9886\u57df')}</label><input name="business_area" value="sales_inventory">
+    <label>{U(r'\u6458\u8981')}</label><textarea name="summary"></textarea>
+    <label>{U(r'\u89e3\u91ca')}</label><textarea name="explanation"></textarea>
+    <button>{U(r'\u4fdd\u5b58\u4e3a\u5f85\u5ba1\u6279\u5efa\u8bae')}</button>
+  </form>
+</div>
+<div class="panel"><h2>{U(r'\u5df2\u8bb0\u5f55\u5efa\u8bae')}</h2>{self.bullets(stored_items or [U(r'\u6682\u65e0\u5df2\u8bb0\u5f55\u5efa\u8bae\u3002')])}</div>"""
+        self.out(layout("Enterprise Digital Brain", body, user=user, wide=True))
+
+    def api_digital_brain_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/digital-brain", "/api/digital-brain/framework"):
+            return self.json_out(self.enterprise_digital_brain_payload(user))
+        if path == "/api/digital-brain/evidence":
+            return self.json_out({"ok": True, "evidence_packet": self.digital_brain_evidence_packet(user)})
+        if path == "/api/digital-brain/recommendations":
+            return self.json_out(self.digital_brain_recommendations_payload(user))
+        if path == "/api/digital-brain/audit":
+            payload = self.enterprise_digital_brain_payload(user)
+            return self.json_out({"ok": True, "audit": payload["integrations"]["audit_contract"], "stored_recommendations": payload["stored_recommendations"]})
+        if path == "/api/digital-brain/approval-policy":
+            return self.json_out({"ok": True, "approval_policy": self.agent_approval_policy_payload()["approval"], "high_risk_policy": self.enterprise_digital_brain_payload(user)["high_risk_policy"]})
+        return self.json_out({"ok": False, "message": "unknown digital brain api"}, code=404)
+
+    def api_digital_brain_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/digital-brain/recommendations":
+            result, code = self.save_digital_brain_recommendation(user)
+            return self.json_out(result, code=code)
+        return self.json_out({"ok": False, "message": "unknown digital brain write api"}, code=404)
+
     def api_brain_get(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
@@ -6280,22 +9690,52 @@ class App(BaseHTTPRequestHandler):
             history_rows = conn.execute("select * from sap_sync_history order by started_at desc, id desc limit 30").fetchall()
             last = history_rows[0] if history_rows else None
             lock = conn.execute("select * from job_locks where job_name='sap_b1_sync'").fetchone()
+        pg_runs = pg_query("select id, started_at, finished_at, status, message from sap_sync_runs order by started_at desc, id desc limit 10")
+        if not last and pg_runs:
+            run = pg_runs[0]
+            finished_text = str(run.get("finished_at") or run.get("started_at") or "")
+            synthetic_last = {
+                "sync_id": "PG-" + str(run.get("id") or ""),
+                "trigger_type": "postgres_sync",
+                "status": run.get("status") or "unknown",
+                "started_at": ts(),
+                "finished_at": ts(),
+                "duration_seconds": 0,
+                "records_read": 0,
+                "records_written": 0,
+                "records_updated": 0,
+                "records_failed": 0,
+                "error_message": run.get("message") or "",
+                "log_path": "",
+                "finished_text": finished_text,
+            }
+            last = synthetic_last
+            history_rows = [synthetic_last]
         configured, config_status = self.sap_sync_config_status()
         freshness, warning = self.sap_sync_freshness(last)
+        last_dict = row_dict(last) if last else {}
+        last_status = last_dict.get("status") if last_dict else "never_run"
+        last_sync_time = (
+            last_dict.get("finished_text")
+            or dt((last_dict.get("finished_at") or last_dict.get("started_at")))
+            if last_dict
+            else U(r"\u4ece\u672a\u540c\u6b65")
+        )
         return {
             "ok": True,
             "enabled": os.environ.get("SAP_SYNC_ENABLED", "true").lower() == "true",
             "schedule_time": os.environ.get("SAP_SYNC_TIME", "22:00"),
             "timezone": os.environ.get("APP_TIMEZONE", "Asia/Shanghai"),
             "next_run_time": os.environ.get("SAP_SYNC_TIME", "22:00"),
-            "last_status": last["status"] if last else "never_run",
-            "last_sync_time": dt(last["finished_at"] or last["started_at"]) if last else U(r"\u4ece\u672a\u540c\u6b65"),
+            "last_status": last_status,
+            "last_sync_time": last_sync_time,
             "freshness": freshness,
             "warning": warning,
             "configured": configured,
             "config_status": config_status,
             "lock": row_dict(lock) if lock else {"job_name": "sap_b1_sync", "lock_status": "free"},
             "history": [row_dict(r) for r in history_rows],
+            "postgres_runs": pg_runs,
         }
 
     def sap_connector_payload(self):
@@ -6388,6 +9828,45 @@ class App(BaseHTTPRequestHandler):
             s = self.sap_sync_status_payload()
             return self.json_out({"ok": True, "sap_data_freshness": s["freshness"], "warning": s["warning"]})
         return self.json_out({"ok": False, "message": "unknown sap sync api"}, code=404)
+
+    def api_sap_knowledge_engine_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.sap_knowledge_engine_payload(user)
+        if path in ("/api/sap-knowledge-engine", "/api/sap-knowledge-engine/status"):
+            return self.json_out(payload)
+        if path == "/api/sap-knowledge-engine/contract":
+            return self.json_out(payload["contract"])
+        if path in ("/api/sap-knowledge-engine/read-only-sync", "/api/sap-knowledge-engine/sync-layer"):
+            return self.json_out({"ok": True, "read_only_sync_layer": payload["read_only_sync_layer"], "production_boundary": payload["production_boundary"]})
+        if path in ("/api/sap-knowledge-engine/warehouse", "/api/sap-knowledge-engine/ai-warehouse"):
+            return self.json_out(payload["ai_data_warehouse"])
+        if path in ("/api/sap-knowledge-engine/models", "/api/sap-knowledge-engine/model-catalog"):
+            return self.json_out(payload["knowledge_models"])
+        m = re.match(r"^/api/sap-knowledge-engine/models/(product|sales|inventory|member)$", path)
+        if m:
+            return self.json_out(build_model_catalog(m.group(1)))
+        return self.json_out({"ok": False, "message": "unknown sap knowledge engine api"}, code=404)
+
+    def api_knowledge_quality_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.knowledge_training_quality_payload(user)
+        if path in ("/api/knowledge-quality", "/api/knowledge-quality/status", "/api/ai-learning", "/api/boss-experience"):
+            return self.json_out(payload)
+        if path == "/api/knowledge-quality/contract":
+            return self.json_out(payload["contract"])
+        if path == "/api/knowledge-quality/score":
+            return self.json_out(payload["knowledge_quality"])
+        if path in ("/api/ai-learning/plan", "/api/knowledge-quality/learning-plan"):
+            return self.json_out(payload["ai_learning"])
+        if path in ("/api/boss-experience/memory", "/api/knowledge-quality/boss-experience"):
+            return self.json_out(payload["boss_experience"])
+        return self.json_out({"ok": False, "message": "unknown knowledge quality api"}, code=404)
 
     def api_sap_sync_post(self, user, path):
         if path == "/api/sap/sync/run":
@@ -6607,6 +10086,7 @@ class App(BaseHTTPRequestHandler):
             reports = [row_dict(r) for r in conn.execute("select id,title,status,updated_at from reports where status in ('draft','pending_review','generated') order by updated_at desc limit 20").fetchall()] if "reports" in {x[0] for x in conn.execute("select name from sqlite_master where type='table'").fetchall()} else []
             content = [row_dict(r) for r in conn.execute("select id,title,status,updated_at from content_items where status in ('draft','pending_review','review') order by updated_at desc limit 20").fetchall()] if "content_items" in {x[0] for x in conn.execute("select name from sqlite_master where type='table'").fetchall()} else []
             markdowns = [row_dict(r) for r in conn.execute("select id,markdown_id,brand_id,approval_status,created_at from markdown_suggestions where approval_status='pending_review' order by created_at desc limit 20").fetchall()]
+            ai_plans = [row_dict(r) for r in conn.execute("select id,plan_id,title,risk_level,approval_status,execution_status,updated_at from ai_operation_plans where approval_status='pending_review' order by updated_at desc limit 20").fetchall()]
         items = []
         for r in reports:
             items.append({"approval_id": "report-" + str(r["id"]), "type": "report", "title": r["title"], "status": r["status"], "url": "/reports"})
@@ -6614,6 +10094,8 @@ class App(BaseHTTPRequestHandler):
             items.append({"approval_id": "content-" + str(c["id"]), "type": "content", "title": c["title"], "status": c["status"], "url": "/content"})
         for m in markdowns:
             items.append({"approval_id": "markdown-" + str(m["id"]), "type": "markdown", "title": (m["brand_id"] or "") + " markdown", "status": m["approval_status"], "url": "/inventory-decision"})
+        for p in ai_plans:
+            items.append({"approval_id": "aiop-" + str(p["plan_id"]), "type": "ai_operation_plan", "title": p["title"], "status": p["approval_status"], "risk_level": p["risk_level"], "execution_status": p["execution_status"], "url": "/ai-operations"})
         return {"ok": True, "approvals": items}
 
     def os_context_payload(self, user):
@@ -6650,6 +10132,289 @@ class App(BaseHTTPRequestHandler):
         sap = self.sap_sync_status_payload()
         body = f"<div class='panel'><h2>{U(r'\u7edf\u4e00\u547d\u4ee4\u4e2d\u5fc3')}</h2><div class='metrics'>{self.metric(U(r'\u6570\u636e\u65b0\u9c9c\u5ea6'), sap['freshness'], sap['next_run_time'])}{self.metric(U(r'\u5f85\u5904\u7406'), money(len(queue)), U(r'\u5de5\u4f5c\u961f\u5217'))}{self.metric(U(r'\u7cfb\u7edf\u72b6\u6001'), self.health_payload()['status'], self.health_payload()['app_version'])}</div></div><div class='split'><div class='panel'><h2>{U(r'\u5efa\u8bae\u52a8\u4f5c')}</h2>{self.bullets([U(r'\u67e5\u770b\u98ce\u9669\u4e2d\u5fc3'), U(r'\u68c0\u67e5 SAP \u540c\u6b65'), U(r'\u5904\u7406\u5ba1\u6279\u6536\u4ef6\u7bb1')])}</div><div class='panel'><h2>{U(r'\u5f85\u5904\u7406')}</h2>{self.bullets([i['title'] for i in queue[:8]] or [self.cockpit_data()['empty_message']])}</div></div>"
         self.out(layout(U(r"\u547d\u4ee4\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def ai_operation_is_high_risk(self, text):
+        return self.automation_is_high_risk(text)
+
+    def ai_operation_risk_level(self, text):
+        if self.ai_operation_is_high_risk(text):
+            return "high"
+        medium_terms = ["customer", "member", "inventory", "supplier", U(r"\u4f1a\u5458"), U(r"\u5ba2\u6237"), U(r"\u5e93\u5b58"), U(r"\u4f9b\u5e94\u5546")]
+        low = (text or "").lower()
+        return "medium" if any(str(term).lower() in low for term in medium_terms) else "low"
+
+    def ai_operations_summary(self):
+        with db() as conn:
+            rows = [row_dict(r) for r in conn.execute("select * from ai_operation_plans order by updated_at desc, id desc limit 50").fetchall()]
+            feedback = [row_dict(r) for r in conn.execute("select * from ai_operation_feedback order by created_at desc, id desc limit 20").fetchall()]
+        pending = [r for r in rows if r["approval_status"] == "pending_review"]
+        approved = [r for r in rows if r["approval_status"] == "approved"]
+        blocked = [r for r in rows if r["risk_level"] == "high" and r["execution_status"] in ("blocked_manual_required", "not_started")]
+        return {
+            "ok": True,
+            "center": "AI Operations Center",
+            "safety_rule": "all_high_risk_operations_require_human_approval_and_must_not_auto_execute",
+            "approval_then_execute": True,
+            "plans": rows,
+            "feedback": feedback,
+            "summary": {
+                "pending_approval": len(pending),
+                "approved": len(approved),
+                "high_risk_manual": len(blocked),
+                "feedback_items": len(feedback),
+            },
+            "high_risk_types": ["price_change", "finance_payment", "contract_execution", "sap_write_back", "external_publish", "bulk_data_change", "delete"],
+        }
+
+    def ai_task_planner_payload(self, user, objective=""):
+        objective = (objective or "").strip()
+        data = self.cockpit_data()
+        risks = self.api_platform_get_risks_for_context()
+        if not objective:
+            objective = U(r"\u57fa\u4e8e\u4eca\u65e5\u7ecf\u8425\u6570\u636e\u5236\u5b9a\u6267\u884c\u8ba1\u5212")
+        raw_steps = [
+            (U(r"\u68c0\u67e5 SAP \u6570\u636e\u65b0\u9c9c\u5ea6\u548c\u95e8\u5e97\u6392\u884c"), "analysis"),
+            (U(r"\u751f\u6210\u4eca\u65e5\u95e8\u5e97\u8ddf\u8fdb\u4efb\u52a1"), "create_task"),
+            (U(r"\u6574\u7406\u5e93\u5b58\u98ce\u9669\u6e05\u5355\u5e76\u5206\u914d\u590d\u6838"), "create_task"),
+            (U(r"\u628a\u91cd\u5927\u98ce\u9669\u63d0\u4ea4\u4eba\u5de5\u5ba1\u6279"), "approval_request"),
+        ]
+        steps = []
+        for title, action_type in raw_steps:
+            text = objective + " " + title + " " + action_type
+            risk = self.ai_operation_risk_level(text)
+            steps.append({
+                "title": title,
+                "action_type": action_type,
+                "risk_level": risk,
+                "approval_required": True,
+                "execution_rule": "manual_approval_required" if risk == "high" else "approval_then_safe_internal_execution",
+            })
+        return {
+            "ok": True,
+            "planner": "AI Task Planner",
+            "objective": objective,
+            "data_context": {
+                "sap_freshness": self.sap_sync_status_payload()["freshness"],
+                "metrics": data["metrics"],
+                "active_risks": risks[:5],
+            },
+            "steps": steps,
+            "rule": "planner_only_creates_reviewable_plans_not_direct_execution",
+        }
+
+    def create_ai_operation_plan(self, user, title, objective="", action_type="create_task", payload=None, evidence=None):
+        now = ts()
+        title = (title or "").strip() or U(r"AI \u8fd0\u8425\u8ba1\u5212")
+        objective = (objective or "").strip()
+        action_type = (action_type or "create_task").strip()
+        risk = self.ai_operation_risk_level(" ".join([title, objective, action_type, prompt_json(payload or {})]))
+        plan_id = "AIOP-" + uuid.uuid4().hex[:10]
+        with db() as conn:
+            conn.execute(
+                "insert into ai_operation_plans(plan_id,title,objective,action_type,risk_level,approval_required,approval_status,execution_status,execution_mode,payload_json,evidence_json,result_json,feedback_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    plan_id,
+                    title,
+                    objective,
+                    action_type,
+                    risk,
+                    1,
+                    "pending_review",
+                    "not_started",
+                    "approval_then_execute",
+                    json.dumps(payload or {}, ensure_ascii=False),
+                    json.dumps(evidence or {}, ensure_ascii=False),
+                    "{}",
+                    "waiting",
+                    user["id"] if user else None,
+                    now,
+                    now,
+                ),
+            )
+        return {"ok": True, "plan_id": plan_id, "risk_level": risk, "approval_status": "pending_review", "execution_status": "not_started"}
+
+    def execute_ai_operation_plan(self, user, plan):
+        if plan["risk_level"] == "high":
+            return {"executed": False, "execution_status": "blocked_manual_required", "message": "high_risk_operations_require_manual_execution_after_approval"}
+        payload = safe_json(plan.get("payload_json"), {})
+        now = ts()
+        result = {"executed": False, "created_task_id": ""}
+        if plan["action_type"] in ("create_task", "approval_request", "analysis"):
+            task_id = "TASK-" + uuid.uuid4().hex[:10]
+            with db() as conn:
+                conn.execute(
+                    "insert into tasks(task_id,title,description,owner,related_object_type,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (task_id, plan["title"], plan.get("objective") or "", user["name"], "ai_operation_plan", plan["id"], "normal", "todo", payload.get("due_date", ""), "ai_operations", plan["plan_id"], user["id"], now, now),
+                )
+            result = {"executed": True, "created_task_id": task_id, "message": "safe_internal_task_created_after_approval"}
+        return {"executed": result["executed"], "execution_status": "executed" if result["executed"] else "not_supported", "result": result}
+
+    def approve_ai_operation_plan(self, user, plan_id, decision):
+        if user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return {"ok": False, "message": "no permission"}, 403
+        now = ts()
+        with db() as conn:
+            plan = conn.execute("select * from ai_operation_plans where plan_id=? or id=?", (plan_id, plan_id if str(plan_id).isdigit() else -1)).fetchone()
+            if not plan:
+                return {"ok": False, "message": "plan not found"}, 404
+            plan = row_dict(plan)
+            if decision == "reject":
+                conn.execute("update ai_operation_plans set approval_status='rejected', execution_status='cancelled', approved_by=?, approved_at=?, updated_at=? where id=?", (user["id"], now, now, plan["id"]))
+                return {"ok": True, "plan_id": plan["plan_id"], "approval_status": "rejected", "execution_status": "cancelled"}, 200
+            execution = self.execute_ai_operation_plan(user, plan)
+            conn.execute(
+                "update ai_operation_plans set approval_status='approved', execution_status=?, approved_by=?, approved_at=?, executed_by=?, executed_at=?, result_json=?, updated_at=? where id=?",
+                (execution["execution_status"], user["id"], now, user["id"] if execution.get("executed") else None, now if execution.get("executed") else None, json.dumps(execution, ensure_ascii=False), now, plan["id"]),
+            )
+            return {"ok": True, "plan_id": plan["plan_id"], "approval_status": "approved", **execution}, 200
+
+    def record_ai_operation_feedback(self, user, form):
+        now = ts()
+        feedback_id = "AIFB-" + uuid.uuid4().hex[:10]
+        plan_id = form.get("plan_id", "")
+        with db() as conn:
+            conn.execute(
+                "insert into ai_operation_feedback(feedback_id,plan_id,outcome,business_result,operator_note,next_action,created_by,created_at) values(?,?,?,?,?,?,?,?)",
+                (feedback_id, plan_id, form.get("outcome", "pending"), form.get("business_result", ""), form.get("operator_note", ""), form.get("next_action", ""), user["id"], now),
+            )
+            if plan_id:
+                conn.execute("update ai_operation_plans set feedback_status='received', updated_at=? where plan_id=?", (now, plan_id))
+        return {"ok": True, "feedback_id": feedback_id, "plan_id": plan_id}
+
+    def ai_operations_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        data = self.ai_operations_summary()
+        metrics = "".join([
+            self.metric(U(r"\u5f85\u5ba1\u6279"), data["summary"]["pending_approval"], U(r"\u4eba\u5de5\u590d\u6838")),
+            self.metric(U(r"\u9ad8\u98ce\u9669"), data["summary"]["high_risk_manual"], U(r"\u4e0d\u81ea\u52a8\u6267\u884c")),
+            self.metric(U(r"\u53cd\u9988"), data["summary"]["feedback_items"], U(r"\u95ed\u73af")),
+        ])
+        plans = [p["plan_id"] + " · " + p["title"] + " · " + p["risk_level"] + " · " + p["approval_status"] + " · " + p["execution_status"] for p in data["plans"][:12]]
+        body = f"<div class='panel'><h2>AI Operations Center</h2><div class='metrics'>{metrics}</div>{self.bullets([data['safety_rule']])}</div><div class='split'><div class='panel'><h2>{U(r'\u8fd0\u8425\u8ba1\u5212')}</h2>{self.bullets(plans or [U(r'\u6682\u65e0 AI \u8fd0\u8425\u8ba1\u5212\u3002')])}<p><a class='btn dark' href='/ai-task-planner'>AI Task Planner</a></p></div><div class='panel'><h2>{U(r'\u53cd\u9988\u95ed\u73af')}</h2>{self.bullets([f.get('feedback_id','') + ' · ' + f.get('outcome','') for f in data['feedback'][:8]] or [U(r'\u6682\u65e0\u4e1a\u52a1\u53cd\u9988\u3002')])}</div></div>"
+        self.out(layout("AI Operations Center", body, user=user, wide=True))
+
+    def auto_operation_payload(self, user):
+        contract = build_auto_operation_contract()
+        sap = self.sap_sync_status_payload()
+        cockpit = self.cockpit_data()
+        smart = self.smart_business_insights()
+        planner = self.ai_task_planner_payload(user, U(r"\u57fa\u4e8e SAP \u6bcf\u65e5\u540c\u6b65\u3001AI \u5206\u6790\u548c\u8001\u677f\u65e5\u62a5\u751f\u6210\u4eca\u65e5\u8fd0\u8425\u4efb\u52a1"))
+        approvals = self.os_approvals_payload(user)
+        tasks = self.os_work_queue_payload(user)
+        briefing = {
+            "route": "/api/ai-ceo/daily-briefing",
+            "metrics": cockpit.get("metrics", {}),
+            "insights": smart.get("insights", [])[:5],
+            "actions": smart.get("actions", [])[:5],
+            "evidence": smart.get("evidence", [])[:5],
+            "rule": "boss_daily_report_is_a_reviewable_ai_draft",
+        }
+        daily_loop = build_daily_loop_plan(sap, planner.get("data_context", {}), briefing, planner, approvals)
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.3",
+            "module": "auto_operation_loop",
+            "contract": contract,
+            "sap_daily_sync": sap,
+            "ai_analysis": planner,
+            "boss_daily_report": briefing,
+            "task_center": tasks,
+            "approval_flow": approvals,
+            "daily_loop": daily_loop,
+            "read_only_sap_rule": "sap_production_server_independent_read_only_sync_no_writeback",
+        }
+
+    def create_v13_daily_loop_plan(self, user):
+        payload = self.auto_operation_payload(user)
+        title = U(r"V1.3 \u81ea\u52a8\u8fd0\u8425\u95ed\u73af\uff1aSAP \u540c\u6b65 / AI \u5206\u6790 / \u8001\u677f\u65e5\u62a5 / \u4efb\u52a1 / \u5ba1\u6279")
+        result = self.create_ai_operation_plan(
+            user,
+            title,
+            U(r"\u751f\u6210\u6bcf\u65e5\u8fd0\u8425\u95ed\u73af\u7684\u53ef\u5ba1\u6279\u6267\u884c\u8ba1\u5212\uff0c\u672a\u5ba1\u6279\u524d\u4e0d\u81ea\u52a8\u521b\u5efa\u4efb\u52a1\u6216\u5199\u5165 SAP\u3002"),
+            "daily_auto_operation_loop",
+            payload,
+            {
+                "source": "FoxBrain OS Enterprise V1.3",
+                "sap_sync": "/api/sap/sync/status",
+                "ai_analysis": "/api/ai-task-planner",
+                "boss_daily_report": "/api/ai-ceo/daily-briefing",
+                "task_center": "/api/tasks",
+                "approval_flow": "/api/approvals",
+                "sap_policy": "production_server_independent_read_only_sync",
+            },
+        )
+        now = ts()
+        with db() as conn:
+            conn.execute(
+                "update ai_operation_plans set risk_level='high', approval_required=1, approval_status='pending_review', execution_status='blocked_manual_required', execution_mode='approval_then_execute', updated_at=? where plan_id=?",
+                (now, result["plan_id"]),
+            )
+        self.log_action(user, "v13_daily_auto_operation_plan_requested", "ai_operation_plan", None, result["plan_id"])
+        return {
+            **result,
+            "risk_level": "high",
+            "approval_required": True,
+            "approval_status": "pending_review",
+            "execution_status": "blocked_manual_required",
+            "execution_mode": "approval_then_execute",
+            "sap_read_only": True,
+            "daily_loop": payload["daily_loop"],
+        }, 202
+
+    def auto_operation_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance", "purchasing"):
+            return self.dashboard(user)
+        payload = self.auto_operation_payload(user)
+        sap = payload["sap_daily_sync"]
+        stages = payload["contract"].get("stages", [])
+        stage_cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} -> {}</p></div><span class='pill'>{}</span></div>".format(
+                esc(s.get("name", "")), esc(s.get("source", "")), esc(s.get("route", "")), esc(s.get("output", "")), esc("approval" if s.get("approval_required") else "read")
+            )
+            for s in stages
+        )
+        body = f"""
+<div class="panel">
+  <h2>FoxBrain OS Enterprise V1.3</h2>
+  <p class="small">{U(r'SAP \u6bcf\u65e5\u53ea\u8bfb\u540c\u6b65\u3001AI \u5206\u6790\u3001\u8001\u677f\u65e5\u62a5\u3001\u4efb\u52a1\u4e2d\u5fc3\u548c\u5ba1\u6279\u6d41\u7a0b\u7ec4\u6210\u81ea\u52a8\u8fd0\u8425\u95ed\u73af\u3002')}</p>
+  <div class="metrics">{self.metric("SAP", sap.get("freshness"), U(r'\u53ea\u8bfb\u540c\u6b65'))}{self.metric(U(r'\u4e0a\u6b21\u540c\u6b65'), sap.get("last_sync_time"), sap.get("last_status"))}{self.metric(U(r'\u4e0b\u6b21\u540c\u6b65'), sap.get("next_run_time"), U(r'\u751f\u4ea7\u670d\u52a1\u5668\u72ec\u7acb'))}{self.metric(U(r'\u5f85\u5ba1\u6279'), len(payload['approval_flow']['approvals']), U(r'\u4eba\u5de5\u786e\u8ba4'))}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u751f\u6210\u4eca\u65e5\u95ed\u73af\u8ba1\u5212')}</h2>
+    <form method="post" action="/api/auto-operation/run-daily-loop">
+      <p class="small">{U(r'\u8be5\u64cd\u4f5c\u53ea\u4f1a\u751f\u6210\u5f85\u5ba1\u6279 AI \u8fd0\u8425\u8ba1\u5212\uff0c\u4e0d\u81ea\u52a8\u5199 SAP\uff0c\u4e0d\u81ea\u52a8\u6267\u884c\u9ad8\u98ce\u9669\u52a8\u4f5c\u3002')}</p>
+      <button>{U(r'\u751f\u6210\u5f85\u5ba1\u6279\u8ba1\u5212')}</button>
+    </form>
+  </div>
+  <div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([U(r'SAP \u751f\u4ea7\u670d\u52a1\u5668\u4fdd\u6301\u72ec\u7acb\u3002'), U(r'\u540c\u6b65\u4ec5\u8bfb\u53d6\uff0c\u4e0d\u5199\u56de SAP\u3002'), U(r'AI \u5206\u6790\u548c\u4efb\u52a1\u751f\u6210\u5148\u8fdb\u5165\u5ba1\u6279\u3002'), U(r'\u8001\u677f\u65e5\u62a5\u662f\u53ef\u590d\u6838\u8349\u7a3f\uff0c\u4e0d\u4f2a\u9020 SAP \u4e8b\u5b9e\u3002')])}</div>
+</div>
+<div class="panel"><h2>{U(r'\u95ed\u73af\u9636\u6bb5')}</h2><div class="grid">{stage_cards}</div></div>
+<div class="split"><div class="panel"><h2>{U(r'\u8001\u677f\u65e5\u62a5\u8349\u7a3f')}</h2>{self.bullets(payload['boss_daily_report']['actions'] or [U(r'\u6682\u65e0\u65e5\u62a5\u52a8\u4f5c\u3002')])}<p><a class="btn" href="/ai-ceo">{U(r'\u6253\u5f00\u8001\u677f\u65e5\u62a5')}</a></p></div><div class="panel"><h2>{U(r'\u4efb\u52a1\u4e2d\u5fc3')}</h2>{self.bullets([i['title'] for i in payload['task_center']['items'][:6]] or [payload['task_center']['empty_message']])}<p><a class="btn green" href="/tasks">{U(r'\u6253\u5f00\u4efb\u52a1')}</a></p></div></div>
+<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/auto-operation">/api/auto-operation</a><a class="button" href="/api/auto-operation/contract">Contract</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279')}</a></div></div>
+"""
+        self.out(layout("FoxBrain OS Enterprise V1.3", body, user=user, wide=True))
+
+    def ai_task_planner_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        data = self.ai_task_planner_payload(user)
+        steps = [s["title"] + " · " + s["risk_level"] + " · " + s["execution_rule"] for s in data["steps"]]
+        form = f"""
+<form method="post" action="/api/ai-task-planner/plans">
+  <label>{U(r'\u76ee\u6807')}</label><input name="objective" value="{esc(data['objective'])}">
+  <label>{U(r'\u8ba1\u5212\u6807\u9898')}</label><input name="title" value="{U(r'AI \u4eca\u65e5\u8fd0\u8425\u8ba1\u5212')}">
+  <label>{U(r'\u52a8\u4f5c\u7c7b\u578b')}</label><input name="action_type" value="create_task">
+  <button>{U(r'\u751f\u6210\u5f85\u5ba1\u6279\u8ba1\u5212')}</button>
+</form>"""
+        body = f"<div class='panel'><h2>AI Task Planner</h2>{self.bullets([data['rule']])}{form}</div><div class='panel'><h2>{U(r'\u89c4\u5212\u6b65\u9aa4')}</h2>{self.bullets(steps)}</div>"
+        self.out(layout("AI Task Planner", body, user=user, wide=True))
 
     def work_queue_page(self, user):
         user = self.require_login(user)
@@ -6709,6 +10474,25 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": True, "role": user["role"], "recommended_route": "/boss" if user["role"] in ("boss", "finance", "purchasing") else ("/system/modules" if user["role"] == "admin" else "/employee-workspace" if user["role"] == "employee" else "/desktop")})
         if path == "/api/command-center":
             return self.json_out({"ok": True, "work_queue": self.os_work_queue_payload(user)["items"][:10], "sap": self.sap_sync_status_payload(), "health": self.health_payload()})
+        if path in ("/api/auto-operation", "/api/auto-operation/status"):
+            return self.json_out(self.auto_operation_payload(user))
+        if path == "/api/auto-operation/contract":
+            return self.json_out(build_auto_operation_contract())
+        if path == "/api/auto-operation/sap-readonly":
+            payload = self.auto_operation_payload(user)
+            return self.json_out({"ok": True, "sap_read_only_policy": payload["contract"].get("sap_read_only_policy", {}), "sap_daily_sync": payload["sap_daily_sync"]})
+        if path == "/api/auto-operation/boss-daily-report":
+            return self.json_out({"ok": True, "boss_daily_report": self.auto_operation_payload(user)["boss_daily_report"]})
+        if path == "/api/auto-operation/tasks":
+            return self.json_out({"ok": True, "task_center": self.auto_operation_payload(user)["task_center"]})
+        if path == "/api/auto-operation/approvals":
+            return self.json_out({"ok": True, "approval_flow": self.auto_operation_payload(user)["approval_flow"]})
+        if path == "/api/ai-operations":
+            return self.json_out(self.ai_operations_summary())
+        if path == "/api/ai-task-planner":
+            qs = parse_qs(urlparse(self.path).query)
+            objective = (qs.get("objective") or [""])[0]
+            return self.json_out(self.ai_task_planner_payload(user, objective))
         if path == "/api/command-palette":
             return self.json_out(self.command_palette_payload(user))
         if path == "/api/object-actions":
@@ -6738,8 +10522,33 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": True, "command": command, "message": U(r"\u547d\u4ee4\u5df2\u8bb0\u5f55\uff0c\u5177\u4f53\u6267\u884c\u7531\u5bf9\u5e94\u6a21\u5757\u5904\u7406\u3002")})
         if path.startswith("/api/approvals/") and (path.endswith("/approve") or path.endswith("/reject")):
             action = "approve" if path.endswith("/approve") else "reject"
+            approval_id = path.split("/api/approvals/", 1)[-1].rsplit("/", 1)[0]
+            if approval_id.startswith("aiop-"):
+                plan_id = approval_id.replace("aiop-", "", 1)
+                result, code = self.approve_ai_operation_plan(user, plan_id, action)
+                return self.json_out(result, code=code)
             self.log_action(user, "approval_" + action, "approval", None, path)
             return self.json_out({"ok": True, "action": action, "message": U(r"\u5ba1\u6279\u52a8\u4f5c\u5df2\u8bb0\u5f55\uff0cV1 \u4e0d\u76f4\u63a5\u6539\u52a8\u6e90\u5bf9\u8c61\u3002")})
+        if path in ("/api/ai-task-planner/plans", "/api/ai-operations/plans"):
+            result = self.create_ai_operation_plan(
+                user,
+                form.get("title", ""),
+                form.get("objective", ""),
+                form.get("action_type", "create_task"),
+                {"due_date": form.get("due_date", ""), "raw_payload": form.get("payload", "")},
+                {"source": "ai_task_planner", "sap_freshness": self.sap_sync_status_payload()["freshness"]},
+            )
+            return self.json_out(result)
+        if path == "/api/auto-operation/run-daily-loop":
+            result, code = self.create_v13_daily_loop_plan(user)
+            return self.json_out(result, code=code)
+        if path == "/api/ai-operations/feedback":
+            return self.json_out(self.record_ai_operation_feedback(user, form))
+        if path.startswith("/api/ai-operations/plans/") and (path.endswith("/approve") or path.endswith("/reject")):
+            plan_id = path.split("/api/ai-operations/plans/", 1)[-1].rsplit("/", 1)[0]
+            action = "approve" if path.endswith("/approve") else "reject"
+            result, code = self.approve_ai_operation_plan(user, plan_id, action)
+            return self.json_out(result, code=code)
         return self.json_out({"ok": False, "message": "unknown os layer write api"}, code=404)
 
     def store_operations(self, user):
@@ -7973,6 +11782,19 @@ class App(BaseHTTPRequestHandler):
                 "update agent_tools set tool_category=?, tool_version='v1', risk_level=?, approval_required=?, audit_event=? where tool_name=?",
                 (category, risk, approval, "agent_tool_" + tool_name.lower().replace(" ", "_"), tool_name),
             )
+        for idx, (name, _role, _desc, _scope) in enumerate(agents, 1):
+            conn.execute(
+                "update agent_roles set digital_employee_id=coalesce(digital_employee_id, ?), role_level=?, approval_rule=?, audit_policy=?, performance_policy=?, manager_role=? where agent_name=?",
+                (
+                    "DE-" + str(idx).zfill(3),
+                    "executive" if name in ("AI CEO", "AI CFO", "AI COO") else "specialist",
+                    "all_high_risk_operations_require_human_approval",
+                    "activity_log_ai_agent_runs_and_operation_plans",
+                    "quality_speed_adoption_safety_feedback",
+                    "boss_or_admin",
+                    name,
+                ),
+            )
 
     def agent_summary(self):
         with db() as conn:
@@ -7982,6 +11804,165 @@ class App(BaseHTTPRequestHandler):
             discussions = conn.execute("select * from agent_discussions order by updated_at desc limit 30").fetchall()
             tools = conn.execute("select * from agent_tools order by id").fetchall()
         return {"roles": roles, "tasks": tasks, "discussions": discussions, "tools": tools}
+
+    def digital_workforce_role_payload(self):
+        data = self.agent_summary()
+        employees = []
+        tools = [row_dict(t) for t in data["tools"]]
+        for row in data["roles"]:
+            r = row_dict(row)
+            allowed_tools = csv_values(r.get("tools"))
+            tool_scope = [
+                {
+                    "tool_name": t["tool_name"],
+                    "tool_category": t.get("tool_category"),
+                    "risk_level": t.get("risk_level"),
+                    "approval_required": bool(t.get("approval_required")),
+                    "audit_event": t.get("audit_event"),
+                }
+                for t in tools
+                if not allowed_tools or any(scope in (t.get("tool_category") or "") or scope in (t.get("permission_required") or "") or scope in (t.get("tool_name") or "").lower() for scope in allowed_tools)
+            ][:8]
+            employees.append({
+                "digital_employee_id": r.get("digital_employee_id") or r.get("agent_id"),
+                "agent_name": r["agent_name"],
+                "role": r["agent_role"],
+                "role_level": r.get("role_level", "specialist"),
+                "responsibilities": r.get("responsibilities"),
+                "permission_scope": r.get("permission_scope"),
+                "knowledge_scope": r.get("knowledge_scope"),
+                "memory_scope": r.get("memory_scope"),
+                "tool_scope": tool_scope,
+                "approval_rule": r.get("approval_rule"),
+                "audit_policy": r.get("audit_policy"),
+                "performance_policy": r.get("performance_policy"),
+                "manager_role": r.get("manager_role"),
+                "status": r.get("status"),
+            })
+        return employees
+
+    def digital_workforce_payload(self, user):
+        employees = self.digital_workforce_role_payload()
+        with db() as conn:
+            runs = [row_dict(r) for r in conn.execute("select * from ai_agent_runs order by started_at desc limit 20").fetchall()]
+            operation_plans = [row_dict(r) for r in conn.execute("select * from ai_operation_plans order by updated_at desc limit 20").fetchall()]
+            performance = [row_dict(r) for r in conn.execute("select * from digital_workforce_performance order by updated_at desc limit 50").fetchall()]
+        high_risk_tools = []
+        for emp in employees:
+            for tool in emp["tool_scope"]:
+                if tool["risk_level"] == "high" or tool["approval_required"]:
+                    high_risk_tools.append({"digital_employee_id": emp["digital_employee_id"], "agent_name": emp["agent_name"], **tool})
+        return {
+            "ok": True,
+            "system": "Enterprise Digital Workforce",
+            "version": "FoxBrain OS 4.0",
+            "safety_rule": "high_risk_operations_must_require_human_approval",
+            "employees": employees,
+            "governance": {
+                "role_required": True,
+                "permission_scope_required": True,
+                "tool_scope_required": True,
+                "approval_rule_required": True,
+                "audit_log_required": True,
+                "performance_evaluation_required": True,
+                "high_risk_auto_execution": False,
+            },
+            "approval_matrix": self.agent_approval_policy_payload()["approval"],
+            "audit": {
+                "activity_log": "enabled",
+                "ai_agent_runs": len(runs),
+                "ai_operation_plans": len(operation_plans),
+                "recent_runs": runs[:8],
+            },
+            "performance": {
+                "records": performance,
+                "policy": "quality_score + safety_score + feedback_score + completed_tasks",
+                "no_auto_permission_change": True,
+            },
+            "high_risk_tool_controls": high_risk_tools,
+        }
+
+    def digital_workforce_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return self.dashboard(user)
+        data = self.digital_workforce_payload(user)
+        metrics = "".join([
+            self.metric(U(r"\u6570\u5b57\u5458\u5de5"), len(data["employees"]), "active"),
+            self.metric(U(r"\u9ad8\u98ce\u9669\u5de5\u5177"), len(data["high_risk_tool_controls"]), U(r"\u9700\u4eba\u5de5\u5ba1\u6279")),
+            self.metric(U(r"\u7ee9\u6548\u8bb0\u5f55"), len(data["performance"]["records"]), U(r"\u53ef\u8ffd\u8e2a")),
+        ])
+        employee_items = [
+            e["digital_employee_id"] + " · " + e["agent_name"] + " · " + e["role_level"] + " · " + e["approval_rule"]
+            for e in data["employees"]
+        ]
+        high_risk_items = [
+            h["agent_name"] + " · " + h["tool_name"] + " · " + h["risk_level"] + " · approval_required"
+            for h in data["high_risk_tool_controls"][:12]
+        ]
+        body = f"""
+<div class="panel"><h2>Enterprise Digital Workforce</h2><div class="metrics">{metrics}</div>{self.bullets([data['safety_rule']])}</div>
+<div class="split">
+  <div class="panel"><h2>{U(r'\u6570\u5b57\u5458\u5de5\u76ee\u5f55')}</h2>{self.bullets(employee_items)}</div>
+  <div class="panel"><h2>{U(r'\u9ad8\u98ce\u9669\u5de5\u5177\u7ba1\u63a7')}</h2>{self.bullets(high_risk_items or [U(r'\u6682\u65e0\u9ad8\u98ce\u9669\u5de5\u5177\u3002')])}</div>
+</div>
+<div class="panel form">
+  <h2>{U(r'\u8bb0\u5f55\u6570\u5b57\u5458\u5de5\u7ee9\u6548')}</h2>
+  <form method="post" action="/api/digital-workforce/performance">
+    <label>{U(r'\u6570\u5b57\u5458\u5de5 ID')}</label><input name="digital_employee_id" value="DE-001">
+    <label>{U(r'\u4efb\u52a1\u5b8c\u6210')}</label><input name="tasks_completed" value="0">
+    <label>{U(r'\u5ba1\u6279\u8bf7\u6c42')}</label><input name="approvals_requested" value="0">
+    <label>{U(r'\u963b\u65ad\u9ad8\u98ce\u9669')}</label><input name="high_risk_blocked" value="0">
+    <label>{U(r'\u8d28\u91cf\u5206')}</label><input name="quality_score" value="80">
+    <label>{U(r'\u5b89\u5168\u5206')}</label><input name="safety_score" value="100">
+    <label>{U(r'\u7ba1\u7406\u8005\u8bc4\u4ef7')}</label><textarea name="manager_review"></textarea>
+    <p><button>{U(r'\u4fdd\u5b58\u7ee9\u6548')}</button></p>
+  </form>
+</div>"""
+        self.out(layout("Enterprise Digital Workforce", body, user=user, wide=True))
+
+    def save_digital_workforce_performance(self, user):
+        if not user or user["role"] not in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return {"ok": False, "message": "no permission"}, 403
+        form = self.form()
+        now = ts()
+        digital_employee_id = form.get("digital_employee_id", "").strip() or "DE-001"
+        tasks_planned = int(self.finance_number(form, "tasks_planned"))
+        tasks_completed = int(self.finance_number(form, "tasks_completed"))
+        approvals_requested = int(self.finance_number(form, "approvals_requested"))
+        high_risk_blocked = int(self.finance_number(form, "high_risk_blocked"))
+        quality_score = self.finance_number(form, "quality_score")
+        feedback_score = self.finance_number(form, "feedback_score")
+        safety_score = self.finance_number(form, "safety_score") or 100
+        evaluation_id = "DWE-" + uuid.uuid4().hex[:10]
+        with db() as conn:
+            agent = conn.execute("select * from agent_roles where digital_employee_id=?", (digital_employee_id,)).fetchone()
+            conn.execute(
+                "insert into digital_workforce_performance(evaluation_id,digital_employee_id,agent_name,period_start,period_end,tasks_planned,tasks_completed,approvals_requested,high_risk_blocked,feedback_score,quality_score,safety_score,manager_review,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    evaluation_id,
+                    digital_employee_id,
+                    agent["agent_name"] if agent else "",
+                    form.get("period_start", ""),
+                    form.get("period_end", ""),
+                    tasks_planned,
+                    tasks_completed,
+                    approvals_requested,
+                    high_risk_blocked,
+                    feedback_score,
+                    quality_score,
+                    safety_score,
+                    form.get("manager_review", ""),
+                    "reviewed",
+                    user["id"],
+                    now,
+                    now,
+                ),
+            )
+        self.log_action(user, "digital_workforce_performance_saved", "digital_workforce", None, digital_employee_id)
+        return {"ok": True, "evaluation_id": evaluation_id, "digital_employee_id": digital_employee_id}, 200
 
     def safe_agent_output(self, agent_name, focus):
         return {
@@ -8222,6 +12203,233 @@ class App(BaseHTTPRequestHandler):
             "tools": [row_dict(t) for t in data["tools"]],
         }
 
+    def enterprise_v12_agent_orchestration_payload(self, user):
+        contract = build_agent_orchestration_contract()
+        data = self.agent_summary()
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.2",
+            "module": "agent_orchestration",
+            "rule": "all_ai_execution_requests_must_enter_approval_flow",
+            "contract": contract,
+            "existing_agent_framework": {
+                "roles": len(data["roles"]),
+                "tools": len(data["tools"]),
+                "tasks": len(data["tasks"]),
+                "discussions": len(data["discussions"]),
+            },
+            "approval": self.agent_approval_policy_payload()["approval"],
+            "execution_boundary": {
+                "request_api": "/api/agents/v1.2/plan",
+                "approval_table": "ai_operation_plans",
+                "execution_mode": "approval_then_execute",
+                "pre_approval_status": "blocked_manual_required",
+                "no_database_refactor": True,
+            },
+        }
+
+    def create_v12_agent_plan(self, user, form):
+        domain_key = form.get("domain", form.get("agent_domain", "business"))
+        objective = form.get("objective", form.get("question", "")).strip()
+        plan_request = build_agent_plan_request(domain_key, objective, user["role"] if user else "")
+        domain = plan_request.get("domain") or find_agent_domain(domain_key)
+        title = U(r"V1.2 \u667a\u80fd\u4f53\u5f85\u5ba1\u6279\u8ba1\u5212\uff1a") + str(domain.get("name") or domain.get("key") or domain_key)
+        evidence = {
+            "sap_source_of_truth": "SAP_B1",
+            "knowledge_brain": "/api/knowledge/brain",
+            "sap_understanding": "/api/knowledge/sap-understanding",
+            "approval_rule": "all_ai_execution_requests_must_enter_approval_flow",
+            "database_policy": "no_database_refactor_existing_ai_operation_plans_reused",
+        }
+        result = self.create_ai_operation_plan(
+            user,
+            title,
+            objective,
+            action_type="agent_plan_request",
+            payload=plan_request,
+            evidence=evidence,
+        )
+        now = ts()
+        with db() as conn:
+            conn.execute(
+                "update ai_operation_plans set risk_level='high', approval_required=1, approval_status='pending_review', execution_status='blocked_manual_required', execution_mode='approval_then_execute', updated_at=? where plan_id=?",
+                (now, result["plan_id"]),
+            )
+        self.log_action(user, "v12_agent_plan_requested", "ai_operation_plan", None, result["plan_id"])
+        return {
+            **result,
+            "risk_level": "high",
+            "approval_required": True,
+            "approval_status": "pending_review",
+            "execution_status": "blocked_manual_required",
+            "execution_mode": "approval_then_execute",
+            "plan_request": plan_request,
+        }, 202
+
+    def enterprise_v16_multi_agent_payload(self, user):
+        contract = build_multi_agent_system_contract()
+        sap_engine = self.sap_knowledge_engine_payload(user)
+        quality = self.knowledge_training_quality_payload(user)
+        shared_context = build_shared_sap_context(sap_engine, quality)
+        fusion = self.knowledge_fusion_payload(user)
+        data = self.agent_summary()
+        return {
+            "ok": True,
+            "version": "FoxBrain OS Enterprise V1.6",
+            "module": "multi_agent_system",
+            "rule": "agents_share_sap_knowledge_context_and_high_risk_actions_wait_for_human_approval",
+            "fusion_rule": "agents_share_fusion_knowledge_context_across_sap_industry_and_boss_experience",
+            "contract": contract,
+            "shared_sap_knowledge": shared_context,
+            "fusion_knowledge": fusion,
+            "existing_agent_framework": {
+                "roles": len(data["roles"]),
+                "tools": len(data["tools"]),
+                "tasks": len(data["tasks"]),
+                "discussions": len(data["discussions"]),
+            },
+            "approval": self.agent_approval_policy_payload()["approval"],
+            "execution_boundary": {
+                "request_api": "/api/agents/v1.6/collaboration-plan",
+                "fusion_knowledge_api": "/api/agents/v1.6/fusion-knowledge",
+                "approval_table": "ai_operation_plans",
+                "execution_mode": "approval_then_execute",
+                "pre_approval_status": "blocked_manual_required",
+                "no_database_refactor": True,
+                "sap_writeback": "disabled_until_explicit_human_approval",
+            },
+        }
+
+    def create_v16_collaboration_plan(self, user, form):
+        objective = form.get("objective", form.get("question", "")).strip()
+        raw_agents = form.get("agents", "")
+        selected_agents = [a.strip() for a in raw_agents.split(",") if a.strip()] if isinstance(raw_agents, str) else []
+        plan_request = build_agent_collaboration_plan(objective, selected_agents)
+        sap_engine = self.sap_knowledge_engine_payload(user)
+        quality = self.knowledge_training_quality_payload(user)
+        shared_context = build_shared_sap_context(sap_engine, quality)
+        fusion = self.knowledge_fusion_payload(user)
+        title = U(r"V1.6 \u591a\u667a\u80fd\u4f53\u534f\u540c\u5f85\u5ba1\u6279\u8ba1\u5212")
+        evidence = {
+            "sap_source_of_truth": "SAP_B1",
+            "sap_knowledge_engine": "/api/sap-knowledge-engine",
+            "shared_sap_context": "/api/agents/v1.6/shared-sap-knowledge",
+            "fusion_knowledge": "/api/agents/v1.6/fusion-knowledge",
+            "knowledge_quality": "/api/knowledge-quality",
+            "approval_rule": "all_multi_agent_execution_must_enter_manual_approval_flow",
+            "database_policy": "no_database_refactor_existing_ai_operation_plans_reused",
+        }
+        result = self.create_ai_operation_plan(
+            user,
+            title,
+            objective,
+            action_type="multi_agent_collaboration_plan",
+            payload={**plan_request, "shared_sap_context": shared_context, "fusion_knowledge": fusion.get("fusion_context", {})},
+            evidence=evidence,
+        )
+        now = ts()
+        with db() as conn:
+            conn.execute(
+                "update ai_operation_plans set risk_level='high', approval_required=1, approval_status='pending_review', execution_status='blocked_manual_required', execution_mode='approval_then_execute', updated_at=? where plan_id=?",
+                (now, result["plan_id"]),
+            )
+        self.log_action(user, "v16_multi_agent_collaboration_requested", "ai_operation_plan", None, result["plan_id"])
+        return {
+            **result,
+            "risk_level": "high",
+            "approval_required": True,
+            "approval_status": "pending_review",
+            "execution_status": "blocked_manual_required",
+            "execution_mode": "approval_then_execute",
+            "plan_request": plan_request,
+            "shared_sap_context": shared_context,
+            "fusion_knowledge": fusion.get("fusion_context", {}),
+        }, 202
+
+    def multi_agent_system_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        payload = self.enterprise_v16_multi_agent_payload(user)
+        roles = payload["contract"].get("roles", [])
+        flows = payload["contract"].get("collaboration_flows", [])
+        context = payload["shared_sap_knowledge"]
+        fusion = payload["fusion_knowledge"].get("fusion_context", {})
+        cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{}</p></div><span class='pill'>{}</span></div>".format(
+                esc(role.get("name", "")),
+                esc(", ".join(role.get("shared_sap_models", [])[:3])),
+                esc("Tools: " + ", ".join(role.get("tool_scope", [])[:3])),
+                esc("approval"),
+            )
+            for role in roles
+        )
+        flow_items = [f.get("name", "") + " / " + f.get("approval_gate", "") for f in flows]
+        model_items = context.get("available_models") or [context.get("readiness", "waiting_for_sap_knowledge_engine")]
+        fusion_items = [k + ": " + v for k, v in (fusion.get("layer_readiness") or {}).items()]
+        body = f"""
+<div class="panel">
+  <h2>FoxBrain OS Enterprise V1.6</h2>
+  <div class="metrics">{self.metric("Agent", len(roles), U(r'\u534f\u540c'))}{self.metric("SAP", len(model_items), U(r'\u5171\u4eab\u6a21\u578b'))}{self.metric(U(r'\u5ba1\u6279'), U(r'\u5fc5\u987b'), U(r'\u9ad8\u98ce\u9669'))}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u521b\u5efa\u591a\u667a\u80fd\u4f53\u534f\u540c\u8ba1\u5212')}</h2>
+    <form method="post" action="/api/agents/v1.6/collaboration-plan">
+      <label>{U(r'\u76ee\u6807')}</label><textarea name="objective" placeholder="review SAP sales, inventory, product and member signals" required></textarea>
+      <label>Agents</label><input name="agents" value="ceo,business,inventory,product,member,content">
+      <p><button>{U(r'\u63d0\u4ea4\u5ba1\u6279\u8ba1\u5212')}</button></p>
+    </form>
+  </div>
+  <div class="panel"><h2>{U(r'\u878d\u5408\u77e5\u8bc6')}</h2>{self.bullets(fusion_items or model_items)}</div>
+</div>
+<div class="panel"><h2>{U(r'\u534f\u540c\u6d41')}</h2>{self.bullets(flow_items)}</div>
+<div class="panel"><h2>Agents</h2><div class="grid">{cards}</div></div>
+<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.6">/api/agents/v1.6</a><a class="button" href="/api/agents/v1.6/fusion-knowledge">Fusion</a><a class="button" href="/api/agents/v1.6/shared-sap-knowledge">SAP Context</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</a></div></div>
+"""
+        self.out(layout("FoxBrain OS Enterprise V1.6", body, user=user, wide=True))
+
+    def agent_orchestration_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        payload = self.enterprise_v12_agent_orchestration_payload(user)
+        domains = payload["contract"].get("domains", [])
+        cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{}</p></div><span class='pill'>{}</span></div>".format(
+                esc(d.get("name", "")),
+                esc(", ".join(d.get("data_scope", [])[:4])),
+                esc("Tools: " + ", ".join(d.get("tool_scope", [])[:3])),
+                esc("approval"),
+            )
+            for d in domains
+        )
+        options = "".join("<option value='{}'>{}</option>".format(esc(d.get("key", "")), esc(d.get("name", ""))) for d in domains)
+        body = f"""
+<div class="panel">
+  <h2>FoxBrain OS Enterprise V1.2</h2>
+  <p class="small">{U(r'\u7ecf\u8425\u3001\u5e93\u5b58\u3001\u4f1a\u5458\u3001\u5185\u5bb9\u667a\u80fd\u4f53\u5df2\u63a5\u5165\u73b0\u6709 Agent \u6846\u67b6\uff0c\u6240\u6709 AI \u6267\u884c\u5148\u8fdb\u5165\u5ba1\u6279\u8ba1\u5212\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u667a\u80fd\u4f53'), len(domains), U(r'\u4e1a\u52a1\u57df'))}{self.metric(U(r'\u5ba1\u6279'), U(r'\u5fc5\u987b'), U(r'AI \u6267\u884c'))}{self.metric("SAP", U(r'\u6838\u5fc3'), U(r'\u6570\u636e\u6e90'))}</div>
+</div>
+<div class="split">
+  <div class="panel form">
+    <h2>{U(r'\u521b\u5efa\u5f85\u5ba1\u6279\u667a\u80fd\u4f53\u8ba1\u5212')}</h2>
+    <form method="post" action="/api/agents/v1.2/plan">
+      <label>{U(r'\u667a\u80fd\u4f53\u7c7b\u578b')}</label><select name="domain">{options}</select>
+      <label>{U(r'\u76ee\u6807')}</label><textarea name="objective" placeholder="例如：分析本周库存风险并提出补货建议" required></textarea>
+      <p><button>{U(r'\u63d0\u4ea4\u5ba1\u6279\u8ba1\u5212')}</button></p>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>{U(r'\u6267\u884c\u8fb9\u754c')}</h2>
+    {self.bullets([U(r'\u4e0d\u91cd\u6784\u6570\u636e\u5e93\uff0c\u590d\u7528 ai_operation_plans\u3002'), U(r'\u6240\u6709 AI \u6267\u884c\u5148\u751f\u6210 pending_review \u8ba1\u5212\u3002'), U(r'\u672a\u7ecf\u4eba\u5de5\u5ba1\u6279\u524d execution_status \u4fdd\u6301 blocked_manual_required\u3002'), U(r'SAP \u4ecd\u662f\u6838\u5fc3\u4e1a\u52a1\u6570\u636e\u6e90\u3002')])}
+  </div>
+</div>
+<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u57df')}</h2><div class="grid">{cards}</div></div>
+<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.2">/api/agents/v1.2</a><a class="button" href="/api/agents/v1.2/inventory">Inventory</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</a></div></div>
+"""
+        self.out(layout("FoxBrain OS Enterprise V1.2", body, user=user, wide=True))
+
     def agent_runtime_contract_payload(self):
         return {
             "ok": True,
@@ -8359,6 +12567,25 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(self.agent_approval_policy_payload())
         if path == "/api/agents/audit-contract":
             return self.json_out(self.agent_audit_contract_payload())
+        if path in ("/api/agents/v1.2", "/api/agents/orchestration"):
+            return self.json_out(self.enterprise_v12_agent_orchestration_payload(user))
+        m = re.match(r"^/api/agents/v1\.2/(business|inventory|membership|content)$", path)
+        if m:
+            return self.json_out({"ok": True, "version": "FoxBrain OS Enterprise V1.2", "domain": find_agent_domain(m.group(1)), "approval_required": True, "execution_mode": "approval_then_execute"})
+        if path in ("/api/agents/v1.6", "/api/agents/multi-agent"):
+            return self.json_out(self.enterprise_v16_multi_agent_payload(user))
+        if path in ("/api/agents/v1.6/shared-sap-knowledge", "/api/agents/multi-agent/shared-sap-knowledge"):
+            return self.json_out(self.enterprise_v16_multi_agent_payload(user)["shared_sap_knowledge"])
+        if path in ("/api/agents/v1.6/fusion-knowledge", "/api/agents/multi-agent/fusion-knowledge"):
+            query = parse_qs(urlparse(self.path).query)
+            agent_key = query.get("agent", ["ceo"])[0]
+            return self.json_out(self.agent_fusion_knowledge_payload(user, agent_key))
+        if path in ("/api/agents/v1.6/agents", "/api/agents/multi-agent/agents"):
+            payload = self.enterprise_v16_multi_agent_payload(user)
+            return self.json_out({"ok": True, "version": "FoxBrain OS Enterprise V1.6", "agents": payload["contract"].get("roles", [])})
+        if path in ("/api/agents/v1.6/flows", "/api/agents/multi-agent/flows"):
+            payload = self.enterprise_v16_multi_agent_payload(user)
+            return self.json_out({"ok": True, "version": "FoxBrain OS Enterprise V1.6", "flows": payload["contract"].get("collaboration_flows", [])})
         if path.startswith(("/api/agents/workflows", "/api/agents/workflow-templates", "/api/agents/marketplace", "/api/agents/templates", "/api/agents/builder", "/api/agents/sandbox", "/api/agents/runtime", "/api/agents/approvals")):
             return self.api_v5_get(user, path)
         data = self.agent_summary()
@@ -8390,6 +12617,37 @@ class App(BaseHTTPRequestHandler):
             return self.json_out({"ok": True, "tools": [row_dict(r) for r in data["tools"]]})
         return self.json_out({"ok": False, "message": "unknown agents api"}, code=404)
 
+    def api_digital_workforce_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/digital-workforce", "/api/digital-workforce/registry"):
+            return self.json_out(self.digital_workforce_payload(user))
+        if path == "/api/digital-workforce/roles":
+            return self.json_out({"ok": True, "roles": self.digital_workforce_role_payload()})
+        if path == "/api/digital-workforce/permissions":
+            payload = self.digital_workforce_payload(user)
+            return self.json_out({"ok": True, "permissions": [{"digital_employee_id": e["digital_employee_id"], "agent_name": e["agent_name"], "permission_scope": e["permission_scope"], "knowledge_scope": e["knowledge_scope"], "memory_scope": e["memory_scope"]} for e in payload["employees"]]})
+        if path == "/api/digital-workforce/tools":
+            payload = self.digital_workforce_payload(user)
+            return self.json_out({"ok": True, "tool_controls": [{"digital_employee_id": e["digital_employee_id"], "agent_name": e["agent_name"], "tools": e["tool_scope"]} for e in payload["employees"]], "high_risk_tool_controls": payload["high_risk_tool_controls"]})
+        if path == "/api/digital-workforce/approval-policy":
+            return self.json_out({"ok": True, "approval_policy": self.agent_approval_policy_payload()["approval"], "rule": "high_risk_operations_must_require_human_approval"})
+        if path == "/api/digital-workforce/audit":
+            payload = self.digital_workforce_payload(user)
+            return self.json_out({"ok": True, "audit": payload["audit"], "audit_policy": "activity_log_ai_agent_runs_and_operation_plans"})
+        if path == "/api/digital-workforce/performance":
+            payload = self.digital_workforce_payload(user)
+            return self.json_out({"ok": True, "performance": payload["performance"]})
+        return self.json_out({"ok": False, "message": "unknown digital workforce api"}, code=404)
+
+    def api_digital_workforce_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/digital-workforce/performance":
+            result, code = self.save_digital_workforce_performance(user)
+            return self.json_out(result, code=code)
+        return self.json_out({"ok": False, "message": "unknown digital workforce write api"}, code=404)
+
     def api_agents_post(self, user, path):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
@@ -8397,6 +12655,17 @@ class App(BaseHTTPRequestHandler):
             return self.api_v5_post(user, path)
         form = self.form()
         now = ts()
+        if path in ("/api/agents/v1.2/plan", "/api/agents/orchestration/plan"):
+            result, code = self.create_v12_agent_plan(user, form)
+            return self.json_out(result, code=code)
+        m = re.match(r"^/api/agents/v1\.2/(business|inventory|membership|content)/plan$", path)
+        if m:
+            form["domain"] = m.group(1)
+            result, code = self.create_v12_agent_plan(user, form)
+            return self.json_out(result, code=code)
+        if path in ("/api/agents/v1.6/collaboration-plan", "/api/agents/multi-agent/collaboration-plan"):
+            result, code = self.create_v16_collaboration_plan(user, form)
+            return self.json_out(result, code=code)
         if path == "/api/agents/run":
             agent_code = form.get("agent_code", "ceo_agent").strip() or "ceo_agent"
             question = form.get("question", "").strip()
@@ -8734,6 +13003,265 @@ class App(BaseHTTPRequestHandler):
             self.log_action(user, "event_published", "event_bus", cur.lastrowid, event_type)
             return self.json_out({"ok": True, "event_id": cur.lastrowid})
         return self.json_out({"ok": False, "message": "unknown v7.1 api"}, code=404)
+
+    def platform_plugins_payload(self, user):
+        with db() as conn:
+            rows = conn.execute("select * from platform_plugins order by category, name").fetchall()
+        plugins = []
+        for row in rows:
+            item = row_dict(row)
+            item["permissions"] = safe_json(item.get("permissions_json"), [])
+            item["approval_policy"] = safe_json(item.get("approval_policy_json"), {})
+            item["install_allowed"] = bool(user and user["role"] in ("boss", "admin"))
+            plugins.append(item)
+        return {
+            "ok": True,
+            "plugin_system": {
+                "registry": plugins,
+                "sdk": self.sdk_platform_payload(user or {"role": "guest"}),
+                "marketplace": self.sdk_marketplace_payload(user or {"role": "guest"})["marketplace"],
+                "lifecycle": ["register", "test", "security_review", "approval", "install", "monitor", "upgrade", "retire"],
+                "high_risk_platform_operations_require_human_approval": True,
+            },
+        }
+
+    def integration_hub_payload(self):
+        with db() as conn:
+            hub_rows = conn.execute("select * from integration_hub_connections order by category, connector_name").fetchall()
+            mcp_rows = conn.execute("select * from mcp_connectors order by connector_type, connector_name").fetchall()
+        hub = [row_dict(r) for r in hub_rows]
+        mcp = []
+        for row in mcp_rows:
+            item = row_dict(row)
+            env_key = item.get("endpoint") or ""
+            item["configured"] = bool(os.environ.get(env_key)) if env_key.isupper() else bool(env_key)
+            item["secrets_visible"] = False
+            mcp.append(item)
+        return {
+            "ok": True,
+            "integration_hub": {
+                "connections": hub,
+                "mcp_connectors": mcp,
+                "sap_as_core_business_data_source": True,
+                "credential_rule": "secrets_must_live_in_env_or_secret_store",
+                "writeback_rule": "sap_writeback_and_external_publish_require_manual_approval",
+            },
+        }
+
+    def api_governance_payload(self):
+        with db() as conn:
+            routes = conn.execute("select * from api_gateway_routes order by service_name, path").fetchall()
+            policies = conn.execute("select * from api_governance_policies order by owner, route_pattern").fetchall()
+        return {
+            "ok": True,
+            "api_governance": {
+                "routes": [row_dict(r) for r in routes],
+                "policies": [row_dict(p) for p in policies],
+                "standard": {
+                    "json_response": True,
+                    "auth_required_by_default": True,
+                    "rate_limit_required": True,
+                    "audit_required": True,
+                    "backward_compatibility": "minor_versions_add_fields_only",
+                    "high_risk_posture": "manual_approval_before_execution",
+                },
+            },
+        }
+
+    def multi_company_brand_payload(self):
+        with db() as conn:
+            tenants = conn.execute("select * from platform_tenants order by company_name").fetchall()
+            units = conn.execute("select * from org_units order by unit_type, unit_name").fetchall()
+        return {
+            "ok": True,
+            "multi_company_multi_brand": {
+                "tenants": [row_dict(t) for t in tenants],
+                "organization_units": [row_dict(u) for u in units],
+                "readiness": {
+                    "tenant_id_field": "prepared",
+                    "company_scope": "prepared",
+                    "brand_scope": "prepared",
+                    "sap_data_scope": "read_only_first",
+                    "permission_boundary": "tenant_company_brand_role",
+                },
+            },
+        }
+
+    def developer_docs_payload(self):
+        docs = [
+            {"title": "FoxBrain OS 6.0 Enterprise AI Platform", "path": "docs/600_FOXBRAIN_OS_6_0_ENTERPRISE_AI_PLATFORM.md"},
+            {"title": "Plugin Integration API Governance", "path": "docs/601_FOXBRAIN_OS_6_0_PLUGIN_INTEGRATION_API_GOVERNANCE.md"},
+            {"title": "SDK Extension Standard", "path": "docs/SDK_EXTENSION_STANDARD.md"},
+            {"title": "API Standard", "path": "docs/10_API_STANDARD.md"},
+        ]
+        return {
+            "ok": True,
+            "developer_docs": {
+                "documents": docs,
+                "api_entrypoints": [
+                    "/api/enterprise-ai-platform",
+                    "/api/enterprise-ai-platform/plugins",
+                    "/api/enterprise-ai-platform/integration-hub",
+                    "/api/enterprise-ai-platform/api-governance",
+                    "/api/enterprise-ai-platform/tenants",
+                    "/api/enterprise-ai-platform/monitoring",
+                    "/api/sdk",
+                    "/api/marketplace/apps",
+                ],
+                "contract_rule": "developer_extensions_must_declare_permissions_approval_policy_audit_events_and_compatibility",
+            },
+        }
+
+    def platform_monitoring_payload(self, user):
+        health = self.health_payload()
+        sap = self.sap_sync_status_payload()
+        with db() as conn:
+            metrics = conn.execute("select * from observability_metrics order by collected_at desc limit 50").fetchall()
+        return {
+            "ok": True,
+            "platform_monitoring": {
+                "health": health,
+                "sap_sync": sap,
+                "observability_metrics": [row_dict(m) for m in metrics],
+                "monitored_domains": ["plugins", "integration_hub", "api_gateway", "sap_sync", "ai_operations", "digital_workforce", "digital_brain"],
+                "alerts": [
+                    {"key": "sap_sync_failed", "severity": "high", "route": "/api/sap/sync/status"},
+                    {"key": "high_risk_pending_approval", "severity": "high", "route": "/api/approvals"},
+                    {"key": "connector_unconfigured", "severity": "medium", "route": "/api/enterprise-ai-platform/integration-hub"},
+                ],
+                "audit_log_route": "/logs",
+                "managed_by_role": user["role"] if user else "guest",
+            },
+        }
+
+    def enterprise_ai_platform_payload(self, user):
+        plugins = self.platform_plugins_payload(user)
+        integrations = self.integration_hub_payload()
+        api_gov = self.api_governance_payload()
+        tenancy = self.multi_company_brand_payload()
+        docs = self.developer_docs_payload()
+        monitoring = self.platform_monitoring_payload(user)
+        architecture = enterprise_v1_architecture_contract()
+        agent_orchestration = build_agent_orchestration_contract()
+        auto_operation = build_auto_operation_contract()
+        sap_knowledge_engine = build_sap_knowledge_engine_contract()
+        knowledge_training_quality = build_knowledge_training_quality_contract()
+        multi_agent_system = build_multi_agent_system_contract()
+        knowledge_fusion = build_knowledge_fusion_contract()
+        knowledge_training_engine = build_knowledge_training_engine_contract()
+        ai_business_center = build_ai_business_center_contract()
+        workflow_automation = build_workflow_automation_contract()
+        enterprise_knowledge_graph = build_enterprise_knowledge_graph_contract()
+        digital_twin_simulation = build_digital_twin_simulation_contract()
+        business_autopilot = build_business_autopilot_contract()
+        ecosystem_hub = build_ecosystem_hub_contract()
+        return {
+            "ok": True,
+            "platform": "Enterprise AI Platform",
+            "foxbrain_os_version": "6.0",
+            "compatibility": "built_on_foxbrain_os_1_0_to_5_0_without_deleting_existing_capabilities",
+            "sap_core_rule": "SAP_B1_is_the_core_business_data_source",
+            "high_risk_platform_operations_require_human_approval": True,
+            "auto_execution_boundary": "high_risk_actions_create_review_items_only",
+            "plugin_system": plugins["plugin_system"],
+            "integration_hub": integrations["integration_hub"],
+            "api_governance": api_gov["api_governance"],
+            "multi_company_multi_brand": tenancy["multi_company_multi_brand"],
+            "developer_docs": docs["developer_docs"],
+            "platform_monitoring": monitoring["platform_monitoring"],
+            "enterprise_v1_architecture": architecture,
+            "enterprise_v12_agent_orchestration": agent_orchestration,
+            "enterprise_v13_auto_operation_loop": auto_operation,
+            "enterprise_v14_sap_knowledge_engine": sap_knowledge_engine,
+            "enterprise_v15_knowledge_training_quality": knowledge_training_quality,
+            "enterprise_v16_multi_agent_system": multi_agent_system,
+            "enterprise_v165_knowledge_fusion": knowledge_fusion,
+            "enterprise_v166_knowledge_training_engine": knowledge_training_engine,
+            "enterprise_v17_ai_business_center": ai_business_center,
+            "enterprise_v18_workflow_automation_engine": workflow_automation,
+            "enterprise_v19_enterprise_knowledge_graph": enterprise_knowledge_graph,
+            "enterprise_v21_digital_twin_simulation": digital_twin_simulation,
+            "enterprise_v22_business_autopilot": business_autopilot,
+            "enterprise_v23_ecosystem_hub": ecosystem_hub,
+        }
+
+    def enterprise_ai_platform_center(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.dashboard(user)
+        payload = self.enterprise_ai_platform_payload(user)
+        plugin_items = [p["name"] + " / " + p["risk_level"] for p in payload["plugin_system"]["registry"]]
+        hub_items = [c["connector_name"] + " / " + c["category"] + " / " + c["status"] for c in payload["integration_hub"]["connections"]]
+        api_items = [p["method"] + " " + p["route_pattern"] + " / " + p["risk_level"] for p in payload["api_governance"]["policies"]]
+        tenant_items = [t["company_name"] + " / " + (t.get("brand_scope") or "") for t in payload["multi_company_multi_brand"]["tenants"]]
+        body = f"""
+<div class="panel">
+  <h2>Enterprise AI Platform 6.0</h2>
+  <p class="small">{U(r'\u7edf\u4e00\u63d2\u4ef6\u4f53\u7cfb\u3001Integration Hub\u3001API \u6cbb\u7406\u3001\u591a\u516c\u53f8/\u591a\u54c1\u724c\u6269\u5c55\u3001\u5f00\u53d1\u8005\u6587\u6863\u548c\u5e73\u53f0\u7ea7\u76d1\u63a7\u3002')}</p>
+  <div class="metrics">{self.metric(U(r'\u63d2\u4ef6'), len(plugin_items), U(r'\u5df2\u767b\u8bb0'))}{self.metric(U(r'\u96c6\u6210'), len(hub_items), "Hub")}{self.metric("API", len(api_items), U(r'\u5df2\u6cbb\u7406'))}{self.metric(U(r'\u79df\u6237'), len(tenant_items), U(r'\u9884\u5907'))}</div>
+</div>
+<div class="split"><div class="panel"><h2>{U(r'\u63d2\u4ef6\u4f53\u7cfb')}</h2>{self.bullets(plugin_items)}</div><div class="panel"><h2>Integration Hub</h2>{self.bullets(hub_items)}</div></div>
+<div class="split"><div class="panel"><h2>API Governance</h2>{self.bullets(api_items)}</div><div class="panel"><h2>{U(r'\u591a\u516c\u53f8/\u591a\u54c1\u724c')}</h2>{self.bullets(tenant_items)}</div></div>
+<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([U(r'SAP B1 \u4fdd\u6301\u6838\u5fc3\u4e1a\u52a1\u6570\u636e\u6e90'), U(r'\u9ad8\u98ce\u9669\u64cd\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279'), U(r'AI \u5efa\u8bae\u5fc5\u987b\u53ef\u89e3\u91ca\u3001\u53ef\u8ffd\u6eaf\u3001\u53ef\u5ba1\u8ba1')])}<div class="actions"><a class="button" href="/api/enterprise-ai-platform">API</a><a class="button" href="/api/enterprise-ai-platform/monitoring">{U(r'\u76d1\u63a7')}</a><a class="button dark" href="/logs">{U(r'\u5ba1\u8ba1\u65e5\u5fd7')}</a></div></div>
+"""
+        self.out(layout("Enterprise AI Platform 6.0", body, user=user, wide=True))
+
+    def api_enterprise_ai_platform_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path in ("/api/enterprise-ai-platform", "/api/enterprise-ai-platform/status"):
+            return self.json_out(self.enterprise_ai_platform_payload(user))
+        if path == "/api/enterprise-ai-platform/plugins":
+            return self.json_out(self.platform_plugins_payload(user))
+        if path == "/api/enterprise-ai-platform/integration-hub":
+            return self.json_out(self.integration_hub_payload())
+        if path == "/api/enterprise-ai-platform/api-governance":
+            return self.json_out(self.api_governance_payload())
+        if path in ("/api/enterprise-ai-platform/tenants", "/api/enterprise-ai-platform/multi-company"):
+            return self.json_out(self.multi_company_brand_payload())
+        if path == "/api/enterprise-ai-platform/developer-docs":
+            return self.json_out(self.developer_docs_payload())
+        if path == "/api/enterprise-ai-platform/ai-business-center":
+            return self.json_out(build_ai_business_center_contract())
+        if path == "/api/enterprise-ai-platform/workflow-automation":
+            return self.json_out(build_workflow_automation_contract())
+        if path == "/api/enterprise-ai-platform/enterprise-knowledge-graph":
+            return self.json_out(build_enterprise_knowledge_graph_contract())
+        if path == "/api/enterprise-ai-platform/digital-twin-simulation":
+            return self.json_out(build_digital_twin_simulation_contract())
+        if path == "/api/enterprise-ai-platform/business-autopilot":
+            return self.json_out(build_business_autopilot_contract())
+        if path == "/api/enterprise-ai-platform/ecosystem-hub":
+            return self.json_out(build_ecosystem_hub_contract())
+        if path == "/api/enterprise-ai-platform/monitoring":
+            return self.json_out(self.platform_monitoring_payload(user))
+        if path == "/api/enterprise-ai-platform/architecture":
+            return self.json_out(enterprise_v1_architecture_contract())
+        if path == "/api/enterprise-ai-platform/knowledge-fusion":
+            return self.json_out(build_knowledge_fusion_contract())
+        if path == "/api/enterprise-ai-platform/knowledge-training-engine":
+            return self.json_out(build_knowledge_training_engine_contract())
+        return self.json_out({"ok": False, "message": "unknown enterprise ai platform api", "path": path}, code=404)
+
+    def api_enterprise_ai_platform_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        form = self.form()
+        action = form.get("action", "request")
+        high_risk_actions = {"install_plugin", "enable_integration", "sap_writeback", "external_publish", "change_api_policy", "tenant_data_change"}
+        if action in high_risk_actions:
+            self.log_action(user, "enterprise_ai_platform_high_risk_blocked", "platform", 0, action)
+            return self.json_out({
+                "ok": False,
+                "status": "manual_approval_required",
+                "action": action,
+                "high_risk_platform_operations_require_human_approval": True,
+                "message": "High-risk platform operations are review-only and cannot auto execute.",
+            }, code=202)
+        self.log_action(user, "enterprise_ai_platform_request_recorded", "platform", 0, action)
+        return self.json_out({"ok": True, "status": "recorded", "action": action, "execution": "no_high_risk_auto_execution"})
 
     def v5_page_routes(self):
         return set(self.v5_catalog().keys())

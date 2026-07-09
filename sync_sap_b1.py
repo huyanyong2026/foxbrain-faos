@@ -1,6 +1,8 @@
 import os
 import json
+import sqlite3
 import traceback
+import time
 from datetime import date
 from decimal import Decimal
 
@@ -17,16 +19,62 @@ load_dotenv(os.path.join(BASE, ".env"))
 SAP = {k: os.getenv(k) for k in ["SAP_HOST", "SAP_DB", "SAP_USER", "SAP_PASSWORD"]}
 SAP_PORT = int(os.getenv("SAP_PORT", "1433"))
 PG = {
-    "host": os.getenv("PG_HOST"),
-    "port": int(os.getenv("PG_PORT", "5432")),
-    "dbname": os.getenv("PG_DB"),
-    "user": os.getenv("PG_USER"),
-    "password": os.getenv("PG_PASSWORD"),
+    "host": os.getenv("PG_HOST") or os.getenv("POSTGRES_HOST") or "postgres",
+    "port": int(os.getenv("PG_PORT") or os.getenv("POSTGRES_PORT") or "5432"),
+    "dbname": os.getenv("PG_DB") or os.getenv("POSTGRES_DB"),
+    "user": os.getenv("PG_USER") or os.getenv("POSTGRES_USER"),
+    "password": os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD"),
 }
+APP_DIR = os.getenv("APP_DIR", "/data/firefox-portal")
+PORTAL_DB = os.getenv("PORTAL_DB", os.path.join(APP_DIR, "portal.db"))
+
+
+def U(s):
+    return s.encode("ascii").decode("unicode_escape")
 
 
 def pg_conn():
+    missing = [k for k, v in PG.items() if k != "port" and not v]
+    if missing:
+        raise RuntimeError("Missing PostgreSQL config: " + ", ".join(missing))
     return psycopg2.connect(**PG)
+
+
+def write_portal_sync_history(status, started_at, finished_at, counts=None, error=""):
+    try:
+        os.makedirs(APP_DIR, exist_ok=True)
+        conn = sqlite3.connect(PORTAL_DB)
+        conn.execute(
+            """
+create table if not exists sap_sync_history(
+ id integer primary key autoincrement,
+ sync_id text unique,
+ job_name text not null default 'sap_b1_sync',
+ trigger_type text,
+ status text,
+ started_at integer,
+ finished_at integer,
+ duration_seconds integer,
+ records_read integer,
+ records_written integer,
+ records_updated integer,
+ records_failed integer,
+ error_message text,
+ log_path text,
+ created_by integer
+)
+"""
+        )
+        total = sum(int(v or 0) for v in (counts or {}).values())
+        sync_id = "SAP-" + str(int(started_at))
+        conn.execute(
+            "insert or replace into sap_sync_history(sync_id,job_name,trigger_type,status,started_at,finished_at,duration_seconds,records_read,records_written,records_updated,records_failed,error_message,log_path,created_by) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (sync_id, "sap_b1_sync", os.getenv("SAP_SYNC_TRIGGER", "scheduled"), status, int(started_at), int(finished_at), int(finished_at - started_at), total, total, 0, 0 if status == "success" else 1, error[:1000], "", None),
+        )
+        conn.commit()
+        conn.close()
+    except Exception as exc:
+        print("PORTAL_SYNC_HISTORY_FAILED", str(exc)[:300])
 
 
 def sap_conn():
@@ -231,6 +279,7 @@ def replace_table(pg, table, columns, rows):
 
 
 def main():
+    started_at = time.time()
     pg = pg_conn()
     init_pg(pg)
     pc = pg.cursor()
@@ -486,6 +535,7 @@ from sap_sales_invoice_lines group by doc_date, coalesce(whs_code,'')
         )
         write_summary(pg)
         pg.commit()
+        write_portal_sync_history("success", started_at, time.time(), counts)
         sap.close()
         print("SAP_SYNC_SUCCESS", counts)
     except Exception:
@@ -497,6 +547,7 @@ from sap_sales_invoice_lines group by doc_date, coalesce(whs_code,'')
             (msg[:3000], run_id),
         )
         pg.commit()
+        write_portal_sync_history("failed", started_at, time.time(), counts, msg)
         print("SAP_SYNC_FAILED", msg)
         raise
     finally:
