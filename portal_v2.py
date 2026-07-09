@@ -1511,7 +1511,84 @@ create table if not exists decision_actions(
             "create index if not exists idx_decision_actions_insight on decision_actions(insight_id, status)",
         ]:
             conn.execute(idx)
+        conn.execute(
+            """
+create table if not exists business_rules(
+ id integer primary key autoincrement,
+ rule_key text unique not null,
+ rule_name text not null,
+ rule_type text not null,
+ description text,
+ condition_json text,
+ action_json text,
+ severity text not null default 'medium',
+ priority integer not null default 50,
+ status text not null default 'active',
+ version integer not null default 1,
+ source text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null,
+ archived_at integer
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_rule_runs(
+ id integer primary key autoincrement,
+ run_type text not null default 'manual',
+ status text not null default 'running',
+ rules_evaluated integer not null default 0,
+ rules_triggered integer not null default 0,
+ insights_created integer not null default 0,
+ started_at integer,
+ finished_at integer,
+ error_message text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists business_rule_results(
+ id integer primary key autoincrement,
+ run_id integer not null,
+ rule_id integer not null,
+ entity_type text,
+ entity_id integer,
+ matched integer not null default 0,
+ severity text,
+ result_summary text,
+ evidence_json text,
+ created_insight_id integer,
+ created_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_business_rules_status on business_rules(status, rule_type, priority)",
+            "create index if not exists idx_business_rule_runs_status on business_rule_runs(status, created_at)",
+            "create index if not exists idx_business_rule_results_run on business_rule_results(run_id, matched, severity)",
+            "create index if not exists idx_business_rule_results_rule on business_rule_results(rule_id, created_at)",
+        ]:
+            conn.execute(idx)
         seed_now = ts()
+        huohu_initial_business_rules = [
+            ("inventory_over_180_amount_50000", "Inventory age over 180 days and amount over 50000", "inventory_rule", "IF inventory_days > 180 AND inventory_amount > 50000 THEN create high inventory risk insight.", {"all": [{"metric": "inventory_days", "operator": ">", "value": 180}, {"metric": "inventory_amount", "operator": ">", "value": 50000}], "dataset": "sap_inventory"}, {"decision_type": "inventory_risk", "action": "create_decision_insight", "owner": "purchasing"}, "high", 10, "active", "Sprint011 Huohu Fox initial rule"),
+            ("inventory_over_365_amount_100000", "Critical inventory age over 365 days and amount over 100000", "inventory_rule", "IF inventory_days > 365 AND inventory_amount > 100000 THEN create critical decision insight and dashboard alert.", {"all": [{"metric": "inventory_days", "operator": ">", "value": 365}, {"metric": "inventory_amount", "operator": ">", "value": 100000}], "dataset": "sap_inventory"}, {"decision_type": "inventory_risk", "action": "create_decision_insight", "dashboard_alert": True, "owner": "purchasing"}, "critical", 5, "active", "Sprint011 Huohu Fox initial rule"),
+            ("gross_margin_below_25", "Gross margin below 25 percent", "margin_rule", "IF gross_margin < 0.25 THEN create margin review insight.", {"all": [{"metric": "gross_margin", "operator": "<", "value": 0.25}], "dataset": "business_metrics_snapshots"}, {"decision_type": "brand_performance", "action": "create_decision_insight", "owner": "finance"}, "medium", 20, "active", "Sprint011 Huohu Fox initial rule"),
+            ("negative_gross_profit", "Negative gross profit", "margin_rule", "IF gross_profit < 0 THEN create product risk insight.", {"all": [{"metric": "gross_profit", "operator": "<", "value": 0}], "dataset": "sap_sales"}, {"decision_type": "product_risk", "action": "create_decision_insight", "owner": "finance"}, "high", 15, "active", "Sprint011 Huohu Fox initial rule"),
+            ("inventory_cost_missing_quality", "Missing inventory cost quality", "calibration_rule", "IF inventory_cost_quality = missing_cost THEN create data quality warning.", {"all": [{"metric": "inventory_cost_quality", "operator": "=", "value": "missing_cost"}], "dataset": "business_metric_quality"}, {"decision_type": "operation_alert", "action": "create_decision_insight", "owner": "finance"}, "medium", 25, "active", "Sprint011 Huohu Fox initial rule"),
+            ("brand_sales_share_over_60", "Brand sales share over 60 percent", "brand_rule", "IF brand_sales_share > 0.60 THEN create brand dependency insight.", {"all": [{"metric": "brand_sales_share", "operator": ">", "value": 0.60}], "dataset": "business_metrics_snapshots"}, {"decision_type": "brand_performance", "action": "create_decision_insight", "owner": "boss"}, "medium", 30, "active", "Sprint011 Huohu Fox initial rule"),
+            ("store_margin_decline_three_months", "Store margin decline for three months", "store_rule", "IF store_margin_decline_months >= 3 THEN create store review insight. Kept inactive until time-series comparison exists.", {"all": [{"metric": "store_margin_decline_months", "operator": ">=", "value": 3}], "dataset": "future_time_series_metrics"}, {"decision_type": "store_performance", "action": "create_decision_insight", "owner": "store_manager"}, "high", 90, "inactive", "Sprint011 Huohu Fox initial rule"),
+        ]
+        for rule_key, rule_name, rule_type, description, condition, action, severity, priority, status, source in huohu_initial_business_rules:
+            conn.execute(
+                """insert or ignore into business_rules(rule_key,rule_name,rule_type,description,condition_json,action_json,severity,priority,status,version,source,created_at,updated_at,archived_at)
+values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (rule_key, rule_name, rule_type, description, json.dumps(condition, ensure_ascii=False), json.dumps(action, ensure_ascii=False), severity, priority, status, 1, source, seed_now, seed_now, None),
+            )
         for canonical, alias, alias_type in [
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97"), "canonical"),
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
@@ -4559,6 +4636,8 @@ class App(BaseHTTPRequestHandler):
             return self.object_match_center(user, path)
         if path in ("/business-calibration", "/business-calibration/stores", "/business-calibration/brands", "/business-calibration/quality"):
             return self.business_calibration_page(user, path)
+        if path in ("/business-rules", "/business-rules/runs") or re.match(r"^/business-rules/\d+$", path):
+            return self.business_rules_page(user, path)
         if path == "/apps":
             return self.apps_launcher(user)
         if path == "/desktop":
@@ -4733,6 +4812,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_enterprise_memories_get(user, path)
         if path.startswith("/api/decision/") or re.match(r"^/api/objects/\d+/decisions$", path):
             return self.api_decision_get(user, path)
+        if path.startswith("/api/business-rules"):
+            return self.api_business_rules_get(user, path)
         if path.startswith("/api/dashboard/"):
             return self.api_dashboard_get(user, path)
         if path == "/api/dashboard/ceo":
@@ -4963,6 +5044,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_search_timeline_post(self.current_user(), path)
         if path.startswith(("/api/ai-business-center", "/api/ai/task/create")):
             return self.api_ai_business_center_post(self.current_user(), path)
+        if path.startswith("/api/business-rules"):
+            return self.api_business_rules_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -5075,6 +5158,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_enterprise_memories_post(self.current_user(), path)
         if path.startswith("/api/decision/"):
             return self.api_decision_post(self.current_user(), path)
+        if path.startswith("/api/business-rules"):
+            return self.api_business_rules_post(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def do_DELETE(self):
@@ -7406,6 +7491,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             business_metrics = self.business_metrics_summary(conn)
             graph_metrics = self.knowledge_graph_summary(conn)
             decision_metrics = self.decision_engine_summary(conn)
+            rule_metrics = self.business_rule_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7417,6 +7503,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Knowledge Engine", knowledge_items_total >= 0, "knowledge_items"),
                 ("Knowledge Graph", graph_metrics["graph_nodes"] >= 0, "knowledge_graph_nodes"),
                 ("Decision Engine", decision_metrics["decision_insights_total"] >= 0, "decision_insights"),
+                ("Business Rule Engine", rule_metrics["business_rules_active"] >= 0, "business_rules"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7457,9 +7544,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "decision_high_severity": decision_metrics["decision_high_severity"],
                 "decision_evidence_total": decision_metrics["decision_evidence_total"],
                 "decision_pending_actions": decision_metrics["decision_pending_actions"],
+                "business_rules_active": rule_metrics["business_rules_active"],
+                "business_rule_runs_total": rule_metrics["business_rule_runs_total"],
+                "business_rule_triggered_high": rule_metrics["business_rule_triggered_high"],
             },
             "business_metrics": business_metrics,
             "decision_metrics": decision_metrics,
+            "rule_metrics": rule_metrics,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -7475,6 +7566,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "Business Calibration", "url": "/business-calibration", "status": "ready"},
                 {"title": "Business Knowledge Graph", "url": "/knowledge-graph", "status": "ready"},
                 {"title": "Decision Engine", "url": "/decision", "status": "ready"},
+                {"title": "Business Rule Engine", "url": "/business-rules", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7515,6 +7607,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ("Decision Insights", summary["decision_insights_total"], "evidence-based"),
             ("High Severity", summary["decision_high_severity"], "decision review"),
             ("Decision Evidence", summary["decision_evidence_total"], "traceable"),
+            ("Active Rules", summary["business_rules_active"], "business_rules"),
+            ("Rule Runs", summary["business_rule_runs_total"], "auditable"),
+            ("High Rule Triggers", summary["business_rule_triggered_high"], "high/critical"),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7551,6 +7646,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         ] or [U(r"\u6682\u65e0\u54c1\u724c\u9500\u552e\u6392\u884c\u3002")])
         decision_top_risks = "; ".join([r.get("title", "") for r in payload["decision_metrics"].get("top_risks", [])]) or "No active decision risk."
         latest_accepted_decision = (payload["decision_metrics"].get("latest_accepted_decision") or {}).get("title") or "No accepted decision yet."
+        latest_rule_run = payload["rule_metrics"].get("latest_rule_run") or {}
         business_alerts = self.bullets([
             U(r"\u6570\u636e\u8d28\u91cf\u544a\u8b66\uff1a") + str(summary["quality_alerts"]),
             U(r"\u7ecf\u8425\u6307\u6807\u53e3\u5f84\u63d0\u9192\uff1a") + str(summary["metric_quality_warnings"]),
@@ -7558,6 +7654,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u9ad8\u98ce\u9669\u51b3\u7b56\u6d1e\u5bdf\uff1a") + str(summary["decision_high_severity"]),
             "Top 3 decision risks: " + decision_top_risks,
             "Latest accepted decision: " + latest_accepted_decision,
+            "Business Rule Engine active rules: " + str(summary["business_rules_active"]),
+            "Latest rule run: " + (str(latest_rule_run.get("id")) + " / " + str(latest_rule_run.get("status")) if latest_rule_run else "none"),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
@@ -15292,6 +15390,328 @@ limit 6
                 )
             return self.json_out({"ok": True, "action_id": cur.lastrowid, "status": "pending_review"})
         return self.json_out({"ok": False, "message": "unknown decision write api"}, code=404)
+
+    def business_rule_to_json(self, row):
+        data = row_dict(row) or {}
+        data["condition_json"] = safe_json(data.get("condition_json"), {})
+        data["action_json"] = safe_json(data.get("action_json"), {})
+        data["url"] = "/business-rules/{}".format(data.get("id", ""))
+        return data
+
+    def business_rule_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            count = lambda sql, params=(): int(conn.execute(sql, params).fetchone()["c"] or 0)
+            latest_run = conn.execute("select * from business_rule_runs order by created_at desc limit 1").fetchone()
+            high_results = conn.execute("select * from business_rule_results where matched=1 and severity in ('high','critical') order by created_at desc limit 5").fetchall()
+            return {
+                "business_rules_total": count("select count(*) c from business_rules where archived_at is null"),
+                "business_rules_active": count("select count(*) c from business_rules where archived_at is null and status='active'"),
+                "business_rules_draft": count("select count(*) c from business_rules where archived_at is null and status='draft'"),
+                "business_rules_inactive": count("select count(*) c from business_rules where archived_at is null and status='inactive'"),
+                "business_rule_runs_total": count("select count(*) c from business_rule_runs"),
+                "business_rule_triggered_high": count("select count(*) c from business_rule_results where matched=1 and severity in ('high','critical')"),
+                "latest_rule_run": row_dict(latest_run) if latest_run else None,
+                "triggered_high_rules": [row_dict(r) for r in high_results],
+                "rule_visibility": "business_rules_are_database_records_viewable_editable_auditable",
+                "evidence_rule": "business_rule_triggered_decision_insights_must_include_evidence",
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def business_rule_compare(self, left, operator, right):
+        op = (operator or "=").strip().lower()
+        try:
+            if isinstance(left, str) or isinstance(right, str):
+                if op in ("=", "=="):
+                    return str(left) == str(right)
+                if op in ("!=", "<>"):
+                    return str(left) != str(right)
+            lnum = float(left or 0)
+            rnum = float(right or 0)
+            if op in (">", "gt"):
+                return lnum > rnum
+            if op in (">=", "gte"):
+                return lnum >= rnum
+            if op in ("<", "lt"):
+                return lnum < rnum
+            if op in ("<=", "lte"):
+                return lnum <= rnum
+            if op in ("=", "=="):
+                return lnum == rnum
+            if op in ("!=", "<>"):
+                return lnum != rnum
+        except Exception:
+            return False
+        return False
+
+    def business_rule_matches(self, condition, metrics):
+        checks = condition.get("all") or []
+        if not checks and condition.get("metric"):
+            checks = [condition]
+        return bool(checks) and all(self.business_rule_compare(metrics.get(item.get("metric")), item.get("operator"), item.get("value")) for item in checks)
+
+    def business_rule_candidates(self, conn, rule):
+        key = rule["rule_key"]
+        candidates = []
+        if key in ("inventory_over_180_amount_50000", "inventory_over_365_amount_100000"):
+            rows = conn.execute("""
+select coalesce(product_code,'') product_code, coalesce(product_name,'') product_name, coalesce(brand_name,'') brand_name,
+       coalesce(store_name,'') store_name, min(id) source_id, max(coalesce(age_days,0)) inventory_days,
+       sum(coalesce(retail_amount,cost_amount,0)) inventory_amount, sum(coalesce(quantity,0)) inventory_quantity
+from sap_inventory
+where coalesce(product_code,'')!='' or coalesce(product_name,'')!=''
+group by coalesce(product_code,''), coalesce(product_name,''), coalesce(brand_name,''), coalesce(store_name,'')
+order by inventory_amount desc limit 300
+""").fetchall()
+            for row in rows:
+                metrics = row_dict(row)
+                metrics["entity_name"] = row["product_name"] or row["product_code"] or "Inventory"
+                candidates.append({"entity_type": "product", "entity_id": None, "metrics": metrics, "source_type": "sap_inventory", "source_id": row["source_id"]})
+        elif key == "gross_margin_below_25":
+            rows = conn.execute("""
+select coalesce(store_name,'') store_name, coalesce(brand_name,'') brand_name, coalesce(product_code,'') product_code,
+       sum(case when metric_key='sales_amount' then metric_value else 0 end) sales_amount,
+       sum(case when metric_key='gross_profit' then metric_value else 0 end) gross_profit,
+       min(id) source_id
+from business_metrics_snapshots
+where snapshot_type in ('store_sales','brand_sales')
+group by coalesce(store_name,''), coalesce(brand_name,''), coalesce(product_code,'')
+having sales_amount > 0
+order by sales_amount desc limit 300
+""").fetchall()
+            for row in rows:
+                metrics = row_dict(row)
+                metrics["gross_margin"] = float(row["gross_profit"] or 0) / float(row["sales_amount"] or 1)
+                metrics["entity_name"] = row["store_name"] or row["brand_name"] or row["product_code"] or "Margin"
+                entity_type = "store" if row["store_name"] else ("brand" if row["brand_name"] else "product")
+                candidates.append({"entity_type": entity_type, "entity_id": None, "metrics": metrics, "source_type": "business_metrics_snapshots", "source_id": row["source_id"]})
+        elif key == "negative_gross_profit":
+            rows = conn.execute("""
+select coalesce(product_code,'') product_code, coalesce(product_name,'') product_name, coalesce(brand_name,'') brand_name,
+       coalesce(store_name,'') store_name, min(id) source_id, sum(coalesce(amount,0)) sales_amount, sum(coalesce(gross_profit,0)) gross_profit
+from sap_sales
+where coalesce(product_code,'')!='' or coalesce(product_name,'')!=''
+group by coalesce(product_code,''), coalesce(product_name,''), coalesce(brand_name,''), coalesce(store_name,'')
+having gross_profit < 0
+order by gross_profit asc limit 300
+""").fetchall()
+            for row in rows:
+                metrics = row_dict(row)
+                metrics["entity_name"] = row["product_name"] or row["product_code"] or "Product"
+                candidates.append({"entity_type": "product", "entity_id": None, "metrics": metrics, "source_type": "sap_sales", "source_id": row["source_id"]})
+        elif key == "inventory_cost_missing_quality":
+            rows = conn.execute("select * from business_metric_quality where quality_status!='ok' and (metric_key like '%inventory_cost%' or quality_message like '%cost%' or quality_message like '%missing%') order by created_at desc limit 200").fetchall()
+            for row in rows:
+                metrics = {"inventory_cost_quality": "missing_cost", "metric_key": row["metric_key"], "dimension_type": row["dimension_type"], "dimension_value": row["dimension_value"], "entity_name": row["dimension_value"] or row["metric_key"], "quality_message": row["quality_message"]}
+                candidates.append({"entity_type": row["dimension_type"] or "data_quality", "entity_id": None, "metrics": metrics, "source_type": "business_metric_quality", "source_id": row["id"]})
+        elif key == "brand_sales_share_over_60":
+            total = float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount'").fetchone()["v"] or 0)
+            if total > 0:
+                rows = conn.execute("select brand_name, metric_value sales_amount, id source_id from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount' and coalesce(brand_name,'')!='' order by metric_value desc limit 100").fetchall()
+                for row in rows:
+                    metrics = {"brand_name": row["brand_name"], "sales_amount": row["sales_amount"], "brand_sales_share": float(row["sales_amount"] or 0) / total, "entity_name": row["brand_name"]}
+                    candidates.append({"entity_type": "brand", "entity_id": None, "metrics": metrics, "source_type": "business_metrics_snapshots", "source_id": row["source_id"]})
+        elif key == "store_margin_decline_three_months":
+            candidates = []
+        return candidates
+
+    def evaluate_business_rules(self, user=None, run_type="manual"):
+        now = ts()
+        with db() as conn:
+            run_cur = conn.execute("insert into business_rule_runs(run_type,status,rules_evaluated,rules_triggered,insights_created,started_at,created_at) values(?,?,?,?,?,?,?)", (run_type, "running", 0, 0, 0, now, now))
+            run_id = run_cur.lastrowid
+            rules = conn.execute("select * from business_rules where archived_at is null and status='active' order by priority asc, id asc").fetchall()
+            evaluated = triggered = insights_created = 0
+            try:
+                for rule in rules:
+                    evaluated += 1
+                    condition = safe_json(rule["condition_json"], {})
+                    action = safe_json(rule["action_json"], {})
+                    candidates = self.business_rule_candidates(conn, rule)
+                    if not candidates:
+                        conn.execute("insert into business_rule_results(run_id,rule_id,entity_type,entity_id,matched,severity,result_summary,evidence_json,created_insight_id,created_at) values(?,?,?,?,?,?,?,?,?,?)", (run_id, rule["id"], "", None, 0, rule["severity"], "No candidate data for rule evaluation.", json.dumps([{"source_type": "business_rules", "source_id": str(rule["id"]), "evidence_title": rule["rule_name"], "evidence_summary": "Rule evaluated but no candidate data found.", "confidence": 0.7}], ensure_ascii=False), None, now))
+                    for candidate in candidates:
+                        matched = self.business_rule_matches(condition, candidate["metrics"])
+                        evidence_items = [
+                            {"source_type": "business_rules", "source_id": str(rule["id"]), "evidence_title": "Business rule", "evidence_summary": "{} v{} / {}".format(rule["rule_key"], rule["version"], rule["description"] or rule["rule_name"]), "confidence": 0.9},
+                            {"source_type": candidate["source_type"], "source_id": str(candidate["source_id"]), "evidence_title": "Rule candidate data", "evidence_summary": json.dumps(candidate["metrics"], ensure_ascii=False)[:600], "confidence": 0.82},
+                        ]
+                        result_summary = "{} matched={} entity={}".format(rule["rule_name"], bool(matched), candidate["metrics"].get("entity_name", ""))
+                        result_cur = conn.execute("insert into business_rule_results(run_id,rule_id,entity_type,entity_id,matched,severity,result_summary,evidence_json,created_insight_id,created_at) values(?,?,?,?,?,?,?,?,?,?)", (run_id, rule["id"], candidate["entity_type"], candidate["entity_id"], 1 if matched else 0, rule["severity"], result_summary, json.dumps(evidence_items, ensure_ascii=False), None, now))
+                        if matched:
+                            triggered += 1
+                            result_id = result_cur.lastrowid
+                            evidence_for_decision = evidence_items + [
+                                {"source_type": "business_rule_runs", "source_id": str(run_id), "evidence_title": "Business rule run", "evidence_summary": "Rule run {} evaluated {}.".format(run_id, rule["rule_key"]), "confidence": 0.86},
+                                {"source_type": "business_rule_results", "source_id": str(result_id), "evidence_title": "Business rule result", "evidence_summary": result_summary, "confidence": 0.88},
+                            ]
+                            decision_type = action.get("decision_type") or "operation_alert"
+                            title = "Rule triggered: {} / {}".format(rule["rule_name"], candidate["metrics"].get("entity_name", "business"))
+                            suggestion = "Follow rule action: {}. Human review is required before execution.".format(action.get("action", "manual_review"))
+                            action_options = [{"title": rule["rule_name"], "description": rule["description"] or suggestion, "action_type": "manual_review", "owner": action.get("owner", "")}]
+                            insight_id = self.upsert_decision_insight(conn, decision_type, title, result_summary, rule["severity"], candidate["entity_type"], candidate["entity_id"], self.decision_metric_snapshot(conn, candidate["metrics"]), evidence_for_decision, suggestion, action_options, user)
+                            if insight_id:
+                                insights_created += 1
+                                conn.execute("update business_rule_results set created_insight_id=? where id=?", (insight_id, result_id))
+                conn.execute("update business_rule_runs set status=?, rules_evaluated=?, rules_triggered=?, insights_created=?, finished_at=? where id=?", ("completed", evaluated, triggered, insights_created, ts(), run_id))
+            except Exception as exc:
+                conn.execute("update business_rule_runs set status=?, rules_evaluated=?, rules_triggered=?, insights_created=?, finished_at=?, error_message=? where id=?", ("failed", evaluated, triggered, insights_created, ts(), str(exc), run_id))
+                raise
+        return {"ok": True, "run_id": run_id, "rules_evaluated": evaluated, "rules_triggered": triggered, "insights_created": insights_created, "safety": "rule_based_no_external_ai_api_no_production_sap_all_triggered_decisions_include_evidence"}
+
+    def normalize_business_rule_form(self, form, user, existing=None):
+        now = ts()
+        status = form.get("status", existing.get("status") if existing else "draft") or "draft"
+        if status not in ("active", "inactive", "draft", "archived"):
+            status = "draft"
+        severity = form.get("severity", existing.get("severity") if existing else "medium") or "medium"
+        if severity not in ("low", "medium", "high", "critical"):
+            severity = "medium"
+        def parsed_json(name, default):
+            value = form.get(name, "")
+            if not value and existing:
+                return existing.get(name) or default
+            try:
+                return json.dumps(json.loads(value or "{}"), ensure_ascii=False)
+            except Exception:
+                return json.dumps(default, ensure_ascii=False)
+        return {
+            "rule_key": module_key(form.get("rule_key", existing.get("rule_key") if existing else "") or ("rule_" + uuid.uuid4().hex[:8])),
+            "rule_name": (form.get("rule_name", existing.get("rule_name") if existing else "") or "Untitled business rule").strip(),
+            "rule_type": module_key(form.get("rule_type", existing.get("rule_type") if existing else "risk_rule") or "risk_rule"),
+            "description": form.get("description", existing.get("description") if existing else ""),
+            "condition_json": parsed_json("condition_json", {"all": []}),
+            "action_json": parsed_json("action_json", {"action": "manual_review"}),
+            "severity": severity,
+            "priority": int(form.get("priority", existing.get("priority") if existing else 50) or 50),
+            "status": status,
+            "version": int(form.get("version", existing.get("version") if existing else 1) or 1),
+            "source": form.get("source", existing.get("source") if existing else "manual") or "manual",
+            "created_by": existing.get("created_by") if existing else (user["id"] if user else None),
+            "created_at": existing.get("created_at") if existing else now,
+            "updated_at": now,
+            "archived_at": now if status == "archived" else None,
+        }
+
+    def business_rules_page(self, user, path="/business-rules"):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        m_detail = re.match(r"^/business-rules/(\d+)$", path)
+        with db() as conn:
+            summary = self.business_rule_summary(conn)
+            if m_detail:
+                rule = conn.execute("select * from business_rules where id=? and archived_at is null", (m_detail.group(1),)).fetchone()
+                if not rule:
+                    return self.redir("/business-rules")
+                results = conn.execute("select * from business_rule_results where rule_id=? order by created_at desc limit 60", (rule["id"],)).fetchall()
+                item = self.business_rule_to_json(rule)
+                result_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], "yes" if r["matched"] else "no", esc(r["severity"] or ""), esc(r["result_summary"] or ""), r["created_insight_id"] or "") for r in results) or "<tr><td colspan='5'>No results yet.</td></tr>"
+                body = """
+<div class="panel"><h2>{}</h2><p class="small">{} / {} / v{} / {}</p><p><a class="btn" href="/business-rules">Back</a> <a class="btn dark" href="/api/business-rules/{}">API</a></p></div>
+<div class="split">
+  <div class="panel form"><h2>Edit Rule</h2><form method="post" action="/api/business-rules/{}">
+    <label>Rule key</label><input name="rule_key" value="{}">
+    <label>Rule name</label><input name="rule_name" value="{}">
+    <label>Rule type</label><input name="rule_type" value="{}">
+    <label>Description</label><textarea name="description">{}</textarea>
+    <label>Condition JSON</label><textarea name="condition_json">{}</textarea>
+    <label>Action JSON</label><textarea name="action_json">{}</textarea>
+    <label>Severity</label><select name="severity"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select>
+    <label>Status</label><select name="status"><option>active</option><option>inactive</option><option>draft</option><option>archived</option></select>
+    <label>Priority</label><input name="priority" value="{}">
+    <label>Source</label><input name="source" value="{}">
+    <p><button>Save rule</button></p>
+  </form></div>
+  <div class="panel"><h2>Latest Results</h2><table><thead><tr><th>ID</th><th>Matched</th><th>Severity</th><th>Summary</th><th>Insight</th></tr></thead><tbody>{}</tbody></table></div>
+</div>""".format(esc(rule["rule_name"]), esc(rule["rule_type"]), esc(rule["status"]), rule["version"], esc(rule["source"] or ""), rule["id"], rule["id"], esc(rule["rule_key"]), esc(rule["rule_name"]), esc(rule["rule_type"]), esc(rule["description"] or ""), esc(json.dumps(item["condition_json"], ensure_ascii=False, indent=2)), esc(json.dumps(item["action_json"], ensure_ascii=False, indent=2)), rule["priority"], esc(rule["source"] or ""), result_rows)
+                return self.out(layout("Business Rule", body, user=user, wide=True))
+            rules = conn.execute("select * from business_rules where archived_at is null order by status, priority, id").fetchall()
+            runs = conn.execute("select * from business_rule_runs order by created_at desc limit 20").fetchall()
+            results = conn.execute("select * from business_rule_results order by created_at desc limit 30").fetchall()
+        metrics = "".join([
+            self.metric("Active rules", summary["business_rules_active"], "business_rules"),
+            self.metric("Rule runs", summary["business_rule_runs_total"], "business_rule_runs"),
+            self.metric("High-risk triggers", summary["business_rule_triggered_high"], "high/critical"),
+        ])
+        rule_rows = "".join("<tr><td><a href='/business-rules/{}'>{}</a></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], esc(r["rule_name"]), esc(r["rule_type"]), esc(r["severity"]), esc(r["status"]), esc(r["source"] or "")) for r in rules) or "<tr><td colspan='5'>No rules.</td></tr>"
+        run_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}/{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], esc(r["status"]), r["rules_triggered"], r["rules_evaluated"], r["insights_created"], esc(dt(r["created_at"]))) for r in runs) or "<tr><td colspan='5'>No runs.</td></tr>"
+        result_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(r["id"], r["rule_id"], "yes" if r["matched"] else "no", esc(r["severity"] or ""), r["created_insight_id"] or "") for r in results) or "<tr><td colspan='5'>No results.</td></tr>"
+        body = """
+<div class="panel"><h2>Business Rule Engine</h2><p class="small">Rules are database records: viewable, editable and auditable. No external AI API. No production SAP connection.</p><form method="post" action="/api/business-rules/rebuild" style="display:inline"><button>Run rules</button></form> <a class="btn dark" href="/api/business-rules">API</a><div class="metrics">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>Rules</h2><table><thead><tr><th>Name</th><th>Type</th><th>Severity</th><th>Status</th><th>Source</th></tr></thead><tbody>{}</tbody></table></div>
+  <div class="panel form"><h2>New Rule</h2><form method="post" action="/api/business-rules"><label>Rule key</label><input name="rule_key"><label>Rule name</label><input name="rule_name"><label>Rule type</label><input name="rule_type" value="risk_rule"><label>Condition JSON</label><textarea name="condition_json">{{"all":[]}}</textarea><label>Action JSON</label><textarea name="action_json">{{"action":"manual_review"}}</textarea><p><button>Create rule</button></p></form></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>Rule Run History</h2><table><thead><tr><th>ID</th><th>Status</th><th>Triggered/Evaluated</th><th>Insights</th><th>Time</th></tr></thead><tbody>{}</tbody></table></div>
+  <div class="panel"><h2>Triggered Results</h2><table><thead><tr><th>ID</th><th>Rule</th><th>Matched</th><th>Severity</th><th>Insight</th></tr></thead><tbody>{}</tbody></table></div>
+</div>""".format(metrics, rule_rows, run_rows, result_rows)
+        self.out(layout(U(r"\u7ecf\u8425\u89c4\u5219"), body, user=user, wide=True))
+
+    def api_business_rules_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/business-rules":
+            with db() as conn:
+                rows = conn.execute("select * from business_rules where archived_at is null order by status, priority, id").fetchall()
+                summary = self.business_rule_summary(conn)
+            return self.json_out({"ok": True, "summary": summary, "rules": [self.business_rule_to_json(r) for r in rows]})
+        if path == "/api/business-rules/runs":
+            with db() as conn:
+                rows = conn.execute("select * from business_rule_runs order by created_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "runs": [row_dict(r) for r in rows]})
+        if path == "/api/business-rules/results":
+            with db() as conn:
+                rows = conn.execute("select * from business_rule_results order by created_at desc limit 200").fetchall()
+            return self.json_out({"ok": True, "results": [row_dict(r) for r in rows]})
+        m = re.match(r"^/api/business-rules/(\d+)$", path)
+        if m:
+            with db() as conn:
+                row = conn.execute("select * from business_rules where id=? and archived_at is null", (m.group(1),)).fetchone()
+                results = conn.execute("select * from business_rule_results where rule_id=? order by created_at desc limit 100", (m.group(1),)).fetchall() if row else []
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "rule": self.business_rule_to_json(row), "results": [row_dict(r) for r in results]})
+        return self.json_out({"ok": False, "message": "unknown business rule api"}, code=404)
+
+    def api_business_rules_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/business-rules/rebuild":
+            payload = self.evaluate_business_rules(user, "manual")
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/business-rules")
+            return self.json_out(payload)
+        form = self.api_object_payload()
+        m = re.match(r"^/api/business-rules/(\d+)$", path)
+        with db() as conn:
+            if m:
+                existing = conn.execute("select * from business_rules where id=? and archived_at is null", (m.group(1),)).fetchone()
+                if not existing:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                payload = self.normalize_business_rule_form(form, user, row_dict(existing))
+                conn.execute("update business_rules set rule_key=?,rule_name=?,rule_type=?,description=?,condition_json=?,action_json=?,severity=?,priority=?,status=?,version=?,source=?,updated_at=?,archived_at=? where id=?", (payload["rule_key"], payload["rule_name"], payload["rule_type"], payload["description"], payload["condition_json"], payload["action_json"], payload["severity"], payload["priority"], payload["status"], payload["version"], payload["source"], payload["updated_at"], payload["archived_at"], m.group(1)))
+                rule_id = int(m.group(1))
+            elif path == "/api/business-rules":
+                payload = self.normalize_business_rule_form(form, user)
+                cur = conn.execute("insert into business_rules(rule_key,rule_name,rule_type,description,condition_json,action_json,severity,priority,status,version,source,created_by,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (payload["rule_key"], payload["rule_name"], payload["rule_type"], payload["description"], payload["condition_json"], payload["action_json"], payload["severity"], payload["priority"], payload["status"], payload["version"], payload["source"], payload["created_by"], payload["created_at"], payload["updated_at"], payload["archived_at"]))
+                rule_id = cur.lastrowid
+            else:
+                return self.json_out({"ok": False, "message": "unknown business rule write api"}, code=404)
+        if "text/html" in (self.headers.get("Accept") or ""):
+            return self.redir("/business-rules/{}".format(rule_id))
+        return self.json_out({"ok": True, "rule_id": rule_id})
 
     def can_view_graph(self, user):
         return bool(user)
