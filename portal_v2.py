@@ -6552,10 +6552,110 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             )
         return self.redir("/admin")
 
+    def ceo_dashboard_payload(self, user):
+        def count(conn, sql, params=()):
+            try:
+                row = conn.execute(sql, params).fetchone()
+                return int(row["c"] if row and "c" in row.keys() else 0)
+            except Exception:
+                return 0
+
+        def safe_rows(conn, sql, params=()):
+            try:
+                return [row_dict(r) for r in conn.execute(sql, params).fetchall()]
+            except Exception:
+                return []
+
+        status = []
+        with db() as conn:
+            documents_total = count(conn, "select count(*) c from documents where deleted_at is null")
+            documents_pending = count(conn, "select count(*) c from documents where deleted_at is null and processing_status in ('pending','uploaded','processing','extracting','failed')")
+            documents_processed = count(conn, "select count(*) c from documents where deleted_at is null and processing_status in ('processed','indexed','ready')")
+            objects_total = count(conn, "select count(*) c from enterprise_objects where archived_at is null")
+            knowledge_items_total = count(conn, "select count(*) c from knowledge_items where deleted_at is null")
+            timeline_events_total = count(conn, "select count(*) c from timeline_events")
+            recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
+            recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
+            recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
+            recent_timeline = safe_rows(conn, "select id,entity_type,entity_id,event_type,title,description,source_type,occurred_at,created_at from timeline_events order by coalesce(occurred_at, created_at) desc limit 8")
+            checks = [
+                ("Drive Engine", documents_total >= 0, "documents"),
+                ("Object Engine", objects_total >= 0, "enterprise_objects"),
+                ("Knowledge Engine", knowledge_items_total >= 0, "knowledge_items"),
+                ("Search Engine", True, "/api/search"),
+                ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
+            ]
+            status = [{"name": name, "status": "normal" if ok else "check", "source": source} for name, ok, source in checks]
+        return {
+            "ok": True,
+            "dashboard": "ceo_brain",
+            "positioning": "FoxBrain CEO Brain",
+            "subtitle": U(r"\u4f01\u4e1a\u7b2c\u4e8c\u5927\u8111"),
+            "summary": {
+                "documents_total": documents_total,
+                "documents_pending": documents_pending,
+                "documents_processed": documents_processed,
+                "objects_total": objects_total,
+                "knowledge_items_total": knowledge_items_total,
+                "timeline_events_total": timeline_events_total,
+            },
+            "recent_documents": recent_documents,
+            "recent_objects": recent_objects,
+            "recent_knowledge": recent_knowledge,
+            "recent_timeline": recent_timeline,
+            "system_status": status,
+            "core_entries": [
+                {"title": "FoxBrain Drive", "url": "/drive", "status": "ready"},
+                {"title": U(r"\u5bf9\u8c61\u4e2d\u5fc3"), "url": "/object-center", "status": "ready"},
+                {"title": U(r"\u77e5\u8bc6\u4e2d\u5fc3"), "url": "/knowledge", "status": "ready"},
+                {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
+                {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
+                {"title": U(r"AI \u95ee\u4f01\u4e1a"), "url": "/jarvis", "status": "placeholder"},
+            ],
+            "notes": [
+                U(r"\u9996\u9875\u53ea\u5c55\u793a CEO \u6bcf\u5929\u5fc5\u770b\u6458\u8981\uff0c\u8be6\u7ec6\u6570\u636e\u70b9\u51fb\u540e\u8fdb\u5165\u5206\u7ea7\u9875\u9762\u3002"),
+                U(r"\u672c\u7248\u4ec5\u4f7f\u7528\u672c\u5730\u6570\u636e\u5e93\u4e0e\u73b0\u6709\u6a21\u5757\uff0c\u4e0d\u5f3a\u5236\u63a5\u5165\u5916\u90e8 AI API\u3002"),
+            ],
+        }
+
     def dashboard(self, user):
         role = user["role"]
         owner_roles = ("boss", "admin", "finance")
         ceo_home = build_ceo_home_v11_contract()
+        payload = self.ceo_dashboard_payload(user)
+        summary = payload["summary"]
+        summary_cards = [
+            (U(r"\u6587\u4ef6\u603b\u6570"), summary["documents_total"], U(r"Drive")),
+            (U(r"\u5f85\u5904\u7406\u6587\u4ef6"), summary["documents_pending"], U(r"\u9700\u5173\u6ce8")),
+            (U(r"\u4f01\u4e1a\u5bf9\u8c61"), summary["objects_total"], U(r"Object Engine")),
+            (U(r"\u77e5\u8bc6\u6761\u76ee"), summary["knowledge_items_total"], U(r"Knowledge")),
+            (U(r"\u65f6\u95f4\u8f74\u4e8b\u4ef6"), summary["timeline_events_total"], U(r"Timeline")),
+        ]
+        summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
+        core_cards = "".join(
+            self.card(item["title"], U(r"\u6253\u5f00\u6838\u5fc3\u5de5\u4f5c\u533a") if item["status"] == "ready" else U(r"\u9884\u7559\uff1a\u540e\u7eed\u8fde\u63a5 AI \u95ee\u4f01\u4e1a\u80fd\u529b"), item["url"], "btn dark" if item["status"] == "ready" else "btn gray", True)
+            for item in payload["core_entries"]
+        )
+        recent_docs = self.bullets([
+            "{} · {} · {}".format(esc(r.get("original_filename") or r.get("filename") or r.get("title") or "Document"), esc(r.get("processing_status") or ""), esc(dt(r.get("updated_at") or r.get("created_at"))))
+            for r in payload["recent_documents"]
+        ] or [U(r"\u6682\u65e0\u6700\u8fd1\u6587\u4ef6\u3002")])
+        recent_objects = self.bullets([
+            "{} · {} · {}".format(esc(r.get("name") or ""), esc(r.get("object_type") or ""), esc(dt(r.get("updated_at") or r.get("created_at"))))
+            for r in payload["recent_objects"]
+        ] or [U(r"\u6682\u65e0\u6700\u8fd1\u5bf9\u8c61\u3002")])
+        recent_knowledge = self.bullets([
+            "{} · {} · {}".format(esc(r.get("title") or ""), esc(r.get("status") or ""), esc(dt(r.get("updated_at") or r.get("created_at"))))
+            for r in payload["recent_knowledge"]
+        ] or [U(r"\u6682\u65e0\u6700\u8fd1\u77e5\u8bc6\u3002")])
+        recent_timeline = self.bullets([
+            "{} · {} · {}".format(esc(dt(r.get("occurred_at") or r.get("created_at"))), esc(r.get("event_type") or r.get("title") or ""), esc(r.get("description") or r.get("title") or ""))
+            for r in payload["recent_timeline"]
+        ] or [U(r"\u6682\u65e0\u6700\u8fd1\u65f6\u95f4\u8f74\u3002")])
+        status_html = "".join(
+            "<div class='metric'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(esc(item["name"]), esc(item["status"]), esc(item["source"]))
+            for item in payload["system_status"]
+        )
         minimal_links = [
             (U(r"\u4f01\u4e1a"), "/owner/enterprise", role in owner_roles),
             (U(r"\u8d44\u4ea7"), "/owner/assets", role in owner_roles),
@@ -6573,8 +6673,49 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             for label, href, allowed in minimal_links
             if allowed
         )
-        body = '<div class="panel" data-home-contract="{}"><h2>FoxBrain CEO Home</h2><div class="grid">{}</div></div>'.format(
+        body = """
+<div class="panel hero" data-home-contract="{}" data-legacy-title="FoxBrain CEO Home">
+  <h1>FoxBrain CEO Brain</h1>
+  <p class="lead">{}</p>
+  <form method="get" action="/search">
+    <label>{}</label>
+    <input name="q" placeholder="{}">
+    <p><button>{}</button></p>
+  </form>
+</div>
+<div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
+<div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
+<div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+""".format(
             esc(ceo_home.get("homepage_policy", "root_home_keeps_ten_entries_only_details_after_click")),
+            esc(payload["subtitle"]),
+            U(r"\u5168\u5c40\u641c\u7d22"),
+            U(r"\u641c\u7d22\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u5408\u540c\u3001\u6587\u4ef6\u3001\u77e5\u8bc6\u2026\u2026"),
+            U(r"\u641c\u7d22"),
+            U(r"\u4eca\u65e5\u6458\u8981"),
+            summary_html,
+            U(r"\u6838\u5fc3\u5165\u53e3"),
+            core_cards,
+            U(r"\u6700\u8fd1\u6587\u4ef6"),
+            recent_docs,
+            U(r"\u6700\u8fd1\u5bf9\u8c61"),
+            recent_objects,
+            U(r"\u6700\u8fd1\u77e5\u8bc6"),
+            recent_knowledge,
+            U(r"\u6700\u8fd1\u65f6\u95f4\u8f74"),
+            recent_timeline,
+            U(r"\u7cfb\u7edf\u72b6\u6001"),
+            status_html,
+            U(r"\u66f4\u591a\u5165\u53e3"),
             buttons,
         )
         return self.out(layout(T["brand"], body, user=user, wide=False))
@@ -9046,28 +9187,7 @@ limit 200
     def api_ceo_dashboard(self, user):
         if not user:
             return self.json_out({"ok": False, "message": "login required"}, code=401)
-        s = load_summary()
-        return self.json_out({
-            "ok": True,
-            "dashboard": "ceo",
-            "sales": {
-                "yesterday_sales": s.get("yesterday_sales", 0),
-                "month_sales": s.get("month_sales", 0),
-                "completion_rate": s.get("completion_rate", 0),
-            },
-            "gross_profit": {
-                "month_gross_profit": s.get("month_gross_profit", 0),
-                "gross_margin": s.get("yesterday_gross_margin", 0),
-            },
-            "inventory_alerts": {
-                "inventory_amount": s.get("inventory_amount", 0),
-                "risk_count": s.get("risk_count", 0),
-            },
-            "pending_approvals": self.os_approvals_payload(user)["approvals"][:10],
-            "sync_status": self.sap_sync_status_payload(),
-            "ai_recommendations": s.get("ai_suggestions", []),
-            "limitations": [U(r"\u4eea\u8868\u76d8\u4ec5\u5f15\u7528\u5df2\u63a5\u5165\u7684 SAP \u6458\u8981\u548c\u672c\u5730\u6570\u636e\uff0c\u4e0d\u7f16\u9020\u7ecf\u8425\u4e8b\u5b9e\u3002")],
-        })
+        return self.json_out(self.ceo_dashboard_payload(user))
 
     def agents(self, user):
         user = self.require_login(user)
@@ -10164,7 +10284,7 @@ where ki.deleted_at is null"""
         if path == "/api/dashboard/recommendations":
             return self.json_out(self.dashboard_recommendation_service_payload(user))
         if path == "/api/dashboard/ceo":
-            return self.json_out(self.dashboard_service_payload(user, "ceo"))
+            return self.json_out(self.ceo_dashboard_payload(user))
         if path == "/api/dashboard/finance":
             if not self.can_view_finance(user):
                 return self.json_out({"ok": False, "message": "no permission"}, code=403)
