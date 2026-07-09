@@ -1453,6 +1453,64 @@ create table if not exists business_metric_quality(
             "create index if not exists idx_metric_quality_lookup on business_metric_quality(metric_key, quality_status, dimension_type)",
         ]:
             conn.execute(idx)
+        conn.execute(
+            """
+create table if not exists decision_insights(
+ id integer primary key autoincrement,
+ insight_type text not null,
+ title text not null,
+ summary text,
+ severity text not null default 'medium',
+ status text not null default 'new',
+ entity_type text,
+ entity_id integer,
+ metric_snapshot text,
+ evidence text,
+ suggestion text,
+ action_options text,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null,
+ resolved_at integer
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists decision_evidence(
+ id integer primary key autoincrement,
+ insight_id integer not null,
+ source_type text not null,
+ source_id text,
+ evidence_title text not null,
+ evidence_summary text,
+ confidence real not null default 0.7,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists decision_actions(
+ id integer primary key autoincrement,
+ insight_id integer not null,
+ action_title text not null,
+ action_description text,
+ action_type text not null default 'manual_review',
+ status text not null default 'draft',
+ owner text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_decision_insights_type_status on decision_insights(insight_type, status, severity)",
+            "create index if not exists idx_decision_insights_entity on decision_insights(entity_type, entity_id)",
+            "create index if not exists idx_decision_evidence_insight on decision_evidence(insight_id, source_type)",
+            "create index if not exists idx_decision_actions_insight on decision_actions(insight_id, status)",
+        ]:
+            conn.execute(idx)
         seed_now = ts()
         for canonical, alias, alias_type in [
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97"), "canonical"),
@@ -4479,6 +4537,8 @@ class App(BaseHTTPRequestHandler):
             return self.agent_collaboration(user)
         if path == "/decision-center":
             return self.v64_decision_center(user)
+        if path in ("/decision", "/decision/insights"):
+            return self.decision_page(user, detail=(path == "/decision/insights"))
         if path == "/digital-brain":
             return self.enterprise_digital_brain_center(user)
         if path in ("/enterprise-ai-platform", "/integration-hub", "/developer-platform", "/platform-monitoring"):
@@ -4671,6 +4731,8 @@ class App(BaseHTTPRequestHandler):
             return self.json_out(load_summary())
         if path.startswith("/api/memories") or path == "/api/memory-types":
             return self.api_enterprise_memories_get(user, path)
+        if path.startswith("/api/decision/") or re.match(r"^/api/objects/\d+/decisions$", path):
+            return self.api_decision_get(user, path)
         if path.startswith("/api/dashboard/"):
             return self.api_dashboard_get(user, path)
         if path == "/api/dashboard/ceo":
@@ -4907,6 +4969,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_automation_post(self.current_user(), path)
         if path.startswith("/api/memories"):
             return self.api_enterprise_memories_post(self.current_user(), path)
+        if path.startswith("/api/decision/"):
+            return self.api_decision_post(self.current_user(), path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
             return self.api_memory_post(self.current_user(), path)
         if path.startswith("/api/digital-brain"):
@@ -5009,6 +5073,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_objects_post(self.current_user(), path)
         if path.startswith("/api/memories"):
             return self.api_enterprise_memories_post(self.current_user(), path)
+        if path.startswith("/api/decision/"):
+            return self.api_decision_post(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def do_DELETE(self):
@@ -6257,6 +6323,10 @@ class App(BaseHTTPRequestHandler):
             if want("metric_quality"):
                 for row in conn.execute("select * from business_metric_quality where metric_key like ? or coalesce(dimension_value,'') like ? or coalesce(quality_message,'') like ? order by created_at desc limit 50", (like, like, like)).fetchall():
                     results.append({"type": "metric_quality", "icon": "QA", "id": row["id"], "title": row["metric_key"], "snippet": row["quality_message"] or "", "source": row["quality_status"], "related_object": "{} / {}".format(row["dimension_type"] or "", row["dimension_value"] or ""), "url": "/business-calibration/quality", "score": 0.78, "updated_at": row["created_at"]})
+            if want("decision"):
+                for row in conn.execute("select * from decision_insights where title like ? or coalesce(summary,'') like ? or coalesce(suggestion,'') like ? or coalesce(evidence,'') like ? order by updated_at desc limit 50", (like, like, like, like)).fetchall():
+                    evidence_count = len(safe_json(row["evidence"], []))
+                    results.append({"type": "decision", "icon": "DEC", "id": row["id"], "title": row["title"], "snippet": self.search_snippet((row["summary"] or "") + " " + (row["suggestion"] or ""), q), "source": row["insight_type"], "related_object": "{} #{} / evidence {}".format(row["entity_type"] or "", row["entity_id"] or "", evidence_count), "url": "/decision/insights?id={}".format(row["id"]), "score": 0.87, "updated_at": row["updated_at"]})
             if want("knowledge_graph"):
                 for row in conn.execute("select * from knowledge_graph_nodes where coalesce(name,label,'') like ? or node_type like ? or coalesce(metadata,'') like ? order by updated_at desc limit 50", (like, like, like)).fetchall():
                     results.append({"type": "knowledge_graph", "icon": "KG", "id": row["id"], "title": row["name"] or row["label"], "snippet": self.search_snippet(row["metadata"] or row["properties_json"] or "", q), "source": row["node_type"], "related_object": "{} #{}".format(row["source_type"] or "", row["source_id"] or ""), "url": "/api/graph/context/{}".format(row["id"]), "score": 0.86, "updated_at": row["updated_at"]})
@@ -7335,6 +7405,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             high_risk_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null and risk_level in ('high','critical')")
             business_metrics = self.business_metrics_summary(conn)
             graph_metrics = self.knowledge_graph_summary(conn)
+            decision_metrics = self.decision_engine_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7345,6 +7416,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Object Engine", objects_total >= 0, "enterprise_objects"),
                 ("Knowledge Engine", knowledge_items_total >= 0, "knowledge_items"),
                 ("Knowledge Graph", graph_metrics["graph_nodes"] >= 0, "knowledge_graph_nodes"),
+                ("Decision Engine", decision_metrics["decision_insights_total"] >= 0, "decision_insights"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7381,8 +7453,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "graph_relationships": graph_metrics["graph_edges"],
                 "connected_brands": graph_metrics["connected_brands"],
                 "connected_products": graph_metrics["connected_products"],
+                "decision_insights_total": decision_metrics["decision_insights_total"],
+                "decision_high_severity": decision_metrics["decision_high_severity"],
+                "decision_evidence_total": decision_metrics["decision_evidence_total"],
+                "decision_pending_actions": decision_metrics["decision_pending_actions"],
             },
             "business_metrics": business_metrics,
+            "decision_metrics": decision_metrics,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -7397,6 +7474,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "Object Match Center", "url": "/object-links", "status": "ready"},
                 {"title": "Business Calibration", "url": "/business-calibration", "status": "ready"},
                 {"title": "Business Knowledge Graph", "url": "/knowledge-graph", "status": "ready"},
+                {"title": "Decision Engine", "url": "/decision", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7434,6 +7512,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             (U(r"\u56fe\u8c31\u5173\u7cfb"), summary["graph_relationships"], "relationships"),
             (U(r"\u8fde\u63a5\u54c1\u724c"), summary["connected_brands"], "brands"),
             (U(r"\u8fde\u63a5\u5546\u54c1"), summary["connected_products"], "products"),
+            ("Decision Insights", summary["decision_insights_total"], "evidence-based"),
+            ("High Severity", summary["decision_high_severity"], "decision review"),
+            ("Decision Evidence", summary["decision_evidence_total"], "traceable"),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7468,12 +7549,18 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "{} / {}".format(esc(r.get("brand_name") or ""), money(r.get("sales_amount") or 0))
             for r in payload["business_metrics"]["top_brand_sales"]
         ] or [U(r"\u6682\u65e0\u54c1\u724c\u9500\u552e\u6392\u884c\u3002")])
+        decision_top_risks = "; ".join([r.get("title", "") for r in payload["decision_metrics"].get("top_risks", [])]) or "No active decision risk."
+        latest_accepted_decision = (payload["decision_metrics"].get("latest_accepted_decision") or {}).get("title") or "No accepted decision yet."
         business_alerts = self.bullets([
             U(r"\u6570\u636e\u8d28\u91cf\u544a\u8b66\uff1a") + str(summary["quality_alerts"]),
             U(r"\u7ecf\u8425\u6307\u6807\u53e3\u5f84\u63d0\u9192\uff1a") + str(summary["metric_quality_warnings"]),
             U(r"\u5f85\u786e\u8ba4\u5bf9\u8c61\u5efa\u8bae\uff1a") + str(summary["suggested_objects"]),
+            U(r"\u9ad8\u98ce\u9669\u51b3\u7b56\u6d1e\u5bdf\uff1a") + str(summary["decision_high_severity"]),
+            "Top 3 decision risks: " + decision_top_risks,
+            "Latest accepted decision: " + latest_accepted_decision,
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
+            "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
             U(r"\u672c\u5c42\u4ec5\u5904\u7406\u5df2\u4e0a\u4f20 SAP \u5bfc\u51fa\u6587\u4ef6\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\u3002"),
         ])
         status_html = "".join(
@@ -8203,6 +8290,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ).fetchall()
             kg_node = conn.execute("select * from knowledge_graph_nodes where node_type=? and object_id=? order by updated_at desc limit 1", (row["object_type"], row["id"])).fetchone()
             kg_edges = conn.execute("select * from knowledge_graph_edges where source_node_id=? or target_node_id=? order by updated_at desc limit 30", (kg_node["id"], kg_node["id"])).fetchall() if kg_node else []
+            decision_rows = conn.execute("select * from decision_insights where entity_type=? and entity_id=? order by updated_at desc limit 30", (row["object_type"], row["id"])).fetchall()
             timeline_rows = self.timeline_rows_for_entity(conn, row["object_type"], row["id"], 80)
         obj = self.enterprise_object_to_json(row, len(docs))
         type_options = "".join(
@@ -8232,6 +8320,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "node {} -> node {} / {} / source: {} #{}".format(r["source_node_id"], r["target_node_id"], r["relation_type"] or r["edge_type"], r["source_type"], r["source_id"])
             for r in kg_edges
         ] or [U(r"\u6682\u65e0\u56fe\u8c31\u5173\u7cfb\uff0c\u53ef\u5728 Knowledge Graph \u9875\u9762\u6784\u5efa\u3002")]
+        decision_items = [
+            "{} / {} / {} / evidence {}".format(r["title"], r["insight_type"], r["severity"], len(safe_json(r["evidence"], [])))
+            for r in decision_rows
+        ] or ["No related decision insight yet."]
         timeline_items = [
             "{} / {} / {}".format(dt(event["occurred_at"] or event["created_at"]), event["event_type"] or event["title"], event["description"] or event["body"] or event["title"])
             for event in timeline_rows
@@ -8271,7 +8363,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
   <div class="panel"><h2>{}</h2>{}</div>
   <div class="panel"><h2>{}</h2>{}<form method="post" action="/api/timeline"><input type="hidden" name="entity_type" value="{}"><input type="hidden" name="entity_id" value="{}"><input type="hidden" name="event_type" value="manual_note"><label>{}</label><input name="title"><label>{}</label><textarea name="description"></textarea><p><button>{}</button></p></form></div>
 </div>
-<div class="panel"><h2>{}</h2>{}<p><a class="btn" href="/knowledge-graph?q={}">{}</a></p></div>""".format(
+<div class="panel"><h2>{}</h2>{}<p><a class="btn" href="/knowledge-graph?q={}">{}</a></p></div>
+<div class="panel"><h2>{}</h2>{}<p><a class="btn dark" href="/api/objects/{}/decisions">API</a> <a class="btn" href="/decision">{}</a></p></div>""".format(
             esc(obj["name"]),
             esc(obj["object_type_label"]),
             esc(obj["status"] or ""),
@@ -8321,6 +8414,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             self.bullets(kg_relation_items),
             esc(obj["name"] or ""),
             U(r"\u6253\u5f00 Knowledge Graph"),
+            "Related Decisions",
+            self.bullets(decision_items),
+            obj["id"],
+            "Decision Engine",
         )
         self.out(layout(U(r"\u5bf9\u8c61\u8be6\u60c5"), body, user=user, wide=True))
 
@@ -14761,6 +14858,440 @@ where ki.deleted_at is null"""
                 )
             return self.json_out({"ok": True, "decision_id": cur.lastrowid})
         return self.json_out({"ok": False, "message": "unknown memory api"}, code=404)
+
+    def decision_severity_rank(self, severity):
+        return {"critical": 0, "high": 1, "medium": 2, "low": 3}.get((severity or "medium").lower(), 2)
+
+    def decision_insight_to_json(self, row, evidence_rows=None, action_rows=None):
+        data = row_dict(row) or {}
+        data["metric_snapshot"] = safe_json(data.get("metric_snapshot"), {})
+        data["evidence"] = safe_json(data.get("evidence"), [])
+        data["action_options"] = safe_json(data.get("action_options"), [])
+        data["url"] = "/decision/insights?id=" + str(data.get("id", ""))
+        if evidence_rows is not None:
+            data["evidence_rows"] = [row_dict(r) for r in evidence_rows]
+        if action_rows is not None:
+            data["actions"] = [row_dict(r) for r in action_rows]
+        return data
+
+    def decision_engine_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            count = lambda sql, params=(): int(conn.execute(sql, params).fetchone()["c"] or 0)
+            latest_accepted = conn.execute("select * from decision_insights where status in ('accepted','resolved') order by updated_at desc limit 1").fetchone()
+            top_risks = conn.execute("select * from decision_insights where status in ('new','reviewing') order by case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, updated_at desc limit 3").fetchall()
+            return {
+                "decision_insights_total": count("select count(*) c from decision_insights"),
+                "decision_new": count("select count(*) c from decision_insights where status='new'"),
+                "decision_high_severity": count("select count(*) c from decision_insights where status in ('new','reviewing') and severity in ('high','critical')"),
+                "decision_evidence_total": count("select count(*) c from decision_evidence"),
+                "decision_actions_total": count("select count(*) c from decision_actions"),
+                "decision_pending_actions": count("select count(*) c from decision_actions where status in ('draft','pending_review')"),
+                "latest_accepted_decision": self.decision_insight_to_json(latest_accepted) if latest_accepted else None,
+                "top_risks": [self.decision_insight_to_json(r) for r in top_risks],
+                "evidence_rule": "all_decision_insights_must_have_evidence",
+                "execution_rule": "rule_based_decision_engine_no_external_ai_api_no_auto_execution",
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def decision_metric_snapshot(self, conn, extra=None):
+        snapshot = self.business_metrics_summary(conn)
+        graph = self.knowledge_graph_summary(conn)
+        snapshot.update({
+            "graph_nodes": graph.get("graph_nodes", 0),
+            "graph_edges": graph.get("graph_edges", 0),
+            "edges_with_source": graph.get("edges_with_source", 0),
+        })
+        if extra:
+            snapshot.update(extra)
+        return snapshot
+
+    def decision_required_evidence_ok(self, evidence_items):
+        return bool(evidence_items) and all(item.get("source_type") and str(item.get("source_id", "")) != "" for item in evidence_items)
+
+    def upsert_decision_insight(self, conn, insight_type, title, summary, severity, entity_type, entity_id, metric_snapshot, evidence_items, suggestion, action_options, user=None):
+        if not self.decision_required_evidence_ok(evidence_items):
+            return None
+        now = ts()
+        entity_id_int = int(entity_id) if str(entity_id or "").isdigit() else None
+        evidence_json = json.dumps(evidence_items, ensure_ascii=False)
+        action_json = json.dumps(action_options or [], ensure_ascii=False)
+        metric_json = json.dumps(metric_snapshot or {}, ensure_ascii=False)
+        existing = conn.execute(
+            "select * from decision_insights where insight_type=? and title=? and status in ('new','reviewing') order by updated_at desc limit 1",
+            (insight_type, title),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "update decision_insights set summary=?, severity=?, entity_type=?, entity_id=?, metric_snapshot=?, evidence=?, suggestion=?, action_options=?, updated_at=? where id=?",
+                (summary, severity, entity_type, entity_id_int, metric_json, evidence_json, suggestion, action_json, now, existing["id"]),
+            )
+            insight_id = existing["id"]
+            conn.execute("delete from decision_evidence where insight_id=?", (insight_id,))
+            conn.execute("delete from decision_actions where insight_id=? and status='draft'", (insight_id,))
+        else:
+            cur = conn.execute(
+                "insert into decision_insights(insight_type,title,summary,severity,status,entity_type,entity_id,metric_snapshot,evidence,suggestion,action_options,created_by,created_at,updated_at,resolved_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (insight_type, title, summary, severity, "new", entity_type, entity_id_int, metric_json, evidence_json, suggestion, action_json, user["id"] if user else None, now, now, None),
+            )
+            insight_id = cur.lastrowid
+        for item in evidence_items:
+            conn.execute(
+                "insert into decision_evidence(insight_id,source_type,source_id,evidence_title,evidence_summary,confidence,created_at) values(?,?,?,?,?,?,?)",
+                (insight_id, item["source_type"], str(item.get("source_id", "")), item.get("evidence_title") or item.get("title") or "Evidence", item.get("evidence_summary") or item.get("summary") or "", float(item.get("confidence", 0.7) or 0.7), now),
+            )
+        for option in action_options or []:
+            conn.execute(
+                "insert into decision_actions(insight_id,action_title,action_description,action_type,status,owner,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                (insight_id, option.get("title") or "Manual review", option.get("description") or "", option.get("action_type") or "manual_review", "draft", option.get("owner") or "", now, now),
+            )
+        decision_node = self.upsert_kg_node(conn, "decision", insight_id, title, {"insight_type": insight_type, "severity": severity, "status": "new"}, "decision_insights", insight_id)
+        if entity_type and entity_id_int:
+            obj = conn.execute("select * from enterprise_objects where object_type=? and id=? and archived_at is null", (entity_type, entity_id_int)).fetchone()
+            if obj:
+                obj_node = self.upsert_kg_node(conn, obj["object_type"], obj["id"], obj["name"], {"decision_insight_id": insight_id}, "enterprise_objects", obj["id"])
+                self.upsert_kg_edge(conn, decision_node, obj_node, "DECISION_ABOUT", 0.84, "decision_insights", insight_id, {"insight_type": insight_type})
+        if entity_type and not entity_id_int:
+            name = (metric_snapshot or {}).get("entity_name") or (metric_snapshot or {}).get("store_name") or (metric_snapshot or {}).get("brand_name") or ""
+            if name:
+                entity_node = self.upsert_kg_node(conn, entity_type, None, name, {"decision_insight_id": insight_id}, "decision_insights", insight_id)
+                self.upsert_kg_edge(conn, decision_node, entity_node, "DECISION_ABOUT", 0.78, "decision_insights", insight_id, {"insight_type": insight_type})
+        return insight_id
+
+    def rebuild_decision_insights(self, user=None):
+        created = []
+        with db() as conn:
+            metrics = self.business_metrics_summary(conn)
+            base_snapshot = self.decision_metric_snapshot(conn)
+            if metrics.get("inventory_quantity", 0) > 0 and metrics.get("inventory_cost_amount", 0) <= 0:
+                created.append(self.upsert_decision_insight(
+                    conn,
+                    "inventory_risk",
+                    "Inventory cost basis is missing",
+                    "Inventory quantity exists, but inventory cost amount is zero. Review SAP export fields before using profit or purchasing conclusions.",
+                    "high",
+                    "inventory",
+                    None,
+                    self.decision_metric_snapshot(conn, {"entity_name": "Inventory", "inventory_quantity": metrics.get("inventory_quantity"), "inventory_cost_amount": metrics.get("inventory_cost_amount")}),
+                    [{"source_type": "business_metrics_snapshots", "source_id": "inventory_cost_amount", "evidence_title": "Inventory quantity without cost amount", "evidence_summary": "inventory_quantity={} inventory_cost_amount={}".format(metrics.get("inventory_quantity"), metrics.get("inventory_cost_amount")), "confidence": 0.9}],
+                    "Do not make margin or purchasing decisions from this inventory cost basis until the source field mapping is reviewed.",
+                    [{"title": "Review inventory cost mapping", "description": "Check SAP inventory export cost fields and Data Lake mapping.", "action_type": "manual_review", "owner": "finance"}],
+                    user,
+                ))
+            if metrics.get("metric_quality_warnings", 0) > 0:
+                row = conn.execute("select id,metric_key,quality_status,quality_message from business_metric_quality where quality_status!='ok' order by created_at desc limit 1").fetchone()
+                created.append(self.upsert_decision_insight(
+                    conn,
+                    "operation_alert",
+                    "Business metric quality warnings require review",
+                    "Business Calibration has unresolved metric warnings. Decision output should cite these warnings before conclusions are accepted.",
+                    "medium",
+                    "data_quality",
+                    None,
+                    self.decision_metric_snapshot(conn, {"entity_name": "Business Calibration", "metric_quality_warnings": metrics.get("metric_quality_warnings")}),
+                    [{"source_type": "business_metric_quality", "source_id": str(row["id"] if row else "summary"), "evidence_title": "Metric quality warning", "evidence_summary": (row["quality_message"] if row else "metric_quality_warnings={}".format(metrics.get("metric_quality_warnings"))), "confidence": 0.86}],
+                    "Open Business Calibration and resolve data warnings before high-risk operating decisions.",
+                    [{"title": "Open calibration review", "description": "Review store, brand and metric quality normalization.", "action_type": "manual_review", "owner": "operations"}],
+                    user,
+                ))
+            if metrics.get("suggested_objects", 0) > 0:
+                row = conn.execute("select id,object_type,object_name,evidence from business_object_suggestions where status='pending' order by updated_at desc limit 1").fetchone()
+                created.append(self.upsert_decision_insight(
+                    conn,
+                    "product_risk",
+                    "Pending object match suggestions may affect product and brand analysis",
+                    "Object Match Center still has pending suggestions. Product, brand and store conclusions may be fragmented until reviewed.",
+                    "medium",
+                    row["object_type"] if row else "object",
+                    None,
+                    self.decision_metric_snapshot(conn, {"entity_name": row["object_name"] if row else "Object Match Center", "pending_object_suggestions": metrics.get("suggested_objects")}),
+                    [{"source_type": "business_object_suggestions", "source_id": str(row["id"] if row else "summary"), "evidence_title": "Pending object suggestion", "evidence_summary": (row["evidence"] if row else "suggested_objects={}".format(metrics.get("suggested_objects"))), "confidence": 0.82}],
+                    "Confirm or reject object suggestions before relying on product or brand ranking decisions.",
+                    [{"title": "Review object match suggestions", "description": "Use Object Match Center to confirm canonical business objects.", "action_type": "manual_review", "owner": "operations"}],
+                    user,
+                ))
+            for row in conn.execute("""
+select coalesce(i.product_code,'') product_code, coalesce(i.product_name,'') product_name, coalesce(i.brand_name,'') brand_name,
+       min(i.id) source_id, sum(coalesce(i.quantity,0)) inventory_qty, sum(coalesce(i.retail_amount,0)) retail_amount,
+       coalesce((select sum(coalesce(s.quantity,0)) from sap_sales s where (coalesce(s.product_code,'')!='' and s.product_code=i.product_code) or (coalesce(s.product_name,'')!='' and s.product_name=i.product_name)),0) sales_qty
+from sap_inventory i
+where coalesce(i.product_code,'')!='' or coalesce(i.product_name,'')!=''
+group by coalesce(i.product_code,''), coalesce(i.product_name,''), coalesce(i.brand_name,'')
+having inventory_qty > 0 and sales_qty <= 0
+order by retail_amount desc, inventory_qty desc
+limit 8
+""").fetchall():
+                title = "Inventory product has no matched sales: " + (row["product_name"] or row["product_code"] or "Unknown product")
+                created.append(self.upsert_decision_insight(
+                    conn,
+                    "product_risk",
+                    title,
+                    "This product appears in inventory, but no matching sales row was found by product code/name in imported SAP sales.",
+                    "high" if float(row["retail_amount"] or 0) > 50000 else "medium",
+                    "product",
+                    None,
+                    self.decision_metric_snapshot(conn, {"entity_name": row["product_name"] or row["product_code"], "product_code": row["product_code"], "brand_name": row["brand_name"], "inventory_qty": row["inventory_qty"], "retail_amount": row["retail_amount"], "sales_qty": row["sales_qty"]}),
+                    [{"source_type": "sap_inventory", "source_id": str(row["source_id"]), "evidence_title": "Inventory without matched sales", "evidence_summary": "product={} inventory_qty={} sales_qty={} retail_amount={}".format(row["product_name"] or row["product_code"], row["inventory_qty"], row["sales_qty"], row["retail_amount"]), "confidence": 0.8}],
+                    "Review SKU mapping, sales coverage and clearance plan. Do not auto-create markdown actions without approval.",
+                    [{"title": "Review SKU risk", "description": "Check whether missing sales is caused by SAP field mismatch or real slow movement.", "action_type": "manual_review", "owner": "purchasing"}],
+                    user,
+                ))
+            for row in conn.execute("""
+select brand_name,
+       sum(case when metric_key='sales_amount' then metric_value else 0 end) sales_amount,
+       sum(case when metric_key='gross_profit' then metric_value else 0 end) gross_profit
+from business_metrics_snapshots
+where snapshot_type='brand_sales' and coalesce(brand_name,'')!=''
+group by brand_name
+having sales_amount > 0 and (gross_profit / sales_amount) < 0.2
+order by sales_amount desc
+limit 6
+""").fetchall():
+                margin = float(row["gross_profit"] or 0) / float(row["sales_amount"] or 1)
+                metric_row = conn.execute("select id from business_metrics_snapshots where snapshot_type='brand_sales' and brand_name=? order by created_at desc limit 1", (row["brand_name"],)).fetchone()
+                created.append(self.upsert_decision_insight(
+                    conn,
+                    "brand_performance",
+                    "Low gross margin brand requires review: " + row["brand_name"],
+                    "Brand gross margin is below the initial 20% review threshold in calibrated business metrics.",
+                    "high" if margin <= 0 else "medium",
+                    "brand",
+                    None,
+                    self.decision_metric_snapshot(conn, {"entity_name": row["brand_name"], "brand_name": row["brand_name"], "sales_amount": row["sales_amount"], "gross_profit": row["gross_profit"], "gross_margin": margin}),
+                    [{"source_type": "business_metrics_snapshots", "source_id": str(metric_row["id"] if metric_row else row["brand_name"]), "evidence_title": "Low brand gross margin", "evidence_summary": "{} sales={} gross_profit={} margin={:.1%}".format(row["brand_name"], row["sales_amount"], row["gross_profit"], margin), "confidence": 0.78}],
+                    "Review discount, cost, rebate and inventory pressure before deciding promotion or purchasing changes.",
+                    [{"title": "Brand margin review", "description": "Compare discounts, cost basis and inventory pressure for this brand.", "action_type": "manual_review", "owner": "finance"}],
+                    user,
+                ))
+            for row in conn.execute("""
+select store_name,
+       sum(case when metric_key='sales_amount' then metric_value else 0 end) sales_amount,
+       sum(case when metric_key='gross_profit' then metric_value else 0 end) gross_profit
+from business_metrics_snapshots
+where snapshot_type='store_sales' and coalesce(store_name,'')!=''
+group by store_name
+having sales_amount > 0 and (gross_profit / sales_amount) < 0.2
+order by sales_amount desc
+limit 6
+""").fetchall():
+                margin = float(row["gross_profit"] or 0) / float(row["sales_amount"] or 1)
+                metric_row = conn.execute("select id from business_metrics_snapshots where snapshot_type='store_sales' and store_name=? order by created_at desc limit 1", (row["store_name"],)).fetchone()
+                created.append(self.upsert_decision_insight(
+                    conn,
+                    "store_performance",
+                    "Low gross margin store requires review: " + row["store_name"],
+                    "Store gross margin is below the initial 20% review threshold in calibrated business metrics.",
+                    "high" if margin <= 0 else "medium",
+                    "store",
+                    None,
+                    self.decision_metric_snapshot(conn, {"entity_name": row["store_name"], "store_name": row["store_name"], "sales_amount": row["sales_amount"], "gross_profit": row["gross_profit"], "gross_margin": margin}),
+                    [{"source_type": "business_metrics_snapshots", "source_id": str(metric_row["id"] if metric_row else row["store_name"]), "evidence_title": "Low store gross margin", "evidence_summary": "{} sales={} gross_profit={} margin={:.1%}".format(row["store_name"], row["sales_amount"], row["gross_profit"], margin), "confidence": 0.78}],
+                    "Review store discounts, category mix and staff execution before changing targets or promotions.",
+                    [{"title": "Store margin review", "description": "Check discount policy, product mix and sales records for this store.", "action_type": "manual_review", "owner": "store_manager"}],
+                    user,
+                ))
+            graph = self.knowledge_graph_summary(conn)
+            if graph.get("graph_nodes", 0) > 0 and graph.get("graph_edges", 0) == 0:
+                created.append(self.upsert_decision_insight(
+                    conn,
+                    "operation_alert",
+                    "Knowledge Graph has nodes but no relationships",
+                    "Knowledge Graph nodes exist, but no relationship edge is active. Decision context may miss business relationships.",
+                    "medium",
+                    "knowledge_graph",
+                    None,
+                    self.decision_metric_snapshot(conn, {"entity_name": "Knowledge Graph", "graph_nodes": graph.get("graph_nodes"), "graph_edges": graph.get("graph_edges")}),
+                    [{"source_type": "knowledge_graph_nodes", "source_id": "summary", "evidence_title": "Graph nodes without edges", "evidence_summary": "graph_nodes={} graph_edges={}".format(graph.get("graph_nodes"), graph.get("graph_edges")), "confidence": 0.82}],
+                    "Run graph build and review source-linked relationships before using graph context in decisions.",
+                    [{"title": "Build Knowledge Graph", "description": "Run Knowledge Graph build; all generated edges must include source_type and source_id.", "action_type": "manual_review", "owner": "operations"}],
+                    user,
+                ))
+            conn.execute("insert into system_logs(module,action,level,message,metadata,created_at) values(?,?,?,?,?,?)", ("decision_engine", "rebuild", "info", "Decision insights rebuilt from local evidence only.", json.dumps({"created_or_updated": len([x for x in created if x]), "rules": "rule_based_no_external_ai_api"}, ensure_ascii=False), ts()))
+        return {"ok": True, "created_or_updated": len([x for x in created if x]), "insight_ids": [x for x in created if x], "safety": "no_production_sap_connection_no_external_ai_api_all_insights_require_evidence"}
+
+    def decision_context(self, insight_id):
+        with db() as conn:
+            row = conn.execute("select * from decision_insights where id=?", (insight_id,)).fetchone()
+            if not row:
+                return {"ok": False, "message": "not found"}
+            evidence = conn.execute("select * from decision_evidence where insight_id=? order by id", (row["id"],)).fetchall()
+            actions = conn.execute("select * from decision_actions where insight_id=? order by id", (row["id"],)).fetchall()
+            graph_nodes = conn.execute("select * from knowledge_graph_nodes where source_type='decision_insights' and source_id=? order by updated_at desc limit 20", (str(row["id"]),)).fetchall()
+            memories = conn.execute("select * from enterprise_memories where archived_at is null and related_object_type=? and related_object_id=? order by updated_at desc limit 20", (row["entity_type"] or "", row["entity_id"] or -1)).fetchall() if row["entity_type"] and row["entity_id"] else []
+        return {"ok": True, "insight": self.decision_insight_to_json(row, evidence, actions), "knowledge_graph_nodes": [row_dict(r) for r in graph_nodes], "related_memories": [self.enterprise_memory_to_json(r) for r in memories], "evidence_rule": "all_decision_insights_must_have_evidence"}
+
+    def update_decision_insight_status(self, user, insight_id, status, note=""):
+        if status not in ("new", "reviewing", "accepted", "rejected", "resolved", "archived"):
+            return {"ok": False, "message": "invalid status"}
+        now = ts()
+        with db() as conn:
+            row = conn.execute("select * from decision_insights where id=?", (insight_id,)).fetchone()
+            if not row:
+                return {"ok": False, "message": "not found"}
+            evidence = conn.execute("select * from decision_evidence where insight_id=?", (insight_id,)).fetchall()
+            if not evidence:
+                return {"ok": False, "message": "status update blocked because insight has no evidence"}
+            conn.execute("update decision_insights set status=?, updated_at=?, resolved_at=? where id=?", (status, now, now if status in ("resolved", "archived") else row["resolved_at"], insight_id))
+            conn.execute("update decision_actions set status=? where insight_id=? and status='draft'", ("pending_review" if status in ("accepted", "resolved") else "draft", insight_id))
+            memory_id = None
+            if status in ("accepted", "resolved"):
+                evidence_text = "\n".join(["{} #{}: {}".format(e["source_type"], e["source_id"], e["evidence_summary"]) for e in evidence])
+                existing = conn.execute("select id from enterprise_memories where related_object_type='decision' and related_object_id=? and archived_at is null order by id desc limit 1", (insight_id,)).fetchone()
+                if existing:
+                    memory_id = existing["id"]
+                else:
+                    cur = conn.execute(
+                        "insert into enterprise_memories(title,memory_type,summary,content,reason,decision,impact,risk_level,status,tags,related_object_type,related_object_id,created_by,occurred_at,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (row["title"], "decision", row["summary"], evidence_text, "Evidence-based Decision Engine insight.", note or row["suggestion"], "Expected impact must be reviewed after execution.", row["severity"], "draft", json.dumps(["decision-engine", "evidence"], ensure_ascii=False), "decision", int(insight_id), user["id"] if user else row["created_by"], now, now, now, None),
+                    )
+                    memory_id = cur.lastrowid
+                    conn.execute("insert into memory_relations(memory_id,target_type,target_id,relation_type,description,created_at) values(?,?,?,?,?,?)", (memory_id, "decision_insight", insight_id, "derived_from", row["title"], now))
+            self.add_timeline_event(conn, "decision", int(insight_id), "decision_insight_" + status, row["title"], note or row["summary"] or "", "decision_insights", insight_id, {"status": status}, user["id"] if user else row["created_by"], now)
+        return {"ok": True, "insight_id": int(insight_id), "status": status, "memory_id": memory_id}
+
+    def decision_page(self, user, detail=False):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        query = parse_qs(urlparse(self.path).query)
+        insight_id = query.get("id", [""])[0]
+        if detail or insight_id:
+            context = self.decision_context(insight_id)
+            if not context.get("ok"):
+                return self.redir("/decision")
+            insight = context["insight"]
+            evidence_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{:.0%}</td></tr>".format(esc(e.get("source_type")), esc(e.get("source_id")), esc(e.get("evidence_summary")), float(e.get("confidence") or 0)) for e in insight.get("evidence_rows", []))
+            action_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(a.get("action_title")), esc(a.get("action_type")), esc(a.get("status")), esc(a.get("owner"))) for a in insight.get("actions", []))
+            graph_items = ["{} #{} / {}".format(n.get("node_type"), n.get("id"), n.get("name") or n.get("label")) for n in context.get("knowledge_graph_nodes", [])] or ["No graph node yet."]
+            memory_items = [m.get("title", "") + " / " + m.get("status", "") for m in context.get("related_memories", [])] or ["Memory will be prepared after accepted/resolved status."]
+            body = """
+<div class="panel">
+  <h2>{}</h2>
+  <p class="small">{} / {} / {} / {}</p>
+  <p>{}</p>
+  <p><a class="btn" href="/decision">{}</a> <a class="btn dark" href="/api/decision/insights/{}">API</a></p>
+</div>
+<div class="split">
+  <div class="panel"><h2>Evidence</h2><table><thead><tr><th>Source</th><th>ID</th><th>Summary</th><th>Confidence</th></tr></thead><tbody>{}</tbody></table></div>
+  <div class="panel"><h2>Suggestion</h2><p>{}</p><h2>Actions</h2><table><tbody>{}</tbody></table></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>Knowledge Graph</h2>{}</div>
+  <div class="panel"><h2>Memory</h2>{}</div>
+</div>
+<div class="panel form">
+  <h2>Status</h2>
+  <form method="post" action="/api/decision/insights/{}/status">
+    <label>Status</label><select name="status"><option>reviewing</option><option>accepted</option><option>rejected</option><option>resolved</option><option>archived</option></select>
+    <label>Decision note</label><textarea name="note"></textarea>
+    <p><button>Update with human review</button></p>
+  </form>
+</div>""".format(
+                esc(insight["title"]), esc(insight["insight_type"]), esc(insight["severity"]), esc(insight["status"]), esc(dt(insight["updated_at"])), esc(insight["summary"] or ""), U(r"\u8fd4\u56de"), insight["id"], evidence_rows or "<tr><td colspan='4'>No evidence</td></tr>", esc(insight.get("suggestion") or ""), action_rows or "<tr><td>No action</td></tr>", self.bullets(graph_items), self.bullets(memory_items), insight["id"]
+            )
+            return self.out(layout("Decision Insight", body, user=user, wide=True))
+        summary = self.decision_engine_summary()
+        with db() as conn:
+            rows = conn.execute("select * from decision_insights order by case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, updated_at desc limit 80").fetchall()
+        cards = ""
+        for row in rows:
+            item = self.decision_insight_to_json(row)
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / evidence {}</p></div><a class='btn full' href='/decision/insights?id={}'>{}</a></div>".format(esc(item["title"]), esc(item["summary"] or ""), esc(item["insight_type"]), esc(item["severity"]), len(item["evidence"]), item["id"], U(r"\u67e5\u770b"))
+        if not cards:
+            cards = "<div class='panel'>{}</div>".format(self.empty_state("No decision insight yet. Run rebuild after SAP file import and Data Lake refresh."))
+        metrics = "".join([
+            self.metric("Insights", summary["decision_insights_total"], "decision_insights"),
+            self.metric("High severity", summary["decision_high_severity"], "high/critical"),
+            self.metric("Evidence", summary["decision_evidence_total"], "decision_evidence"),
+            self.metric("Pending actions", summary["decision_pending_actions"], "manual review"),
+        ])
+        risk_items = [r["title"] + " / " + r["severity"] for r in summary["top_risks"]] or ["No active risk insight."]
+        body = """
+<div class="panel">
+  <h2>Decision Engine Foundation</h2>
+  <p class="small">Rule-based only. No external AI API. Every insight must cite evidence before it appears here.</p>
+  <p><a class="btn dark" href="/api/decision/insights">API</a> <form method="post" action="/api/decision/rebuild" style="display:inline"><button>Rebuild from evidence</button></form></p>
+  <div class="metrics">{}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>Top Risks</h2>{}</div>
+  <div class="panel"><h2>Guardrails</h2>{}</div>
+</div>
+<div class="grid">{}</div>""".format(metrics, self.bullets(risk_items), self.bullets([summary["evidence_rule"], summary["execution_rule"], "high_risk_actions_require_human_review"]), cards)
+        self.out(layout(U(r"\u7ecf\u8425\u51b3\u7b56"), body, user=user, wide=True))
+
+    def api_decision_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/decision/insights":
+            query = parse_qs(urlparse(self.path).query)
+            status = query.get("status", [""])[0]
+            insight_type = query.get("type", [""])[0]
+            where, params = ["1=1"], []
+            if status:
+                where.append("status=?")
+                params.append(status)
+            if insight_type:
+                where.append("insight_type=?")
+                params.append(insight_type)
+            with db() as conn:
+                rows = conn.execute("select * from decision_insights where " + " and ".join(where) + " order by updated_at desc limit 200", params).fetchall()
+                summary = self.decision_engine_summary(conn)
+            return self.json_out({"ok": True, "summary": summary, "insights": [self.decision_insight_to_json(r) for r in rows], "guardrail": "all_decision_insights_must_have_evidence"})
+        m = re.match(r"^/api/decision/insights/(\d+)$", path)
+        if m:
+            return self.json_out(self.decision_context(m.group(1)))
+        m_obj = re.match(r"^/api/objects/(\d+)/decisions$", path)
+        if m_obj:
+            with db() as conn:
+                obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (m_obj.group(1),)).fetchone()
+                if not obj:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                rows = conn.execute("select * from decision_insights where entity_type=? and entity_id=? order by updated_at desc limit 100", (obj["object_type"], obj["id"])).fetchall()
+            return self.json_out({"ok": True, "object_id": int(m_obj.group(1)), "decisions": [self.decision_insight_to_json(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown decision api"}, code=404)
+
+    def api_decision_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/decision/rebuild":
+            payload = self.rebuild_decision_insights(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/decision")
+            return self.json_out(payload)
+        m_status = re.match(r"^/api/decision/insights/(\d+)$", path) or re.match(r"^/api/decision/insights/(\d+)/status$", path)
+        if m_status:
+            form = self.api_object_payload()
+            status = form.get("status", form.get("decision_status", "reviewing"))
+            note = form.get("note", "")
+            payload = self.update_decision_insight_status(user, m_status.group(1), status, note)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/decision/insights?id=" + m_status.group(1))
+            return self.json_out(payload, code=200 if payload.get("ok") else 400)
+        m_action = re.match(r"^/api/decision/insights/(\d+)/actions$", path)
+        if m_action:
+            form = self.api_object_payload()
+            now = ts()
+            with db() as conn:
+                evidence_count = conn.execute("select count(*) c from decision_evidence where insight_id=?", (m_action.group(1),)).fetchone()["c"]
+                if not evidence_count:
+                    return self.json_out({"ok": False, "message": "cannot create action without insight evidence"}, code=400)
+                cur = conn.execute(
+                    "insert into decision_actions(insight_id,action_title,action_description,action_type,status,owner,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                    (m_action.group(1), form.get("action_title", "Manual review"), form.get("action_description", ""), form.get("action_type", "manual_review"), "pending_review", form.get("owner", user["name"]), now, now),
+                )
+            return self.json_out({"ok": True, "action_id": cur.lastrowid, "status": "pending_review"})
+        return self.json_out({"ok": False, "message": "unknown decision write api"}, code=404)
 
     def can_view_graph(self, user):
         return bool(user)
