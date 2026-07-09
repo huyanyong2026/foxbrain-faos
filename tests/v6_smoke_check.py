@@ -3090,6 +3090,7 @@ def test_sprint008_data_lake_schema_routes_and_api_present():
         "def object_match_center",
         "def api_data_lake_get",
         "def api_data_lake_post",
+        '"/sap-import"',
         '"/api/data-lake/rebuild"',
         '"/api/business-metrics/summary"',
         '"/api/object-links"',
