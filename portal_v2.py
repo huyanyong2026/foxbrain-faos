@@ -2586,6 +2586,52 @@ create table if not exists memories(
         conn.execute("create index if not exists idx_memories_governance on memories(owner, access_level, retention_policy)")
         conn.execute(
             """
+create table if not exists enterprise_memories(
+ id integer primary key autoincrement,
+ title text not null,
+ memory_type text not null default 'decision',
+ summary text,
+ content text,
+ reason text,
+ decision text,
+ impact text,
+ risk_level text not null default 'medium',
+ status text not null default 'draft',
+ tags text,
+ related_object_type text,
+ related_object_id integer,
+ related_document_id integer,
+ related_knowledge_id integer,
+ related_timeline_event_id integer,
+ created_by integer,
+ occurred_at integer,
+ created_at integer not null,
+ updated_at integer not null,
+ archived_at integer
+)
+"""
+        )
+        conn.execute("create index if not exists idx_enterprise_memories_type on enterprise_memories(memory_type, status, archived_at)")
+        conn.execute("create index if not exists idx_enterprise_memories_risk on enterprise_memories(risk_level, status)")
+        conn.execute("create index if not exists idx_enterprise_memories_object on enterprise_memories(related_object_type, related_object_id)")
+        conn.execute("create index if not exists idx_enterprise_memories_updated on enterprise_memories(updated_at)")
+        conn.execute(
+            """
+create table if not exists memory_relations(
+ id integer primary key autoincrement,
+ memory_id integer not null,
+ target_type text not null,
+ target_id integer,
+ relation_type text not null default 'related',
+ description text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_memory_relations_memory on memory_relations(memory_id)")
+        conn.execute("create index if not exists idx_memory_relations_target on memory_relations(target_type, target_id)")
+        conn.execute(
+            """
 create table if not exists user_preferences(
  id integer primary key autoincrement,
  preference_id text unique,
@@ -4259,7 +4305,7 @@ class App(BaseHTTPRequestHandler):
             return self.report_center(user)
         if path == "/automation":
             return self.automation_center(user)
-        if path == "/memory":
+        if path in ("/memory", "/memories"):
             return self.memory_center(user)
         if path == "/memory/view":
             return self.memory_view(user)
@@ -4303,6 +4349,8 @@ class App(BaseHTTPRequestHandler):
             return self.knowledge_form(user)
         if path == "/api/dashboard/summary":
             return self.json_out(load_summary())
+        if path.startswith("/api/memories") or path == "/api/memory-types":
+            return self.api_enterprise_memories_get(user, path)
         if path.startswith("/api/dashboard/"):
             return self.api_dashboard_get(user, path)
         if path == "/api/dashboard/ceo":
@@ -4531,6 +4579,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
             return self.api_automation_post(self.current_user(), path)
+        if path.startswith("/api/memories"):
+            return self.api_enterprise_memories_post(self.current_user(), path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
             return self.api_memory_post(self.current_user(), path)
         if path.startswith("/api/digital-brain"):
@@ -4631,6 +4681,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_drive_post(self.current_user(), path)
         if path.startswith("/api/objects"):
             return self.api_objects_post(self.current_user(), path)
+        if path.startswith("/api/memories"):
+            return self.api_enterprise_memories_post(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def do_DELETE(self):
@@ -4639,6 +4691,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_drive_delete(self.current_user(), path)
         if path.startswith("/api/objects"):
             return self.api_objects_delete(self.current_user(), path)
+        if path.startswith("/api/memories"):
+            return self.api_enterprise_memories_delete(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def seed_workflow_templates(self, conn, user_id=None):
@@ -5506,6 +5560,19 @@ class App(BaseHTTPRequestHandler):
                     if object_type and doc["related_object_type"] != object_type:
                         continue
                     results.append({"type": "chunk", "icon": "CHUNK", "id": row["id"], "title": (doc["original_filename"] or doc["title"] or "Document") + " / chunk " + str(row["chunk_index"]), "snippet": self.search_snippet(row["content"] or row["summary"], q), "source": "document_chunks", "related_object": "{} #{}".format(doc["related_object_type"] or "", doc["related_object_id"] or "").strip(), "url": "/api/documents/{}/chunks".format(row["document_id"]), "score": 0.7, "updated_at": row["updated_at"]})
+            if want("memory"):
+                where = ["archived_at is null", "(title like ? or coalesce(summary,'') like ? or coalesce(content,'') like ? or coalesce(reason,'') like ? or coalesce(decision,'') like ? or coalesce(tags,'') like ?)"]
+                params = [like, like, like, like, like, like]
+                if object_type:
+                    where.append("related_object_type=?")
+                    params.append(object_type)
+                if status:
+                    where.append("status=?")
+                    params.append(status)
+                for row in conn.execute("select * from enterprise_memories where " + " and ".join(where) + " order by updated_at desc limit 50", params).fetchall():
+                    if not in_date(row["updated_at"]):
+                        continue
+                    results.append({"type": "memory", "icon": "MEM", "id": row["id"], "title": row["title"], "snippet": self.search_snippet((row["summary"] or "") + " " + (row["reason"] or "") + " " + (row["decision"] or "") + " " + (row["content"] or ""), q), "source": row["memory_type"] or "enterprise_memory", "related_object": "{} #{}".format(row["related_object_type"] or "", row["related_object_id"] or "").strip(), "url": "/memory/view?id={}".format(row["id"]), "score": 0.88, "updated_at": row["updated_at"]})
         results.sort(key=lambda item: (item.get("score", 0), item.get("updated_at") or 0), reverse=True)
         return {"ok": True, "query": q, "total": len(results), "results": results[:120], "filters": {"type": result_type, "category": category, "object_type": object_type, "status": status, "date_from": date_from, "date_to": date_to}}
 
@@ -6574,10 +6641,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             objects_total = count(conn, "select count(*) c from enterprise_objects where archived_at is null")
             knowledge_items_total = count(conn, "select count(*) c from knowledge_items where deleted_at is null")
             timeline_events_total = count(conn, "select count(*) c from timeline_events")
+            enterprise_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null")
+            high_risk_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null and risk_level in ('high','critical')")
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
             recent_timeline = safe_rows(conn, "select id,entity_type,entity_id,event_type,title,description,source_type,occurred_at,created_at from timeline_events order by coalesce(occurred_at, created_at) desc limit 8")
+            recent_memories = safe_rows(conn, "select id,title,memory_type,summary,risk_level,status,updated_at from enterprise_memories where archived_at is null order by updated_at desc limit 6")
             checks = [
                 ("Drive Engine", documents_total >= 0, "documents"),
                 ("Object Engine", objects_total >= 0, "enterprise_objects"),
@@ -6598,16 +6668,20 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "objects_total": objects_total,
                 "knowledge_items_total": knowledge_items_total,
                 "timeline_events_total": timeline_events_total,
+                "enterprise_memories_total": enterprise_memories_total,
+                "high_risk_memories_total": high_risk_memories_total,
             },
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
             "recent_timeline": recent_timeline,
+            "recent_memories": recent_memories,
             "system_status": status,
             "core_entries": [
                 {"title": "FoxBrain Drive", "url": "/drive", "status": "ready"},
                 {"title": U(r"\u5bf9\u8c61\u4e2d\u5fc3"), "url": "/object-center", "status": "ready"},
                 {"title": U(r"\u77e5\u8bc6\u4e2d\u5fc3"), "url": "/knowledge", "status": "ready"},
+                {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
                 {"title": U(r"AI \u95ee\u4f01\u4e1a"), "url": "/jarvis", "status": "placeholder"},
@@ -6630,6 +6704,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             (U(r"\u4f01\u4e1a\u5bf9\u8c61"), summary["objects_total"], U(r"Object Engine")),
             (U(r"\u77e5\u8bc6\u6761\u76ee"), summary["knowledge_items_total"], U(r"Knowledge")),
             (U(r"\u65f6\u95f4\u8f74\u4e8b\u4ef6"), summary["timeline_events_total"], U(r"Timeline")),
+            (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), summary["enterprise_memories_total"], U(r"Memory")),
+            (U(r"\u9ad8\u98ce\u9669\u8bb0\u5fc6"), summary["high_risk_memories_total"], U(r"\u9700\u5173\u6ce8")),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -6652,6 +6728,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "{} · {} · {}".format(esc(dt(r.get("occurred_at") or r.get("created_at"))), esc(r.get("event_type") or r.get("title") or ""), esc(r.get("description") or r.get("title") or ""))
             for r in payload["recent_timeline"]
         ] or [U(r"\u6682\u65e0\u6700\u8fd1\u65f6\u95f4\u8f74\u3002")])
+        recent_memories = self.bullets([
+            "{} · {} · {}".format(esc(r.get("title") or ""), esc(r.get("memory_type") or ""), esc(r.get("risk_level") or ""))
+            for r in payload["recent_memories"]
+        ] or [U(r"\u6682\u65e0\u6700\u8fd1\u4f01\u4e1a\u8bb0\u5fc6\u3002")])
         status_html = "".join(
             "<div class='metric'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(esc(item["name"]), esc(item["status"]), esc(item["source"]))
             for item in payload["system_status"]
@@ -6693,6 +6773,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
   <div class="panel"><h2>{}</h2>{}</div>
   <div class="panel"><h2>{}</h2>{}</div>
 </div>
+<div class="panel"><h2>{}</h2>{}</div>
 <div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
 """.format(
@@ -6713,6 +6794,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             recent_knowledge,
             U(r"\u6700\u8fd1\u65f6\u95f4\u8f74"),
             recent_timeline,
+            U(r"\u6700\u8fd1\u4f01\u4e1a\u8bb0\u5fc6"),
+            recent_memories,
             U(r"\u7cfb\u7edf\u72b6\u6001"),
             status_html,
             U(r"\u66f4\u591a\u5165\u53e3"),
@@ -6736,7 +6819,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         date_from = query.get("date_from", [""])[0].strip()
         date_to = query.get("date_to", [""])[0].strip()
         payload = self.global_search_results(user, q, result_type, category, object_type, status, date_from, date_to)
-        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5"))])
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6"))])
         object_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"])) for item in self.object_types())
         cards = "".join(
             "<div class='card'><div><h2>{} {}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
@@ -7612,6 +7695,14 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
         if path == "/api/object-types":
             return self.json_out({"ok": True, "object_types": self.object_types(), "templates": self.object_templates()})
+        m_memories = re.match(r"^/api/objects/(\d+)/memories$", path)
+        if m_memories:
+            with db() as conn:
+                obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (m_memories.group(1),)).fetchone()
+                if not obj:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                rows = conn.execute("select * from enterprise_memories where archived_at is null and related_object_type=? and related_object_id=? order by updated_at desc limit 100", (obj["object_type"], obj["id"])).fetchall()
+            return self.json_out({"ok": True, "object_id": int(m_memories.group(1)), "memories": [self.enterprise_memory_to_json(r) for r in rows]})
         m_timeline = re.match(r"^/api/objects/(\d+)/timeline$", path)
         if m_timeline:
             with db() as conn:
@@ -13031,6 +13122,92 @@ where ki.deleted_at is null"""
     def memory_to_json(self, row):
         return row_dict(row) or {}
 
+    def enterprise_memory_types(self):
+        return [
+            {"key": "decision", "label": U(r"\u51b3\u7b56\u8bb0\u5fc6")},
+            {"key": "meeting", "label": U(r"\u4f1a\u8bae\u8bb0\u5fc6")},
+            {"key": "risk", "label": U(r"\u98ce\u9669\u8bb0\u5fc6")},
+            {"key": "strategy", "label": U(r"\u6218\u7565\u8bb0\u5fc6")},
+            {"key": "operation", "label": U(r"\u8fd0\u8425\u8bb0\u5fc6")},
+            {"key": "purchase", "label": U(r"\u91c7\u8d2d\u8bb0\u5fc6")},
+            {"key": "pricing", "label": U(r"\u4ef7\u683c\u8bb0\u5fc6")},
+            {"key": "store", "label": U(r"\u95e8\u5e97\u8bb0\u5fc6")},
+            {"key": "brand", "label": U(r"\u54c1\u724c\u8bb0\u5fc6")},
+            {"key": "supplier", "label": U(r"\u4f9b\u5e94\u5546\u8bb0\u5fc6")},
+        ]
+
+    def enterprise_memory_to_json(self, row):
+        data = row_dict(row) or {}
+        try:
+            data["tags_list"] = json.loads(data.get("tags") or "[]")
+        except Exception:
+            data["tags_list"] = csv_values(data.get("tags", ""))
+        data["url"] = "/memory/view?id=" + str(data.get("id", ""))
+        return data
+
+    def normalize_enterprise_memory_form(self, form, user, existing=None):
+        now = ts()
+        memory_type = module_key(form.get("memory_type", existing.get("memory_type") if existing else "decision") or "decision")
+        allowed_types = {item["key"] for item in self.enterprise_memory_types()}
+        if memory_type not in allowed_types:
+            memory_type = "decision"
+        risk_level = (form.get("risk_level", existing.get("risk_level") if existing else "medium") or "medium").strip()
+        if risk_level not in ("low", "medium", "high", "critical"):
+            risk_level = "medium"
+        status = (form.get("status", existing.get("status") if existing else "active") or "active").strip()
+        if status not in ("draft", "active", "reviewed", "archived"):
+            status = "active"
+        tags = csv_values(form.get("tags", existing.get("tags") if existing else ""))
+        related_object_type = module_key(form.get("related_object_type", existing.get("related_object_type") if existing else "") or "")
+        related_object_id = form.get("related_object_id", existing.get("related_object_id") if existing else "")
+        related_document_id = form.get("related_document_id", existing.get("related_document_id") if existing else "")
+        related_knowledge_id = form.get("related_knowledge_id", existing.get("related_knowledge_id") if existing else "")
+        related_timeline_event_id = form.get("related_timeline_event_id", existing.get("related_timeline_event_id") if existing else "")
+        occurred_at = form.get("occurred_at", "")
+        occurred_ts = existing.get("occurred_at") if existing else now
+        if occurred_at:
+            try:
+                occurred_ts = int(time.mktime(time.strptime(occurred_at, "%Y-%m-%d")))
+            except Exception:
+                occurred_ts = now
+        return {
+            "title": (form.get("title", existing.get("title") if existing else "") or U(r"\u672a\u547d\u540d\u4f01\u4e1a\u8bb0\u5fc6")).strip(),
+            "memory_type": memory_type,
+            "summary": form.get("summary", existing.get("summary") if existing else ""),
+            "content": form.get("content", existing.get("content") if existing else ""),
+            "reason": form.get("reason", existing.get("reason") if existing else ""),
+            "decision": form.get("decision", existing.get("decision") if existing else ""),
+            "impact": form.get("impact", existing.get("impact") if existing else ""),
+            "risk_level": risk_level,
+            "status": status,
+            "tags": json.dumps(tags, ensure_ascii=False),
+            "related_object_type": related_object_type,
+            "related_object_id": int(related_object_id) if str(related_object_id).isdigit() else None,
+            "related_document_id": int(related_document_id) if str(related_document_id).isdigit() else None,
+            "related_knowledge_id": int(related_knowledge_id) if str(related_knowledge_id).isdigit() else None,
+            "related_timeline_event_id": int(related_timeline_event_id) if str(related_timeline_event_id).isdigit() else None,
+            "created_by": existing.get("created_by") if existing else user["id"],
+            "occurred_at": occurred_ts,
+            "created_at": existing.get("created_at") if existing else now,
+            "updated_at": now,
+            "archived_at": now if status == "archived" else None,
+        }
+
+    def write_enterprise_memory_timeline(self, conn, row, event_type, user):
+        if row.get("related_object_type") and row.get("related_object_id"):
+            self.add_timeline_event(
+                conn,
+                row.get("related_object_type"),
+                row.get("related_object_id"),
+                event_type,
+                row.get("title") or event_type,
+                row.get("summary") or row.get("reason") or row.get("content") or "",
+                "enterprise_memory",
+                row.get("id") or "",
+                {"memory_type": row.get("memory_type"), "risk_level": row.get("risk_level")},
+                user["id"] if user else row.get("created_by"),
+            )
+
     def enterprise_memory_repository_payload(self, user):
         with db() as conn:
             rows = [r for r in conn.execute("select * from memories order by updated_at desc limit 100").fetchall() if self.can_view_memory(user, r)]
@@ -13146,88 +13323,103 @@ where ki.deleted_at is null"""
         qd = parse_qs(urlparse(self.path).query)
         q = qd.get("q", [""])[0].strip()
         memory_type = qd.get("type", [""])[0].strip()
-        status = qd.get("status", [""])[0].strip()
-        where, params = [], []
+        risk_level = qd.get("risk_level", [""])[0].strip()
+        tag = qd.get("tag", [""])[0].strip()
+        where, params = ["archived_at is null"], []
         if q:
             like = "%" + q + "%"
-            where.append("(title like ? or content like ? or memory_type like ?)")
-            params += [like, like, like]
+            where.append("(title like ? or summary like ? or content like ? or reason like ? or decision like ? or tags like ?)")
+            params += [like, like, like, like, like, like]
         if memory_type:
             where.append("memory_type=?")
             params.append(memory_type)
-        if status:
-            where.append("status=?")
-            params.append(status)
-        sql = "select * from memories"
-        if where:
-            sql += " where " + " and ".join(where)
-        sql += " order by case status when 'pending_review' then 0 when 'approved' then 1 else 2 end, updated_at desc limit 100"
+        if risk_level:
+            where.append("risk_level=?")
+            params.append(risk_level)
+        if tag:
+            where.append("tags like ?")
+            params.append("%" + tag + "%")
+        sql = "select * from enterprise_memories where " + " and ".join(where) + " order by updated_at desc limit 100"
         with db() as conn:
-            rows = [r for r in conn.execute(sql, params).fetchall() if self.can_view_memory(user, r)]
-            prefs = conn.execute("select * from user_preferences where user_id=? order by updated_at desc limit 20", (user["id"],)).fetchall()
-            decisions = conn.execute("select * from decision_memories order by updated_at desc limit 8").fetchall()
+            rows = conn.execute(sql, params).fetchall()
+            recent = conn.execute("select * from enterprise_memories where archived_at is null order by updated_at desc limit 8").fetchall()
+            decisions = conn.execute("select * from enterprise_memories where archived_at is null and memory_type='decision' order by updated_at desc limit 8").fetchall()
+            risks = conn.execute("select * from enterprise_memories where archived_at is null and memory_type='risk' order by case risk_level when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, updated_at desc limit 8").fetchall()
             counts = {
-                "total": conn.execute("select count(*) c from memories").fetchone()["c"],
-                "pending": conn.execute("select count(*) c from memories where status='pending_review'").fetchone()["c"],
-                "approved": conn.execute("select count(*) c from memories where status='approved'").fetchone()["c"],
-                "archived": conn.execute("select count(*) c from memories where status='archived'").fetchone()["c"],
+                "total": conn.execute("select count(*) c from enterprise_memories where archived_at is null").fetchone()["c"],
+                "decision": conn.execute("select count(*) c from enterprise_memories where archived_at is null and memory_type='decision'").fetchone()["c"],
+                "risk": conn.execute("select count(*) c from enterprise_memories where archived_at is null and memory_type='risk'").fetchone()["c"],
+                "high_risk": conn.execute("select count(*) c from enterprise_memories where archived_at is null and risk_level in ('high','critical')").fetchone()["c"],
             }
-        type_opts = [
-            "company_principle", "user_preference", "business_decision", "pricing_rule", "brand_strategy",
-            "store_strategy", "supplier_risk", "customer_insight", "ai_suggestion", "rejected_suggestion",
-        ]
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if item["key"] == memory_type else "", esc(item["label"])) for item in self.enterprise_memory_types())
+        risk_options = "".join('<option value="{}"{}>{}</option>'.format(esc(x), " selected" if x == risk_level else "", esc(x or U(r"\u5168\u90e8"))) for x in ["", "low", "medium", "high", "critical"])
         cards = ""
         for row in rows:
-            action = ""
-            if self.can_approve_memory(user) and row["status"] == "pending_review":
-                action = f"<form method='post' action='/memory/action'><input type='hidden' name='id' value='{row['id']}'><button name='action' value='approve'>{U(r'瀹℃牳閫氳繃')}</button><button class='gray' name='action' value='reject'>{U(r'鎷掔粷')}</button></form>"
-            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {} 路 {}</p></div><a class='btn full' href='/memory/view?id={}'>{}</a>{}</div>".format(
-                esc(row["title"]), esc(summarize_text(row["content"], 160)), esc(row["memory_type"]), esc(row["importance"]), esc(row["status"]), esc(dt(row["updated_at"])), row["id"], U(r"鏌ョ湅"), action
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} ? {} ? {} ? {}</p></div><a class='btn full' href='/memory/view?id={}'>{}</a></div>".format(
+                esc(row["title"]), esc(row["summary"] or summarize_text(row["reason"] or row["content"], 160)), esc(row["memory_type"]), esc(row["risk_level"]), esc(row["status"]), esc(dt(row["updated_at"])), row["id"], U(r"\u67e5\u770b")
             )
         if not cards:
-            cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u8bb0\u5fc6\uff0cAI \u6216\u7ba1\u7406\u8005\u53ef\u5148\u521b\u5efa\u5f85\u5ba1\u6838\u8bb0\u5fc6\u3002")))
-        pref_items = [f"{p['key']}: {p['value']} ({p['scope']})" for p in prefs] or [U(r"\u6682\u65e0\u504f\u597d\u8bbe\u7f6e\u3002")]
-        decision_items = [d["decision_title"] + " 路 " + (d["decision_date"] or "") for d in decisions] or [U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")]
-        body = f"""
+            cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u4f01\u4e1a\u8bb0\u5fc6\uff0c\u53ef\u5148\u8bb0\u5f55\u4e00\u6761\u51b3\u7b56\u539f\u56e0\u3002")))
+        recent_items = [r["title"] + " ? " + r["memory_type"] + " ? " + dt(r["updated_at"]) for r in recent] or [U(r"\u6682\u65e0\u6700\u8fd1\u8bb0\u5fc6\u3002")]
+        decision_items = [r["title"] + " ? " + summarize_text(r["decision"] or r["reason"], 80) for r in decisions] or [U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")]
+        risk_items = [r["title"] + " ? " + r["risk_level"] + " ? " + summarize_text(r["reason"] or r["summary"], 80) for r in risks] or [U(r"\u6682\u65e0\u98ce\u9669\u8bb0\u5fc6\u3002")]
+        body = """
 <div class="panel">
-  <h2>{U(r'AI \u8bb0\u5fc6\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u8fd9\u91cc\u4fdd\u5b58\u957f\u671f\u7ecf\u8425\u539f\u5219\u3001\u7528\u6237\u504f\u597d\u3001\u51b3\u7b56\u3001\u5b9a\u4ef7\u89c4\u5219\u548c\u98ce\u9669\u5224\u65ad\u3002AI \u4e0d\u4f1a\u672a\u7ecf\u5ba1\u6838\u81ea\u52a8\u5199\u5165\u6c38\u4e45\u8bb0\u5fc6\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u8bb0\u5fc6\u603b\u6570'), counts['total'], U(r'\u5168\u90e8'))}{self.metric(U(r'\u5f85\u5ba1\u6838'), counts['pending'], U(r'\u9700\u590d\u6838'))}{self.metric(U(r'\u5df2\u901a\u8fc7'), counts['approved'], U(r'AI \u53ef\u53c2\u8003'))}{self.metric(U(r'\u5df2\u5f52\u6863'), counts['archived'], U(r'\u5386\u53f2'))}</div>
+  <h2>{}</h2>
+  <p class="small">{}</p>
+  <p><a class="btn dark" href="/api/memories">API</a></p>
+  <div class="metrics">{}{}{}{}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u65b0\u5efa\u5f85\u5ba1\u6838\u8bb0\u5fc6')}</h2>
+    <h2>{}</h2>
     <form method="post" action="/memory/save">
-      <label>{U(r'\u6807\u9898')}</label><input name="title" required>
-      <label>{U(r'\u5185\u5bb9')}</label><textarea name="content"></textarea>
-      <label>{U(r'\u8bb0\u5fc6\u7c7b\u578b')}</label><select name="memory_type">{''.join('<option value="{}">{}</option>'.format(esc(x), esc(x)) for x in type_opts)}</select>
-      <label>{U(r'\u91cd\u8981\u6027')}</label><select name="importance"><option value="normal">normal</option><option value="high">high</option><option value="critical">critical</option><option value="low">low</option></select>
-      <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="manager_only">manager_only</option><option value="public_internal">public_internal</option><option value="owner_only">owner_only</option><option value="finance_only">finance_only</option><option value="restricted">restricted</option></select>
-      <p><button>{U(r'\u4fdd\u5b58\u5f85\u5ba1\u6838\u8bb0\u5fc6')}</button></p>
+      <label>{}</label><input name="title" required>
+      <label>{}</label><select name="memory_type">{}</select>
+      <label>{}</label><textarea name="summary"></textarea>
+      <label>{}</label><textarea name="content"></textarea>
+      <label>{}</label><textarea name="reason"></textarea>
+      <label>{}</label><textarea name="decision"></textarea>
+      <label>{}</label><textarea name="impact"></textarea>
+      <label>{}</label><select name="risk_level"><option value="low">low</option><option value="medium" selected>medium</option><option value="high">high</option><option value="critical">critical</option></select>
+      <label>{}</label><select name="status"><option value="draft">draft</option><option value="active" selected>active</option><option value="reviewed">reviewed</option></select>
+      <label>{}</label><input name="tags" placeholder="Osprey, ??, ??">
+      <label>{}</label><input name="related_object_type" placeholder="brand / store / supplier">
+      <label>{}</label><input name="related_object_id" placeholder="Object ID">
+      <label>{}</label><input name="related_document_id" placeholder="Document ID">
+      <label>{}</label><input name="related_knowledge_id" placeholder="Knowledge ID">
+      <label>{}</label><input name="occurred_at" placeholder="YYYY-MM-DD">
+      <p><button>{}</button></p>
     </form>
   </div>
-  <div class="panel form">
-    <h2>{U(r'\u7528\u6237\u504f\u597d')}</h2>
-    <form method="post" action="/preferences/save">
-      <label>Key</label><input name="key" placeholder="dashboard_style / ai_response_style / risk_tolerance" required>
-      <label>Value</label><input name="value" required>
-      <label>Scope</label><input name="scope" value="user">
-      <p><button>{U(r'\u4fdd\u5b58\u504f\u597d')}</button></p>
-    </form>
-    {self.bullets(pref_items)}
+  <div class="panel">
+    <h2>{}</h2>{}
+    <h2>{}</h2>{}
   </div>
 </div>
 <div class="panel">
   <form method="get" action="/memory">
-    <label>{U(r'\u641c\u7d22\u8bb0\u5fc6')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u6807\u9898\u3001\u5185\u5bb9\u3001\u7c7b\u578b')}">
-    <label>{U(r'\u7c7b\u578b')}</label><input name="type" value="{esc(memory_type)}">
-    <label>{U(r'\u72b6\u6001')}</label><input name="status" value="{esc(status)}" placeholder="pending_review / approved / archived">
-    <p><button>{U(r'\u641c\u7d22')}</button></p>
+    <label>{}</label><input name="q" value="{}" placeholder="{}">
+    <label>{}</label><select name="type"><option value="">{}</option>{}</select>
+    <label>{}</label><select name="risk_level">{}</select>
+    <label>{}</label><input name="tag" value="{}">
+    <p><button>{}</button></p>
   </form>
 </div>
-<div class="grid">{cards}</div>
-<div class="split"><div class="panel"><h2>{U(r'\u51b3\u7b56\u8bb0\u5fc6')}</h2>{self.bullets(decision_items)}<p><a class="btn" href="/decisions">{U(r'\u65b0\u589e\u51b3\u7b56')}</a></p></div><div class="panel"><h2>{U(r'AI \u603b\u7ecf\u7406\u53c2\u8003\u8bb0\u5fc6')}</h2>{self.bullets([U(r'\u6700\u8fd1\u91cd\u8981\u51b3\u7b56'), U(r'\u5f53\u524d\u7ecf\u8425\u539f\u5219'), U(r'\u98ce\u9669\u504f\u597d'), U(r'\u54c1\u724c\u7b56\u7565'), U(r'\u5b9a\u4ef7\u539f\u5219')])}</div></div>"""
-        self.out(layout(U(r"AI \u8bb0\u5fc6\u4e2d\u5fc3"), body, user=user, wide=True))
+<div class="grid">{}</div>
+<div class="split"><div class="panel"><h2>{}</h2>{}</div><div class="panel"><h2>{}</h2>{}</div></div>""".format(
+            U(r"\u4f01\u4e1a\u8bb0\u5fc6"),
+            U(r"\u8bb0\u5f55\u4f01\u4e1a\u4e3a\u4ec0\u4e48\u505a\u51fa\u67d0\u4e2a\u51b3\u5b9a\uff0c\u6c89\u6dc0\u539f\u56e0\u3001\u80cc\u666f\u3001\u98ce\u9669\u548c\u7ed3\u679c\u3002"),
+            self.metric(U(r"\u8bb0\u5fc6\u603b\u6570"), counts["total"], U(r"\u5168\u90e8")),
+            self.metric(U(r"\u51b3\u7b56\u8bb0\u5fc6"), counts["decision"], "decision"),
+            self.metric(U(r"\u98ce\u9669\u8bb0\u5fc6"), counts["risk"], "risk"),
+            self.metric(U(r"\u9ad8\u98ce\u9669"), counts["high_risk"], "high/critical"),
+            U(r"\u65b0\u5efa\u4f01\u4e1a\u8bb0\u5fc6"),
+            U(r"\u6807\u9898"), U(r"\u7c7b\u578b"), type_options, U(r"\u6458\u8981"), U(r"\u5185\u5bb9"), U(r"\u539f\u56e0"), U(r"\u51b3\u7b56"), U(r"\u5f71\u54cd"), U(r"\u98ce\u9669\u7b49\u7ea7"), U(r"\u72b6\u6001"), U(r"\u6807\u7b7e"), U(r"\u5173\u8054\u5bf9\u8c61\u7c7b\u578b"), U(r"\u5173\u8054\u5bf9\u8c61 ID"), U(r"\u5173\u8054\u6587\u4ef6 ID"), U(r"\u5173\u8054\u77e5\u8bc6 ID"), U(r"\u53d1\u751f\u65e5\u671f"), U(r"\u4fdd\u5b58\u8bb0\u5fc6"),
+            U(r"\u6700\u8fd1\u8bb0\u5fc6"), self.bullets(recent_items), U(r"\u8bb0\u5fc6\u8bf4\u660e"), self.bullets([U(r"\u6570\u636e\u8bb0\u5f55\u53d1\u751f\u4e86\u4ec0\u4e48\uff0c\u8bb0\u5fc6\u89e3\u91ca\u4e3a\u4ec0\u4e48\u53d1\u751f\u3002"), U(r"\u5173\u8054\u5bf9\u8c61\u540e\uff0c\u8bb0\u5fc6\u4f1a\u8fdb\u5165\u5bf9\u8c61\u65f6\u95f4\u8f74\u3002")]),
+            U(r"\u641c\u7d22\u8bb0\u5fc6"), esc(q), U(r"\u641c\u7d22\u6807\u9898\u3001\u6458\u8981\u3001\u5185\u5bb9\u3001\u539f\u56e0\u3001\u51b3\u7b56\u3001\u6807\u7b7e"), U(r"\u7c7b\u578b"), U(r"\u5168\u90e8"), type_options, U(r"\u98ce\u9669\u7b49\u7ea7"), risk_options, U(r"\u6807\u7b7e"), esc(tag), U(r"\u641c\u7d22"), cards, U(r"\u51b3\u7b56\u8bb0\u5fc6"), self.bullets(decision_items), U(r"\u98ce\u9669\u8bb0\u5fc6"), self.bullets(risk_items)
+        )
+        self.out(layout(U(r"\u4f01\u4e1a\u8bb0\u5fc6"), body, user=user, wide=True))
 
     def memory_view(self, user):
         user = self.require_login(user)
@@ -13235,38 +13427,79 @@ where ki.deleted_at is null"""
             return
         mid = parse_qs(urlparse(self.path).query).get("id", [""])[0]
         with db() as conn:
-            row = conn.execute("select * from memories where id=?", (mid,)).fetchone()
-        if not row or not self.can_view_memory(user, row):
+            row = conn.execute("select * from enterprise_memories where id=? and archived_at is null", (mid,)).fetchone()
+            relations = conn.execute("select * from memory_relations where memory_id=? order by created_at desc", (mid,)).fetchall() if row else []
+        if not row:
             return self.redir("/memory")
-        body = f"""
+        item = self.enterprise_memory_to_json(row)
+        relation_items = ["{} #{} ? {} ? {}".format(r["target_type"], r["target_id"] or "", r["relation_type"], r["description"] or "") for r in relations] or [U(r"\u6682\u65e0\u6269\u5c55\u5173\u8054\u3002")]
+        body = """
 <div class="panel">
-  <h2>{esc(row['title'])}</h2>
-  <p class="small">{esc(row['memory_id'])} 路 {esc(row['memory_type'])} 路 {esc(row['importance'])} 路 {esc(row['confidence'])} 路 {esc(row['status'])}</p>
-  <p>{esc(row['content'])}</p>
-  <h2>{U(r'\u5173\u8054\u5bf9\u8c61')}</h2><p>{esc(row['object_type'] or U(r'\u6682\u65e0'))} {esc(row['object_id'] or '')}</p>
-  <p><a class="btn gray" href="/memory">{U(r'\u8fd4\u56de')}</a></p>
-</div>"""
-        self.out(layout(row["title"], body, user=user, wide=True))
+  <h2>{}</h2>
+  <p class="small">{} ? {} ? {} ? {}</p>
+  <p>{}</p>
+  <h2>{}</h2><p>{}</p>
+  <h2>{}</h2><p>{}</p>
+  <h2>{}</h2><p>{}</p>
+  <h2>{}</h2><p>{}</p>
+  <h2>{}</h2>{}
+  <p><a class="btn gray" href="/memory">{}</a> <a class="btn dark" href="/api/memories/{}">API</a></p>
+</div>
+<div class="panel form">
+  <h2>{}</h2>
+  <form method="post" action="/memory/save">
+    <input type="hidden" name="id" value="{}">
+    <label>{}</label><input name="title" value="{}" required>
+    <label>{}</label><textarea name="summary">{}</textarea>
+    <label>{}</label><textarea name="content">{}</textarea>
+    <label>{}</label><textarea name="reason">{}</textarea>
+    <label>{}</label><textarea name="decision">{}</textarea>
+    <label>{}</label><textarea name="impact">{}</textarea>
+    <label>{}</label><input name="tags" value="{}">
+    <p><button>{}</button></p>
+  </form>
+</div>""".format(
+            esc(item["title"]), esc(item["memory_type"]), esc(item["risk_level"]), esc(item["status"]), esc(dt(item["occurred_at"] or item["created_at"])), esc(item.get("summary") or ""),
+            U(r"\u539f\u56e0"), esc(item.get("reason") or ""), U(r"\u51b3\u7b56"), esc(item.get("decision") or ""), U(r"\u5f71\u54cd"), esc(item.get("impact") or ""), U(r"\u5173\u8054"), esc("{} #{} / document #{} / knowledge #{} / timeline #{}".format(item.get("related_object_type") or "", item.get("related_object_id") or "", item.get("related_document_id") or "", item.get("related_knowledge_id") or "", item.get("related_timeline_event_id") or "")), U(r"\u5173\u8054\u5173\u7cfb"), self.bullets(relation_items), U(r"\u8fd4\u56de"), item["id"],
+            U(r"\u7f16\u8f91\u8bb0\u5fc6"), item["id"], U(r"\u6807\u9898"), esc(item.get("title") or ""), U(r"\u6458\u8981"), esc(item.get("summary") or ""), U(r"\u5185\u5bb9"), esc(item.get("content") or ""), U(r"\u539f\u56e0"), esc(item.get("reason") or ""), U(r"\u51b3\u7b56"), esc(item.get("decision") or ""), U(r"\u5f71\u54cd"), esc(item.get("impact") or ""), U(r"\u6807\u7b7e"), esc(", ".join(item.get("tags_list") or [])), U(r"\u4fdd\u5b58\u66f4\u65b0")
+        )
+        self.out(layout(item["title"], body, user=user, wide=True))
 
     def memory_save(self):
         user = self.current_user()
         if not user:
             return self.redir("/login")
         form = self.form()
-        title = form.get("title", "").strip()
-        if not title:
-            return self.redir("/memory")
-        visibility = form.get("visibility", "manager_only")
-        if visibility not in ("public_internal", "manager_only", "owner_only", "finance_only", "restricted"):
-            visibility = "manager_only"
         now = ts()
+        payload = self.normalize_enterprise_memory_form(form, user)
         with db() as conn:
-            cur = conn.execute(
-                "insert into memories(memory_id,title,content,memory_type,object_type,object_id,source_type,source_id,importance,confidence,visibility,status,created_by,created_at,updated_at,expires_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                ("MEM-" + uuid.uuid4().hex[:10], title, form.get("content", ""), form.get("memory_type", "company_principle"), module_key(form.get("object_type", "")), int(form.get("object_id")) if str(form.get("object_id", "")).isdigit() else None, form.get("source_type", "manual"), form.get("source_id", ""), form.get("importance", "normal"), form.get("confidence", "medium"), visibility, "pending_review", user["id"], now, now, None),
-            )
-        self.log_action(user, "memory_create", "memory", cur.lastrowid, title)
-        return self.redir("/memory")
+            existing_id = form.get("id", "")
+            if str(existing_id).isdigit():
+                existing_row = conn.execute("select * from enterprise_memories where id=? and archived_at is null", (existing_id,)).fetchone()
+                if not existing_row:
+                    return self.redir("/memory")
+                payload = self.normalize_enterprise_memory_form(form, user, row_dict(existing_row))
+                conn.execute(
+                    "update enterprise_memories set title=?,memory_type=?,summary=?,content=?,reason=?,decision=?,impact=?,risk_level=?,status=?,tags=?,related_object_type=?,related_object_id=?,related_document_id=?,related_knowledge_id=?,related_timeline_event_id=?,occurred_at=?,updated_at=?,archived_at=? where id=?",
+                    (payload["title"], payload["memory_type"], payload["summary"], payload["content"], payload["reason"], payload["decision"], payload["impact"], payload["risk_level"], payload["status"], payload["tags"], payload["related_object_type"], payload["related_object_id"], payload["related_document_id"], payload["related_knowledge_id"], payload["related_timeline_event_id"], payload["occurred_at"], payload["updated_at"], payload["archived_at"], existing_id),
+                )
+                payload["id"] = int(existing_id)
+                self.write_enterprise_memory_timeline(conn, payload, "memory_updated", user)
+            else:
+                cur = conn.execute(
+                    "insert into enterprise_memories(title,memory_type,summary,content,reason,decision,impact,risk_level,status,tags,related_object_type,related_object_id,related_document_id,related_knowledge_id,related_timeline_event_id,created_by,occurred_at,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (payload["title"], payload["memory_type"], payload["summary"], payload["content"], payload["reason"], payload["decision"], payload["impact"], payload["risk_level"], payload["status"], payload["tags"], payload["related_object_type"], payload["related_object_id"], payload["related_document_id"], payload["related_knowledge_id"], payload["related_timeline_event_id"], payload["created_by"], payload["occurred_at"], payload["created_at"], payload["updated_at"], payload["archived_at"]),
+                )
+                payload["id"] = cur.lastrowid
+                if payload["related_object_type"] and payload["related_object_id"]:
+                    conn.execute("insert into memory_relations(memory_id,target_type,target_id,relation_type,description,created_at) values(?,?,?,?,?,?)", (cur.lastrowid, payload["related_object_type"], payload["related_object_id"], "related_object", payload["title"], now))
+                if payload["related_document_id"]:
+                    conn.execute("insert into memory_relations(memory_id,target_type,target_id,relation_type,description,created_at) values(?,?,?,?,?,?)", (cur.lastrowid, "document", payload["related_document_id"], "evidence", payload["title"], now))
+                if payload["related_knowledge_id"]:
+                    conn.execute("insert into memory_relations(memory_id,target_type,target_id,relation_type,description,created_at) values(?,?,?,?,?,?)", (cur.lastrowid, "knowledge", payload["related_knowledge_id"], "evidence", payload["title"], now))
+                self.write_enterprise_memory_timeline(conn, payload, "memory_created", user)
+        self.log_action(user, "enterprise_memory_create", "enterprise_memory", payload["id"], payload["title"])
+        return self.redir("/memory/view?id=" + str(payload["id"]))
 
     def memory_action(self):
         user = self.current_user()
@@ -13394,6 +13627,101 @@ where ki.deleted_at is null"""
                 rows = conn.execute("select * from decision_memories order by updated_at desc limit 100").fetchall()
             return self.json_out({"ok": True, "decisions": [row_dict(r) for r in rows]})
         return self.json_out({"ok": False, "message": "unknown memory api"}, code=404)
+
+    def api_enterprise_memories_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if path == "/api/memory-types":
+            return self.json_out({"ok": True, "memory_types": self.enterprise_memory_types(), "risk_levels": ["low", "medium", "high", "critical"], "statuses": ["draft", "active", "reviewed", "archived"]})
+        m_obj = re.match(r"^/api/objects/(\d+)/memories$", path)
+        if m_obj:
+            with db() as conn:
+                obj = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (m_obj.group(1),)).fetchone()
+                if not obj:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                rows = conn.execute("select * from enterprise_memories where archived_at is null and related_object_type=? and related_object_id=? order by updated_at desc limit 100", (obj["object_type"], obj["id"])).fetchall()
+            return self.json_out({"ok": True, "object_id": int(m_obj.group(1)), "memories": [self.enterprise_memory_to_json(r) for r in rows]})
+        m = re.match(r"^/api/memories/(\d+)$", path)
+        if m:
+            with db() as conn:
+                row = conn.execute("select * from enterprise_memories where id=? and archived_at is null", (m.group(1),)).fetchone()
+                relations = conn.execute("select * from memory_relations where memory_id=? order by created_at desc", (m.group(1),)).fetchall() if row else []
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "memory": self.enterprise_memory_to_json(row), "relations": [row_dict(r) for r in relations]})
+        if path == "/api/memories":
+            query = parse_qs(urlparse(self.path).query)
+            q = query.get("q", [""])[0].strip()
+            memory_type = module_key(query.get("type", [""])[0])
+            risk_level = query.get("risk_level", [""])[0].strip()
+            tag = query.get("tag", [""])[0].strip()
+            where, params = ["archived_at is null"], []
+            if q:
+                like = "%" + q + "%"
+                where.append("(title like ? or summary like ? or content like ? or reason like ? or decision like ? or tags like ?)")
+                params += [like, like, like, like, like, like]
+            if memory_type:
+                where.append("memory_type=?")
+                params.append(memory_type)
+            if risk_level:
+                where.append("risk_level=?")
+                params.append(risk_level)
+            if tag:
+                where.append("tags like ?")
+                params.append("%" + tag + "%")
+            with db() as conn:
+                rows = conn.execute("select * from enterprise_memories where " + " and ".join(where) + " order by updated_at desc limit 200", params).fetchall()
+                summary = {
+                    "total": conn.execute("select count(*) c from enterprise_memories where archived_at is null").fetchone()["c"],
+                    "high_risk": conn.execute("select count(*) c from enterprise_memories where archived_at is null and risk_level in ('high','critical')").fetchone()["c"],
+                    "decision": conn.execute("select count(*) c from enterprise_memories where archived_at is null and memory_type='decision'").fetchone()["c"],
+                    "risk": conn.execute("select count(*) c from enterprise_memories where archived_at is null and memory_type='risk'").fetchone()["c"],
+                }
+            return self.json_out({"ok": True, "summary": summary, "memories": [self.enterprise_memory_to_json(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown memories api"}, code=404)
+
+    def api_enterprise_memories_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        form = self.api_object_payload() if path.startswith("/api/") else self.form()
+        now = ts()
+        m = re.match(r"^/api/memories/(\d+)$", path)
+        if m:
+            with db() as conn:
+                existing_row = conn.execute("select * from enterprise_memories where id=? and archived_at is null", (m.group(1),)).fetchone()
+                if not existing_row:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                existing = row_dict(existing_row)
+                payload = self.normalize_enterprise_memory_form(form, user, existing)
+                conn.execute(
+                    "update enterprise_memories set title=?,memory_type=?,summary=?,content=?,reason=?,decision=?,impact=?,risk_level=?,status=?,tags=?,related_object_type=?,related_object_id=?,related_document_id=?,related_knowledge_id=?,related_timeline_event_id=?,occurred_at=?,updated_at=?,archived_at=? where id=?",
+                    (payload["title"], payload["memory_type"], payload["summary"], payload["content"], payload["reason"], payload["decision"], payload["impact"], payload["risk_level"], payload["status"], payload["tags"], payload["related_object_type"], payload["related_object_id"], payload["related_document_id"], payload["related_knowledge_id"], payload["related_timeline_event_id"], payload["occurred_at"], payload["updated_at"], payload["archived_at"], m.group(1)),
+                )
+                payload["id"] = int(m.group(1))
+                self.write_enterprise_memory_timeline(conn, payload, "memory_updated", user)
+            return self.json_out({"ok": True, "memory_id": int(m.group(1))})
+        if path == "/api/memories":
+            payload = self.normalize_enterprise_memory_form(form, user)
+            with db() as conn:
+                cur = conn.execute(
+                    "insert into enterprise_memories(title,memory_type,summary,content,reason,decision,impact,risk_level,status,tags,related_object_type,related_object_id,related_document_id,related_knowledge_id,related_timeline_event_id,created_by,occurred_at,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (payload["title"], payload["memory_type"], payload["summary"], payload["content"], payload["reason"], payload["decision"], payload["impact"], payload["risk_level"], payload["status"], payload["tags"], payload["related_object_type"], payload["related_object_id"], payload["related_document_id"], payload["related_knowledge_id"], payload["related_timeline_event_id"], payload["created_by"], payload["occurred_at"], payload["created_at"], payload["updated_at"], payload["archived_at"]),
+                )
+                payload["id"] = cur.lastrowid
+                self.write_enterprise_memory_timeline(conn, payload, "memory_created", user)
+            return self.json_out({"ok": True, "memory_id": payload["id"]})
+        return self.json_out({"ok": False, "message": "unknown memories write api"}, code=404)
+
+    def api_enterprise_memories_delete(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        m = re.match(r"^/api/memories/(\d+)$", path)
+        if not m:
+            return self.json_out({"ok": False, "message": "unknown memories delete api"}, code=404)
+        now = ts()
+        with db() as conn:
+            conn.execute("update enterprise_memories set status='archived', archived_at=?, updated_at=? where id=?", (now, now, m.group(1)))
+        return self.json_out({"ok": True, "archived": True, "memory_id": int(m.group(1))})
 
     def api_memory_post(self, user, path):
         if not user:
