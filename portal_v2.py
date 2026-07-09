@@ -249,7 +249,7 @@ def load_env_file():
 load_env_file()
 
 T = {
-    "brand": U(r"\u706b\u72d0\u72f8 AI \u4f01\u4e1a\u7ecf\u8425\u7cfb\u7edf"),
+    "brand": "FoxBrain Owner OS",
     "subtitle": "",
     "login": U(r"\u767b\u5f55"),
     "register": U(r"\u65b0\u5458\u5de5\u6ce8\u518c"),
