@@ -3376,3 +3376,76 @@ def test_sprint010_summary_and_report_present():
         "no external AI API",
     ]:
         assert phrase in report
+
+
+def test_sprint011_business_rule_engine_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists business_rules",
+        "create table if not exists business_rule_runs",
+        "create table if not exists business_rule_results",
+        "idx_business_rules_status",
+        "def business_rule_summary",
+        "def evaluate_business_rules",
+        "def business_rules_page",
+        "def api_business_rules_get",
+        "def api_business_rules_post",
+        '"/business-rules"',
+        '"/business-rules/runs"',
+        '"/api/business-rules"',
+        '"/api/business-rules/rebuild"',
+        '"/api/business-rules/runs"',
+        '"/api/business-rules/results"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint011_business_rule_engine_seeded_rules_and_integrations_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "inventory_over_180_amount_50000",
+        "inventory_over_365_amount_100000",
+        "gross_margin_below_25",
+        "negative_gross_profit",
+        "inventory_cost_missing_quality",
+        "brand_sales_share_over_60",
+        "store_margin_decline_three_months",
+        "business_rules_are_database_records_viewable_editable_auditable",
+        "business_rule_triggered_decision_insights_must_include_evidence",
+        "rule_based_no_external_ai_api_no_production_sap_all_triggered_decisions_include_evidence",
+        "business_rule_runs",
+        "business_rule_results",
+        "upsert_decision_insight",
+        "Active Rules",
+        "Rule Runs",
+        "High Rule Triggers",
+        "Business Rule Engine",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint011_summary_and_report_present():
+    summary = read("SPRINT011_BUSINESS_RULE_ENGINE_SUMMARY.md")
+    report = read("SPRINT011_BUSINESS_RULE_ENGINE_TEST_REPORT.md")
+    for phrase in [
+        "Sprint011 Business Rule Engine Summary",
+        "business_rules",
+        "business_rule_runs",
+        "business_rule_results",
+        "GET /api/business-rules",
+        "POST /api/business-rules/rebuild",
+        "PATCH /api/business-rules/:id",
+        "Decision Engine Integration",
+        "Dashboard Integration",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint011 Business Rule Engine Test Report",
+        "Schema Checks",
+        "API Checks",
+        "UI Checks",
+        "Guardrail Checks",
+        "no production SAP connection",
+        "no external AI API",
+    ]:
+        assert phrase in report
