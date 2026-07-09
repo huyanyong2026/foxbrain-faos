@@ -3163,3 +3163,144 @@ def test_sprint008_summary_and_report_present():
         "No production SAP connection was made",
     ]:
         assert phrase in real_report
+
+
+def test_sprint008_5_business_calibration_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists store_aliases",
+        "create table if not exists brand_aliases",
+        "create table if not exists business_calibration_rules",
+        "create table if not exists business_metric_quality",
+        "canonical_key text",
+        "idx_business_object_suggestions_canonical",
+        "def canonical_store_name",
+        "def canonical_brand_name",
+        "def product_canonical_key",
+        "def business_calibration_page",
+        '"/business-calibration"',
+        '"/api/business-calibration/summary"',
+        '"/api/business-calibration/store-aliases"',
+        '"/api/business-calibration/brand-aliases"',
+        '"/api/business-calibration/quality"',
+        '"/api/business-calibration/rebuild"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint008_5_dashboard_search_and_safety_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "Business Calibration",
+        "gross_margin",
+        "inventory_cost_amount",
+        "metric_quality_warnings",
+        '"type": "store_alias"',
+        '"type": "brand_alias"',
+        '"type": "calibration_rule"',
+        '"type": "metric_quality"',
+        "Store Alias",
+        "Brand Alias",
+        "Calibration Rule",
+        "Metric Quality",
+        "file_import_only_no_production_sap_connection",
+        r"\u4e0d\u8fde\u63a5\u6216\u4fee\u6539\u751f\u4ea7 SAP",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint008_5_summary_and_report_present():
+    summary = read("SPRINT008_5_BUSINESS_CALIBRATION_SUMMARY.md")
+    report = read("SPRINT008_5_BUSINESS_CALIBRATION_TEST_REPORT.md")
+    for phrase in [
+        "Sprint008.5 Business Calibration Summary",
+        "store_aliases",
+        "brand_aliases",
+        "business_calibration_rules",
+        "business_metric_quality",
+        "Object Match Center",
+        "CEO Dashboard",
+        "No production SAP connection",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint008.5 Business Calibration Test Report",
+        "Store normalization",
+        "Brand normalization",
+        "Product calibration",
+        "Object suggestion reduction",
+        "Dashboard changes",
+        "No production SAP connection",
+    ]:
+        assert phrase in report
+
+
+def test_sprint009_knowledge_graph_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists knowledge_graph_nodes",
+        "create table if not exists knowledge_graph_edges",
+        'ensure_column(conn, "knowledge_graph_nodes", "object_id"',
+        'ensure_column(conn, "knowledge_graph_nodes", "name"',
+        'ensure_column(conn, "knowledge_graph_edges", "source_node_id"',
+        'ensure_column(conn, "knowledge_graph_edges", "source_type"',
+        "def build_business_knowledge_graph",
+        "def knowledge_graph_explorer",
+        "def knowledge_graph_context",
+        '"/knowledge-graph"',
+        "GET /api/graph/node/:id",
+        "GET /api/graph/relations/:id",
+        "GET /api/graph/context/:id",
+        '"/api/graph/build"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint009_knowledge_graph_sources_dashboard_and_search_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "All generated graph edges require source_type and source_id",
+        "Every relationship includes source_type and source_id",
+        "enterprise_objects",
+        "object_relations",
+        "sap_sales",
+        "sap_inventory",
+        "documents",
+        "knowledge_items",
+        "enterprise_memories",
+        "graph_nodes",
+        "graph_relationships",
+        "connected_brands",
+        "connected_products",
+        '"type": "knowledge_graph"',
+        '"type": "knowledge_graph_edge"',
+        "Business Knowledge Graph",
+        "no_production_sap_connection_no_unsupported_relationships",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint009_summary_and_report_present():
+    summary = read("SPRINT009_KNOWLEDGE_GRAPH_SUMMARY.md")
+    report = read("SPRINT009_KNOWLEDGE_GRAPH_TEST_REPORT.md")
+    for phrase in [
+        "Sprint009 Knowledge Graph Summary",
+        "knowledge_graph_nodes",
+        "knowledge_graph_edges",
+        "GET /api/graph/node/:id",
+        "GET /api/graph/relations/:id",
+        "GET /api/graph/context/:id",
+        "POST /api/graph/build",
+        "All graph relationships require traceable sources",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint009 Knowledge Graph Test Report",
+        "Graph build simulation",
+        "Graph nodes",
+        "Graph relationships",
+        "Edges with source",
+        "No production SAP connection",
+        "Smoke tests",
+    ]:
+        assert phrase in report
