@@ -2857,3 +2857,64 @@ def test_sprint003_summary_present():
         "Sprint004",
     ]:
         assert phrase in summary
+
+
+def test_sprint004_global_search_schema_routes_and_helpers_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        'ensure_column(conn, "timeline_events", col, ddl)',
+        "idx_timeline_entity",
+        "idx_timeline_source",
+        "idx_timeline_event_type",
+        "def global_search_results",
+        "def search_snippet",
+        'if path in ("/api/search", "/api/search/global")',
+        'if path == "/api/search/suggestions"',
+        'if path == "/api/timeline"',
+        "def api_search_timeline_post",
+        'if path in ("/os/search", "/search")',
+        "file",
+        "object",
+        "knowledge",
+        "chunk",
+        "document_chunks",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint004_timeline_object_integration_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "def add_timeline_event",
+        "def timeline_rows_for_entity",
+        r"^/api/objects/(\d+)/timeline$",
+        "object_created",
+        "object_updated",
+        "document_linked",
+        "knowledge_created",
+        "manual_note",
+        r"\u4f01\u4e1a\u65f6\u95f4\u8f74",
+        'method="post" action="/api/timeline"',
+        "self.timeline_rows_for_entity(conn, row[\"object_type\"], row[\"id\"], 80)",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint004_summary_present():
+    summary = read("SPRINT004_GLOBAL_SEARCH_TIMELINE_SUMMARY.md")
+    for phrase in [
+        "Sprint004 Global Search + Enterprise Timeline Summary",
+        "GET /api/search?q=",
+        "GET /api/search/suggestions?q=",
+        "GET /api/timeline",
+        "POST /api/timeline",
+        "GET /api/objects/:id/timeline",
+        "file",
+        "object",
+        "knowledge",
+        "chunk",
+        "does not build ai.vafox.com",
+        "does not require any external AI API",
+        "Sprint005",
+    ]:
+        assert phrase in summary
