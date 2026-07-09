@@ -3305,3 +3305,74 @@ def test_sprint009_summary_and_report_present():
         "Smoke tests",
     ]:
         assert phrase in report
+
+
+def test_sprint010_decision_engine_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists decision_insights",
+        "create table if not exists decision_evidence",
+        "create table if not exists decision_actions",
+        "idx_decision_insights_type_status",
+        "def rebuild_decision_insights",
+        "def decision_engine_summary",
+        "def decision_context",
+        "def decision_page",
+        "def api_decision_get",
+        "def api_decision_post",
+        '"/decision"',
+        '"/decision/insights"',
+        '"/api/decision/insights"',
+        '"/api/decision/rebuild"',
+        r"^/api/objects/(\d+)/decisions$",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint010_decision_engine_evidence_dashboard_memory_graph_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "all_decision_insights_must_have_evidence",
+        "rule_based_decision_engine_no_external_ai_api_no_auto_execution",
+        "no_production_sap_connection_no_external_ai_api_all_insights_require_evidence",
+        "decision_required_evidence_ok",
+        "source_type",
+        "source_id",
+        "Decision Insights",
+        "High Severity",
+        "Decision Evidence",
+        "Top 3 decision risks",
+        "Latest accepted decision",
+        "enterprise_memories",
+        "DECISION_ABOUT",
+        "decision_insights",
+        '"type": "decision"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint010_summary_and_report_present():
+    summary = read("SPRINT010_DECISION_ENGINE_SUMMARY.md")
+    report = read("SPRINT010_DECISION_ENGINE_TEST_REPORT.md")
+    for phrase in [
+        "Sprint010 Decision Engine Summary",
+        "decision_insights",
+        "decision_evidence",
+        "decision_actions",
+        "GET /api/decision/insights",
+        "POST /api/decision/rebuild",
+        "PATCH /api/decision/insights/:id",
+        "GET /api/objects/:id/decisions",
+        "all_decision_insights_must_have_evidence",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint010 Decision Engine Test Report",
+        "Schema Checks",
+        "API Checks",
+        "UI Checks",
+        "Guardrail Checks",
+        "no production SAP connection",
+        "no external AI API",
+    ]:
+        assert phrase in report
