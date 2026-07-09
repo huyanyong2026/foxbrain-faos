@@ -4493,7 +4493,7 @@ class App(BaseHTTPRequestHandler):
             return self.sap_sync(user)
         if path == "/data-pipeline":
             return self.data_pipeline_page(user)
-        if path in ("/data-lake", "/data-lake/sources", "/data-lake/records"):
+        if path in ("/data-lake", "/data-lake/sources", "/data-lake/records", "/sap-import"):
             return self.data_lake_page(user, path)
         if path in ("/object-links", "/object-suggestions"):
             return self.object_match_center(user, path)
