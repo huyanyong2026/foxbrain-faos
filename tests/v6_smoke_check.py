@@ -3519,3 +3519,76 @@ def test_sprint012_summary_and_report_present():
         "no external AI API",
     ]:
         assert phrase in report
+
+
+def test_sprint013_inventory_intelligence_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists inventory_intelligence_snapshots",
+        "create table if not exists inventory_product_analysis",
+        "create table if not exists inventory_intelligence_rules",
+        "idx_inventory_intelligence_snapshots_date",
+        "idx_inventory_product_analysis_snapshot",
+        "idx_inventory_intelligence_rules_status",
+        "def inventory_intelligence_summary",
+        "def classify_inventory_intelligence",
+        "def calculate_inventory_intelligence",
+        "def inventory_intelligence_page",
+        "def api_inventory_intelligence_get",
+        "def api_inventory_intelligence_post",
+        '"/inventory-intelligence"',
+        '"/api/inventory-intelligence"',
+        '"/api/inventory-intelligence/recalculate"',
+        '"/api/inventory-intelligence/snapshots"',
+        '"/api/inventory-intelligence/analysis"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint013_inventory_intelligence_evidence_integrations_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "all_inventory_risks_and_recommendations_must_include_evidence",
+        "inventory_intelligence_all_recommendations_have_evidence_no_production_sap",
+        "inventory_intelligence_file_import_only_no_production_sap_no_external_ai_api",
+        "inventory_intelligence_snapshot_created",
+        "inventory_intelligence_snapshots",
+        "inventory_product_analysis",
+        "inventory_intelligence_rules",
+        "upsert_decision_insight",
+        "Inventory Intelligence",
+        "inventory_intelligence_high_risk",
+        "inventory_intelligence_critical",
+        "inventory_intelligence_slow_stock",
+        "inventory_health",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint013_summary_and_report_present():
+    summary = read("SPRINT013_INVENTORY_INTELLIGENCE_SUMMARY.md")
+    report = read("SPRINT013_INVENTORY_INTELLIGENCE_TEST_REPORT.md")
+    for phrase in [
+        "Sprint013 Inventory Intelligence Summary",
+        "inventory_intelligence_snapshots",
+        "inventory_product_analysis",
+        "inventory_intelligence_rules",
+        "GET /api/inventory-intelligence",
+        "POST /api/inventory-intelligence/recalculate",
+        "Decision Engine Integration",
+        "Business Health Integration",
+        "Dashboard Integration",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint013 Inventory Intelligence Test Report",
+        "Schema Checks",
+        "Runtime Checks",
+        "Risk Rule Checks",
+        "Decision Engine Checks",
+        "Business Health Checks",
+        "Guardrail Checks",
+        "no production SAP connection",
+        "no external AI API",
+    ]:
+        assert phrase in report

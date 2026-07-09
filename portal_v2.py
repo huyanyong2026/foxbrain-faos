@@ -1653,6 +1653,80 @@ create table if not exists business_health_weights(
 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (rule_key, rule_name, rule_type, description, json.dumps(condition, ensure_ascii=False), json.dumps(action, ensure_ascii=False), severity, priority, status, 1, source, seed_now, seed_now, None),
             )
+        conn.execute(
+            """
+create table if not exists inventory_intelligence_snapshots(
+ id integer primary key autoincrement,
+ snapshot_date text not null,
+ total_inventory_amount real not null default 0,
+ total_inventory_quantity real not null default 0,
+ high_risk_count integer not null default 0,
+ critical_risk_count integer not null default 0,
+ slow_stock_count integer not null default 0,
+ opportunity_count integer not null default 0,
+ calculation_version text not null default 'sprint013_v1',
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists inventory_product_analysis(
+ id integer primary key autoincrement,
+ snapshot_id integer not null,
+ product_id text,
+ store_id text,
+ product_code text,
+ product_name text,
+ brand_name text,
+ store_name text,
+ inventory_quantity real not null default 0,
+ inventory_amount real not null default 0,
+ sales_quantity real not null default 0,
+ sales_amount real not null default 0,
+ last_sale_date text,
+ inventory_days integer not null default 0,
+ sales_velocity real not null default 0,
+ turnover_rate real not null default 0,
+ sell_through_rate real not null default 0,
+ risk_level text not null default 'normal',
+ recommendation text,
+ evidence_json text,
+ created_insight_id integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists inventory_intelligence_rules(
+ id integer primary key autoincrement,
+ rule_key text unique not null,
+ rule_name text not null,
+ rule_type text not null,
+ condition_json text,
+ severity text not null default 'medium',
+ status text not null default 'active',
+ source text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_inventory_intelligence_snapshots_date on inventory_intelligence_snapshots(snapshot_date, created_at)",
+            "create index if not exists idx_inventory_product_analysis_snapshot on inventory_product_analysis(snapshot_id, risk_level, inventory_amount)",
+            "create index if not exists idx_inventory_product_analysis_product on inventory_product_analysis(product_code, store_name, brand_name)",
+            "create index if not exists idx_inventory_intelligence_rules_status on inventory_intelligence_rules(status, rule_type)",
+        ]:
+            conn.execute(idx)
+        for rule_key, rule_name, rule_type, condition, severity in [
+            ("inventory_critical_age_amount", "Critical inventory: age over 365 days and amount high", "risk_rule", {"inventory_days_gt": 365, "inventory_amount_gte": 100000}, "critical"),
+            ("inventory_high_age_low_velocity", "High inventory risk: age over 180 days and low sales velocity", "risk_rule", {"inventory_days_gt": 180, "sales_velocity_lte": 0.05}, "high"),
+            ("inventory_dead_stock_no_sales", "Dead stock: inventory exists with no sales history", "risk_rule", {"inventory_quantity_gt": 0, "sales_quantity_lte": 0}, "high"),
+            ("inventory_fast_moving_low_stock", "Fast moving opportunity: sales velocity high and inventory low", "opportunity_rule", {"sales_velocity_gte": 0.5, "inventory_quantity_lte": 3}, "medium"),
+        ]:
+            conn.execute("insert or ignore into inventory_intelligence_rules(rule_key,rule_name,rule_type,condition_json,severity,status,source,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (rule_key, rule_name, rule_type, json.dumps(condition, ensure_ascii=False), severity, "active", "Sprint013 rule-based inventory intelligence", seed_now, seed_now))
         for canonical, alias, alias_type in [
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97"), "canonical"),
             (U(r"\u5357\u5c71\u5e97"), U(r"\u5357\u5c71\u5e97\u96f6\u552e\u5ba2\u6237"), "retail"),
@@ -4704,6 +4778,8 @@ class App(BaseHTTPRequestHandler):
             return self.business_rules_page(user, path)
         if path == "/business-health":
             return self.business_health_page(user)
+        if path == "/inventory-intelligence":
+            return self.inventory_intelligence_page(user)
         if path == "/apps":
             return self.apps_launcher(user)
         if path == "/desktop":
@@ -4882,6 +4958,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_business_rules_get(user, path)
         if path.startswith("/api/business-health"):
             return self.api_business_health_get(user, path)
+        if path.startswith("/api/inventory-intelligence"):
+            return self.api_inventory_intelligence_get(user, path)
         if path.startswith("/api/dashboard/"):
             return self.api_dashboard_get(user, path)
         if path == "/api/dashboard/ceo":
@@ -5116,6 +5194,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_business_rules_post(self.current_user(), path)
         if path.startswith("/api/business-health"):
             return self.api_business_health_post(self.current_user(), path)
+        if path.startswith("/api/inventory-intelligence"):
+            return self.api_inventory_intelligence_post(self.current_user(), path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
             return self.api_task005_post(self.current_user(), path)
         if path.startswith("/api/automation") or path.startswith("/api/workflows") or path.startswith("/api/notifications"):
@@ -7563,6 +7643,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             decision_metrics = self.decision_engine_summary(conn)
             rule_metrics = self.business_rule_summary(conn)
             health_metrics = self.business_health_summary(conn)
+            inventory_intelligence = self.inventory_intelligence_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7576,6 +7657,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Decision Engine", decision_metrics["decision_insights_total"] >= 0, "decision_insights"),
                 ("Business Rule Engine", rule_metrics["business_rules_active"] >= 0, "business_rules"),
                 ("Business Health Engine", health_metrics["overall_score"] >= 0, "business_health_snapshots"),
+                ("Inventory Intelligence", inventory_intelligence["total_inventory_quantity"] >= 0, "inventory_intelligence_snapshots"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7621,11 +7703,16 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "business_rule_triggered_high": rule_metrics["business_rule_triggered_high"],
                 "business_health_score": health_metrics["overall_score"],
                 "business_health_status": health_metrics["health_status"],
+                "inventory_intelligence_high_risk": inventory_intelligence["high_risk_count"],
+                "inventory_intelligence_critical": inventory_intelligence["critical_risk_count"],
+                "inventory_intelligence_slow_stock": inventory_intelligence["slow_stock_count"],
+                "inventory_intelligence_opportunity": inventory_intelligence["opportunity_count"],
             },
             "business_metrics": business_metrics,
             "decision_metrics": decision_metrics,
             "rule_metrics": rule_metrics,
             "health_metrics": health_metrics,
+            "inventory_intelligence": inventory_intelligence,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -7643,6 +7730,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "Decision Engine", "url": "/decision", "status": "ready"},
                 {"title": "Business Rule Engine", "url": "/business-rules", "status": "ready"},
                 {"title": "Business Health Engine", "url": "/business-health", "status": "ready"},
+                {"title": "Inventory Intelligence", "url": "/inventory-intelligence", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7687,6 +7775,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ("Rule Runs", summary["business_rule_runs_total"], "auditable"),
             ("High Rule Triggers", summary["business_rule_triggered_high"], "high/critical"),
             ("Business Health", "{:.1f}/100".format(summary["business_health_score"]), summary["business_health_status"]),
+            (U(r"\u5e93\u5b58\u5065\u5eb7"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), "Inventory Intelligence"),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7734,6 +7823,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "Business Rule Engine active rules: " + str(summary["business_rules_active"]),
             "Latest rule run: " + (str(latest_rule_run.get("id")) + " / " + str(latest_rule_run.get("status")) if latest_rule_run else "none"),
             "Business Health: {:.1f}/100 / {}".format(summary["business_health_score"], summary["business_health_status"]),
+            "Inventory Intelligence: high={} critical={} slow={} opportunity={}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"], summary["inventory_intelligence_slow_stock"], summary["inventory_intelligence_opportunity"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
@@ -15849,6 +15939,7 @@ order by gross_profit asc limit 300
         suggested_objects = int(metrics.get("suggested_objects") or 0)
         neg_profit = int(conn.execute("select count(*) c from sap_sales where coalesce(gross_profit,0)<0").fetchone()["c"] or 0)
         aged_inventory = int(conn.execute("select count(*) c from sap_inventory where coalesce(age_days,0)>180 and coalesce(retail_amount,cost_amount,0)>50000").fetchone()["c"] or 0)
+        inventory_intel = conn.execute("select * from inventory_intelligence_snapshots order by created_at desc limit 1").fetchone()
         store_count = int(conn.execute("select count(distinct store_name) c from business_metrics_snapshots where snapshot_type='store_sales' and coalesce(store_name,'')!=''").fetchone()["c"] or 0)
         brand_total = float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount'").fetchone()["v"] or 0)
         top_brand = conn.execute("select brand_name, metric_value sales_amount, id from business_metrics_snapshots where snapshot_type='brand_sales' and metric_key='sales_amount' and coalesce(brand_name,'')!='' order by metric_value desc limit 1").fetchone()
@@ -15864,9 +15955,16 @@ order by gross_profit asc limit 300
         inventory_score = 82 if inventory_qty > 0 else 55
         if aged_inventory:
             inventory_score = min(inventory_score, 55)
+        if inventory_intel and int(inventory_intel["critical_risk_count"] or 0) > 0:
+            inventory_score = min(inventory_score, 45)
+        elif inventory_intel and int(inventory_intel["high_risk_count"] or 0) > 0:
+            inventory_score = min(inventory_score, 58)
         if inventory_qty > 0 and metrics.get("inventory_cost_amount", 0) <= 0:
             inventory_score = min(inventory_score, 60)
-        add("inventory_health", inventory_score, "Inventory amount {}, quantity {}, aged risk rows {}.".format(inventory_amount, inventory_qty, aged_inventory), [{"source_type": "business_metrics_snapshots", "source_id": "inventory_retail_amount", "evidence_title": "Inventory amount", "evidence_summary": "inventory_retail_amount={} inventory_quantity={}".format(inventory_amount, inventory_qty), "confidence": 0.84}, {"source_type": "sap_inventory", "source_id": "age_days_over_180_amount_over_50000", "evidence_title": "Aged inventory count", "evidence_summary": "aged_inventory_count={}".format(aged_inventory), "confidence": 0.78}])
+        inventory_evidence = [{"source_type": "business_metrics_snapshots", "source_id": "inventory_retail_amount", "evidence_title": "Inventory amount", "evidence_summary": "inventory_retail_amount={} inventory_quantity={}".format(inventory_amount, inventory_qty), "confidence": 0.84}, {"source_type": "sap_inventory", "source_id": "age_days_over_180_amount_over_50000", "evidence_title": "Aged inventory count", "evidence_summary": "aged_inventory_count={}".format(aged_inventory), "confidence": 0.78}]
+        if inventory_intel:
+            inventory_evidence.append({"source_type": "inventory_intelligence_snapshots", "source_id": str(inventory_intel["id"]), "evidence_title": "Inventory Intelligence risk snapshot", "evidence_summary": "high={} critical={} slow={} opportunity={}".format(inventory_intel["high_risk_count"], inventory_intel["critical_risk_count"], inventory_intel["slow_stock_count"], inventory_intel["opportunity_count"]), "confidence": 0.86})
+        add("inventory_health", inventory_score, "Inventory amount {}, quantity {}, aged risk rows {}.".format(inventory_amount, inventory_qty, aged_inventory), inventory_evidence)
         brand_score = 82 if brand_total > 0 else 55
         if brand_share > 0.6:
             brand_score = 62
@@ -15976,6 +16074,233 @@ order by gross_profit asc limit 300
                 return self.redir("/business-health")
             return self.json_out(payload)
         return self.json_out({"ok": False, "message": "unknown business health write api"}, code=404)
+
+    def inventory_risk_rank(self, risk_level):
+        return {"critical": 0, "high": 1, "dead_stock": 2, "opportunity": 3, "medium": 4, "normal": 5}.get((risk_level or "normal").lower(), 5)
+
+    def inventory_analysis_to_json(self, row):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        return data
+
+    def inventory_intelligence_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            latest = conn.execute("select * from inventory_intelligence_snapshots order by created_at desc limit 1").fetchone()
+            snapshot_id = latest["id"] if latest else None
+            def rows(sql, params=()):
+                return [self.inventory_analysis_to_json(r) for r in conn.execute(sql, params).fetchall()]
+            risk_rows = rows("select * from inventory_product_analysis where snapshot_id=? and risk_level in ('critical','high','dead_stock') order by case risk_level when 'critical' then 0 when 'high' then 1 when 'dead_stock' then 2 else 3 end, inventory_amount desc limit 20", (snapshot_id,)) if snapshot_id else []
+            opportunity_rows = rows("select * from inventory_product_analysis where snapshot_id=? and risk_level='opportunity' order by sales_velocity desc, sales_amount desc limit 20", (snapshot_id,)) if snapshot_id else []
+            brand_pressure = [row_dict(r) for r in conn.execute("select brand_name, count(*) item_count, sum(inventory_amount) inventory_amount, sum(case when risk_level in ('critical','high','dead_stock') then 1 else 0 end) risk_count from inventory_product_analysis where snapshot_id=? group by brand_name order by risk_count desc, inventory_amount desc limit 10", (snapshot_id,)).fetchall()] if snapshot_id else []
+            store_pressure = [row_dict(r) for r in conn.execute("select store_name, count(*) item_count, sum(inventory_amount) inventory_amount, sum(case when risk_level in ('critical','high','dead_stock') then 1 else 0 end) risk_count from inventory_product_analysis where snapshot_id=? group by store_name order by risk_count desc, inventory_amount desc limit 10", (snapshot_id,)).fetchall()] if snapshot_id else []
+            return {
+                "inventory_snapshot": row_dict(latest) if latest else None,
+                "total_inventory_amount": float(latest["total_inventory_amount"] if latest else 0),
+                "total_inventory_quantity": float(latest["total_inventory_quantity"] if latest else 0),
+                "high_risk_count": int(latest["high_risk_count"] if latest else 0),
+                "critical_risk_count": int(latest["critical_risk_count"] if latest else 0),
+                "slow_stock_count": int(latest["slow_stock_count"] if latest else 0),
+                "opportunity_count": int(latest["opportunity_count"] if latest else 0),
+                "risk_ranking": risk_rows,
+                "opportunity_products": opportunity_rows,
+                "brand_pressure": brand_pressure,
+                "store_pressure": store_pressure,
+                "evidence_rule": "all_inventory_risks_and_recommendations_must_include_evidence",
+                "safety": "inventory_intelligence_file_import_only_no_production_sap_no_external_ai_api",
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def inventory_recommendation(self, risk_level, row):
+        if risk_level == "critical":
+            return "Manual review required: aged high-value inventory. Consider markdown, transfer, or procurement freeze after approval."
+        if risk_level == "high":
+            return "Review slow inventory with sales velocity evidence before promotion or transfer."
+        if risk_level == "dead_stock":
+            return "Verify product status and store display; create clearance or transfer task only after manager approval."
+        if risk_level == "opportunity":
+            return "Fast moving and low stock: review replenishment opportunity with purchasing approval."
+        return "Monitor with next SAP export import."
+
+    def classify_inventory_intelligence(self, inventory_days, inventory_amount, inventory_qty, sales_qty, sales_velocity):
+        if inventory_days > 365 and inventory_amount >= 100000:
+            return "critical"
+        if inventory_qty > 0 and sales_qty <= 0:
+            return "dead_stock"
+        if inventory_days > 180 and sales_velocity <= 0.05:
+            return "high"
+        if sales_velocity >= 0.5 and inventory_qty <= 3 and sales_qty > 0:
+            return "opportunity"
+        if inventory_days > 120 and sales_velocity <= 0.1:
+            return "medium"
+        return "normal"
+
+    def calculate_inventory_intelligence(self, user=None):
+        now = ts()
+        snapshot_date = time.strftime("%Y-%m-%d", time.localtime(now))
+        with db() as conn:
+            inventory_rows = conn.execute("""
+select
+ coalesce(store_name,'') store_name,
+ coalesce(store_code,'') store_code,
+ coalesce(brand_name,'') brand_name,
+ coalesce(product_code,'') product_code,
+ coalesce(product_name,'') product_name,
+ sum(coalesce(quantity,0)) inventory_quantity,
+ sum(coalesce(retail_amount,cost_amount,0)) inventory_amount,
+ max(coalesce(age_days,0)) inventory_days,
+ group_concat(id) evidence_ids
+from sap_inventory
+group by coalesce(store_name,''), coalesce(store_code,''), coalesce(brand_name,''), coalesce(product_code,''), coalesce(product_name,'')
+having sum(coalesce(quantity,0)) != 0 or sum(coalesce(retail_amount,cost_amount,0)) != 0
+""").fetchall()
+            sales_rows = conn.execute("""
+select
+ coalesce(store_name,'') store_name,
+ coalesce(product_code,'') product_code,
+ sum(coalesce(quantity,0)) sales_quantity,
+ sum(coalesce(amount,0)) sales_amount,
+ max(sale_date) last_sale_date,
+ min(sale_date) first_sale_date,
+ count(*) sales_rows,
+ group_concat(id) evidence_ids
+from sap_sales
+group by coalesce(store_name,''), coalesce(product_code,'')
+""").fetchall()
+            sales_lookup = {(r["store_name"], r["product_code"]): r for r in sales_rows}
+            total_amount = 0.0
+            total_qty = 0.0
+            analyses = []
+            for inv in inventory_rows:
+                sales = sales_lookup.get((inv["store_name"], inv["product_code"]))
+                inventory_qty = float(inv["inventory_quantity"] or 0)
+                inventory_amount = float(inv["inventory_amount"] or 0)
+                sales_qty = float(sales["sales_quantity"] if sales else 0)
+                sales_amount = float(sales["sales_amount"] if sales else 0)
+                inventory_days = int(inv["inventory_days"] or 0)
+                sales_velocity = sales_qty / max(inventory_qty + sales_qty, 1)
+                turnover_rate = sales_qty / max(inventory_qty, 1)
+                sell_through_rate = sales_qty / max(inventory_qty + sales_qty, 1)
+                risk_level = self.classify_inventory_intelligence(inventory_days, inventory_amount, inventory_qty, sales_qty, sales_velocity)
+                evidence = [
+                    {"source_type": "sap_inventory", "source_id": str(inv["evidence_ids"] or inv["product_code"] or "inventory"), "evidence_title": "Inventory export rows", "evidence_summary": "store={} brand={} product={} qty={} amount={} age_days={}".format(inv["store_name"], inv["brand_name"], inv["product_name"], inventory_qty, inventory_amount, inventory_days), "confidence": 0.86},
+                    {"source_type": "sap_sales", "source_id": str(sales["evidence_ids"] if sales else "no_sales_history"), "evidence_title": "Sales export rows", "evidence_summary": "sales_qty={} sales_amount={} last_sale_date={}".format(sales_qty, sales_amount, sales["last_sale_date"] if sales else ""), "confidence": 0.78},
+                    {"source_type": "inventory_intelligence_rules", "source_id": risk_level, "evidence_title": "Rule-based risk classification", "evidence_summary": "risk_level={} sales_velocity={:.4f} turnover_rate={:.4f}".format(risk_level, sales_velocity, turnover_rate), "confidence": 0.74},
+                ]
+                analyses.append({
+                    "product_id": inv["product_code"] or inv["product_name"],
+                    "store_id": inv["store_code"] or inv["store_name"],
+                    "product_code": inv["product_code"],
+                    "product_name": inv["product_name"],
+                    "brand_name": inv["brand_name"],
+                    "store_name": inv["store_name"],
+                    "inventory_quantity": inventory_qty,
+                    "inventory_amount": inventory_amount,
+                    "sales_quantity": sales_qty,
+                    "sales_amount": sales_amount,
+                    "last_sale_date": sales["last_sale_date"] if sales else "",
+                    "inventory_days": inventory_days,
+                    "sales_velocity": sales_velocity,
+                    "turnover_rate": turnover_rate,
+                    "sell_through_rate": sell_through_rate,
+                    "risk_level": risk_level,
+                    "recommendation": self.inventory_recommendation(risk_level, inv),
+                    "evidence": evidence,
+                })
+                total_amount += inventory_amount
+                total_qty += inventory_qty
+            high_count = sum(1 for a in analyses if a["risk_level"] == "high")
+            critical_count = sum(1 for a in analyses if a["risk_level"] == "critical")
+            slow_count = sum(1 for a in analyses if a["risk_level"] in ("high", "critical", "dead_stock"))
+            opportunity_count = sum(1 for a in analyses if a["risk_level"] == "opportunity")
+            cur = conn.execute("insert into inventory_intelligence_snapshots(snapshot_date,total_inventory_amount,total_inventory_quantity,high_risk_count,critical_risk_count,slow_stock_count,opportunity_count,calculation_version,created_at) values(?,?,?,?,?,?,?,?,?)", (snapshot_date, total_amount, total_qty, high_count, critical_count, slow_count, opportunity_count, "sprint013_v1_rule_based_evidence", now))
+            snapshot_id = cur.lastrowid
+            created_insights = []
+            for a in analyses:
+                cur = conn.execute(
+                    "insert into inventory_product_analysis(snapshot_id,product_id,store_id,product_code,product_name,brand_name,store_name,inventory_quantity,inventory_amount,sales_quantity,sales_amount,last_sale_date,inventory_days,sales_velocity,turnover_rate,sell_through_rate,risk_level,recommendation,evidence_json,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (snapshot_id, a["product_id"], a["store_id"], a["product_code"], a["product_name"], a["brand_name"], a["store_name"], a["inventory_quantity"], a["inventory_amount"], a["sales_quantity"], a["sales_amount"], a["last_sale_date"], a["inventory_days"], a["sales_velocity"], a["turnover_rate"], a["sell_through_rate"], a["risk_level"], a["recommendation"], json.dumps(a["evidence"], ensure_ascii=False), now),
+                )
+                a["id"] = cur.lastrowid
+            risk_candidates = sorted([a for a in analyses if a["risk_level"] in ("critical", "high", "dead_stock", "opportunity")], key=lambda x: (self.inventory_risk_rank(x["risk_level"]), -x["inventory_amount"]))[:8]
+            for a in risk_candidates:
+                if not a["evidence"]:
+                    raise ValueError("inventory recommendation missing evidence: " + str(a.get("product_code")))
+                insight_type = "replenishment_opportunity" if a["risk_level"] == "opportunity" else "inventory_risk"
+                severity = "critical" if a["risk_level"] == "critical" else ("high" if a["risk_level"] in ("high", "dead_stock") else "medium")
+                title = "Inventory intelligence: {} / {} / {}".format(a["risk_level"], a["store_name"] or "-", a["product_name"] or a["product_code"] or "-")
+                insight_id = self.upsert_decision_insight(conn, insight_type, title, a["recommendation"], severity, "inventory_intelligence", a["id"], {"snapshot_id": snapshot_id, "risk_level": a["risk_level"], "inventory_amount": a["inventory_amount"], "sales_velocity": a["sales_velocity"]}, a["evidence"], a["recommendation"], [{"title": "Review inventory action", "description": a["recommendation"], "action_type": "manual_review", "owner": "purchasing"}], user)
+                if insight_id:
+                    created_insights.append(insight_id)
+                    conn.execute("update inventory_product_analysis set created_insight_id=? where id=?", (insight_id, a["id"]))
+            self.add_timeline_event(conn, "inventory_intelligence", snapshot_id, "inventory_intelligence_snapshot_created", "Inventory Intelligence Snapshot Created", "high={} critical={} slow={} opportunity={}".format(high_count, critical_count, slow_count, opportunity_count), "inventory_intelligence_snapshots", snapshot_id, {"created_insights": created_insights, "total_inventory_amount": total_amount}, user["id"] if user else None, now)
+        return {"ok": True, "snapshot_id": snapshot_id, "total_inventory_amount": total_amount, "total_inventory_quantity": total_qty, "high_risk_count": high_count, "critical_risk_count": critical_count, "slow_stock_count": slow_count, "opportunity_count": opportunity_count, "created_insights": created_insights, "safety": "inventory_intelligence_all_recommendations_have_evidence_no_production_sap"}
+
+    def inventory_intelligence_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        summary = self.inventory_intelligence_summary()
+        snapshot = summary["inventory_snapshot"]
+        metrics = "".join([
+            self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["total_inventory_amount"]), "SAP import"),
+            self.metric(U(r"\u5e93\u5b58\u6570\u91cf"), money(summary["total_inventory_quantity"]), "quantity"),
+            self.metric(U(r"\u9ad8\u98ce\u9669"), summary["high_risk_count"], "high"),
+            self.metric(U(r"\u4e25\u91cd\u98ce\u9669"), summary["critical_risk_count"], "critical"),
+            self.metric(U(r"\u6ede\u9500"), summary["slow_stock_count"], "slow stock"),
+            self.metric(U(r"\u8865\u8d27\u673a\u4f1a"), summary["opportunity_count"], "opportunity"),
+        ])
+        risk_cards = "".join("<div class='card'><h2>{}</h2><p>{} / {}</p><p>{}</p><p class='small'>evidence {}</p></div>".format(esc(r.get("product_name") or r.get("product_code") or ""), esc(r.get("store_name") or ""), esc(r.get("risk_level") or ""), esc(r.get("recommendation") or ""), len(r.get("evidence_json") or [])) for r in summary["risk_ranking"]) or self.empty_state("No inventory risk snapshot yet.")
+        opportunity_cards = "".join("<div class='card'><h2>{}</h2><p>{} / velocity {:.3f}</p><p>{}</p></div>".format(esc(r.get("product_name") or r.get("product_code") or ""), esc(r.get("store_name") or ""), float(r.get("sales_velocity") or 0), esc(r.get("recommendation") or "")) for r in summary["opportunity_products"]) or self.empty_state("No replenishment opportunity yet.")
+        brand_items = self.bullets(["{} / risk {} / {}".format(esc(r.get("brand_name") or ""), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["brand_pressure"]] or ["No brand pressure yet."])
+        store_items = self.bullets(["{} / risk {} / {}".format(esc(r.get("store_name") or ""), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["store_pressure"]] or ["No store pressure yet."])
+        body = """
+<div class="panel"><h2>Inventory Intelligence</h2><p class="small">Rule-based, evidence-backed inventory risk and opportunity analysis. No production SAP connection.</p><form method="post" action="/api/inventory-intelligence/recalculate" style="display:inline"><button>Analyze Inventory</button></form> <a class="btn dark" href="/api/inventory-intelligence">API</a><div class="metrics">{}</div></div>
+<div class="split"><div class="panel"><h2>Brand Pressure</h2>{}</div><div class="panel"><h2>Store Pressure</h2>{}</div></div>
+<div class="panel"><h2>Risk Ranking</h2><div class="grid">{}</div></div>
+<div class="panel"><h2>Opportunity Products</h2><div class="grid">{}</div></div>""".format(metrics, brand_items, store_items, risk_cards, opportunity_cards)
+        self.out(layout("Inventory Intelligence", body, user=user, wide=True))
+
+    def api_inventory_intelligence_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/inventory-intelligence":
+            return self.json_out({"ok": True, **self.inventory_intelligence_summary()})
+        if path == "/api/inventory-intelligence/snapshots":
+            with db() as conn:
+                rows = conn.execute("select * from inventory_intelligence_snapshots order by created_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "snapshots": [row_dict(r) for r in rows]})
+        if path == "/api/inventory-intelligence/analysis":
+            q = parse_qs(urlparse(self.path).query)
+            sid = q.get("snapshot_id", [""])[0]
+            with db() as conn:
+                if str(sid).isdigit():
+                    rows = conn.execute("select * from inventory_product_analysis where snapshot_id=? order by case risk_level when 'critical' then 0 when 'high' then 1 when 'dead_stock' then 2 when 'opportunity' then 3 else 4 end, inventory_amount desc limit 300", (sid,)).fetchall()
+                else:
+                    latest = conn.execute("select id from inventory_intelligence_snapshots order by created_at desc limit 1").fetchone()
+                    rows = conn.execute("select * from inventory_product_analysis where snapshot_id=? order by case risk_level when 'critical' then 0 when 'high' then 1 when 'dead_stock' then 2 when 'opportunity' then 3 else 4 end, inventory_amount desc limit 300", (latest["id"],)).fetchall() if latest else []
+            return self.json_out({"ok": True, "analysis": [self.inventory_analysis_to_json(r) for r in rows]})
+        return self.json_out({"ok": False, "message": "unknown inventory intelligence api"}, code=404)
+
+    def api_inventory_intelligence_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/inventory-intelligence/recalculate":
+            payload = self.calculate_inventory_intelligence(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/inventory-intelligence")
+            return self.json_out(payload)
+        return self.json_out({"ok": False, "message": "unknown inventory intelligence write api"}, code=404)
 
     def can_view_graph(self, user):
         return bool(user)
