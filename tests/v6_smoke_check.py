@@ -3233,3 +3233,74 @@ def test_sprint008_5_summary_and_report_present():
         "No production SAP connection",
     ]:
         assert phrase in report
+
+
+def test_sprint009_knowledge_graph_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists knowledge_graph_nodes",
+        "create table if not exists knowledge_graph_edges",
+        'ensure_column(conn, "knowledge_graph_nodes", "object_id"',
+        'ensure_column(conn, "knowledge_graph_nodes", "name"',
+        'ensure_column(conn, "knowledge_graph_edges", "source_node_id"',
+        'ensure_column(conn, "knowledge_graph_edges", "source_type"',
+        "def build_business_knowledge_graph",
+        "def knowledge_graph_explorer",
+        "def knowledge_graph_context",
+        '"/knowledge-graph"',
+        "GET /api/graph/node/:id",
+        "GET /api/graph/relations/:id",
+        "GET /api/graph/context/:id",
+        '"/api/graph/build"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint009_knowledge_graph_sources_dashboard_and_search_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "All generated graph edges require source_type and source_id",
+        "Every relationship includes source_type and source_id",
+        "enterprise_objects",
+        "object_relations",
+        "sap_sales",
+        "sap_inventory",
+        "documents",
+        "knowledge_items",
+        "enterprise_memories",
+        "graph_nodes",
+        "graph_relationships",
+        "connected_brands",
+        "connected_products",
+        '"type": "knowledge_graph"',
+        '"type": "knowledge_graph_edge"',
+        "Business Knowledge Graph",
+        "no_production_sap_connection_no_unsupported_relationships",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint009_summary_and_report_present():
+    summary = read("SPRINT009_KNOWLEDGE_GRAPH_SUMMARY.md")
+    report = read("SPRINT009_KNOWLEDGE_GRAPH_TEST_REPORT.md")
+    for phrase in [
+        "Sprint009 Knowledge Graph Summary",
+        "knowledge_graph_nodes",
+        "knowledge_graph_edges",
+        "GET /api/graph/node/:id",
+        "GET /api/graph/relations/:id",
+        "GET /api/graph/context/:id",
+        "POST /api/graph/build",
+        "All graph relationships require traceable sources",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint009 Knowledge Graph Test Report",
+        "Graph build simulation",
+        "Graph nodes",
+        "Graph relationships",
+        "Edges with source",
+        "No production SAP connection",
+        "Smoke tests",
+    ]:
+        assert phrase in report

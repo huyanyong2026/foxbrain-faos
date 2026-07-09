@@ -2337,7 +2337,14 @@ create table if not exists knowledge_graph_nodes(
 )
 """
         )
+        ensure_column(conn, "knowledge_graph_nodes", "object_id", "object_id integer")
+        ensure_column(conn, "knowledge_graph_nodes", "name", "name text")
+        ensure_column(conn, "knowledge_graph_nodes", "metadata", "metadata text")
+        ensure_column(conn, "knowledge_graph_nodes", "source_type", "source_type text")
+        ensure_column(conn, "knowledge_graph_nodes", "source_id", "source_id text")
         conn.execute("create index if not exists idx_kg_nodes_type on knowledge_graph_nodes(node_type, label)")
+        conn.execute("create index if not exists idx_kg_nodes_object on knowledge_graph_nodes(node_type, object_id)")
+        conn.execute("create index if not exists idx_kg_nodes_name on knowledge_graph_nodes(name)")
         conn.execute(
             """
 create table if not exists knowledge_graph_edges(
@@ -2354,7 +2361,17 @@ create table if not exists knowledge_graph_edges(
 )
 """
         )
+        ensure_column(conn, "knowledge_graph_edges", "source_node_id", "source_node_id integer")
+        ensure_column(conn, "knowledge_graph_edges", "target_node_id", "target_node_id integer")
+        ensure_column(conn, "knowledge_graph_edges", "relation_type", "relation_type text")
+        ensure_column(conn, "knowledge_graph_edges", "confidence", "confidence real not null default 1")
+        ensure_column(conn, "knowledge_graph_edges", "source_type", "source_type text")
+        ensure_column(conn, "knowledge_graph_edges", "source_id", "source_id text")
+        ensure_column(conn, "knowledge_graph_edges", "metadata", "metadata text")
         conn.execute("create index if not exists idx_kg_edges_from on knowledge_graph_edges(from_node_id, edge_type)")
+        conn.execute("create index if not exists idx_kg_edges_source_node on knowledge_graph_edges(source_node_id, relation_type)")
+        conn.execute("create index if not exists idx_kg_edges_target_node on knowledge_graph_edges(target_node_id, relation_type)")
+        conn.execute("create index if not exists idx_kg_edges_source on knowledge_graph_edges(source_type, source_id)")
         conn.execute(
             """
 create table if not exists digital_employees(
@@ -4494,6 +4511,8 @@ class App(BaseHTTPRequestHandler):
             return self.workflow_automation_center(user)
         if path in ("/enterprise-knowledge-graph", "/entity-center", "/ai-permissions"):
             return self.enterprise_knowledge_graph_center(user)
+        if path == "/knowledge-graph":
+            return self.knowledge_graph_explorer(user)
         if path in ("/ai-strategy-center", "/strategy-sandbox", "/digital-twin-sandbox"):
             return self.v21_ai_strategy_center(user)
         if path in ("/business-autopilot", "/ai-autopilot", "/autonomous-operation"):
@@ -4674,6 +4693,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_workflow_automation_get(user, path)
         if path.startswith("/api/enterprise-knowledge-graph"):
             return self.api_enterprise_knowledge_graph_get(user, path)
+        if path.startswith("/api/graph"):
+            return self.api_graph_get(user, path)
         if path.startswith("/api/v2.1"):
             return self.api_v21_get(user, path)
         if path.startswith("/api/v2.2"):
@@ -6236,6 +6257,12 @@ class App(BaseHTTPRequestHandler):
             if want("metric_quality"):
                 for row in conn.execute("select * from business_metric_quality where metric_key like ? or coalesce(dimension_value,'') like ? or coalesce(quality_message,'') like ? order by created_at desc limit 50", (like, like, like)).fetchall():
                     results.append({"type": "metric_quality", "icon": "QA", "id": row["id"], "title": row["metric_key"], "snippet": row["quality_message"] or "", "source": row["quality_status"], "related_object": "{} / {}".format(row["dimension_type"] or "", row["dimension_value"] or ""), "url": "/business-calibration/quality", "score": 0.78, "updated_at": row["created_at"]})
+            if want("knowledge_graph"):
+                for row in conn.execute("select * from knowledge_graph_nodes where coalesce(name,label,'') like ? or node_type like ? or coalesce(metadata,'') like ? order by updated_at desc limit 50", (like, like, like)).fetchall():
+                    results.append({"type": "knowledge_graph", "icon": "KG", "id": row["id"], "title": row["name"] or row["label"], "snippet": self.search_snippet(row["metadata"] or row["properties_json"] or "", q), "source": row["node_type"], "related_object": "{} #{}".format(row["source_type"] or "", row["source_id"] or ""), "url": "/api/graph/context/{}".format(row["id"]), "score": 0.86, "updated_at": row["updated_at"]})
+            if want("knowledge_graph_edge"):
+                for row in conn.execute("select * from knowledge_graph_edges where relation_type like ? or edge_type like ? or coalesce(metadata,'') like ? or coalesce(evidence_json,'') like ? order by updated_at desc limit 50", (like, like, like, like)).fetchall():
+                    results.append({"type": "knowledge_graph_edge", "icon": "EDGE", "id": row["id"], "title": row["relation_type"] or row["edge_type"], "snippet": self.search_snippet(row["evidence_json"] or row["metadata"] or "", q), "source": row["source_type"] or "knowledge_graph_edges", "related_object": "source #{}".format(row["source_id"] or ""), "url": "/api/graph/relations/{}".format(row["source_node_id"] or ""), "score": 0.8, "updated_at": row["updated_at"]})
         results.sort(key=lambda item: (item.get("score", 0), item.get("updated_at") or 0), reverse=True)
         return {"ok": True, "query": q, "total": len(results), "results": results[:120], "filters": {"type": result_type, "category": category, "object_type": object_type, "status": status, "date_from": date_from, "date_to": date_to}}
 
@@ -7307,6 +7334,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             enterprise_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null")
             high_risk_memories_total = count(conn, "select count(*) c from enterprise_memories where archived_at is null and risk_level in ('high','critical')")
             business_metrics = self.business_metrics_summary(conn)
+            graph_metrics = self.knowledge_graph_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7316,6 +7344,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Drive Engine", documents_total >= 0, "documents"),
                 ("Object Engine", objects_total >= 0, "enterprise_objects"),
                 ("Knowledge Engine", knowledge_items_total >= 0, "knowledge_items"),
+                ("Knowledge Graph", graph_metrics["graph_nodes"] >= 0, "knowledge_graph_nodes"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7348,6 +7377,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "store_aliases": business_metrics["store_aliases"],
                 "brand_aliases": business_metrics["brand_aliases"],
                 "metric_quality_warnings": business_metrics["metric_quality_warnings"],
+                "graph_nodes": graph_metrics["graph_nodes"],
+                "graph_relationships": graph_metrics["graph_edges"],
+                "connected_brands": graph_metrics["connected_brands"],
+                "connected_products": graph_metrics["connected_products"],
             },
             "business_metrics": business_metrics,
             "recent_documents": recent_documents,
@@ -7363,6 +7396,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "FoxBrain Data Lake", "url": "/data-lake", "status": "ready"},
                 {"title": "Object Match Center", "url": "/object-links", "status": "ready"},
                 {"title": "Business Calibration", "url": "/business-calibration", "status": "ready"},
+                {"title": "Business Knowledge Graph", "url": "/knowledge-graph", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "url": "/memory", "status": "ready"},
                 {"title": U(r"\u5168\u5c40\u641c\u7d22"), "url": "/search", "status": "ready"},
                 {"title": U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), "url": "/timeline", "status": "ready"},
@@ -7396,6 +7430,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             (U(r"\u5e93\u5b58\u6210\u672c"), money(summary["inventory_cost_amount"]), "cost basis"),
             (U(r"\u5bf9\u8c61\u5efa\u8bae"), summary["suggested_objects"], "match center"),
             (U(r"\u6821\u51c6\u63d0\u9192"), summary["metric_quality_warnings"], "business calibration"),
+            (U(r"\u56fe\u8c31\u8282\u70b9"), summary["graph_nodes"], "knowledge graph"),
+            (U(r"\u56fe\u8c31\u5173\u7cfb"), summary["graph_relationships"], "relationships"),
+            (U(r"\u8fde\u63a5\u54c1\u724c"), summary["connected_brands"], "brands"),
+            (U(r"\u8fde\u63a5\u5546\u54c1"), summary["connected_products"], "products"),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -7435,6 +7473,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u7ecf\u8425\u6307\u6807\u53e3\u5f84\u63d0\u9192\uff1a") + str(summary["metric_quality_warnings"]),
             U(r"\u5f85\u786e\u8ba4\u5bf9\u8c61\u5efa\u8bae\uff1a") + str(summary["suggested_objects"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
+            U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             U(r"\u672c\u5c42\u4ec5\u5904\u7406\u5df2\u4e0a\u4f20 SAP \u5bfc\u51fa\u6587\u4ef6\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\u3002"),
         ])
         status_html = "".join(
@@ -7535,7 +7574,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         date_from = query.get("date_from", [""])[0].strip()
         date_to = query.get("date_to", [""])[0].strip()
         payload = self.global_search_results(user, q, result_type, category, object_type, status, date_from, date_to)
-        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6")), ("data_lake_source", "Data Lake Source"), ("data_lake_record", "Data Lake Record"), ("object_link", "Object Link"), ("object_suggestion", "Object Suggestion"), ("business_metric", "Business Metric"), ("store_alias", "Store Alias"), ("brand_alias", "Brand Alias"), ("calibration_rule", "Calibration Rule"), ("metric_quality", "Metric Quality")])
+        type_options = "".join('<option value="{}"{}>{}</option>'.format(k, " selected" if result_type == k else "", v) for k, v in [("", U(r"\u5168\u90e8")), ("file", U(r"\u6587\u4ef6")), ("object", U(r"\u5bf9\u8c61")), ("knowledge", U(r"\u77e5\u8bc6")), ("chunk", U(r"\u6587\u6863\u7247\u6bb5")), ("memory", U(r"\u4f01\u4e1a\u8bb0\u5fc6")), ("data_lake_source", "Data Lake Source"), ("data_lake_record", "Data Lake Record"), ("object_link", "Object Link"), ("object_suggestion", "Object Suggestion"), ("business_metric", "Business Metric"), ("store_alias", "Store Alias"), ("brand_alias", "Brand Alias"), ("calibration_rule", "Calibration Rule"), ("metric_quality", "Metric Quality"), ("knowledge_graph", "Knowledge Graph"), ("knowledge_graph_edge", "Graph Edge")])
         object_options = "".join('<option value="{}"{}>{}</option>'.format(esc(item["key"]), " selected" if object_type == item["key"] else "", esc(item["label"])) for item in self.object_types())
         cards = "".join(
             "<div class='card'><div><h2>{} {}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
@@ -8162,6 +8201,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "select * from object_relations where (source_object_type=? and source_object_id=?) or (target_object_type=? and target_object_id=?) order by created_at desc limit 30",
                 (row["object_type"], row["id"], row["object_type"], row["id"]),
             ).fetchall()
+            kg_node = conn.execute("select * from knowledge_graph_nodes where node_type=? and object_id=? order by updated_at desc limit 1", (row["object_type"], row["id"])).fetchone()
+            kg_edges = conn.execute("select * from knowledge_graph_edges where source_node_id=? or target_node_id=? order by updated_at desc limit 30", (kg_node["id"], kg_node["id"])).fetchall() if kg_node else []
             timeline_rows = self.timeline_rows_for_entity(conn, row["object_type"], row["id"], 80)
         obj = self.enterprise_object_to_json(row, len(docs))
         type_options = "".join(
@@ -8187,6 +8228,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "{} #{} -> {} #{} / {}".format(r["source_object_type"], r["source_object_id"], r["target_object_type"], r["target_object_id"], r["relation_type"])
             for r in relations
         ] or [self.suggestRelations(obj["id"])["message"]]
+        kg_relation_items = [
+            "node {} -> node {} / {} / source: {} #{}".format(r["source_node_id"], r["target_node_id"], r["relation_type"] or r["edge_type"], r["source_type"], r["source_id"])
+            for r in kg_edges
+        ] or [U(r"\u6682\u65e0\u56fe\u8c31\u5173\u7cfb\uff0c\u53ef\u5728 Knowledge Graph \u9875\u9762\u6784\u5efa\u3002")]
         timeline_items = [
             "{} / {} / {}".format(dt(event["occurred_at"] or event["created_at"]), event["event_type"] or event["title"], event["description"] or event["body"] or event["title"])
             for event in timeline_rows
@@ -8225,7 +8270,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
 <div class="split">
   <div class="panel"><h2>{}</h2>{}</div>
   <div class="panel"><h2>{}</h2>{}<form method="post" action="/api/timeline"><input type="hidden" name="entity_type" value="{}"><input type="hidden" name="entity_id" value="{}"><input type="hidden" name="event_type" value="manual_note"><label>{}</label><input name="title"><label>{}</label><textarea name="description"></textarea><p><button>{}</button></p></form></div>
-</div>""".format(
+</div>
+<div class="panel"><h2>{}</h2>{}<p><a class="btn" href="/knowledge-graph?q={}">{}</a></p></div>""".format(
             esc(obj["name"]),
             esc(obj["object_type_label"]),
             esc(obj["status"] or ""),
@@ -8271,6 +8317,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u624b\u52a8\u5907\u6ce8"),
             U(r"\u63cf\u8ff0"),
             U(r"\u5199\u5165\u65f6\u95f4\u8f74"),
+            U(r"\u77e5\u8bc6\u56fe\u8c31\u5173\u7cfb"),
+            self.bullets(kg_relation_items),
+            esc(obj["name"] or ""),
+            U(r"\u6253\u5f00 Knowledge Graph"),
         )
         self.out(layout(U(r"\u5bf9\u8c61\u8be6\u60c5"), body, user=user, wide=True))
 
@@ -14718,6 +14768,212 @@ where ki.deleted_at is null"""
     def can_manage_graph(self, user):
         return bool(user and user["role"] in ("boss", "admin", "store_manager", "purchasing", "finance"))
 
+    def kg_key(self, *parts):
+        raw = "|".join(str(p or "").strip().lower() for p in parts)
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+    def kg_node_type_label(self, node_type):
+        labels = {
+            "store": "Store",
+            "brand": "Brand",
+            "product": "Product",
+            "sku": "SKU",
+            "employee": "Employee",
+            "customer": "Customer",
+            "supplier": "Supplier",
+            "contract": "Contract",
+            "project": "Project",
+            "document": "Document",
+            "knowledge": "Knowledge",
+            "memory": "Memory",
+            "decision": "Decision",
+        }
+        return labels.get((node_type or "").lower(), (node_type or "Object").title())
+
+    def upsert_kg_node(self, conn, node_type, object_id, name, metadata=None, source_type="", source_id=""):
+        node_type = (node_type or "object").strip().lower()
+        name = (name or "").strip()
+        if not name:
+            return None
+        object_id_int = int(object_id) if str(object_id or "").isdigit() else None
+        node_id = "KGN-" + self.kg_key(node_type, object_id if object_id not in ("", None) else name)
+        now = ts()
+        metadata = metadata or {}
+        source = {"source_type": source_type, "source_id": str(source_id or ""), "rule": "Sprint009 explicit-source graph node"}
+        existing = conn.execute("select * from knowledge_graph_nodes where node_id=?", (node_id,)).fetchone()
+        if existing:
+            conn.execute(
+                "update knowledge_graph_nodes set node_type=?, object_id=?, name=?, label=?, metadata=?, properties_json=?, source_type=?, source_id=?, source_json=?, updated_at=? where id=?",
+                (node_type, object_id_int, name, name, json.dumps(metadata, ensure_ascii=False), json.dumps(metadata, ensure_ascii=False), source_type, str(source_id or ""), json.dumps(source, ensure_ascii=False), now, existing["id"]),
+            )
+            return existing["id"]
+        cur = conn.execute(
+            """insert into knowledge_graph_nodes(
+ node_id,entity_id,node_type,label,properties_json,source_json,status,created_at,updated_at,
+ object_id,name,metadata,source_type,source_id
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (node_id, "{}:{}".format(node_type, object_id or name), node_type, name, json.dumps(metadata, ensure_ascii=False), json.dumps(source, ensure_ascii=False), "active", now, now, object_id_int, name, json.dumps(metadata, ensure_ascii=False), source_type, str(source_id or "")),
+        )
+        return cur.lastrowid
+
+    def upsert_kg_edge(self, conn, source_node_id, target_node_id, relation_type, confidence=0.75, source_type="", source_id="", metadata=None):
+        if not source_node_id or not target_node_id or not relation_type:
+            return None
+        if not source_type or str(source_id or "") == "":
+            return None
+        src = conn.execute("select * from knowledge_graph_nodes where id=?", (source_node_id,)).fetchone()
+        dst = conn.execute("select * from knowledge_graph_nodes where id=?", (target_node_id,)).fetchone()
+        if not src or not dst:
+            return None
+        relation_type = (relation_type or "").strip().upper()
+        metadata = metadata or {}
+        evidence = {"source_type": source_type, "source_id": str(source_id), "metadata": metadata}
+        edge_id = "KGE-" + self.kg_key(src["node_id"], dst["node_id"], relation_type, source_type, source_id)
+        now = ts()
+        existing = conn.execute("select id from knowledge_graph_edges where edge_id=?", (edge_id,)).fetchone()
+        if existing:
+            conn.execute(
+                "update knowledge_graph_edges set confidence=?, weight=?, evidence_json=?, metadata=?, source_type=?, source_id=?, updated_at=? where id=?",
+                (float(confidence or 0), float(confidence or 0), json.dumps(evidence, ensure_ascii=False), json.dumps(metadata, ensure_ascii=False), source_type, str(source_id), now, existing["id"]),
+            )
+            return existing["id"]
+        cur = conn.execute(
+            """insert into knowledge_graph_edges(
+ edge_id,from_node_id,to_node_id,edge_type,weight,evidence_json,status,created_at,updated_at,
+ source_node_id,target_node_id,relation_type,confidence,source_type,source_id,metadata
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (edge_id, src["node_id"], dst["node_id"], relation_type, float(confidence or 0), json.dumps(evidence, ensure_ascii=False), "active", now, now, source_node_id, target_node_id, relation_type, float(confidence or 0), source_type, str(source_id), json.dumps(metadata, ensure_ascii=False)),
+        )
+        return cur.lastrowid
+
+    def build_business_knowledge_graph(self, user=None):
+        stats = {"nodes_before": 0, "edges_before": 0, "nodes_after": 0, "edges_after": 0, "nodes_created": 0, "edges_created": 0, "sources": []}
+        with db() as conn:
+            stats["nodes_before"] = conn.execute("select count(*) c from knowledge_graph_nodes").fetchone()["c"]
+            stats["edges_before"] = conn.execute("select count(*) c from knowledge_graph_edges").fetchone()["c"]
+
+            for obj in conn.execute("select * from enterprise_objects where archived_at is null order by id").fetchall():
+                self.upsert_kg_node(conn, obj["object_type"], obj["id"], obj["name"], {"code": obj["code"], "tags": obj["tags"], "status": obj["status"]}, "enterprise_objects", obj["id"])
+            stats["sources"].append("enterprise_objects")
+
+            for rel in conn.execute("select * from object_relations order by id limit 5000").fetchall():
+                src_obj = conn.execute("select * from enterprise_objects where id=? and object_type=? and archived_at is null", (rel["source_object_id"], rel["source_object_type"])).fetchone()
+                dst_obj = conn.execute("select * from enterprise_objects where id=? and object_type=? and archived_at is null", (rel["target_object_id"], rel["target_object_type"])).fetchone()
+                if src_obj and dst_obj:
+                    src = self.upsert_kg_node(conn, src_obj["object_type"], src_obj["id"], src_obj["name"], {"source": "object_relations"}, "enterprise_objects", src_obj["id"])
+                    dst = self.upsert_kg_node(conn, dst_obj["object_type"], dst_obj["id"], dst_obj["name"], {"source": "object_relations"}, "enterprise_objects", dst_obj["id"])
+                    self.upsert_kg_edge(conn, src, dst, rel["relation_type"] or "RELATED_TO", 0.95, "object_relations", rel["id"], {"explicit_user_relation": True})
+            stats["sources"].append("object_relations")
+
+            for row in conn.execute("""select coalesce(product_code,'') product_code, coalesce(product_name,'') product_name, coalesce(brand_name,'') brand_name, coalesce(store_name,'') store_name, coalesce(employee_name,'') employee_name, min(id) source_id, count(*) row_count, sum(coalesce(amount,0)) sales_amount, sum(coalesce(quantity,0)) quantity from sap_sales where coalesce(product_name,'')!='' or coalesce(product_code,'')!='' group by product_code, product_name, brand_name, store_name, employee_name limit 8000""").fetchall():
+                product_key = row["product_code"] or row["product_name"]
+                product = self.upsert_kg_node(conn, "product", None, row["product_name"] or row["product_code"], {"product_code": row["product_code"], "sales_amount": row["sales_amount"], "quantity": row["quantity"]}, "sap_sales", row["source_id"])
+                if row["brand_name"]:
+                    brand_name = self.canonical_brand_name(conn, row["brand_name"]) if hasattr(self, "canonical_brand_name") else row["brand_name"]
+                    brand = self.upsert_kg_node(conn, "brand", None, brand_name, {"raw_brand": row["brand_name"]}, "sap_sales", row["source_id"])
+                    self.upsert_kg_edge(conn, brand, product, "HAS_PRODUCT", 0.82, "sap_sales", row["source_id"], {"row_count": row["row_count"], "product_key": product_key})
+                if row["store_name"]:
+                    store_name = self.canonical_store_name(conn, row["store_name"]) if hasattr(self, "canonical_store_name") else row["store_name"]
+                    store = self.upsert_kg_node(conn, "store", None, store_name, {"raw_store": row["store_name"]}, "sap_sales", row["source_id"])
+                    self.upsert_kg_edge(conn, store, product, "SELLS", 0.8, "sap_sales", row["source_id"], {"row_count": row["row_count"], "sales_amount": row["sales_amount"], "quantity": row["quantity"]})
+                if row["employee_name"]:
+                    employee = self.upsert_kg_node(conn, "employee", None, row["employee_name"], {"store_name": row["store_name"]}, "sap_sales", row["source_id"])
+                    self.upsert_kg_edge(conn, employee, product, "SELLS", 0.72, "sap_sales", row["source_id"], {"row_count": row["row_count"], "sales_amount": row["sales_amount"]})
+            stats["sources"].append("sap_sales")
+
+            for row in conn.execute("""select coalesce(product_code,'') product_code, coalesce(product_name,'') product_name, coalesce(brand_name,'') brand_name, coalesce(store_name,'') store_name, min(id) source_id, count(*) row_count, sum(coalesce(quantity,0)) quantity, sum(coalesce(retail_amount,0)) retail_amount from sap_inventory where coalesce(product_name,'')!='' or coalesce(product_code,'')!='' group by product_code, product_name, brand_name, store_name limit 8000""").fetchall():
+                product = self.upsert_kg_node(conn, "product", None, row["product_name"] or row["product_code"], {"product_code": row["product_code"], "inventory_quantity": row["quantity"]}, "sap_inventory", row["source_id"])
+                if row["brand_name"]:
+                    brand_name = self.canonical_brand_name(conn, row["brand_name"]) if hasattr(self, "canonical_brand_name") else row["brand_name"]
+                    brand = self.upsert_kg_node(conn, "brand", None, brand_name, {"raw_brand": row["brand_name"]}, "sap_inventory", row["source_id"])
+                    self.upsert_kg_edge(conn, brand, product, "HAS_PRODUCT", 0.78, "sap_inventory", row["source_id"], {"row_count": row["row_count"]})
+                if row["store_name"]:
+                    store_name = self.canonical_store_name(conn, row["store_name"]) if hasattr(self, "canonical_store_name") else row["store_name"]
+                    store = self.upsert_kg_node(conn, "store", None, store_name, {"raw_store": row["store_name"]}, "sap_inventory", row["source_id"])
+                    self.upsert_kg_edge(conn, store, product, "STOCKS", 0.78, "sap_inventory", row["source_id"], {"row_count": row["row_count"], "quantity": row["quantity"], "retail_amount": row["retail_amount"]})
+            stats["sources"].append("sap_inventory")
+
+            for doc in conn.execute("select * from documents where deleted_at is null and related_object_type is not null and related_object_id is not null order by id limit 3000").fetchall():
+                obj = conn.execute("select * from enterprise_objects where id=? and object_type=? and archived_at is null", (doc["related_object_id"], doc["related_object_type"])).fetchone()
+                if obj:
+                    doc_node = self.upsert_kg_node(conn, "document", doc["id"], doc["original_filename"] or doc["filename"] or doc["title"], {"category": doc["category"]}, "documents", doc["id"])
+                    obj_node = self.upsert_kg_node(conn, obj["object_type"], obj["id"], obj["name"], {"linked_document_id": doc["id"]}, "enterprise_objects", obj["id"])
+                    self.upsert_kg_edge(conn, doc_node, obj_node, "DESCRIBES", 0.9, "documents", doc["id"], {"document_category": doc["category"]})
+            stats["sources"].append("documents")
+
+            for item in conn.execute("select * from knowledge_items where deleted_at is null and object_type is not null and object_id is not null order by id limit 3000").fetchall():
+                obj = conn.execute("select * from enterprise_objects where id=? and object_type=? and archived_at is null", (item["object_id"], item["object_type"])).fetchone()
+                if obj:
+                    knowledge_node = self.upsert_kg_node(conn, "knowledge", item["id"], item["title"], {"category": item["category"], "source_type": item["source_type"]}, "knowledge_items", item["id"])
+                    obj_node = self.upsert_kg_node(conn, obj["object_type"], obj["id"], obj["name"], {"linked_knowledge_id": item["id"]}, "enterprise_objects", obj["id"])
+                    self.upsert_kg_edge(conn, knowledge_node, obj_node, "DESCRIBES", 0.86, "knowledge_items", item["id"], {"category": item["category"]})
+            stats["sources"].append("knowledge_items")
+
+            for mem in conn.execute("select * from enterprise_memories where archived_at is null and related_object_type is not null and related_object_id is not null order by id limit 2000").fetchall():
+                obj = conn.execute("select * from enterprise_objects where id=? and object_type=? and archived_at is null", (mem["related_object_id"], mem["related_object_type"])).fetchone()
+                if obj:
+                    memory_node = self.upsert_kg_node(conn, "memory", mem["id"], mem["title"], {"memory_type": mem["memory_type"], "risk_level": mem["risk_level"], "status": mem["status"]}, "enterprise_memories", mem["id"])
+                    obj_node = self.upsert_kg_node(conn, obj["object_type"], obj["id"], obj["name"], {"linked_memory_id": mem["id"]}, "enterprise_objects", obj["id"])
+                    self.upsert_kg_edge(conn, memory_node, obj_node, "RELATES", 0.82, "enterprise_memories", mem["id"], {"memory_type": mem["memory_type"]})
+            stats["sources"].append("enterprise_memories")
+
+            for decision in conn.execute("select * from decision_memories order by id limit 1000").fetchall():
+                self.upsert_kg_node(conn, "decision", decision["id"], decision["decision_title"], {"owner": decision["owner"], "decision_date": decision["decision_date"], "related_objects": decision["related_objects"]}, "decision_memories", decision["id"])
+            stats["sources"].append("decision_memories")
+
+            stats["nodes_after"] = conn.execute("select count(*) c from knowledge_graph_nodes").fetchone()["c"]
+            stats["edges_after"] = conn.execute("select count(*) c from knowledge_graph_edges").fetchone()["c"]
+            stats["nodes_created"] = stats["nodes_after"] - stats["nodes_before"]
+            stats["edges_created"] = stats["edges_after"] - stats["edges_before"]
+        self.log_action(user, "business_knowledge_graph_build", "knowledge_graph", None, json.dumps(stats, ensure_ascii=False))
+        return {"ok": True, **stats, "rule": "All generated graph edges require source_type and source_id."}
+
+    def knowledge_graph_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            count = lambda sql, params=(): int(conn.execute(sql, params).fetchone()["c"] or 0)
+            return {
+                "graph_nodes": count("select count(*) c from knowledge_graph_nodes where status='active'"),
+                "graph_edges": count("select count(*) c from knowledge_graph_edges where status='active'"),
+                "connected_brands": count("select count(distinct source_node_id) c from knowledge_graph_edges where relation_type='HAS_PRODUCT' and status='active'"),
+                "connected_products": count("select count(distinct target_node_id) c from knowledge_graph_edges where relation_type in ('HAS_PRODUCT','SELLS','STOCKS') and status='active'"),
+                "edges_with_source": count("select count(*) c from knowledge_graph_edges where status='active' and coalesce(source_type,'')!='' and coalesce(source_id,'')!=''"),
+                "recent_nodes": [row_dict(r) for r in conn.execute("select * from knowledge_graph_nodes where status='active' order by updated_at desc, id desc limit 30").fetchall()],
+                "recent_edges": [row_dict(r) for r in conn.execute("select * from knowledge_graph_edges where status='active' order by updated_at desc, id desc limit 50").fetchall()],
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def knowledge_graph_context(self, node_id):
+        with db() as conn:
+            node = conn.execute("select * from knowledge_graph_nodes where id=? or node_id=?", (node_id, str(node_id))).fetchone()
+            if not node:
+                return {"ok": False, "message": "node not found"}
+            edges = conn.execute("select * from knowledge_graph_edges where source_node_id=? or target_node_id=? order by updated_at desc limit 120", (node["id"], node["id"])).fetchall()
+            neighbor_ids = []
+            for edge in edges:
+                other = edge["target_node_id"] if edge["source_node_id"] == node["id"] else edge["source_node_id"]
+                if other:
+                    neighbor_ids.append(other)
+            neighbors = []
+            if neighbor_ids:
+                placeholders = ",".join(["?"] * len(set(neighbor_ids)))
+                neighbors = [row_dict(r) for r in conn.execute("select * from knowledge_graph_nodes where id in ({})".format(placeholders), list(set(neighbor_ids))).fetchall()]
+            related_knowledge = []
+            related_memory = []
+            metrics = {}
+            if node["object_id"] and node["node_type"]:
+                related_knowledge = [row_dict(r) for r in conn.execute("select * from knowledge_items where deleted_at is null and object_type=? and object_id=? order by updated_at desc limit 20", (node["node_type"], node["object_id"])).fetchall()]
+                related_memory = [row_dict(r) for r in conn.execute("select * from enterprise_memories where archived_at is null and related_object_type=? and related_object_id=? order by updated_at desc limit 20", (node["node_type"], node["object_id"])).fetchall()]
+            if node["node_type"] == "store":
+                metrics["sales"] = [row_dict(r) for r in conn.execute("select * from business_metrics_snapshots where store_name=? order by created_at desc limit 20", (node["name"] or node["label"],)).fetchall()]
+            if node["node_type"] == "brand":
+                metrics["sales"] = [row_dict(r) for r in conn.execute("select * from business_metrics_snapshots where brand_name=? order by created_at desc limit 20", (node["name"] or node["label"],)).fetchall()]
+        return {"ok": True, "node": row_dict(node), "relationships": [row_dict(r) for r in edges], "neighbors": neighbors, "related_knowledge": related_knowledge, "related_memory": related_memory, "metrics": metrics, "source_rule": "Every relationship includes source_type and source_id."}
+
     def entity_to_json(self, row):
         return row_dict(row) or {}
 
@@ -14813,6 +15069,77 @@ where ki.deleted_at is null"""
             by_type = conn.execute("select entity_type, count(*) c from graph_entities group by entity_type order by c desc limit 10").fetchall()
         return {"entity_count": entity_count, "relationship_count": relationship_count, "risk_count": risk_count, "entities": entities, "relationships": relationships, "risks": risks, "by_type": by_type}
 
+    def knowledge_graph_explorer(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_graph(user):
+            return self.dashboard(user)
+        q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+        with db() as conn:
+            summary = self.knowledge_graph_summary(conn)
+            if q:
+                like = "%" + q + "%"
+                nodes = conn.execute("select * from knowledge_graph_nodes where status='active' and (coalesce(name,label,'') like ? or node_type like ? or coalesce(metadata,'') like ?) order by updated_at desc limit 60", (like, like, like)).fetchall()
+            else:
+                nodes = conn.execute("select * from knowledge_graph_nodes where status='active' order by updated_at desc, id desc limit 60").fetchall()
+        metrics = "".join([
+            self.metric(U(r"\u56fe\u8c31\u8282\u70b9"), summary["graph_nodes"], "knowledge_graph_nodes"),
+            self.metric(U(r"\u56fe\u8c31\u5173\u7cfb"), summary["graph_edges"], "knowledge_graph_edges"),
+            self.metric(U(r"\u5df2\u8fde\u63a5\u54c1\u724c"), summary["connected_brands"], "HAS_PRODUCT"),
+            self.metric(U(r"\u5df2\u8fde\u63a5\u5546\u54c1"), summary["connected_products"], "Product"),
+            self.metric(U(r"\u6709\u6765\u6e90\u5173\u7cfb"), summary["edges_with_source"], "source_type/source_id"),
+        ])
+        node_cards = ""
+        for node in nodes:
+            context_url = "/api/graph/context/{}".format(node["id"])
+            node_cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / source: {} #{}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
+                esc(node["name"] or node["label"]),
+                esc(self.kg_node_type_label(node["node_type"])),
+                esc(node["node_type"]),
+                esc(node["source_type"] or ""),
+                esc(node["source_id"] or ""),
+                context_url,
+                U(r"\u67e5\u770b\u4e0a\u4e0b\u6587"),
+            )
+        if not node_cards:
+            node_cards = "<div class='panel'><p class='small'>{}</p></div>".format(U(r"\u6682\u65e0\u8282\u70b9\uff0c\u53ef\u5148\u8fd0\u884c\u56fe\u8c31\u6784\u5efa\u3002"))
+        edge_items = []
+        for edge in summary["recent_edges"][:16]:
+            edge_items.append("{} -> {} / {} / source: {} #{}".format(edge.get("source_node_id"), edge.get("target_node_id"), edge.get("relation_type") or edge.get("edge_type"), edge.get("source_type"), edge.get("source_id")))
+        body = """
+<div class="panel">
+  <h2>Business Knowledge Graph</h2>
+  <p class="small">{}</p>
+  <form method="get" action="/knowledge-graph">
+    <label>{}</label><input name="q" value="{}" placeholder="{}">
+    <p><button>{}</button></p>
+  </form>
+  <form method="post" action="/api/graph/build"><button class="dark">{}</button></form>
+</div>
+<div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>API</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+""".format(
+            U(r"\u4ece\u4f01\u4e1a\u5bf9\u8c61\u3001SAP\u9500\u552e/\u5e93\u5b58\u3001\u6587\u6863\u3001\u77e5\u8bc6\u548c\u8bb0\u5fc6\u751f\u6210\u53ef\u8ffd\u6eaf\u5173\u7cfb\uff0c\u4e0d\u751f\u6210\u65e0\u6765\u6e90\u63a8\u65ad\u3002"),
+            U(r"\u641c\u7d22\u8282\u70b9"),
+            esc(q),
+            U(r"\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u5458\u5de5\u3001\u6587\u6863..."),
+            U(r"\u641c\u7d22"),
+            U(r"\u6784\u5efa/\u5237\u65b0\u56fe\u8c31"),
+            U(r"\u4f01\u4e1a\u7406\u89e3\u6307\u6807"),
+            metrics,
+            U(r"\u6700\u8fd1\u5173\u7cfb"),
+            self.bullets(edge_items or [U(r"\u6682\u65e0\u5173\u7cfb\u3002")]),
+            self.bullets(["GET /api/graph/node/:id", "GET /api/graph/relations/:id", "GET /api/graph/context/:id", "POST /api/graph/build"]),
+            U(r"\u8282\u70b9"),
+            node_cards,
+        )
+        self.out(layout("Business Knowledge Graph", body, user=user, wide=True))
+
     def graph_center(self, user):
         user = self.require_login(user)
         if not user:
@@ -14859,9 +15186,46 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         if not self.can_view_graph(user):
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
-        if path == "/api/graph":
-            data = self.graph_summary()
-            return self.json_out({"ok": True, "dashboard": {"entities": data["entity_count"], "relationships": data["relationship_count"], "risks": data["risk_count"]}})
+        if path in ("/api/graph", "/api/graph/summary"):
+            with db() as conn:
+                summary = self.knowledge_graph_summary(conn)
+            return self.json_out({"ok": True, "summary": summary, "safety": "no_production_sap_connection_no_unsupported_relationships"})
+        m_node = re.match(r"^/api/graph/node/([^/]+)$", path)
+        if m_node:
+            node_id = m_node.group(1)
+            with db() as conn:
+                row = conn.execute("select * from knowledge_graph_nodes where id=? or node_id=?", (node_id, node_id)).fetchone()
+            return self.json_out({"ok": bool(row), "node": row_dict(row) if row else None})
+        m_rel = re.match(r"^/api/graph/relations/([^/]+)$", path)
+        if m_rel:
+            node_id = m_rel.group(1)
+            with db() as conn:
+                node = conn.execute("select * from knowledge_graph_nodes where id=? or node_id=?", (node_id, node_id)).fetchone()
+                if not node:
+                    return self.json_out({"ok": False, "message": "node not found"}, code=404)
+                rows = conn.execute("select * from knowledge_graph_edges where source_node_id=? or target_node_id=? order by updated_at desc limit 200", (node["id"], node["id"])).fetchall()
+            return self.json_out({"ok": True, "node": row_dict(node), "relationships": [row_dict(r) for r in rows]})
+        m_context = re.match(r"^/api/graph/context/([^/]+)$", path)
+        if m_context:
+            payload = self.knowledge_graph_context(m_context.group(1))
+            return self.json_out(payload, code=200 if payload.get("ok") else 404)
+        if path == "/api/graph/nodes":
+            query = parse_qs(urlparse(self.path).query)
+            q = query.get("q", [""])[0].strip()
+            like = "%" + q + "%"
+            with db() as conn:
+                rows = conn.execute("select * from knowledge_graph_nodes where status='active' and (?='' or coalesce(name,label,'') like ? or node_type like ? or coalesce(metadata,'') like ?) order by updated_at desc limit 300", (q, like, like, like)).fetchall()
+            return self.json_out({"ok": True, "nodes": [row_dict(r) for r in rows]})
+        if path == "/api/graph/edges":
+            with db() as conn:
+                rows = conn.execute("select * from knowledge_graph_edges where status='active' order by updated_at desc limit 300").fetchall()
+            return self.json_out({"ok": True, "edges": [row_dict(r) for r in rows], "source_rule": "Every edge has source_type and source_id."})
+        if path == "/api/graph/search":
+            q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+            like = "%" + q + "%"
+            with db() as conn:
+                rows = conn.execute("select * from knowledge_graph_nodes where coalesce(name,label,'') like ? or node_type like ? or coalesce(metadata,'') like ? order by updated_at desc limit 100", (like, like, like)).fetchall()
+            return self.json_out({"ok": True, "nodes": [row_dict(r) for r in rows]})
         if path == "/api/graph/entities":
             with db() as conn:
                 rows = conn.execute("select * from graph_entities order by updated_at desc limit 200").fetchall()
@@ -14875,12 +15239,6 @@ where ki.deleted_at is null"""
             with db() as conn:
                 rows = conn.execute("select * from relations where relationship_id is not null or source_entity_type is not null order by created_at desc limit 200").fetchall()
             return self.json_out({"ok": True, "relationships": [self.relationship_to_json(r) for r in rows]})
-        if path == "/api/graph/search":
-            q = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
-            like = "%" + q + "%"
-            with db() as conn:
-                rows = conn.execute("select * from graph_entities where entity_name like ? or entity_type like ? or description like ? order by updated_at desc limit 100", (like, like, like)).fetchall()
-            return self.json_out({"ok": True, "entities": [self.entity_to_json(r) for r in rows]})
         if path == "/api/graph/entity-network":
             eid = parse_qs(urlparse(self.path).query).get("id", [""])[0]
             with db() as conn:
@@ -14902,6 +15260,9 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
         form = self.form()
         now = ts()
+        if path == "/api/graph/build":
+            result = self.build_business_knowledge_graph(user)
+            return self.json_out(result)
         if path == "/api/graph/entities":
             with db() as conn:
                 eid = self.ensure_graph_entity(conn, form.get("entity_type", "unknown"), form.get("entity_key", "manual:" + uuid.uuid4().hex[:8]), form.get("entity_name", U(r"\u672a\u547d\u540d\u5b9e\u4f53")), form.get("description", ""), form.get("source_type", "manual"), form.get("source_id", ""), user["id"])
