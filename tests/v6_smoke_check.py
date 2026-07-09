@@ -2486,3 +2486,77 @@ def test_foxbrain_owner_enterprise_7_9_docs_present():
         "human approval",
     ]:
         assert phrase in combined
+
+
+def test_foxbrain_enterprise_second_brain_module_present():
+    module = read("foxbrain_os/enterprise_second_brain.py")
+    init_file = read("foxbrain_os/__init__.py")
+    architecture = read("foxbrain_os/architecture.py")
+    portal = read("portal_v2.py")
+    for phrase in [
+        "FoxBrain Enterprise Second Brain V1.0",
+        "SECOND_BRAIN_PRINCIPLES",
+        "SECOND_BRAIN_ENGINES",
+        "PRODUCT_SPEC_BOOKS",
+        "build_enterprise_second_brain_contract",
+        "Object Engine",
+        "Knowledge Engine",
+        "Memory Engine",
+        "Decision Engine",
+        "Relationship Engine",
+    ]:
+        assert phrase in module
+    assert "build_enterprise_second_brain_contract" in init_file
+    assert "enterprise_second_brain" in architecture
+    for phrase in [
+        "/second-brain",
+        "/api/second-brain",
+        "/api/second-brain/books",
+        "/api/second-brain/engines",
+        "/api/second-brain/roadmap",
+        "enterprise_second_brain_page",
+        "api_second_brain_get",
+    ]:
+        assert phrase in portal
+
+
+def test_foxbrain_enterprise_second_brain_imports():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("foxbrain_second_brain", ROOT / "foxbrain_os" / "enterprise_second_brain.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    contract = module.build_enterprise_second_brain_contract()
+    assert contract["ok"] is True
+    assert contract["version"] == "FoxBrain Enterprise Second Brain V1.0"
+    assert contract["positioning"] == "Enterprise AI Operating System"
+    assert "ERP" in contract["not"]
+    assert len(contract["product_spec_books"]) == 12
+    assert len(contract["engines"]) == 5
+    assert contract["principles"]["design_first_then_build"].startswith("Every feature")
+    assert contract["roadmap"][0]["name"] == "Enterprise Second Brain"
+    assert contract["firefox_landing_route"]["production_system"].startswith("SAP Business One")
+
+
+def test_foxbrain_enterprise_second_brain_docs_present():
+    docs = [
+        "docs/880_FOXBRAIN_ENTERPRISE_SECOND_BRAIN_V1_0.md",
+        "docs/881_FOXBRAIN_ENTERPRISE_SECOND_BRAIN_V1_0_STAGE_RESULT.md",
+        "docs/CODEX_TASKS/Task092_FoxBrain_Enterprise_Second_Brain_V1_0.md",
+    ]
+    for path in docs:
+        assert (ROOT / path).exists()
+    combined = "\n".join(read(doc) for doc in docs)
+    for phrase in [
+        "FoxBrain Enterprise Second Brain V1.0",
+        "Enterprise AI Operating System",
+        "Object Engine",
+        "Knowledge Engine",
+        "Memory Engine",
+        "Decision Engine",
+        "Relationship Engine",
+        "Product Constitution",
+        "SAP Business One remains",
+        "high-risk AI actions",
+    ]:
+        assert phrase in combined

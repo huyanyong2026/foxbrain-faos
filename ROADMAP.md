@@ -76,6 +76,16 @@
 - Stage 4: harden monitoring, release gates, developer docs and rollback procedures.
 - Every stage must produce docs, tests and a stage result record.
 
+## FoxBrain Enterprise Second Brain V1.0 Direction
+
+- Productize FoxBrain as an Enterprise AI Operating System and enterprise second brain.
+- Treat FireFox as the first complete landing case while preparing a reusable ai.vafox.com platform core.
+- Establish the 12-book product specification system before expanding features.
+- Build the five core engines: Object Engine, Knowledge Engine, Memory Engine, Decision Engine and Relationship Engine.
+- Keep SAP Business One as the stable production system of record.
+- Keep high-risk AI actions approval-gated, explainable, traceable and auditable.
+- Use `/second-brain` and `/api/second-brain` as the protected product baseline surface.
+
 ## FoxBrain OS Enterprise V1.1 Direction
 
 - Integrate AI Knowledge Brain into the existing Enterprise V1.0 architecture.

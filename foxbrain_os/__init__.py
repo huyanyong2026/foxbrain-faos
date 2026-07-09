@@ -185,6 +185,15 @@ from .owner_os_foundation import (
     build_owner_home_contract,
     build_owner_os_foundation_contract,
 )
+from .enterprise_second_brain import (
+    FIREFOX_LANDING_ROUTE,
+    PRODUCT_SPEC_BOOKS,
+    SECOND_BRAIN_ENGINES,
+    SECOND_BRAIN_LAYERS,
+    SECOND_BRAIN_PRINCIPLES,
+    SECOND_BRAIN_ROADMAP,
+    build_enterprise_second_brain_contract,
+)
 
 __all__ = [
     "ENTERPRISE_MODULES",
@@ -336,4 +345,11 @@ __all__ = [
     "build_master_blueprint_contract",
     "build_owner_home_contract",
     "build_owner_os_foundation_contract",
+    "FIREFOX_LANDING_ROUTE",
+    "PRODUCT_SPEC_BOOKS",
+    "SECOND_BRAIN_ENGINES",
+    "SECOND_BRAIN_LAYERS",
+    "SECOND_BRAIN_PRINCIPLES",
+    "SECOND_BRAIN_ROADMAP",
+    "build_enterprise_second_brain_contract",
 ]

@@ -45,6 +45,7 @@ try:
     from foxbrain_os.ux_information_architecture import build_ux_information_architecture_contract
     from foxbrain_os.owner_enterprise_planning import build_owner_enterprise_planning_contract, build_sync_policy, classify_data_domain
     from foxbrain_os.owner_os_foundation import build_master_blueprint_contract, build_owner_home_contract, build_owner_os_foundation_contract
+    from foxbrain_os.enterprise_second_brain import build_enterprise_second_brain_contract
 except Exception:
     def enterprise_v1_architecture_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
@@ -216,6 +217,8 @@ except Exception:
         return {"ok": False, "home_entries": []}
     def build_master_blueprint_contract():
         return {"ok": False, "documents": []}
+    def build_enterprise_second_brain_contract():
+        return {"ok": False, "version": "FoxBrain Enterprise Second Brain V1.0", "product_spec_books": [], "engines": []}
 
 
 APP_DIR = os.environ.get("APP_DIR", "/opt/firefox-portal")
@@ -4060,6 +4063,8 @@ class App(BaseHTTPRequestHandler):
             return self.os_global_search(user)
         if path == "/owner-enterprise-plan":
             return self.owner_enterprise_plan(user)
+        if path == "/second-brain":
+            return self.enterprise_second_brain_page(user)
         if path.startswith("/owner/"):
             return self.owner_os_center_page(user, path)
         if path == "/business-radar":
@@ -4204,6 +4209,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_owner_enterprise_get(user, path)
         if path.startswith("/api/owner-os"):
             return self.api_owner_os_get(user, path)
+        if path.startswith("/api/second-brain"):
+            return self.api_second_brain_get(user, path)
         if path.startswith(("/api/ai-business-center", "/api/decision/today", "/api/forecast/sales", "/api/inventory/risk", "/api/purchase/recommend", "/api/profit/analysis", "/api/risk/list", "/api/business-memory")):
             return self.api_ai_business_center_get(user, path)
         if path.startswith("/api/ai-ceo") or path.startswith("/api/business") or path.startswith("/api/stores") or path.startswith("/api/brands") or path.startswith("/api/inventory") or path.startswith("/api/tasks"):
@@ -6136,6 +6143,88 @@ class App(BaseHTTPRequestHandler):
             blueprint = build_master_blueprint_contract()
             return self.json_out({"ok": True, "delivery_plan": blueprint.get("delivery_plan", [])})
         return self.json_out({"ok": False, "message": "unknown owner os api"}, code=404)
+
+    def enterprise_second_brain_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance")):
+            return self.dashboard(user)
+        contract = build_enterprise_second_brain_contract()
+        engines = "".join(
+            self.card(
+                engine.get("name", ""),
+                engine.get("purpose", ""),
+                "#",
+                "btn",
+                True,
+            )
+            for engine in contract.get("engines", [])
+        )
+        books = "".join(
+            self.card(
+                book.get("name", ""),
+                book.get("purpose", ""),
+                "#",
+                "btn",
+                True,
+            )
+            for book in contract.get("product_spec_books", [])
+        )
+        roadmap = [
+            item.get("name", "")
+            for item in contract.get("roadmap", [])
+        ]
+        landing = [
+            "{}: {}".format(key.replace("_", " "), value)
+            for key, value in contract.get("firefox_landing_route", {}).items()
+        ]
+        body = """
+<div class="panel">
+  <h2>FoxBrain Enterprise Second Brain V1.0</h2>
+  <p class="small">{}</p>
+  <p><a class="btn dark" href="/api/second-brain">API</a> <a class="btn" href="/owner/system">{}</a></p>
+</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
+<div class="panel"><h2>{}</h2></div>
+<div class="grid">{}</div>
+<div class="panel"><h2>{}</h2></div>
+<div class="grid">{}</div>""".format(
+            esc(contract.get("mission", "")),
+            U(r"\u8fd4\u56de\u7cfb\u7edf"),
+            U(r"\u4ea7\u54c1\u539f\u5219"),
+            self.bullets(contract.get("principles", {}).values()),
+            U(r"\u843d\u5730\u8def\u7ebf"),
+            self.bullets(landing),
+            U(r"\u4ea7\u54c1\u8def\u7ebf"),
+            self.bullets(roadmap),
+            U(r"\u6838\u5fc3\u5f15\u64ce"),
+            engines,
+            U(r"\u4ea7\u54c1\u89c4\u8303\u4e66"),
+            books,
+        )
+        self.out(layout("FoxBrain Enterprise Second Brain", body, user=user, wide=True))
+
+    def api_second_brain_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        contract = build_enterprise_second_brain_contract()
+        if path in ("/api/second-brain", "/api/second-brain/v1", "/api/second-brain/specification"):
+            return self.json_out(contract)
+        if path == "/api/second-brain/books":
+            return self.json_out({"ok": True, "books": contract.get("product_spec_books", [])})
+        if path == "/api/second-brain/engines":
+            return self.json_out({"ok": True, "engines": contract.get("engines", [])})
+        if path == "/api/second-brain/roadmap":
+            return self.json_out({"ok": True, "roadmap": contract.get("roadmap", [])})
+        if path == "/api/second-brain/firefox-route":
+            return self.json_out({"ok": True, "firefox_landing_route": contract.get("firefox_landing_route", {})})
+        return self.json_out({"ok": False, "message": "unknown second brain api"}, code=404)
 
     def business_radar_payload(self, user):
         data = self.cockpit_data()

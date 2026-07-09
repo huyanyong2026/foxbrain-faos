@@ -70,6 +70,7 @@ ENTERPRISE_MODULES = (
     EnterpriseModule("ux_information_architecture", "FoxBrain OS UX 2.0 Information Architecture", "platform", "product", "navigation_layers_and_user_experience_contract", "/api/ux", "/", "medium", False, "service_contract_ready"),
     EnterpriseModule("owner_enterprise_planning", "Owner OS and Enterprise OS Boundary Planning", "platform", "platform", "owner_private_data_enterprise_operations_sync_policy", "/api/owner-enterprise", "/owner-enterprise-plan", "high", True, "service_contract_ready"),
     EnterpriseModule("owner_os_foundation", "FoxBrain Owner OS V1 Foundation", "platform", "product", "owner_second_brain_master_blueprint", "/api/owner-os", "/", "high", True, "service_contract_ready"),
+    EnterpriseModule("enterprise_second_brain", "FoxBrain Enterprise Second Brain V1.0", "platform", "product", "product_specification_baseline", "/api/second-brain", "/second-brain", "high", True, "service_contract_ready"),
     EnterpriseModule("approvals", "Approval Center", "governance", "operations", "approvals", "/api/approvals", "/approvals", "high", True, "legacy_in_portal"),
     EnterpriseModule("brain", "Enterprise Digital Brain", "ai", "strategy", "enterprise_digital_brain_recommendations", "/api/digital-brain", "/digital-brain", "high", True, "service_contract_ready"),
     EnterpriseModule("platform", "Enterprise AI Platform", "platform", "platform", "platform_plugins", "/api/enterprise-ai-platform", "/enterprise-ai-platform", "high", True, "service_contract_ready"),
