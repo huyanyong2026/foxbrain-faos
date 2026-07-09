@@ -1,0 +1,36 @@
+{
+  "home": {
+    "title": "火狐狸私人经营知识库与项目管理入口",
+    "description": "呼延勇个人使用的经营知识库、项目管理、投资旅行和私人 AI 工作台。",
+    "content": "# 火狐狸私人经营知识库与项目管理入口\n\n这里定位为呼延勇个人使用的经营知识库和项目管理工作台，不作为全体员工的公司 AI 系统。\n\n## 私人工作台用途\n\n- 管理个人经营思考、公司架构、投资计划、旅行计划和长期目标。\n- 沉淀每天和 Codex 讨论出来的判断、任务、资料和复盘。\n- 作为老板视角的私有知识库，不开放给普通员工。\n\n## 今日最重要入口\n\n- [今日经营更新](/wiki/firefox-hq/daily)\n- [项目任务总表](/wiki/firefox-hq/tasks)\n- [公司 AI 服务器规划](/wiki/firefox-hq/company-ai-server-plan)\n- [Dify 智能体配置](/wiki/firefox-hq/dify-setup)\n- [n8n 自动化计划](/wiki/firefox-hq/n8n-automation)\n\n## 业务模块\n\n- [顶层设计](/wiki/firefox-hq/company-architecture)\n- [经营管理](/wiki/firefox-hq/operations)\n- [薪酬与激励](/wiki/firefox-hq/compensation)\n- [供应链、采购、会员、销售](/wiki/firefox-hq/supply-chain)\n- [财务管理](/wiki/firefox-hq/finance)\n- [大店计划](/wiki/firefox-hq/big-store-plan)\n- [推广与引流](/wiki/firefox-hq/marketing)\n- [品牌研发与代理](/wiki/firefox-hq/brands)\n\n## 和公司 AI 服务器的边界\n\n- 私人系统：huyan.vafox.com，用于老板个人知识库、项目规划、私人资料。\n- 公司系统：ai.vafox.com，未来用于员工登录、AI 问答、公司资料库、SAP B1 数据分析、自动日报。\n\n## 每天怎么用\n\n- 把新资料交给 Codex，归类到 Wiki 对应模块。\n- 把当天经营判断沉淀到今日经营更新。\n- 公司级流程、员工入口、SAP 自动同步，统一放到公司 AI 服务器规划里推进。\n"
+  },
+  "firefox-hq/company-ai-server-plan": {
+    "title": "公司 AI 服务器规划",
+    "description": "ai.vafox.com 公司 AI 服务器、员工登录、知识库、SAP B1 打通和自动化规划。",
+    "content": "# 公司 AI 服务器规划\n\n目标：新租一台速度更快、定位清楚的公司 AI 服务器，域名使用 ai.vafox.com，服务全体员工，并和 SAP B1 报表/数据库打通。\n\n## 一、系统定位\n\n- huyan.vafox.com：私人使用，老板个人知识库、经营规划、投资旅行、私密资料。\n- ai.vafox.com：公司使用，员工登录、门店知识库、AI 问答、SAP B1 数据分析、日报和自动化。\n\n## 二、推荐域名结构\n\n- ai.vafox.com：员工 AI 问答主页和统一入口。\n- kb.ai.vafox.com：公司知识库和制度资料。\n- dify.ai.vafox.com：Dify 智能体后台。\n- n8n.ai.vafox.com：自动化工作流后台。\n- api.ai.vafox.com：以后给门店小程序、报表、Webhook 使用。\n\n## 三、推荐软件架构\n\n- 统一入口：员工登录门户，手机和电脑都能访问。\n- Dify：做员工 AI 问答、经营分析助手、采购助手、财务助手、店长助手。\n- Wiki.js 或 Outline：做公司制度、商品知识、门店 SOP、培训资料。\n- n8n：做 SAP B1 同步、日报、库存预警、付款提醒、会员跟进提醒。\n- PostgreSQL：保存业务系统数据、AI 配置和门户账号。\n- Redis：给 Dify、任务队列和缓存使用。\n- 向量库：优先使用 Dify 自带方案，后期资料多了再升级 Milvus 或 Qdrant。\n- Nginx / Caddy：统一 HTTPS、反向代理、安全入口。\n\n## 四、服务器建议\n\n### 第一阶段：稳妥上线\n\n- CPU：8 核以上\n- 内存：32GB\n- 硬盘：500GB SSD 起步，建议 1TB\n- 系统：Ubuntu 22.04 LTS 或 24.04 LTS\n- 网络：5M-10M 带宽起步，员工多时再加。\n- 用途：Dify、n8n、知识库、员工门户、SAP B1 定时同步。\n\n这个阶段建议先使用外部大模型 API，不急着本地跑大模型。速度、稳定性和成本更容易控制。\n\n### 第二阶段：本地模型增强\n\n- CPU：16 核以上\n- 内存：64GB 以上\n- 硬盘：1TB-2TB NVMe SSD。\n- GPU：NVIDIA 24GB 显存起步，预算够再上 48GB 或 80GB。\n- 用途：内部资料问答、本地模型推理、敏感数据不出服务器。\n\n本地模型不要一开始就重投入。先把员工登录、知识库、SAP 数据流、权限和日报跑通，再决定是否上 GPU。\n\n## 五、SAP B1 打通方式\n\n- 不建议长期使用 sa 账号。\n- 在 SAP B1 SQL Server 新建只读账号：sap_readonly。\n- 只允许 ai.vafox.com 服务器公网 IP 访问 SAP SQL Server 1433。\n- n8n 每天定时拉取：销售日报、库存、会员、采购、应付、付款计划。\n- 拉取后的数据进入公司 AI 服务器 PostgreSQL，再给 Dify 做分析。\n- AI 回答必须区分：实时数据、昨日数据、历史资料、人工录入资料。\n\n## 六、员工权限\n\n- 普通员工：只看自己门店 SOP、商品知识、销售话术、基础库存查询。\n- 店长：看本店销售、库存、员工任务、会员跟进。\n- 运营/财务：看跨店数据、付款计划、费用、报销、利润分析。\n- 管理员：配置知识库、账号、自动化、模型、数据权限。\n\n## 七、第一批智能体\n\n- 店员问答助手：商品知识、活动话术、会员问题。\n- 店长经营助手：本店销售、库存、任务提醒。\n- 采购分析助手：动销、滞销、补货、调拨建议。\n- 财务付款助手：应付、现金流、付款优先级。\n- 老板驾驶舱：五店经营日报、异常预警、明日重点。\n\n## 八、上线顺序\n\n1. 新服务器、域名 ai.vafox.com、HTTPS、安全组。\n2. 员工登录门户和基础权限。\n3. Dify、n8n、公司知识库部署。\n4. 建立公司资料目录和第一版知识库。\n5. SAP B1 只读同步打通。\n6. 每日经营日报自动生成。\n7. 员工手机端试用，逐店培训。\n8. 评估是否需要 GPU 和本地大模型。\n"
+  },
+  "firefox-hq/ai-ceo": {
+    "title": "AI智能体总经理",
+    "description": "个人 AI 总经理和未来公司 AI 总经理的边界与路线。",
+    "content": "# AI智能体总经理\n\n目标：先在私人系统里沉淀老板视角的经营方法，再在公司 AI 服务器上做全员可用的 AI 总经理。\n\n## 私人 AI 总经理\n\n- 服务对象：呼延勇个人。\n- 入口：huyan.vafox.com。\n- 内容：公司架构、投资旅行、经营判断、个人复盘、战略规划。\n- 权限：不开放给普通员工。\n\n## 公司 AI 总经理\n\n- 服务对象：全体员工、店长、运营、财务、老板。\n- 入口：ai.vafox.com。\n- 内容：公司知识库、门店 SOP、商品资料、SAP B1 数据、任务提醒。\n- 权限：按员工、店长、财务、管理员分级。\n\n## 优先智能体\n\n1. 老板驾驶舱：每日销售、库存、现金流、异常预警。\n2. 店长助手：本店目标、任务、员工跟进、会员转化。\n3. 店员助手：商品知识、销售话术、会员问题。\n4. 采购助手：动销、滞销、补货、调拨。\n5. 财务助手：付款优先级、费用复盘、资金计划。\n\n## 当前重点\n\n- 私人系统继续沉淀经营框架。\n- 公司系统另租服务器，用 ai.vafox.com 独立建设。\n- SAP B1 数据打通前，先准备只读账号和字段清单。\n"
+  },
+  "_navigation": [
+    ["首页", "home", "/"],
+    ["今日经营更新", "page", "/firefox-hq/daily"],
+    ["项目任务总表", "page", "/firefox-hq/tasks"],
+    ["公司 AI 服务器规划", "page", "/firefox-hq/company-ai-server-plan"],
+    ["项目总看板", "page", "/firefox-hq/project-dashboard"],
+    ["公司顶层架构", "page", "/firefox-hq/company-architecture"],
+    ["经营管理", "page", "/firefox-hq/operations"],
+    ["薪酬与激励", "page", "/firefox-hq/compensation"],
+    ["供应链 / 采购 / 会员 / 销售", "page", "/firefox-hq/supply-chain"],
+    ["财务管理", "page", "/firefox-hq/finance"],
+    ["大店计划", "page", "/firefox-hq/big-store-plan"],
+    ["推广与引流", "page", "/firefox-hq/marketing"],
+    ["品牌研发与代理", "page", "/firefox-hq/brands"],
+    ["Dify 智能体配置", "page", "/firefox-hq/dify-setup"],
+    ["n8n 自动化计划", "page", "/firefox-hq/n8n-automation"],
+    ["SAP B1 连接配置", "page", "/firefox-hq/sap-b1"],
+    ["个人投资与旅行", "page", "/firefox-hq/personal"]
+  ]
+}

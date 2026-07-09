@@ -1,0 +1,395 @@
+# 10 API Standard / API 规范
+
+## 通用原则
+
+- 所有 API 返回 JSON。
+- 未登录返回 `401`。
+- 无权限或找不到返回安全错误，不泄露敏感信息。
+- 不在代码或响应中暴露密码、API Key、数据库连接串。
+- 不编造 AI 业务答案、SAP 数据或外部新闻。
+- 写操作需要登录并记录必要日志。
+
+## 推荐返回结构
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "message": ""
+}
+```
+
+## Dashboard / SAP API
+
+- `GET /api/dashboard/summary`
+- `GET /api/dashboard/overview`
+- `GET /api/dashboard/stores`
+- `GET /api/dashboard/products`
+- `GET /api/sap/business-analysis`
+- `GET /api/sap/profit-analysis`
+- `GET /api/sap/inventory-analysis`
+- `GET /api/sap/sales-trend`
+- `GET /api/sap/ai-analysis`
+
+## V6.2 AI Agents + Content Center API
+
+- `GET /api/agents/v6.2`
+- `GET /api/agents/list`
+- `POST /api/agents/run`
+- `GET /api/agents/runs`
+- `GET /api/agents/ai-tasks`
+- `POST /api/agents/ai-tasks`
+- `GET /api/agents/logs`
+
+V6.2 AI actions are draft-first. Price, contract, finance, external publishing, and SAP writeback actions must keep human approval and audit logs.
+
+## V6.4 AI Decision Center API
+
+- `GET /api/v6.4/status`
+- `GET /api/v6.4/decision-center`
+- `POST /api/v6.4/decision-cases`
+- `GET /api/v6.4/executive-brief`
+- `GET /api/v6.4/store-intelligence`
+- `GET /api/v6.4/brand-intelligence`
+- `GET /api/v6.4/customer-intelligence`
+
+## V7.1 Enterprise Kernel + MCP API
+
+- `GET /api/v7.1/status`
+- `GET /api/v7.1/kernel`
+- `GET /api/v7.1/mcp/connectors`
+- `GET /api/v7.1/events`
+- `POST /api/v7.1/events`
+- `GET /api/v7.1/observability`
+
+## Task003 Knowledge API
+
+- `GET /api/knowledge`
+- `POST /api/knowledge`
+- `GET /api/knowledge/{id}`
+- `GET /api/knowledge/search?q=关键词`
+- `POST /api/knowledge/from-document`
+- `GET /api/knowledge/chunks?knowledge_id=1`
+- `POST /api/knowledge/query`
+- `GET /api/knowledge/query-history`
+
+## Task005 Production Cockpit API
+
+- `GET /api/ai-ceo/daily-briefing`
+- `GET /api/business/cockpit`
+- `GET /api/stores/operations`
+- `GET /api/brands/operations`
+- `GET /api/inventory/risk`
+- `GET /api/brands/osprey-risk`
+- `POST /api/brands/osprey-risk/calculate`
+- `GET /api/tasks`
+- `POST /api/tasks`
+- `PUT /api/tasks/{id}`
+- `POST /api/tasks/{id}/complete`
+- `GET /api/health`
+
+## Task006 Automation API
+
+- `GET /api/automation`
+- `POST /api/automation`
+- `GET /api/workflows`
+- `POST /api/workflows`
+- `GET /api/notifications`
+
+Automation APIs return safe placeholders when n8n, Dify, Enterprise WeChat, SMS, or SAP event triggers are not configured.
+
+## Task007 Memory API
+
+- `GET /api/memory`
+- `POST /api/memory`
+- `GET /api/memory/{id}`
+- `POST /api/memory/{id}/approve`
+- `POST /api/memory/{id}/reject`
+- `POST /api/memory/{id}/archive`
+- `GET /api/preferences`
+- `POST /api/preferences`
+- `GET /api/decisions`
+- `POST /api/decisions`
+
+New memories default to `pending_review`. AI must not create approved permanent memory without human review.
+
+## Task008 Knowledge Graph API
+
+- `GET /api/graph`
+- `GET /api/graph/entities`
+- `POST /api/graph/entities`
+- `GET /api/graph/entities/{id}`
+- `GET /api/graph/relationships`
+- `POST /api/graph/relationships`
+- `GET /api/graph/search`
+- `GET /api/graph/entity-network`
+- `GET /api/graph/risk-map`
+- `GET /api/graph/osprey-risk`
+- `POST /api/graph/extract`
+
+Graph APIs must not invent relationships, risk values or financial facts.
+
+## Task009 Multi-Agent API
+
+- `GET /api/agents/collaboration`
+- `GET /api/agents/roles`
+- `POST /api/agents/roles`
+- `GET /api/agents/tasks`
+- `POST /api/agents/tasks`
+- `POST /api/agents/tasks/{id}/approve`
+- `POST /api/agents/tasks/{id}/reject`
+- `GET /api/agents/discussions`
+- `POST /api/agents/discussions`
+- `GET /api/agents/tools`
+- `POST /api/agents/tools`
+- `POST /api/agents/scenarios/osprey-pricing`
+
+Agent APIs must not fake conclusions. Business-changing actions require human review.
+
+## Task010 FoxBrain Jarvis API
+
+- `GET /api/jarvis/status`
+- `GET /api/jarvis/suggestions`
+- `GET /api/jarvis/conversations`
+- `POST /api/jarvis/conversations`
+- `GET /api/jarvis/conversations/{id}`
+- `POST /api/jarvis/message`
+- `POST /api/jarvis/route-intent`
+- `POST /api/jarvis/action/confirm`
+- `POST /api/jarvis/report`
+
+Jarvis APIs return citation-ready payloads with `intent`, `answer`, `confidence`, `tool_calls`, `cited_sources`, `related_objects`, `limitations`, and `next_actions`.
+
+Jarvis must not invent SAP data, finance results, customer facts, market news, or official reports. Important actions require human confirmation.
+
+## Task011 Reporting Engine API
+
+- `GET /api/reports`
+- `POST /api/reports`
+- `GET /api/reports/{id}`
+- `PUT /api/reports/{id}`
+- `POST /api/reports/{id}/generate`
+- `POST /api/reports/{id}/approve`
+- `POST /api/reports/{id}/reject`
+- `POST /api/reports/{id}/archive`
+- `POST /api/reports/{id}/export`
+- `GET /api/report-templates`
+- `POST /api/report-templates`
+- `GET /api/report-schedules`
+- `POST /api/report-schedules`
+
+Report APIs create AI drafts. A report is not official until an authorized user approves it.
+
+## Task012 Content Publishing API
+
+- `GET /api/content`
+- `POST /api/content`
+- `GET /api/content/{id}`
+- `PUT /api/content/{id}`
+- `POST /api/content/{id}/generate`
+- `POST /api/content/{id}/submit-review`
+- `POST /api/content/{id}/approve`
+- `POST /api/content/{id}/reject`
+- `POST /api/content/{id}/archive`
+- `POST /api/content/{id}/schedule`
+- `GET /api/content/calendar`
+- `GET /api/content/campaigns`
+- `POST /api/content/campaigns`
+- `GET /api/content/platform-versions`
+- `POST /api/content/platform-versions`
+- `GET /api/content/publish-queue`
+- `POST /api/content/export`
+
+Content APIs produce drafts and platform versions. V1 does not publish automatically.
+
+## Task013 Mobile Field Operation API
+
+- `GET /api/mobile`
+- `GET /api/mobile/tasks`
+- `POST /api/mobile/submissions`
+- `GET /api/mobile/submissions`
+- `GET /api/mobile/submissions/{id}`
+- `PUT /api/mobile/submissions/{id}`
+- `POST /api/mobile/submissions/{id}/approve`
+- `POST /api/mobile/submissions/{id}/reject`
+- `POST /api/mobile/submissions/{id}/convert-to-task`
+- `POST /api/mobile/submissions/{id}/convert-to-knowledge`
+- `GET /api/mobile/notifications`
+- `GET /api/wecom/status`
+
+Mobile submissions are pending evidence until reviewed. Enterprise WeChat APIs are placeholders until credentials are configured in the environment.
+
+## Task014 Store Growth API
+
+- `GET /api/store-growth`
+- `GET /api/store-growth/diagnosis`
+- `POST /api/store-growth/diagnosis`
+- `GET /api/store-growth/plans`
+- `POST /api/store-growth/plans`
+- `GET /api/store-growth/plans/{id}`
+- `PUT /api/store-growth/plans/{id}`
+- `POST /api/store-growth/plans/{id}/create-tasks`
+- `GET /api/store-growth/activities`
+- `POST /api/store-growth/activities`
+- `GET /api/store-growth/focus`
+- `POST /api/store-growth/focus`
+- `GET /api/store-growth/reports`
+- `POST /api/store-growth/reports`
+
+Store growth APIs return templates and empty states when real store data is not available.
+
+## Task015 Brand Growth API
+
+- `GET /api/brand-growth`
+- `GET /api/brand-growth/diagnosis`
+- `POST /api/brand-growth/diagnosis`
+- `GET /api/brand-growth/strategies`
+- `POST /api/brand-growth/strategies`
+- `GET /api/brand-growth/portfolio`
+- `POST /api/brand-growth/portfolio`
+- `GET /api/brand-growth/pricing`
+- `POST /api/brand-growth/pricing`
+- `POST /api/brand-growth/pricing/calculate`
+- `GET /api/brand-growth/inventory-matrix`
+- `GET /api/brand-growth/supplier-risk`
+- `POST /api/brand-growth/create-tasks`
+
+Brand growth APIs return templates and empty states when real SAP, supplier or research data is not available.
+
+## Task016 Inventory Purchasing Decision API
+
+- `GET /api/inventory-decision`
+- `GET /api/inventory-decision/risks`
+- `POST /api/inventory-decision/risks`
+- `GET /api/inventory-decision/replenishment`
+- `POST /api/inventory-decision/replenishment`
+- `GET /api/inventory-decision/transfers`
+- `POST /api/inventory-decision/transfers`
+- `GET /api/inventory-decision/markdowns`
+- `POST /api/inventory-decision/markdowns`
+- `GET /api/inventory-decision/future-orders`
+- `POST /api/inventory-decision/future-orders`
+- `GET /api/inventory-decision/purchasing-plans`
+- `POST /api/inventory-decision/purchasing-plans`
+- `GET /api/inventory-decision/cash-occupation`
+- `GET /api/inventory-decision/osprey`
+- `POST /api/inventory-decision/create-task`
+
+Inventory purchasing APIs create review suggestions only. They do not execute purchase orders, stock transfers or markdowns automatically.
+
+## Task017 Finance Profit API
+
+- `GET /api/finance`
+- `GET /api/finance/profit`
+- `POST /api/finance/profit`
+- `GET /api/finance/store-profit`
+- `GET /api/finance/brand-profit`
+- `GET /api/finance/expenses`
+- `POST /api/finance/expenses`
+- `GET /api/finance/cashflow`
+- `GET /api/finance/rebates`
+- `POST /api/finance/rebates`
+- `POST /api/finance/discount-calculate`
+- `POST /api/finance/break-even-calculate`
+- `POST /api/finance/create-task`
+
+Finance APIs must not invent financial data. Calculators return scenario estimates only.
+
+## Task018 HR Performance Incentive API
+
+- `GET /api/hr`
+- `GET /api/hr/performance`
+- `POST /api/hr/performance`
+- `GET /api/hr/incentive-plans`
+- `POST /api/hr/incentive-plans`
+- `PUT /api/hr/incentive-plans/{id}`
+- `POST /api/hr/incentive-plans/{id}/calculate`
+- `GET /api/hr/training`
+- `POST /api/hr/training`
+- `GET /api/hr/growth-records`
+- `POST /api/hr/growth-records`
+- `GET /api/hr/candidates`
+- `POST /api/hr/candidates`
+- `GET /api/hr/ai-evaluation`
+- `POST /api/hr/create-task`
+
+HR APIs must not invent salary or performance facts. AI evaluation is advisory and requires human review.
+
+## Task019 Customer Membership Private Domain API
+
+- `GET /api/customer-growth`
+- `GET /api/customer-growth/segments`
+- `POST /api/customer-growth/segments`
+- `GET /api/customer-growth/tags`
+- `POST /api/customer-growth/tags`
+- `GET /api/customer-growth/groups`
+- `POST /api/customer-growth/groups`
+- `GET /api/customer-growth/followups`
+- `POST /api/customer-growth/followups`
+- `GET /api/customer-growth/events`
+- `POST /api/customer-growth/events`
+- `GET /api/customer-growth/value-analysis`
+- `POST /api/customer-growth/create-task`
+
+Customer APIs must protect private data and must not invent customer profiles or purchase history.
+
+## Task020 Platform Kernel API
+
+- `GET /api/system/modules`
+- `GET /api/system/objects`
+- `GET /api/system/health`
+- `GET /api/system/data-readiness`
+- `GET /api/search/global`
+- `GET /api/notifications`
+- `POST /api/notifications/{id}/read`
+- `GET /api/workspace`
+- `GET /api/boss`
+- `GET /api/employee-workspace`
+- `GET /api/settings`
+- `PUT /api/settings`
+- `GET /api/ai/context-packet`
+- `GET /api/risks`
+- `POST /api/risks`
+- `GET /api/timeline/global`
+
+Platform APIs must not expose secrets or restricted details.
+
+## Task021 SAP Nightly Sync API
+
+- `GET /api/sap/sync/status`
+- `GET /api/sap/sync/history`
+- `POST /api/sap/sync/run`
+- `POST /api/sap/sync/retry/{sync_id}`
+- `GET /api/sap/sync/logs/{sync_id}`
+- `GET /api/sap/sync/health`
+- `GET /api/data-pipeline`
+- `GET /api/system/data-freshness`
+
+SAP sync APIs never return credentials or raw connection strings.
+
+## Task022 Operating System Layer API
+
+- `GET /api/apps`
+- `GET /api/desktop`
+- `GET /api/command-center`
+- `GET /api/command-palette`
+- `POST /api/command-palette/execute`
+- `GET /api/object-actions`
+- `GET /api/context-bar`
+- `GET /api/work-queue`
+- `GET /api/approvals`
+- `POST /api/approvals/{id}/approve`
+- `POST /api/approvals/{id}/reject`
+- `GET /api/os/data-freshness`
+- `GET /api/system/upgrade`
+- `GET /api/os/context`
+
+OS APIs organize existing modules and must not bypass permissions.
+
+## Future API
+
+- `POST /api/files/parse`
+- `POST /api/knowledge/embed`
+- `POST /api/knowledge/sync-to-dify`
+- `POST /api/sap/knowledge-snapshot`
+- `POST /api/agents/run`

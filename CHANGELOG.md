@@ -1,0 +1,46 @@
+# Changelog
+
+## 2026-07-05
+
+- Added V6 autonomous cloud worker schedule for SAP sync, knowledge indexing, backup, daily report, web research, weekly report and monthly report.
+- Added worker visibility to `healthcheck.sh`.
+- Updated `/api/health` to expose V6 worker job schedule and app version.
+- Preserved existing login, V5 pages, SAP sync and cloud deployment behavior.
+- Imported FoxBrain OS Enterprise Pack 01 as the foundation engineering standard and aligned roadmap/docs.
+- Integrated Pack 02 SAP and AI framework contracts for CEO dashboard, SAP connector and agent registry.
+- Integrated Pack 03 enterprise knowledge platform framework with governance fields, ingestion status, retrieval contract and knowledge graph contract APIs.
+- Added Task041 and Task042 documentation plus smoke-test coverage for the new enterprise pack framework.
+- Integrated Pack 04 unified multi-agent framework with runtime, permission, tool interface, memory, approval and audit contracts.
+- Marked pricing, contract and finance agent tools as high-risk actions that require human approval before execution.
+- Integrated Pack 05 unified dashboard framework with KPI service, alert service, recommendation service and role-based cockpit contracts.
+- Dashboard AI recommendations now include basis and review notes, and remain separated from raw business KPI data.
+- Integrated Pack 06 unified automation framework with scheduler, retry policy, approval policy, notification and audit contracts.
+- High-risk automations now default to pending approval and are blocked from automatic execution before review.
+- Integrated Pack 07 Enterprise Brain framework with enterprise memory, decision engine, forecast, simulation and AI Council contracts.
+- AI recommendation contracts now require data or knowledge basis and preserve human approval for high-risk decisions.
+- Integrated Pack 08 unified enterprise portal with SSO contract, role navigation, shared components, message center and task center.
+- Added `/portal` as the unified mobile-first portal entry for phone, tablet and desktop.
+- Integrated Pack 09 enterprise memory framework with governed long-term memory, timeline, permission-aware retrieval and decision history contracts.
+- Enterprise Brain memory service now links to the enterprise memory repository, timeline, retrieval and decision history endpoints.
+- Integrated Pack 10 Release 1.0 production readiness with deployment, observability, rollback, security review and production checklist contracts.
+- Added release readiness docs and local validation coverage before further feature development.
+- Integrated Pack 11 security governance with RBAC, audit, data governance, backup recovery and approval governance contracts.
+- Security APIs now expose traceability rules for AI operations, workflow approvals and system configuration changes.
+- Integrated Pack 12 SDK marketplace framework with plugin manifest, extension points, marketplace registry, lifecycle and compatibility contracts.
+- SDK and marketplace APIs now expose versioned extension contracts and default human approval for high-risk plugin actions.
+- Integrated Pack 13 unified data intelligence layer with KPI catalog, metrics service, canonical data model, quality monitor, trend API and evidence-based insight engine.
+- Dashboard KPI and Enterprise Brain decision contracts now reference the unified metrics service to prevent inconsistent KPI calculations.
+- Integrated Pack 14 enterprise digital twin framework with entity registry, relationship service, state history, simulation sandbox and visualization contracts.
+- Enterprise Brain simulation now uses the digital twin sandbox and explicitly blocks production data modification.
+- Integrated Pack 15 Enterprise Decision Engine with risk scoring, opportunity discovery, explainable recommendations and approval gates.
+- Enterprise Brain decision output now uses the decision engine and requires evidence, risk score and confidence for business recommendations.
+- Integrated Pack 16 AI Strategy Center with KPI-linked OKRs, strategy models, scenario comparison, expansion analysis and strategy dashboard.
+- Strategy analysis now aligns with Data Intelligence, Digital Twin and Enterprise Decision Engine contracts.
+- Integrated Pack 17 FoxBrain University with learning catalog, role-based paths, AI Tutor, certification, progress dashboard and knowledge feedback.
+- Learning outcomes now support employee growth while explicitly avoiding automatic business permission changes.
+- Integrated Pack 18 Enterprise Growth Engine with growth scorecards, store growth, brand/product growth, customer growth and executive scorecards.
+- Growth recommendations now reference data sources and align with Data Intelligence, Decision Engine, Digital Twin and Strategy Center.
+- Integrated Pack 19 Executive Command Center with unified executive cockpit, risk center, AI Command, system health and module monitoring.
+- Executive Command Center now follows unified RBAC, unified data model, unified monitoring and human approval for high-risk AI commands.
+- Integrated Pack 20 FoxBrain OS 1.0 release review with module registry, integration checklist, architecture review payload and operations runbook.
+- Added formal FoxBrain OS 1.0 Architecture Review Report and release candidate gate for remote smoke test, backup and rollback rehearsal.
