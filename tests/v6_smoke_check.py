@@ -3064,3 +3064,102 @@ def test_sprint006_summary_present():
         "Sprint007",
     ]:
         assert phrase in summary
+
+
+def test_sprint008_data_lake_schema_routes_and_api_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "create table if not exists data_lake_sources",
+        "create table if not exists data_lake_records",
+        "create table if not exists data_lake_lineage",
+        "create table if not exists data_quality_checks",
+        "create table if not exists business_object_links",
+        "create table if not exists business_object_suggestions",
+        "create table if not exists business_metrics_snapshots",
+        "create table if not exists sap_import_batches",
+        "create table if not exists sap_sales",
+        "create table if not exists sap_inventory",
+        "idx_data_lake_sources_batch",
+        "idx_data_lake_records_hash",
+        "idx_business_object_suggestions_unique",
+        "def rebuild_data_lake_for_batch",
+        "def rebuild_data_lake",
+        "def refresh_business_metrics",
+        "def business_metrics_summary",
+        "def data_lake_page",
+        "def object_match_center",
+        "def api_data_lake_get",
+        "def api_data_lake_post",
+        '"/api/data-lake/rebuild"',
+        '"/api/business-metrics/summary"',
+        '"/api/object-links"',
+        '"/api/object-suggestions"',
+    ]:
+        assert phrase in portal
+
+
+def test_sprint008_dashboard_search_and_safety_present():
+    portal = read("portal_v2.py")
+    for phrase in [
+        "FoxBrain Data Lake",
+        "Object Match Center",
+        "data_lake_records",
+        "suggested_objects",
+        "quality_alerts",
+        "sales_amount",
+        "gross_profit",
+        "inventory_retail_amount",
+        "top_store_sales",
+        "top_brand_sales",
+        '"type": "data_lake_source"',
+        '"type": "data_lake_record"',
+        '"type": "object_link"',
+        '"type": "object_suggestion"',
+        '"type": "business_metric"',
+        "file_import_only_no_production_sap_connection",
+        r"\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP",
+    ]:
+        assert phrase in portal
+
+
+def test_sprint008_summary_and_report_present():
+    summary = read("SPRINT008_DATA_LAKE_SUMMARY.md")
+    report = read("SPRINT008_DATA_LAKE_TEST_REPORT.md")
+    real_report = read("SPRINT008_REAL_SAP_DATA_TEST_REPORT.md")
+    for phrase in [
+        "Sprint008 Data Lake Summary",
+        "data_lake_sources",
+        "business_object_links",
+        "CEO Dashboard V2",
+        "POST /api/data-lake/rebuild",
+        "GET /api/business-metrics/summary",
+        "No production SAP connection",
+        "Sprint009",
+    ]:
+        assert phrase in summary
+    for phrase in [
+        "Sprint008 Data Lake Test Report",
+        "Syntax check",
+        "Smoke tests",
+        "Pipeline simulation",
+        "Data Lake records",
+        "Object suggestions",
+        "Business metrics",
+    ]:
+        assert phrase in report
+    for phrase in [
+        "Sprint008 Real SAP Data Validation Report",
+        "2501",
+        "25kailas",
+        "26kailas",
+        "gb18030",
+        "data_lake_records",
+        "55,457",
+        "42,672",
+        "12,785",
+        "Sales amount",
+        "Gross profit",
+        "Inventory retail amount",
+        "No production SAP connection was made",
+    ]:
+        assert phrase in real_report
