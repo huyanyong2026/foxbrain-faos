@@ -1311,6 +1311,165 @@ create table if not exists data_lake_lineage(
         )
         conn.execute(
             """
+create table if not exists sync_connections(
+ id integer primary key autoincrement,
+ name text not null,
+ source_type text not null,
+ host_reference text,
+ database_reference text,
+ credential_reference text,
+ status text not null default 'draft',
+ read_only_verified integer not null default 0,
+ last_tested_at integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_jobs(
+ id integer primary key autoincrement,
+ job_key text unique not null,
+ connection_id integer,
+ dataset_type text not null,
+ sync_mode text not null default 'incremental_sync',
+ schedule_expression text,
+ status text not null default 'draft',
+ is_enabled integer not null default 0,
+ last_cursor_json text,
+ last_success_at integer,
+ last_failure_at integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_runs(
+ id integer primary key autoincrement,
+ job_id integer,
+ run_type text not null default 'dry_run',
+ status text not null default 'running',
+ started_at integer not null,
+ finished_at integer,
+ source_rows integer not null default 0,
+ staged_rows integer not null default 0,
+ inserted_rows integer not null default 0,
+ updated_rows integer not null default 0,
+ skipped_rows integer not null default 0,
+ rejected_rows integer not null default 0,
+ source_checksum text,
+ target_checksum text,
+ error_summary text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_run_errors(
+ id integer primary key autoincrement,
+ run_id integer not null,
+ dataset_type text,
+ source_key text,
+ error_type text,
+ error_message text,
+ raw_reference text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_staging_records(
+ id integer primary key autoincrement,
+ run_id integer not null,
+ dataset_type text not null,
+ source_primary_key text not null,
+ source_updated_at text,
+ row_hash text not null,
+ raw_data_json text,
+ validation_status text not null default 'pending',
+ validation_message text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_reconciliation_results(
+ id integer primary key autoincrement,
+ run_id integer not null,
+ dataset_type text,
+ check_type text,
+ source_value text,
+ target_value text,
+ difference text,
+ status text not null default 'ok',
+ message text,
+ created_at integer not null
+)
+"""
+        )
+        for col, ddl in [
+            ("source_key", "source_key text"),
+            ("job_name", "job_name text"),
+            ("schedule_rule", "schedule_rule text"),
+            ("job_key", "job_key text"),
+            ("job_id", "job_id text"),
+            ("connection_id", "connection_id integer"),
+            ("dataset_type", "dataset_type text"),
+            ("sync_mode", "sync_mode text not null default 'incremental_sync'"),
+            ("schedule_expression", "schedule_expression text"),
+            ("is_enabled", "is_enabled integer not null default 0"),
+            ("last_cursor_json", "last_cursor_json text"),
+            ("last_success_at", "last_success_at integer"),
+            ("last_failure_at", "last_failure_at integer"),
+        ]:
+            ensure_column(conn, "sync_jobs", col, ddl)
+        for col, ddl in [
+            ("finished_at", "finished_at integer"),
+            ("source_count", "source_count integer not null default 0"),
+            ("staged_count", "staged_count integer not null default 0"),
+            ("published_count", "published_count integer not null default 0"),
+            ("skipped_count", "skipped_count integer not null default 0"),
+            ("failed_count", "failed_count integer not null default 0"),
+            ("cursor_json", "cursor_json text"),
+            ("summary_json", "summary_json text"),
+            ("created_by", "created_by integer"),
+            ("updated_at", "updated_at integer"),
+        ]:
+            ensure_column(conn, "sync_runs", col, ddl)
+        for col, ddl in [
+            ("job_id", "job_id integer"),
+            ("source_record_key", "source_record_key text"),
+            ("raw_json", "raw_json text"),
+            ("normalized_json", "normalized_json text"),
+            ("publish_status", "publish_status text not null default 'pending'"),
+            ("target_table", "target_table text"),
+            ("target_record_id", "target_record_id integer"),
+            ("updated_at", "updated_at integer"),
+        ]:
+            ensure_column(conn, "sync_staging_records", col, ddl)
+        for col, ddl in [
+            ("error_context", "error_context text"),
+        ]:
+            ensure_column(conn, "sync_run_errors", col, ddl)
+        for col, ddl in [
+            ("source_count", "source_count integer not null default 0"),
+            ("staged_count", "staged_count integer not null default 0"),
+            ("target_count", "target_count integer not null default 0"),
+            ("source_total", "source_total real not null default 0"),
+            ("target_total", "target_total real not null default 0"),
+            ("diff_count", "diff_count integer not null default 0"),
+            ("diff_amount", "diff_amount real not null default 0"),
+            ("details_json", "details_json text"),
+        ]:
+            ensure_column(conn, "sync_reconciliation_results", col, ddl)
+        conn.execute(
+            """
 create table if not exists data_quality_checks(
  id integer primary key autoincrement,
  source_id integer,
@@ -1443,6 +1602,12 @@ create table if not exists business_metric_quality(
             "create unique index if not exists idx_data_lake_sources_batch on data_lake_sources(batch_id)",
             "create unique index if not exists idx_data_lake_records_hash on data_lake_records(batch_id, record_type, row_hash)",
             "create index if not exists idx_data_lake_records_source on data_lake_records(source_id, record_type)",
+            "create index if not exists idx_sync_connections_type on sync_connections(source_type, status)",
+            "create index if not exists idx_sync_jobs_enabled on sync_jobs(is_enabled, dataset_type)",
+            "create index if not exists idx_sync_runs_job on sync_runs(job_id, created_at)",
+            "create index if not exists idx_sync_staging_run on sync_staging_records(run_id, dataset_type)",
+            "create unique index if not exists idx_sync_staging_identity on sync_staging_records(run_id, dataset_type, source_primary_key, row_hash)",
+            "create index if not exists idx_sync_reconciliation_run on sync_reconciliation_results(run_id, status)",
             "create index if not exists idx_business_object_links_record on business_object_links(record_type, record_id, object_type)",
             "create index if not exists idx_business_object_links_object on business_object_links(object_type, object_id, match_status)",
             "create unique index if not exists idx_business_object_suggestions_unique on business_object_suggestions(object_type, object_name, source_type, source_id)",
@@ -4914,6 +5079,8 @@ class App(BaseHTTPRequestHandler):
             return self.v5_page(user, path)
         if path == "/sap-sync":
             return self.sap_sync(user)
+        if path in ("/sync-center", "/sync-center/connections", "/sync-center/jobs", "/sync-center/runs", "/sync-center/reconciliation"):
+            return self.sync_center_page(user, path)
         if path == "/data-pipeline":
             return self.data_pipeline_page(user)
         if path in ("/data-lake", "/data-lake/sources", "/data-lake/records", "/sap-import"):
@@ -5134,6 +5301,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_get(user, path)
         if path.startswith("/api/sap/sync") or path.startswith("/api/data-pipeline") or path.startswith("/api/system/data-freshness"):
             return self.api_sap_sync_get(user, path)
+        if path.startswith("/api/sync"):
+            return self.api_enterprise_sync_get(user, path)
         if path.startswith("/api/apps") or path.startswith("/api/desktop") or path.startswith("/api/command-center") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner") or path.startswith("/api/command-palette") or path.startswith("/api/object-actions") or path.startswith("/api/context-bar") or path.startswith("/api/work-queue") or path.startswith("/api/approvals") or path.startswith("/api/os/") or path.startswith("/api/system/upgrade"):
             return self.api_os_layer_get(user, path)
         if path.startswith(("/api/workflow-automation", "/api/workflow/")):
@@ -5334,6 +5503,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_platform_post(self.current_user(), path)
         if path.startswith("/api/sap/sync"):
             return self.api_sap_sync_post(self.current_user(), path)
+        if path.startswith("/api/sync"):
+            return self.api_enterprise_sync_post(self.current_user(), path)
         if path.startswith("/api/data-lake") or path.startswith("/api/object-suggestions") or path.startswith("/api/business-calibration"):
             return self.api_data_lake_post(self.current_user(), path)
         if path.startswith("/api/command-palette") or path.startswith("/api/approvals") or path.startswith("/api/auto-operation") or path.startswith("/api/ai-operations") or path.startswith("/api/ai-task-planner"):
@@ -5472,6 +5643,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_decision_post(self.current_user(), path)
         if path.startswith("/api/business-rules"):
             return self.api_business_rules_post(self.current_user(), path)
+        if path.startswith("/api/sync"):
+            return self.api_enterprise_sync_post(self.current_user(), path)
         return self.json_out({"ok": False, "message": "unsupported"}, code=404)
 
     def do_DELETE(self):
@@ -7808,6 +7981,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             inventory_intelligence = self.inventory_intelligence_summary(conn)
             brand_intelligence = self.brand_intelligence_summary(conn)
             store_intelligence = self.store_intelligence_summary(conn)
+            sync_metrics = self.enterprise_sync_freshness_summary(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -7824,6 +7998,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 ("Inventory Intelligence", inventory_intelligence["total_inventory_quantity"] >= 0, "inventory_intelligence_snapshots"),
                 ("Brand Intelligence", brand_intelligence["brand_count"] >= 0, "brand_intelligence_snapshots"),
                 ("Store Intelligence", store_intelligence["store_count"] >= 0, "store_intelligence_snapshots"),
+                ("Enterprise Sync Engine", sync_metrics["failed_runs"] >= 0, "sync_runs"),
                 ("Search Engine", True, "/api/search"),
                 ("Timeline Engine", timeline_events_total >= 0, "timeline_events"),
             ]
@@ -7881,6 +8056,11 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "store_intelligence_avg_health": store_intelligence["avg_store_health"],
                 "store_intelligence_risky": len(store_intelligence["risky_stores"]),
                 "store_intelligence_opportunity": len(store_intelligence["opportunity_stores"]),
+                "enterprise_sync_status": sync_metrics["status"],
+                "enterprise_sync_last_success": sync_metrics["last_success_text"],
+                "enterprise_sync_pending_runs": sync_metrics["pending_runs"],
+                "enterprise_sync_failed_runs": sync_metrics["failed_runs"],
+                "enterprise_sync_enabled_schedules": sync_metrics["enabled_schedules"],
             },
             "business_metrics": business_metrics,
             "decision_metrics": decision_metrics,
@@ -7889,6 +8069,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "inventory_intelligence": inventory_intelligence,
             "brand_intelligence": brand_intelligence,
             "store_intelligence": store_intelligence,
+            "enterprise_sync": sync_metrics,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -7900,6 +8081,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": U(r"\u5bf9\u8c61\u4e2d\u5fc3"), "url": "/object-center", "status": "ready"},
                 {"title": U(r"\u77e5\u8bc6\u4e2d\u5fc3"), "url": "/knowledge", "status": "ready"},
                 {"title": "FoxBrain Data Lake", "url": "/data-lake", "status": "ready"},
+                {"title": "Enterprise Sync Center", "url": "/sync-center", "status": "ready"},
                 {"title": "Object Match Center", "url": "/object-links", "status": "ready"},
                 {"title": "Business Calibration", "url": "/business-calibration", "status": "ready"},
                 {"title": "Business Knowledge Graph", "url": "/knowledge-graph", "status": "ready"},
@@ -7956,6 +8138,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             (U(r"\u5e93\u5b58\u5065\u5eb7"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), "Inventory Intelligence"),
             (U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), "risk {} / opp {}".format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
             (U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), "risk {} / opp {}".format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
+            ("Enterprise Sync", summary["enterprise_sync_status"], "last " + str(summary["enterprise_sync_last_success"])),
+            ("Sync Staging", summary["enterprise_sync_pending_runs"], "manual approval"),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -8006,6 +8190,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "Inventory Intelligence: high={} critical={} slow={} opportunity={}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"], summary["inventory_intelligence_slow_stock"], summary["inventory_intelligence_opportunity"]),
             "Brand Intelligence: brands={} avg_health={:.1f} risky={} opportunity={}".format(summary["brand_intelligence_count"], summary["brand_intelligence_avg_health"], summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"]),
             "Store Intelligence: stores={} avg_health={:.1f} risky={} opportunity={}".format(summary["store_intelligence_count"], summary["store_intelligence_avg_health"], summary["store_intelligence_risky"], summary["store_intelligence_opportunity"]),
+            "Enterprise Sync: " + summary["enterprise_sync_status"] + " / last publish " + str(summary["enterprise_sync_last_success"]) + " / schedules enabled " + str(summary["enterprise_sync_enabled_schedules"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
@@ -8072,7 +8257,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u8bc1\u636e\u5df2\u4fdd\u7559")),
             self.metric(U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), "risk {} / opp {}".format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
             self.metric(U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), "risk {} / opp {}".format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
-            self.metric(U(r"\u6570\u636e\u65e5\u671f"), payload["business_metrics"].get("latest_snapshot_date") or payload["business_metrics"].get("snapshot_date") or "-", U(r"\u672c\u5730\u6570\u636e")),
+            self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), summary["enterprise_sync_status"], summary["enterprise_sync_last_success"]),
         ])
         recalculation_forms = """
 <form method="post" action="/api/business-health/recalculate"><button>{}</button></form>
@@ -8094,6 +8279,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             self.card(U(r"\u5e93\u5b58\u667a\u80fd"), U(r"\u6ede\u9500\u3001\u9ad8\u98ce\u9669\u3001\u8865\u8d27\u673a\u4f1a\uff0c\u5168\u90e8\u5e26 SAP \u5bfc\u5165\u8bc1\u636e\u3002"), "/inventory-intelligence", "btn", True),
             self.card(U(r"\u54c1\u724c\u667a\u80fd"), U(r"\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u673a\u4f1a\u6392\u884c\u3002"), "/brand-intelligence", "btn", True),
             self.card(U(r"\u95e8\u5e97\u667a\u80fd"), U(r"\u95e8\u5e97\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u7ecf\u8425\u673a\u4f1a\u3002"), "/store-intelligence", "btn", True),
+            self.card("Enterprise Sync", "Dry-run, staging, reconciliation, manual publish, and data freshness.", "/sync-center", "btn", True),
         ])
         body = """
 <div class="panel hero" data-home-contract="{}" data-legacy-title="FoxBrain CEO Home">
@@ -13096,6 +13282,454 @@ where ki.deleted_at is null"""
     def can_manage_sap_sync(self, user):
         return bool(user and user["role"] in ("boss", "admin", "finance", "purchasing"))
 
+    def enterprise_sync_fixture_root(self):
+        return Path(APP_DIR) / "sync_fixtures"
+
+    def enterprise_sync_sql_fixture_path(self):
+        return self.enterprise_sync_fixture_root() / "sap_b1_replica_fixture.sqlite"
+
+    def enterprise_sync_export_fixture_dir(self):
+        return self.enterprise_sync_fixture_root() / "safe_export_folder"
+
+    def ensure_enterprise_sync_fixture_data(self):
+        root = self.enterprise_sync_fixture_root()
+        export_dir = self.enterprise_sync_export_fixture_dir()
+        os.makedirs(root, exist_ok=True)
+        os.makedirs(export_dir, exist_ok=True)
+        sql_path = self.enterprise_sync_sql_fixture_path()
+        fixture_sales = [
+            {"source_key": "S-20260710-001", "sale_date": "2026-07-10", "store_name": U(r"\u5357\u5c71\u5e97"), "store_code": "NS", "brand_name": "Kailas", "category_name": "jacket", "product_code": "KLS-JKT-001", "product_name": "Kailas GTX Jacket", "barcode": "690000000001", "quantity": 2, "amount": 2398, "cost": 1420, "gross_profit": 978, "updated_at": "2026-07-10T08:20:00"},
+            {"source_key": "S-20260710-002", "sale_date": "2026-07-10", "store_name": U(r"\u632f\u5174\u5e97"), "store_code": "ZX", "brand_name": "Osprey", "category_name": "pack", "product_code": "OSP-PK-030", "product_name": "Osprey Pack 30L", "barcode": "690000000002", "quantity": 1, "amount": 899, "cost": 520, "gross_profit": 379, "updated_at": "2026-07-10T08:25:00"},
+            {"source_key": "S-20260710-003", "sale_date": "2026-07-10", "store_name": U(r"\u822a\u82d1\u5e97"), "store_code": "HY", "brand_name": "Mammut", "category_name": "shoe", "product_code": "MAM-SHOE-010", "product_name": "Mammut Hiking Shoe", "barcode": "690000000003", "quantity": 1, "amount": 1299, "cost": 820, "gross_profit": 479, "updated_at": "2026-07-10T09:10:00"},
+        ]
+        fixture_inventory = [
+            {"source_key": "I-20260710-001", "snapshot_date": "2026-07-10", "store_name": U(r"\u5357\u5c71\u5e97"), "store_code": "NS", "brand_name": "Kailas", "category_name": "jacket", "product_code": "KLS-JKT-001", "product_name": "Kailas GTX Jacket", "barcode": "690000000001", "quantity": 18, "cost_amount": 12780, "retail_amount": 21582, "age_days": 34, "updated_at": "2026-07-10T07:55:00"},
+            {"source_key": "I-20260710-002", "snapshot_date": "2026-07-10", "store_name": U(r"\u632f\u5174\u5e97"), "store_code": "ZX", "brand_name": "Osprey", "category_name": "pack", "product_code": "OSP-PK-030", "product_name": "Osprey Pack 30L", "barcode": "690000000002", "quantity": 42, "cost_amount": 21840, "retail_amount": 37758, "age_days": 214, "updated_at": "2026-07-10T07:56:00"},
+            {"source_key": "I-20260710-003", "snapshot_date": "2026-07-10", "store_name": U(r"\u91d1\u6c99\u5e97"), "store_code": "JS", "brand_name": "VAFOX", "category_name": "base-layer", "product_code": "VFX-BL-001", "product_name": "VAFOX Base Layer", "barcode": "690000000004", "quantity": 28, "cost_amount": 4200, "retail_amount": 7560, "age_days": 78, "updated_at": "2026-07-10T07:57:00"},
+        ]
+        if not sql_path.exists():
+            with sqlite3.connect(str(sql_path)) as source:
+                source.row_factory = sqlite3.Row
+                source.execute("create table sales(source_key text primary key,sale_date text,store_name text,store_code text,brand_name text,category_name text,product_code text,product_name text,barcode text,quantity real,amount real,cost real,gross_profit real,updated_at text)")
+                source.execute("create table inventory(source_key text primary key,snapshot_date text,store_name text,store_code text,brand_name text,category_name text,product_code text,product_name text,barcode text,quantity real,cost_amount real,retail_amount real,age_days integer,updated_at text)")
+                for item in fixture_sales:
+                    source.execute("insert into sales values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", tuple(item[k] for k in ["source_key", "sale_date", "store_name", "store_code", "brand_name", "category_name", "product_code", "product_name", "barcode", "quantity", "amount", "cost", "gross_profit", "updated_at"]))
+                for item in fixture_inventory:
+                    source.execute("insert into inventory values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", tuple(item[k] for k in ["source_key", "snapshot_date", "store_name", "store_code", "brand_name", "category_name", "product_code", "product_name", "barcode", "quantity", "cost_amount", "retail_amount", "age_days", "updated_at"]))
+        for name, rows in [("sales.csv", fixture_sales), ("inventory.csv", fixture_inventory)]:
+            path = export_dir / name
+            if not path.exists():
+                with open(path, "w", encoding="utf-8-sig", newline="") as fh:
+                    writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+                    writer.writeheader()
+                    writer.writerows(rows)
+
+    def ensure_enterprise_sync_defaults(self, conn):
+        self.ensure_enterprise_sync_fixture_data()
+        now = ts()
+        sql_path = str(self.enterprise_sync_sql_fixture_path())
+        export_dir = str(self.enterprise_sync_export_fixture_dir())
+        seeds = [
+            ("Local SQL Replica Fixture", "sap_b1_sql_replica", "local_fixture", sql_path, "ENV:SPRINT016_SQL_REPLICA_DSN", "active"),
+            ("Safe Export Folder Fixture", "sap_b1_export_folder", "local_fixture", export_dir, "", "active"),
+            ("Production SAP Readonly Placeholder", "sap_b1_sql_readonly", "SAP-PROD-READONLY", "ENV:SAP_READONLY_DATABASE", "ENV:SAP_READONLY_DSN", "disabled"),
+        ]
+        for name, source_type, host, database_ref, credential_ref, status in seeds:
+            exists = conn.execute("select id from sync_connections where name=?", (name,)).fetchone()
+            if not exists:
+                conn.execute(
+                    "insert into sync_connections(name,source_type,host_reference,database_reference,credential_reference,status,read_only_verified,last_tested_at,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (name, source_type, host, database_ref, credential_ref, status, 0, None, now, now),
+                )
+        active = conn.execute("select id from sync_connections where name='Local SQL Replica Fixture'").fetchone()
+        if active:
+            for dataset in ["sales", "inventory", "products", "brands", "stores"]:
+                job_key = "sap_" + dataset + "_manual"
+                exists = conn.execute("select id from sync_jobs where job_key=?", (job_key,)).fetchone()
+                if not exists:
+                    conn.execute(
+                        "insert into sync_jobs(job_key,job_id,source_key,job_name,connection_id,dataset_type,sync_mode,schedule_expression,schedule_rule,status,is_enabled,last_cursor_json,last_success_at,last_failure_at,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (job_key, job_key, "enterprise_sync", job_key, active["id"], dataset, "incremental_sync" if dataset in ("sales", "inventory") else "full_sync", "manual_disabled", "manual_disabled", "manual_only", 0, "{}", None, None, now, now),
+                    )
+
+    def enterprise_sync_source_tables(self):
+        return {
+            "sales": ["source_key", "sale_date", "store_name", "store_code", "brand_name", "category_name", "product_code", "product_name", "barcode", "quantity", "amount", "cost", "gross_profit", "updated_at"],
+            "inventory": ["source_key", "snapshot_date", "store_name", "store_code", "brand_name", "category_name", "product_code", "product_name", "barcode", "quantity", "cost_amount", "retail_amount", "age_days", "updated_at"],
+        }
+
+    def enterprise_sync_conn_json(self, row):
+        data = row_dict(row)
+        data["credential_reference"] = data.get("credential_reference") or ""
+        data["credential_secret_visible"] = False
+        data["safety"] = "credentials_are_references_only"
+        return data
+
+    def enterprise_sync_freshness_summary(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            try:
+                self.ensure_enterprise_sync_defaults(conn)
+            except Exception:
+                pass
+            last = conn.execute("select * from sync_runs where status='published' order by finished_at desc, id desc limit 1").fetchone()
+            pending = conn.execute("select count(*) c from sync_runs where status in ('staged','warning')").fetchone()["c"]
+            failed = conn.execute("select count(*) c from sync_runs where status='failed'").fetchone()["c"]
+            enabled = conn.execute("select count(*) c from sync_jobs where is_enabled=1").fetchone()["c"]
+            if not last:
+                return {"status": "no_published_sync", "last_success_at": None, "last_success_text": "-", "pending_runs": int(pending or 0), "failed_runs": int(failed or 0), "enabled_schedules": int(enabled or 0), "message": "No approved Enterprise Sync publish yet."}
+            age = ts() - int(last["finished_at"] or last["started_at"] or 0)
+            status = "fresh" if age <= 24 * 3600 else ("stale" if age <= 48 * 3600 else "outdated")
+            return {"status": status, "last_success_at": last["finished_at"], "last_success_text": dt(last["finished_at"]), "pending_runs": int(pending or 0), "failed_runs": int(failed or 0), "enabled_schedules": int(enabled or 0), "message": "Enterprise Sync data freshness is " + status + "."}
+        finally:
+            if own:
+                conn.close()
+
+    def enterprise_sync_extract_rows(self, conn_row, dataset, cursor=None):
+        self.ensure_enterprise_sync_fixture_data()
+        cursor = cursor or {}
+        source_type = conn_row["source_type"]
+        if source_type == "sap_b1_sql_readonly":
+            raise RuntimeError("Production read-only SAP source is disabled until explicit rollout approval.")
+        rows = []
+        if dataset in ("products", "brands", "stores"):
+            base_rows = self.enterprise_sync_extract_rows(conn_row, "sales", cursor) + self.enterprise_sync_extract_rows(conn_row, "inventory", cursor)
+            seen = set()
+            for row in base_rows:
+                if dataset == "products":
+                    key = row.get("product_code") or row.get("barcode") or row.get("product_name")
+                    item = {"source_key": "P-" + str(key), "product_code": row.get("product_code"), "product_name": row.get("product_name"), "barcode": row.get("barcode"), "brand_name": row.get("brand_name"), "updated_at": row.get("updated_at")}
+                elif dataset == "brands":
+                    key = row.get("brand_name")
+                    item = {"source_key": "B-" + str(key), "brand_name": row.get("brand_name"), "updated_at": row.get("updated_at")}
+                else:
+                    key = row.get("store_code") or row.get("store_name")
+                    item = {"source_key": "T-" + str(key), "store_code": row.get("store_code"), "store_name": row.get("store_name"), "updated_at": row.get("updated_at")}
+                if key and key not in seen:
+                    seen.add(key)
+                    rows.append(item)
+            return rows
+        if source_type == "sap_b1_sql_replica":
+            sql_path = conn_row["database_reference"] or str(self.enterprise_sync_sql_fixture_path())
+            with sqlite3.connect(sql_path) as source:
+                source.row_factory = sqlite3.Row
+                cols = self.enterprise_sync_source_tables()[dataset]
+                query = "select " + ",".join(cols) + " from " + dataset
+                params = []
+                if cursor.get("updated_at"):
+                    query += " where updated_at > ?"
+                    params.append(cursor["updated_at"])
+                query += " order by updated_at, source_key"
+                rows = [row_dict(r) for r in source.execute(query, params).fetchall()]
+        elif source_type == "sap_b1_export_folder":
+            path = Path(conn_row["database_reference"] or str(self.enterprise_sync_export_fixture_dir())) / (dataset + ".csv")
+            if path.exists():
+                with open(path, "r", encoding="utf-8-sig", newline="") as fh:
+                    for row in csv.DictReader(fh):
+                        if cursor.get("updated_at") and (row.get("updated_at") or "") <= cursor["updated_at"]:
+                            continue
+                        rows.append(dict(row))
+        else:
+            raise RuntimeError("Unsupported sync source type: " + str(source_type))
+        return rows
+
+    def enterprise_sync_normalize(self, dataset, row):
+        row = dict(row or {})
+        if dataset == "sales":
+            return {
+                "source_key": row.get("source_key") or self.data_lake_hash(row)[:18],
+                "sale_date": row.get("sale_date"),
+                "store_name": self.normalize_store_name(row.get("store_name")),
+                "store_code": row.get("store_code"),
+                "brand_name": row.get("brand_name") or self.infer_brand_name(row.get("product_name")),
+                "category_name": row.get("category_name"),
+                "product_code": row.get("product_code"),
+                "product_name": row.get("product_name"),
+                "barcode": row.get("barcode"),
+                "quantity": float(row.get("quantity") or 0),
+                "amount": float(row.get("amount") or 0),
+                "cost": float(row.get("cost") or 0),
+                "gross_profit": float(row.get("gross_profit") or 0),
+                "updated_at": row.get("updated_at"),
+            }
+        if dataset == "inventory":
+            return {
+                "source_key": row.get("source_key") or self.data_lake_hash(row)[:18],
+                "snapshot_date": row.get("snapshot_date"),
+                "store_name": self.normalize_store_name(row.get("store_name")),
+                "store_code": row.get("store_code"),
+                "brand_name": row.get("brand_name") or self.infer_brand_name(row.get("product_name")),
+                "category_name": row.get("category_name"),
+                "product_code": row.get("product_code"),
+                "product_name": row.get("product_name"),
+                "barcode": row.get("barcode"),
+                "quantity": float(row.get("quantity") or 0),
+                "cost_amount": float(row.get("cost_amount") or 0),
+                "retail_amount": float(row.get("retail_amount") or 0),
+                "age_days": int(float(row.get("age_days") or 0)),
+                "updated_at": row.get("updated_at"),
+            }
+        if dataset == "products":
+            return {"source_key": row.get("source_key") or self.data_lake_hash(row)[:18], "product_code": row.get("product_code"), "product_name": row.get("product_name"), "barcode": row.get("barcode"), "brand_name": row.get("brand_name"), "updated_at": row.get("updated_at")}
+        if dataset == "brands":
+            return {"source_key": row.get("source_key") or self.data_lake_hash(row)[:18], "brand_name": row.get("brand_name"), "updated_at": row.get("updated_at")}
+        if dataset == "stores":
+            return {"source_key": row.get("source_key") or self.data_lake_hash(row)[:18], "store_code": row.get("store_code"), "store_name": self.normalize_store_name(row.get("store_name")), "updated_at": row.get("updated_at")}
+        return row
+
+    def enterprise_sync_validate(self, dataset, normalized):
+        issues = []
+        if dataset == "sales":
+            if not normalized.get("sale_date"):
+                issues.append("missing_sale_date")
+            if not (normalized.get("product_code") or normalized.get("barcode") or normalized.get("product_name")):
+                issues.append("missing_product_identity")
+            if float(normalized.get("amount") or 0) == 0:
+                issues.append("zero_sales_amount")
+        if dataset == "inventory":
+            if not normalized.get("snapshot_date"):
+                issues.append("missing_snapshot_date")
+            if not (normalized.get("product_code") or normalized.get("barcode") or normalized.get("product_name")):
+                issues.append("missing_product_identity")
+            if normalized.get("quantity") is None:
+                issues.append("missing_quantity")
+        if dataset == "products" and not (normalized.get("product_code") or normalized.get("product_name")):
+            issues.append("missing_product_identity")
+        if dataset == "brands" and not normalized.get("brand_name"):
+            issues.append("missing_brand_name")
+        if dataset == "stores" and not normalized.get("store_name"):
+            issues.append("missing_store_name")
+        return ("failed" if issues else "ok", ",".join(issues) if issues else "ok")
+
+    def enterprise_sync_run_job(self, job_id, user, run_type="dry_run"):
+        if not self.can_manage_sap_sync(user):
+            return {"ok": False, "message": "no permission"}, 403
+        now = ts()
+        with db() as conn:
+            self.ensure_enterprise_sync_defaults(conn)
+            job = conn.execute("select * from sync_jobs where id=?", (job_id,)).fetchone()
+            if not job:
+                return {"ok": False, "message": "sync job not found"}, 404
+            source = conn.execute("select * from sync_connections where id=?", (job["connection_id"],)).fetchone()
+            if not source or source["status"] == "disabled":
+                return {"ok": False, "message": "sync source disabled or missing"}, 409
+            cursor = safe_json(job["last_cursor_json"], {})
+            if run_type == "full_dry_run":
+                cursor = {}
+            cur = conn.execute(
+                "insert into sync_runs(job_id,run_type,status,started_at,finished_at,source_count,staged_count,published_count,skipped_count,failed_count,source_checksum,target_checksum,cursor_json,summary_json,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (job_id, run_type, "running", now, None, 0, 0, 0, 0, 0, "", "", json.dumps(cursor, ensure_ascii=False), "{}", user["id"], now, now),
+            )
+            run_id = cur.lastrowid
+            try:
+                source_rows = self.enterprise_sync_extract_rows(source, job["dataset_type"], cursor)
+                source_checksum = self.data_lake_hash(source_rows)
+                staged = failed = skipped = 0
+                max_updated_at = cursor.get("updated_at") or ""
+                for raw in source_rows:
+                    normalized = self.enterprise_sync_normalize(job["dataset_type"], raw)
+                    validation_status, validation_message = self.enterprise_sync_validate(job["dataset_type"], normalized)
+                    row_hash = self.data_lake_hash({"dataset": job["dataset_type"], "normalized": normalized})
+                    source_key = normalized.get("source_key") or row_hash[:18]
+                    exists = conn.execute("select id from sync_staging_records where dataset_type=? and (source_record_key=? or source_primary_key=?) and row_hash=?", (job["dataset_type"], source_key, source_key, row_hash)).fetchone()
+                    if exists:
+                        skipped += 1
+                        continue
+                    conn.execute(
+                        "insert into sync_staging_records(run_id,job_id,dataset_type,source_primary_key,source_record_key,source_updated_at,row_hash,raw_data_json,raw_json,normalized_json,validation_status,validation_message,publish_status,target_table,target_record_id,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (run_id, job_id, job["dataset_type"], source_key, source_key, normalized.get("updated_at"), row_hash, json.dumps(raw, ensure_ascii=False, sort_keys=True), json.dumps(raw, ensure_ascii=False, sort_keys=True), json.dumps(normalized, ensure_ascii=False, sort_keys=True), validation_status, validation_message, "pending", "sap_" + job["dataset_type"] if job["dataset_type"] in ("sales", "inventory") else "staging_only", None, now, now),
+                    )
+                    staged += 1
+                    if validation_status != "ok":
+                        failed += 1
+                    if normalized.get("updated_at") and normalized.get("updated_at") > max_updated_at:
+                        max_updated_at = normalized.get("updated_at")
+                target_estimate = conn.execute("select count(*) c from sync_staging_records where run_id=?", (run_id,)).fetchone()["c"]
+                diff = int(len(source_rows) or 0) - int(target_estimate or 0)
+                conn.execute(
+                    "insert into sync_reconciliation_results(run_id,dataset_type,source_count,staged_count,target_count,source_total,target_total,diff_count,diff_amount,status,details_json,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (run_id, job["dataset_type"], len(source_rows), staged, target_estimate, 0, 0, diff, 0, "matched" if failed == 0 else "warning", json.dumps({"skipped_duplicates": skipped, "failed_validation": failed}, ensure_ascii=False), now),
+                )
+                status = "failed" if failed and failed == staged else ("warning" if failed else "staged")
+                summary = {"dataset_type": job["dataset_type"], "publish_policy": "manual_approval_required", "schedules_enabled": False, "max_updated_at": max_updated_at, "skipped_duplicates": skipped}
+                conn.execute(
+                    "update sync_runs set status=?,finished_at=?,source_count=?,staged_count=?,skipped_count=?,failed_count=?,source_checksum=?,cursor_json=?,summary_json=?,updated_at=? where id=?",
+                    (status, ts(), len(source_rows), staged, skipped, failed, source_checksum, json.dumps({"updated_at": max_updated_at}, ensure_ascii=False), json.dumps(summary, ensure_ascii=False), ts(), run_id),
+                )
+                self.log_action(user, "enterprise_sync_stage", "sync_run", run_id, json.dumps(summary, ensure_ascii=False))
+                return {"ok": True, "run_id": run_id, "status": status, "source_count": len(source_rows), "staged_count": staged, "skipped_count": skipped, "failed_count": failed, "manual_approval_required": True}, 200
+            except Exception as exc:
+                conn.execute("insert into sync_run_errors(run_id,error_type,error_message,error_context,created_at) values(?,?,?,?,?)", (run_id, exc.__class__.__name__, str(exc), job["dataset_type"], ts()))
+                conn.execute("update sync_runs set status='failed',finished_at=?,failed_count=1,summary_json=?,updated_at=? where id=?", (ts(), json.dumps({"error": str(exc)}, ensure_ascii=False), ts(), run_id))
+                return {"ok": False, "run_id": run_id, "message": str(exc)}, 500
+
+    def enterprise_sync_publish_run(self, run_id, user):
+        if not self.can_manage_sap_sync(user):
+            return {"ok": False, "message": "no permission"}, 403
+        now = ts()
+        with db() as conn:
+            run = conn.execute("select * from sync_runs where id=?", (run_id,)).fetchone()
+            if not run:
+                return {"ok": False, "message": "sync run not found"}, 404
+            if run["status"] == "published":
+                return {"ok": True, "message": "already published", "run_id": run_id}, 200
+            if run["status"] not in ("staged", "warning"):
+                return {"ok": False, "message": "only staged or warning runs can be manually published", "status": run["status"]}, 409
+            job = conn.execute("select * from sync_jobs where id=?", (run["job_id"],)).fetchone()
+            if not job:
+                return {"ok": False, "message": "sync job not found"}, 404
+            dataset = job["dataset_type"]
+            bad = conn.execute("select count(*) c from sync_staging_records where run_id=? and validation_status!='ok'", (run_id,)).fetchone()["c"]
+            if bad:
+                return {"ok": False, "message": "validation failed records must be fixed before publish", "failed_count": int(bad)}, 409
+            staged = conn.execute("select * from sync_staging_records where run_id=? and publish_status='pending' order by id", (run_id,)).fetchall()
+            inserted = skipped = 0
+            batch_id = None
+            if dataset in ("sales", "inventory"):
+                cur = conn.execute(
+                    "insert into sap_import_batches(document_id,import_type,filename,status,row_count,success_count,failed_count,error_message,mapping,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (None, dataset, "enterprise_sync_run_{}".format(run_id), "completed", len(staged), 0, 0, "", json.dumps({"source": "enterprise_sync", "run_id": run_id}, ensure_ascii=False), user["id"], now, now),
+                )
+                batch_id = cur.lastrowid
+            for row in staged:
+                normalized = safe_json(row["normalized_json"], {})
+                sync_source_key = row["source_record_key"] or row["source_primary_key"]
+                source_marker = '"sync_source_key": "{}"'.format(sync_source_key)
+                if dataset == "sales":
+                    exists = conn.execute("select id from sap_sales where raw_data like ?", ("%" + source_marker + "%",)).fetchone()
+                    if exists:
+                        skipped += 1
+                        conn.execute("update sync_staging_records set publish_status='skipped',target_record_id=?,updated_at=? where id=?", (exists["id"], now, row["id"]))
+                        continue
+                    raw_data = dict(normalized)
+                    raw_data["sync_source_key"] = sync_source_key
+                    cur = conn.execute(
+                        "insert into sap_sales(batch_id,sale_date,store_name,store_code,employee_name,employee_code,brand_name,category_name,product_code,product_name,barcode,quantity,amount,cost,gross_profit,raw_data,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (batch_id, normalized.get("sale_date"), normalized.get("store_name"), normalized.get("store_code"), "", "", normalized.get("brand_name"), normalized.get("category_name"), normalized.get("product_code"), normalized.get("product_name"), normalized.get("barcode"), normalized.get("quantity"), normalized.get("amount"), normalized.get("cost"), normalized.get("gross_profit"), json.dumps(raw_data, ensure_ascii=False, sort_keys=True), now),
+                    )
+                    inserted += 1
+                    conn.execute("update sync_staging_records set publish_status='published',target_record_id=?,updated_at=? where id=?", (cur.lastrowid, now, row["id"]))
+                elif dataset == "inventory":
+                    exists = conn.execute("select id from sap_inventory where raw_data like ?", ("%" + source_marker + "%",)).fetchone()
+                    if exists:
+                        skipped += 1
+                        conn.execute("update sync_staging_records set publish_status='skipped',target_record_id=?,updated_at=? where id=?", (exists["id"], now, row["id"]))
+                        continue
+                    raw_data = dict(normalized)
+                    raw_data["sync_source_key"] = sync_source_key
+                    cur = conn.execute(
+                        "insert into sap_inventory(batch_id,snapshot_date,store_name,store_code,brand_name,category_name,product_code,product_name,barcode,quantity,cost_amount,retail_amount,age_days,raw_data,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (batch_id, normalized.get("snapshot_date"), normalized.get("store_name"), normalized.get("store_code"), normalized.get("brand_name"), normalized.get("category_name"), normalized.get("product_code"), normalized.get("product_name"), normalized.get("barcode"), normalized.get("quantity"), normalized.get("cost_amount"), normalized.get("retail_amount"), normalized.get("age_days"), json.dumps(raw_data, ensure_ascii=False, sort_keys=True), now),
+                    )
+                    inserted += 1
+                    conn.execute("update sync_staging_records set publish_status='published',target_record_id=?,updated_at=? where id=?", (cur.lastrowid, now, row["id"]))
+                else:
+                    skipped += 1
+                    conn.execute("update sync_staging_records set publish_status='staging_only',updated_at=? where id=?", (now, row["id"]))
+            if batch_id:
+                conn.execute("update sap_import_batches set success_count=?, failed_count=0, updated_at=? where id=?", (inserted, now, batch_id))
+                batch = conn.execute("select * from sap_import_batches where id=?", (batch_id,)).fetchone()
+                self.rebuild_data_lake_for_batch(conn, batch, user["id"])
+                self.refresh_business_metrics(conn)
+            cursor = safe_json(run["cursor_json"], {})
+            conn.execute("update sync_jobs set last_cursor_json=?, last_success_at=?, updated_at=? where id=?", (json.dumps(cursor, ensure_ascii=False), now, now, job["id"]))
+            conn.execute("update sync_runs set status='published',finished_at=?,published_count=?,skipped_count=skipped_count+?,target_checksum=?,summary_json=?,updated_at=? where id=?", (now, inserted, skipped, self.data_lake_hash({"inserted": inserted, "skipped": skipped, "batch_id": batch_id}), json.dumps({"batch_id": batch_id, "inserted": inserted, "skipped": skipped, "manual_approved_by": user["id"]}, ensure_ascii=False), now, run_id))
+            self.log_action(user, "enterprise_sync_publish", "sync_run", run_id, json.dumps({"batch_id": batch_id, "inserted": inserted, "skipped": skipped}, ensure_ascii=False))
+            return {"ok": True, "run_id": run_id, "batch_id": batch_id, "published_count": inserted, "skipped_count": skipped}, 200
+
+    def enterprise_sync_test_connection(self, connection_id, user):
+        if not self.can_manage_sap_sync(user):
+            return {"ok": False, "message": "no permission"}, 403
+        with db() as conn:
+            self.ensure_enterprise_sync_defaults(conn)
+            row = conn.execute("select * from sync_connections where id=?", (connection_id,)).fetchone()
+            if not row:
+                return {"ok": False, "message": "connection not found"}, 404
+            if row["status"] == "disabled":
+                return {"ok": False, "status": "disabled", "message": "disabled until explicit rollout approval"}, 409
+            self.ensure_enterprise_sync_fixture_data()
+            details = {}
+            if row["source_type"] == "sap_b1_sql_replica":
+                with sqlite3.connect(row["database_reference"]) as source:
+                    details["sales"] = source.execute("select count(*) from sales").fetchone()[0]
+                    details["inventory"] = source.execute("select count(*) from inventory").fetchone()[0]
+            elif row["source_type"] == "sap_b1_export_folder":
+                details["files"] = sorted([p.name for p in Path(row["database_reference"]).glob("*.csv")])
+            conn.execute("update sync_connections set status='tested',last_tested_at=?,updated_at=? where id=?", (ts(), ts(), connection_id))
+            self.log_action(user, "enterprise_sync_connection_test", "sync_connection", connection_id, json.dumps(details, ensure_ascii=False))
+            return {"ok": True, "connection": self.enterprise_sync_conn_json(row), "details": details}, 200
+
+    def enterprise_sync_verify_readonly(self, connection_id, user):
+        if not self.can_manage_sap_sync(user):
+            return {"ok": False, "message": "no permission"}, 403
+        with db() as conn:
+            self.ensure_enterprise_sync_defaults(conn)
+            row = conn.execute("select * from sync_connections where id=?", (connection_id,)).fetchone()
+            if not row:
+                return {"ok": False, "message": "connection not found"}, 404
+            if row["source_type"] == "sap_b1_sql_readonly":
+                return {"ok": False, "message": "production readonly source remains disabled until rollout approval"}, 409
+            conn.execute("update sync_connections set read_only_verified=1,updated_at=? where id=?", (ts(), connection_id))
+            self.log_action(user, "enterprise_sync_readonly_verified", "sync_connection", connection_id, row["source_type"])
+            return {"ok": True, "read_only_verified": True, "policy": "select_only_no_write_to_source"}, 200
+
+    def enterprise_sync_payload(self):
+        with db() as conn:
+            self.ensure_enterprise_sync_defaults(conn)
+            connections = [self.enterprise_sync_conn_json(r) for r in conn.execute("select * from sync_connections order by id").fetchall()]
+            jobs = [row_dict(r) for r in conn.execute("select j.*, c.name connection_name, c.source_type source_type from sync_jobs j left join sync_connections c on c.id=j.connection_id order by j.id").fetchall()]
+            runs = [row_dict(r) for r in conn.execute("select r.*, j.dataset_type, j.job_key from sync_runs r left join sync_jobs j on j.id=r.job_id order by r.id desc limit 50").fetchall()]
+            reconciliation = [row_dict(r) for r in conn.execute("select * from sync_reconciliation_results order by id desc limit 50").fetchall()]
+            freshness = self.enterprise_sync_freshness_summary(conn)
+        return {"ok": True, "connections": connections, "jobs": jobs, "runs": runs, "reconciliation": reconciliation, "freshness": freshness, "safety": {"production_sap_connection": False, "source_writes": False, "schedules_enabled_by_default": False, "secrets_in_git": False}}
+
+    def sync_center_page(self, user, path="/sync-center"):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_manage_sap_sync(user):
+            return self.dashboard(user)
+        payload = self.enterprise_sync_payload()
+        freshness = payload["freshness"]
+        metrics = "".join([
+            self.metric("Connections", len(payload["connections"]), "replica/export/disabled-prod"),
+            self.metric("Jobs", len(payload["jobs"]), "schedules off"),
+            self.metric("Pending staging", freshness["pending_runs"], "manual publish"),
+            self.metric("Last publish", freshness["last_success_text"], freshness["status"]),
+        ])
+        conn_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><form method='post' action='/api/sync/connections/{}/test'><button>Test</button></form><form method='post' action='/api/sync/connections/{}/verify-readonly'><button class='gray'>Verify Readonly</button></form></td></tr>".format(
+                c["id"], esc(c["name"]), esc(c["source_type"]), esc(c["status"]), "yes" if c.get("read_only_verified") else "no", c["id"], c["id"]
+            )
+            for c in payload["connections"]
+        )
+        job_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><form method='post' action='/api/sync/jobs/{}/dry-run'><button>Dry-run</button></form><form method='post' action='/api/sync/jobs/{}/incremental'><button class='dark'>Incremental</button></form></td></tr>".format(
+                j["id"], esc(j["job_key"]), esc(j["dataset_type"]), esc(j["connection_name"] or ""), "enabled" if j["is_enabled"] else "manual_only", j["id"], j["id"]
+            )
+            for j in payload["jobs"]
+        )
+        run_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}/{}</td><td>{}</td><td><form method='post' action='/api/sync/runs/{}/publish'><button class='green'>Publish</button></form><form method='post' action='/api/sync/runs/{}/retry'><button>Retry</button></form><form method='post' action='/api/sync/runs/{}/discard'><button class='gray'>Discard</button></form></td></tr>".format(
+                r["id"], esc(r.get("dataset_type") or ""), esc(r["status"]), r["staged_count"], r["source_count"], esc(dt(r["created_at"])), r["id"], r["id"], r["id"]
+            )
+            for r in payload["runs"][:30]
+        ) or "<tr><td colspan='6'>No sync runs yet.</td></tr>"
+        rec_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}/{}</td><td>{}</td></tr>".format(r["run_id"], esc(r["dataset_type"]), esc(r["status"]), r["staged_count"], r["source_count"], esc(r["details_json"] or ""))
+            for r in payload["reconciliation"][:30]
+        ) or "<tr><td colspan='5'>No reconciliation results.</td></tr>"
+        body = """
+<div class="panel"><h2>Enterprise Sync Engine</h2><p class="small">Production SAP is not connected in Sprint016. Sources are test replica/export fixtures; schedules are disabled until approved.</p><div class="metrics">{}</div></div>
+<div class="panel"><h2>Connections</h2><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Status</th><th>Readonly</th><th>Action</th></tr></thead><tbody>{}</tbody></table></div>
+<div class="panel"><h2>Jobs</h2><table><thead><tr><th>ID</th><th>Job</th><th>Dataset</th><th>Connection</th><th>Schedule</th><th>Action</th></tr></thead><tbody>{}</tbody></table></div>
+<div class="panel"><h2>Runs</h2><table><thead><tr><th>ID</th><th>Dataset</th><th>Status</th><th>Staged/Source</th><th>Created</th><th>Approval</th></tr></thead><tbody>{}</tbody></table></div>
+<div class="panel"><h2>Reconciliation</h2><table><thead><tr><th>Run</th><th>Dataset</th><th>Status</th><th>Staged/Source</th><th>Details</th></tr></thead><tbody>{}</tbody></table></div>
+""".format(metrics, conn_rows, job_rows, run_rows, rec_rows)
+        self.out(layout("Enterprise Sync Center", body, user=user, wide=True))
+
     def sap_sync_config_status(self):
         required = ["SAP_HOST", "SAP_DB", "SAP_USER", "SAP_PASSWORD"]
         missing = [k for k in required if not os.environ.get(k) or os.environ.get(k) == "change-me"]
@@ -13542,6 +14176,75 @@ where ki.deleted_at is null"""
             result, code = self.run_sap_sync_stub("retry", user, retry_sync_id=sync_id)
             return self.json_out(result, code=code)
         return self.json_out({"ok": False, "message": "unknown sap sync write api"}, code=404)
+
+    def api_enterprise_sync_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_sap_sync(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        payload = self.enterprise_sync_payload()
+        if path in ("/api/sync", "/api/sync/status", "/api/sync/center"):
+            return self.json_out(payload)
+        if path == "/api/sync/connections":
+            return self.json_out({"ok": True, "connections": payload["connections"], "safety": payload["safety"]})
+        if path == "/api/sync/jobs":
+            return self.json_out({"ok": True, "jobs": payload["jobs"], "schedules_enabled_by_default": False})
+        if path == "/api/sync/runs":
+            return self.json_out({"ok": True, "runs": payload["runs"]})
+        if path == "/api/sync/reconciliation":
+            return self.json_out({"ok": True, "reconciliation": payload["reconciliation"]})
+        if path == "/api/sync/freshness":
+            return self.json_out({"ok": True, "freshness": payload["freshness"]})
+        return self.json_out({"ok": False, "message": "unknown sync api"}, code=404)
+
+    def api_enterprise_sync_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_manage_sap_sync(user):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        m = re.match(r"^/api/sync/connections/(\d+)/test$", path)
+        if m:
+            payload, code = self.enterprise_sync_test_connection(int(m.group(1)), user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        m = re.match(r"^/api/sync/connections/(\d+)/verify-readonly$", path)
+        if m:
+            payload, code = self.enterprise_sync_verify_readonly(int(m.group(1)), user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        m = re.match(r"^/api/sync/jobs/(\d+)/(dry-run|full-dry-run|incremental)$", path)
+        if m:
+            run_type = {"dry-run": "dry_run", "full-dry-run": "full_dry_run", "incremental": "incremental_sync"}[m.group(2)]
+            payload, code = self.enterprise_sync_run_job(int(m.group(1)), user, run_type)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        m = re.match(r"^/api/sync/runs/(\d+)/publish$", path)
+        if m:
+            payload, code = self.enterprise_sync_publish_run(int(m.group(1)), user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        m = re.match(r"^/api/sync/runs/(\d+)/discard$", path)
+        if m:
+            with db() as conn:
+                conn.execute("update sync_runs set status='discarded',updated_at=? where id=? and status!='published'", (ts(), int(m.group(1))))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out({"ok": True, "run_id": int(m.group(1)), "status": "discarded"})
+        m = re.match(r"^/api/sync/runs/(\d+)/retry$", path)
+        if m:
+            with db() as conn:
+                run = conn.execute("select * from sync_runs where id=?", (int(m.group(1)),)).fetchone()
+            if not run:
+                return self.json_out({"ok": False, "message": "sync run not found"}, code=404)
+            payload, code = self.enterprise_sync_run_job(int(run["job_id"]), user, run["run_type"] or "dry_run")
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        return self.json_out({"ok": False, "message": "unknown sync write api"}, code=404)
 
     def app_permission_status(self, user, permission_required):
         if not user:
