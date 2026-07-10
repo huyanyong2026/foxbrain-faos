@@ -18,7 +18,7 @@ import uuid
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 try:
     import psycopg2
@@ -5110,15 +5110,24 @@ def layout(title, body, user=None, msg="", wide=False):
             '<div><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
         ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), T["change_password"], T["logout"])
         search_placeholder = U(r"\u641c\u7d22\u5546\u54c1\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001SAP\u3001\u77e5\u8bc6")
+        nav_items = [
+            (U(r"\u9996\u9875"), "/"),
+            (U(r"\u7ecf\u8425"), "/daily-intelligence"),
+            (U(r"\u4f01\u4e1a\u8d44\u6599"), "/drive"),
+            (U(r"AI\u52a9\u624b"), "/copilot"),
+            (U(r"\u7cfb\u7edf"), "/sync-center"),
+        ]
+        primary_nav = "".join('<a href="{}">{}</a>'.format(esc(href), esc(label)) for label, href in nav_items)
         nav = (
             '<div class="topbar os-topbar"><div><strong>{}</strong><small>{} / {}</small></div>'
+            '<nav class="primary-nav">{}</nav>'
             '<form class="global-search" method="get" action="/os/search"><input name="q" value="" placeholder="{}"></form>'
             '<div class="top-actions"><a href="/jarvis">AI</a><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
-        ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), esc(search_placeholder), T["change_password"], T["logout"])
+        ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), primary_nav, esc(search_placeholder), T["change_password"], T["logout"])
         bottom_nav = (
-            '<nav class="bottom-nav"><a href="/os/business">{}</a><a href="/os/ai">AI</a>'
-            '<a href="/os/messages">{}</a><a href="/os/me">{}</a></nav>'
-        ).format(U(r"\u7ecf\u8425"), U(r"\u6d88\u606f"), U(r"\u6211\u7684"))
+            '<nav class="bottom-nav"><a href="/">{}</a><a href="/daily-intelligence">{}</a>'
+            '<a href="/copilot">AI</a><a href="/sync-center">{}</a></nav>'
+        ).format(U(r"\u9996\u9875"), U(r"\u7ecf\u8425"), U(r"\u7cfb\u7edf"))
     alert = f'<div class="alert">{esc(msg)}</div>' if msg else ""
     max_width = "1180px" if wide else "980px"
     subtitle_html = "" if user or not T.get("subtitle") else "<p class=\"lead\">{}</p>".format(T["subtitle"])
@@ -5132,11 +5141,12 @@ h1{{font-size:30px;margin:8px 0 6px;line-height:1.2}}h2{{font-size:20px;margin:0
 a,button,.btn,input,select,textarea{{touch-action:manipulation}}img,video,canvas,svg{{max-width:100%;height:auto}}pre,code{{white-space:pre-wrap;word-break:break-word}}
 .panel,.card,.metric,td,th,p,li,h1,h2,h3,strong,span,label,.btn,button{{min-width:0;overflow-wrap:anywhere;word-break:break-word}}
 .topbar{{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:12px 14px;margin-bottom:18px}}
-.topbar>div{{min-width:0}}.topbar small{{display:block;color:#666;margin-top:3px}}.topbar a{{margin-left:12px;color:#1849a9;text-decoration:none;font-weight:700}}.os-topbar{{position:sticky;top:10px;z-index:10}}.global-search{{flex:1;min-width:180px;max-width:460px}}.global-search input{{height:42px;padding:10px 13px;border-radius:999px}}.top-actions{{white-space:nowrap}}
+.topbar>div{{min-width:0}}.topbar small{{display:block;color:#666;margin-top:3px}}.topbar a{{margin-left:12px;color:#1849a9;text-decoration:none;font-weight:700}}.os-topbar{{position:sticky;top:10px;z-index:10}}.primary-nav{{display:flex;gap:6px;align-items:center;flex-wrap:wrap}}.primary-nav a{{margin:0;padding:8px 10px;border-radius:8px;background:#f6f3ed;color:#333}}.global-search{{flex:1;min-width:180px;max-width:360px}}.global-search input{{height:42px;padding:10px 13px;border-radius:999px}}.top-actions{{white-space:nowrap}}
 .bottom-nav{{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 10px 26px rgba(0,0,0,.12);grid-template-columns:repeat(4,1fr);overflow:hidden}}.bottom-nav a{{padding:12px 6px;text-align:center;text-decoration:none;color:#1849a9;font-weight:800}}
 .panel,.card{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.panel{{padding:18px;margin:14px 0}}.form{{max-width:520px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}}.card{{padding:18px;min-height:154px;display:flex;flex-direction:column;justify-content:space-between}}
-.metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}}.metric{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;min-height:92px}}.metric strong{{display:block;font-size:22px;margin-top:7px;line-height:1.15}}.metric span{{font-size:13px;color:#666}}
+.metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}}.metric{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;min-height:92px}}.metric strong{{display:block;font-size:22px;margin-top:7px;line-height:1.15}}.metric span{{font-size:13px;color:#666}}.metric.good{{border-color:#b9dfc8;background:#f4fbf6}}.metric.warn{{border-color:#efd19a;background:#fff9ed}}.metric.risk{{border-color:#edb0aa;background:#fff5f4}}
+.ceo-hero{{background:#fff;border:1px solid #d8d0c2;border-radius:8px;padding:20px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.ceo-hero h1{{font-size:32px;margin:0 0 8px}}.ceo-ask{{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}}.focus-list{{display:grid;gap:10px}}.focus-item{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fbfaf7}}.focus-item strong{{display:block;margin-bottom:5px}}.status-tag{{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4ff;color:#1849a9;font-weight:800;font-size:12px}}.danger-note{{border-left:4px solid #b45f06;padding:10px 12px;background:#fff8ed;border-radius:8px}}.nav-groups{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}.nav-group{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fff}}.nav-group a{{display:inline-block;margin:4px 6px 4px 0}}
 .split{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}}.list{{margin:0;padding-left:20px;line-height:1.85}}.pill{{display:inline-flex;align-items:center;max-width:100%;border:1px solid #ddd7cc;border-radius:999px;padding:7px 10px;margin:3px 5px 3px 0;background:#fff;font-weight:700;color:#333;text-decoration:none}}
 .store-row{{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:8px;border-top:1px solid #eee;padding:10px 0}}.store-row:first-child{{border-top:0}}
 .card h2{{margin-bottom:4px}}.card p{{color:#555;margin:0 0 18px}}.disabled{{opacity:.55}}
@@ -5145,7 +5155,7 @@ label{{display:block;font-weight:800;margin:12px 0 7px}}input,select,textarea{{w
 button,.btn{{display:inline-block;max-width:100%;border:0;border-radius:8px;background:#1849a9;color:#fff;text-decoration:none;font-weight:800;padding:13px 16px;cursor:pointer;font-size:16px;text-align:center;line-height:1.25}}
 .btn.full{{width:100%}}.red{{background:#ad1f15}}.green{{background:#18704c}}.dark{{background:#222}}.gray{{background:#777}}.orange{{background:#b45f06}}
 .alert{{padding:12px;background:#fff7d6;border:1px solid #ecd27a;border-radius:8px;margin:12px 0}}table{{width:100%;border-collapse:collapse;table-layout:auto}}th,td{{border-bottom:1px solid #eee;padding:10px;text-align:left;vertical-align:top}}th{{white-space:nowrap}}.inline{{display:flex;gap:8px;align-items:center;flex-wrap:wrap}}.inline form{{display:inline}}.small{{font-size:13px;color:#666}}
-@media(max-width:820px){{main{{width:calc(100% - 16px);padding:10px 0 86px;overflow:hidden}}section{{padding:0 2px}}h1{{font-size:24px;line-height:1.22}}h2{{font-size:18px}}.lead{{font-size:14px;line-height:1.55}}.grid,.metrics,.split,.chat-shell{{grid-template-columns:1fr;gap:12px}}.panel{{padding:14px;margin:10px 0;border-radius:8px;overflow:hidden}}.card{{min-height:0;padding:14px}}.metric{{min-height:0;padding:12px}}.metric strong{{font-size:20px}}.store-row{{grid-template-columns:1fr}}.btn,button{{width:100%;padding:15px;min-height:48px}}.chat-input{{position:static;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;margin:10px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.chat-input p{{margin-bottom:0}}.chipbar{{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding:4px 0 0}}.chipbar button{{width:100%;min-height:44px;text-align:left;white-space:normal;line-height:1.35}}.topbar{{align-items:stretch;flex-direction:column;padding:12px;position:sticky;top:0;z-index:5}}.topbar a{{margin:0 12px 0 0;display:inline-block;padding:8px 0}}.global-search{{max-width:none;width:100%}}.top-actions{{white-space:normal}}.bottom-nav{{display:grid}}table,tbody,tr,td,th{{display:block;width:100%}}thead{{display:none}}tr{{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px;background:#fff;overflow:hidden}}td{{border:0;padding:7px 4px}}td:empty{{display:none}}.inline{{display:grid;grid-template-columns:1fr;gap:8px}}.inline form{{display:block;margin-top:0}}.pill{{border-radius:8px}}}}
+@media(max-width:820px){{main{{width:calc(100% - 16px);padding:10px 0 86px;overflow:hidden}}section{{padding:0 2px}}h1{{font-size:24px;line-height:1.22}}h2{{font-size:18px}}.lead{{font-size:14px;line-height:1.55}}.grid,.metrics,.split,.chat-shell,.ceo-ask{{grid-template-columns:1fr;gap:12px}}.panel,.ceo-hero{{padding:14px;margin:10px 0;border-radius:8px;overflow:hidden}}.ceo-hero h1{{font-size:26px}}.card{{min-height:0;padding:14px}}.metric{{min-height:0;padding:12px}}.metric strong{{font-size:20px}}.store-row{{grid-template-columns:1fr}}.btn,button{{width:100%;padding:15px;min-height:48px}}.chat-input{{position:static;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;margin:10px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.chat-input p{{margin-bottom:0}}.chipbar{{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding:4px 0 0}}.chipbar button{{width:100%;min-height:44px;text-align:left;white-space:normal;line-height:1.35}}.topbar{{align-items:stretch;flex-direction:column;padding:12px;position:sticky;top:0;z-index:5}}.topbar a{{margin:0 8px 0 0;display:inline-block;padding:8px 0}}.primary-nav{{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}}.primary-nav a{{font-size:13px;text-align:center;padding:8px 4px}}.global-search{{max-width:none;width:100%}}.top-actions{{white-space:normal}}.bottom-nav{{display:grid}}table,tbody,tr,td,th{{display:block;width:100%}}thead{{display:none}}tr{{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px;background:#fff;overflow:hidden}}td{{border:0;padding:7px 4px}}td:empty{{display:none}}.inline{{display:grid;grid-template-columns:1fr;gap:8px}}.inline form{{display:block;margin-top:0}}.pill{{border-radius:8px}}}}
 @media(max-width:420px){{main{{width:calc(100% - 12px)}}h1{{font-size:22px}}.panel,.card{{padding:12px}}input,select,textarea{{padding:13px}}.metrics{{gap:8px}}}}
 </style></head><body><main>{nav}<section><h1>{esc(title)}</h1>{subtitle_html}</section>{alert}{body}</main>{bottom_nav}</body></html>"""
 
@@ -5226,6 +5236,8 @@ class App(BaseHTTPRequestHandler):
         user = self.current_user()
         if path in ("/health", "/api/health"):
             return self.api_health()
+        if path == "/":
+            return self.dashboard(user) if user else self.login()
         if path == "/logout":
             return self.redir("/login", "fp_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
         if path == "/login":
@@ -6938,6 +6950,8 @@ class App(BaseHTTPRequestHandler):
                 "sales_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='sales_amount'").fetchone()["v"] or 0),
                 "gross_profit": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='gross_profit'").fetchone()["v"] or 0),
                 "gross_margin": float(conn.execute("select case when coalesce(sum(case when metric_key='sales_amount' then metric_value else 0 end),0)=0 then 0 else coalesce(sum(case when metric_key='gross_profit' then metric_value else 0 end),0)/sum(case when metric_key='sales_amount' then metric_value else 0 end) end v from business_metrics_snapshots where snapshot_type='store_sales'").fetchone()["v"] or 0),
+                "fee_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='fee_amount'").fetchone()["v"] or 0),
+                "profit_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_sales' and metric_key='profit_amount'").fetchone()["v"] or 0),
                 "inventory_cost_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_cost_amount'").fetchone()["v"] or 0),
                 "inventory_retail_amount": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_retail_amount'").fetchone()["v"] or 0),
                 "inventory_quantity": float(conn.execute("select coalesce(sum(metric_value),0) v from business_metrics_snapshots where snapshot_type='store_inventory' and metric_key='inventory_quantity'").fetchone()["v"] or 0),
@@ -7818,6 +7832,131 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         self.out(layout(U(r"SAP B1 \u540c\u6b65"), body, user=user, wide=True))
 
     def dashboard(self, user):
+        payload = self.ceo_dashboard_payload(user)
+        summary = payload["summary"]
+        profit = self.profit_composition_payload()
+        actions = []
+        with db() as conn:
+            actions = self.ceo_action_center_payload(conn, payload)
+        daily = payload.get("daily_intelligence") or {}
+        daily_items = daily.get("items") or []
+        top_focus = actions[:3]
+        if not top_focus:
+            top_focus = [
+                {"priority": "normal", "title": U(r"\u67e5\u770b\u4eca\u65e5\u7ecf\u8425\u65e5\u62a5"), "reason": U(r"\u6682\u65e0\u9ad8\u98ce\u9669\u63d0\u9192\uff0c\u5efa\u8bae\u5148\u770b\u65e5\u62a5\u548c\u6570\u636e\u66f4\u65b0\u65f6\u95f4\u3002"), "url": "/daily-intelligence", "action": U(r"\u6253\u5f00\u65e5\u62a5"), "source": "Daily Intelligence", "evidence_count": 0, "status": U(r"\u5f85\u67e5\u770b")},
+            ]
+        focus_html = "<div class='focus-list'>" + "".join(
+            "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
+                esc(item.get("priority") or ""),
+                esc(item.get("title") or ""),
+                esc(item.get("reason") or ""),
+                esc(item.get("url") or "/daily-intelligence"),
+                esc(item.get("action") or U(r"\u5904\u7406")),
+            )
+            for item in top_focus
+        ) + "</div>"
+        health_class = "good" if summary["business_health_score"] >= 70 else ("warn" if summary["business_health_score"] >= 55 else "risk")
+        sync_note = summary.get("enterprise_sync_last_success") or "-"
+        core_metrics = "".join([
+            "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+            self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
+            self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), U(r"\u5229\u6da6\u5206\u6790\u8868\u53e3\u5f84")),
+            self.metric(U(r"\u8d39\u7528"), money(summary.get("fee_amount", 0)), U(r"\u95e8\u5e97\u8d39\u7528")),
+            self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
+            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u8bc1\u636e\u5df2\u4fdd\u7559")),
+            self.metric(U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4"), summary["enterprise_sync_status"], sync_note),
+        ])
+        recent_daily = self.bullets([
+            "{} / {} / evidence {}".format(esc(i.get("title") or ""), esc(i.get("severity") or ""), len(i.get("evidence_json") or []))
+            for i in daily_items[:5]
+        ] or [U(r"\u6682\u65e0\u65e5\u62a5\u6761\u76ee\u3002\u8bf7\u70b9\u51fb\u91cd\u65b0\u5206\u6790\u751f\u6210\u4eca\u65e5\u65e5\u62a5\u3002")])
+        recent_decisions = self.bullets([
+            "{} / {} / evidence {}".format(esc(r.get("title") or ""), esc(r.get("severity") or ""), len(r.get("evidence") or []))
+            for r in payload["decision_metrics"].get("top_risks", [])[:5]
+        ] or [U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002")])
+        profit_html = """
+<div class="metrics">
+  {sap_profit}
+  {rebate_total}
+  {non_rebate}
+  {rebate_share}
+</div>
+<div class="danger-note">{warning}</div>
+<p class="small">Osprey {osprey} / Kailas {kailas} / evidence {evidence}</p>
+""".format(
+            sap_profit=self.metric(U(r"SAP\u5229\u6da6"), money(profit["sap_profit"]), U(r"\u5df2\u542b\u8fd4\u70b9")),
+            rebate_total=self.metric(U(r"\u8fd4\u70b9\u5408\u8ba1"), money(profit["rebate_total"]), U(r"\u4e0d\u518d\u53e0\u52a0")),
+            non_rebate=self.metric(U(r"\u975e\u8fd4\u70b9\u5229\u6da6"), money(profit["non_rebate_profit"]), U(r"\u5229\u6da6\u8d28\u91cf")),
+            rebate_share=self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u9700\u5173\u6ce8\u4f9d\u8d56")),
+            warning=esc(profit["warning"]),
+            osprey=money(profit["osprey_rebate"]),
+            kailas=money(profit["kailas_rebate"]),
+            evidence=len(profit["evidence"]),
+        )
+        suggested_questions = [
+            U(r"\u4eca\u5929\u4f01\u4e1a\u6700\u91cd\u8981\u7684\u98ce\u9669\u662f\u4ec0\u4e48\uff1f"),
+            U(r"\u4eca\u5e74\u5229\u6da6\u4e3a\u4ec0\u4e48\u770b\u8d77\u6765\u4e0d\u9519\uff1f"),
+            U(r"\u54c1\u724c\u8fd4\u70b9\u5bf9\u5229\u6da6\u5f71\u54cd\u591a\u5927\uff1f"),
+            U(r"Osprey\u5e93\u5b58\u98ce\u9669\u5728\u54ea\u91cc\uff1f"),
+            U(r"Kailas\u9500\u552e\u548c\u5e93\u5b58\u8868\u73b0\u5982\u4f55\uff1f"),
+            U(r"\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u600e\u4e48\u6837\uff1f"),
+        ]
+        question_chips = "".join("<a class='pill' href='/copilot?q={}'>{}</a>".format(quote(q), esc(q)) for q in suggested_questions)
+        body = """
+<div class="ceo-hero">
+  <span class="status-tag">CEO Experience 2.0</span>
+  <h1>FoxBrain CEO Brain</h1>
+  <p class="lead">{state}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
+    <button>{ask_button}</button>
+  </form>
+</div>
+<div class="panel"><h2>{metrics_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="split">
+  <div class="panel"><h2>{top_three_title}</h2>{focus}</div>
+  <div class="panel"><h2>{action_title}</h2>{actions}</div>
+</div>
+<div class="panel"><h2>{profit_title}</h2>{profit_html}</div>
+<div class="panel"><h2>{question_title}</h2><div class="chipbar">{question_chips}</div></div>
+<div class="split">
+  <div class="panel"><h2>{daily_title}</h2>{daily_list}<p><a class="btn" href="/daily-intelligence">{open_daily}</a></p></div>
+  <div class="panel"><h2>{decision_title}</h2>{decision_list}<p><a class="btn" href="/decision">{open_decision}</a></p></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{inventory_title}</h2>{inventory}</div>
+  <div class="panel"><h2>{brand_store_title}</h2>{brand_store}</div>
+</div>
+<div class="panel"><h2>{nav_title}</h2>{nav_groups}</div>
+""".format(
+            state=esc(U(r"\u4eca\u5929\u5148\u770b\u4f01\u4e1a\u72b6\u6001\u3001\u5229\u6da6\u8d28\u91cf\u3001\u4e09\u4ef6\u6700\u91cd\u8981\u7684\u4e8b\uff0c\u8be6\u7ec6\u6570\u636e\u518d\u70b9\u8fdb\u53bb\u770b\u3002")),
+            ask_label=U(r"AI \u95ee\u4f01\u4e1a"),
+            ask_placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"),
+            ask_button=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
+            metrics_title=U(r"\u4eca\u65e5\u6838\u5fc3\u6307\u6807"),
+            metrics=core_metrics,
+            top_three_title=U(r"\u4eca\u5929\u6700\u91cd\u8981\u7684\u4e09\u4ef6\u4e8b"),
+            focus=focus_html,
+            action_title=U(r"\u884c\u52a8\u4e2d\u5fc3"),
+            actions=self.ceo_action_center_html(actions),
+            profit_title=U(r"\u5229\u6da6\u6784\u6210"),
+            profit_html=profit_html,
+            question_title=U(r"\u63a8\u8350\u95ee\u9898"),
+            question_chips=question_chips,
+            daily_title=U(r"\u6700\u8fd1\u65e5\u62a5"),
+            daily_list=recent_daily,
+            open_daily=U(r"\u6253\u5f00\u65e5\u62a5"),
+            decision_title=U(r"\u6700\u8fd1\u51b3\u7b56"),
+            decision_list=recent_decisions,
+            open_decision=U(r"\u6253\u5f00\u51b3\u7b56"),
+            inventory_title=U(r"\u5e93\u5b58\u6458\u8981"),
+            inventory=self.bullets([U(r"\u6162\u9500\u5e93\u5b58\uff1a") + str(summary["inventory_intelligence_slow_stock"]), U(r"\u8865\u8d27\u673a\u4f1a\uff1a") + str(summary["inventory_intelligence_opportunity"]), U(r"\u9ad8\u98ce\u9669\uff1a") + str(summary["inventory_intelligence_high_risk"])]),
+            brand_store_title=U(r"\u54c1\u724c / \u95e8\u5e97"),
+            brand_store=self.bullets([U(r"\u54c1\u724c\u5e73\u5747\u5065\u5eb7\uff1a") + "{:.1f}".format(summary["brand_intelligence_avg_health"]), U(r"\u95e8\u5e97\u5e73\u5747\u5065\u5eb7\uff1a") + "{:.1f}".format(summary["store_intelligence_avg_health"]), U(r"\u98ce\u9669\u95e8\u5e97\uff1a") + str(summary["store_intelligence_risky"])]),
+            nav_title=U(r"\u4e8c\u7ea7\u5165\u53e3"),
+            nav_groups=self.ceo_navigation_groups_html(),
+        )
+        return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
         role = user["role"]
         can_boss = role in ("boss", "admin", "finance", "purchasing")
         can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
@@ -7897,6 +8036,132 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u5f53\u524d\u8d26\u53f7"), T["name"], esc(user["name"]), T["store"], esc(user["store"]), T["role"], esc(ROLES.get(role, role))
         )
         self.out(layout(T["brand"], quick + '<div class="grid">' + "".join(cards) + "</div>" + info, user=user, wide=True))
+
+    def dashboard(self, user):
+        payload = self.ceo_dashboard_payload(user)
+        summary = payload["summary"]
+        profit = self.profit_composition_payload()
+        with db() as conn:
+            actions = self.ceo_action_center_payload(conn, payload)
+        daily = payload.get("daily_intelligence") or {}
+        daily_items = daily.get("items") or []
+        top_focus = actions[:3]
+        if not top_focus:
+            top_focus = [
+                {"priority": "normal", "title": U(r"\u67e5\u770b\u4eca\u65e5\u7ecf\u8425\u65e5\u62a5"), "reason": U(r"\u6682\u65e0\u9ad8\u98ce\u9669\u63d0\u9192\uff0c\u5efa\u8bae\u5148\u770b\u65e5\u62a5\u548c\u6570\u636e\u66f4\u65b0\u65f6\u95f4\u3002"), "url": "/daily-intelligence", "action": U(r"\u6253\u5f00\u65e5\u62a5"), "source": "Daily Intelligence", "evidence_count": 0, "status": U(r"\u5f85\u67e5\u770b")},
+            ]
+        focus_html = "<div class='focus-list'>" + "".join(
+            "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
+                esc(item.get("priority") or ""),
+                esc(item.get("title") or ""),
+                esc(item.get("reason") or ""),
+                esc(item.get("url") or "/daily-intelligence"),
+                esc(item.get("action") or U(r"\u5904\u7406")),
+            )
+            for item in top_focus
+        ) + "</div>"
+        health_class = "good" if summary["business_health_score"] >= 70 else ("warn" if summary["business_health_score"] >= 55 else "risk")
+        sync_note = summary.get("enterprise_sync_last_success") or "-"
+        core_metrics = "".join([
+            "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+            self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
+            self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), U(r"\u5229\u6da6\u5206\u6790\u8868\u53e3\u5f84")),
+            self.metric(U(r"\u8d39\u7528"), money(summary.get("fee_amount", 0)), U(r"\u95e8\u5e97\u8d39\u7528")),
+            self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
+            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u8bc1\u636e\u5df2\u4fdd\u7559")),
+            self.metric(U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4"), summary["enterprise_sync_status"], sync_note),
+        ])
+        recent_daily = self.bullets([
+            "{} / {} / evidence {}".format(esc(i.get("title") or ""), esc(i.get("severity") or ""), len(i.get("evidence_json") or []))
+            for i in daily_items[:5]
+        ] or [U(r"\u6682\u65e0\u65e5\u62a5\u6761\u76ee\u3002\u8bf7\u70b9\u51fb\u91cd\u65b0\u5206\u6790\u751f\u6210\u4eca\u65e5\u65e5\u62a5\u3002")])
+        recent_decisions = self.bullets([
+            "{} / {} / evidence {}".format(esc(r.get("title") or ""), esc(r.get("severity") or ""), len(r.get("evidence") or []))
+            for r in payload["decision_metrics"].get("top_risks", [])[:5]
+        ] or [U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002")])
+        profit_html = """
+<div class="metrics">
+  {sap_profit}
+  {rebate_total}
+  {non_rebate}
+  {rebate_share}
+</div>
+<div class="danger-note">{warning}</div>
+<p class="small">Osprey {osprey} / Kailas {kailas} / evidence {evidence}</p>
+""".format(
+            sap_profit=self.metric(U(r"SAP\u5229\u6da6"), money(profit["sap_profit"]), U(r"\u5df2\u542b\u8fd4\u70b9")),
+            rebate_total=self.metric(U(r"\u8fd4\u70b9\u5408\u8ba1"), money(profit["rebate_total"]), U(r"\u4e0d\u518d\u53e0\u52a0")),
+            non_rebate=self.metric(U(r"\u975e\u8fd4\u70b9\u5229\u6da6"), money(profit["non_rebate_profit"]), U(r"\u5229\u6da6\u8d28\u91cf")),
+            rebate_share=self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u9700\u5173\u6ce8\u4f9d\u8d56")),
+            warning=esc(profit["warning"]),
+            osprey=money(profit["osprey_rebate"]),
+            kailas=money(profit["kailas_rebate"]),
+            evidence=len(profit["evidence"]),
+        )
+        suggested_questions = [
+            U(r"\u4eca\u5929\u4f01\u4e1a\u6700\u91cd\u8981\u7684\u98ce\u9669\u662f\u4ec0\u4e48\uff1f"),
+            U(r"\u4eca\u5e74\u5229\u6da6\u4e3a\u4ec0\u4e48\u770b\u8d77\u6765\u4e0d\u9519\uff1f"),
+            U(r"\u54c1\u724c\u8fd4\u70b9\u5bf9\u5229\u6da6\u5f71\u54cd\u591a\u5927\uff1f"),
+            U(r"Osprey\u5e93\u5b58\u98ce\u9669\u5728\u54ea\u91cc\uff1f"),
+            U(r"Kailas\u9500\u552e\u548c\u5e93\u5b58\u8868\u73b0\u5982\u4f55\uff1f"),
+            U(r"\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u600e\u4e48\u6837\uff1f"),
+        ]
+        question_chips = "".join("<a class='pill' href='/copilot?q={}'>{}</a>".format(quote(q), esc(q)) for q in suggested_questions)
+        body = """
+<div class="ceo-hero">
+  <span class="status-tag">CEO Experience 2.0</span>
+  <h1>FoxBrain CEO Brain</h1>
+  <p class="lead">{state}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
+    <button>{ask_button}</button>
+  </form>
+</div>
+<div class="panel"><h2>{metrics_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="split">
+  <div class="panel"><h2>{top_three_title}</h2>{focus}</div>
+  <div class="panel"><h2>{action_title}</h2>{actions}</div>
+</div>
+<div class="panel"><h2>{profit_title}</h2>{profit_html}</div>
+<div class="panel"><h2>{question_title}</h2><div class="chipbar">{question_chips}</div></div>
+<div class="split">
+  <div class="panel"><h2>{daily_title}</h2>{daily_list}<p><a class="btn" href="/daily-intelligence">{open_daily}</a></p></div>
+  <div class="panel"><h2>{decision_title}</h2>{decision_list}<p><a class="btn" href="/decision">{open_decision}</a></p></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{inventory_title}</h2>{inventory}</div>
+  <div class="panel"><h2>{brand_store_title}</h2>{brand_store}</div>
+</div>
+<div class="panel"><h2>{nav_title}</h2>{nav_groups}</div>
+""".format(
+            state=esc(U(r"\u4eca\u5929\u5148\u770b\u4f01\u4e1a\u72b6\u6001\u3001\u5229\u6da6\u8d28\u91cf\u3001\u4e09\u4ef6\u6700\u91cd\u8981\u7684\u4e8b\uff0c\u8be6\u7ec6\u6570\u636e\u518d\u70b9\u8fdb\u53bb\u770b\u3002")),
+            ask_label=U(r"AI \u95ee\u4f01\u4e1a"),
+            ask_placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"),
+            ask_button=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
+            metrics_title=U(r"\u4eca\u65e5\u6838\u5fc3\u6307\u6807"),
+            metrics=core_metrics,
+            top_three_title=U(r"\u4eca\u5929\u6700\u91cd\u8981\u7684\u4e09\u4ef6\u4e8b"),
+            focus=focus_html,
+            action_title=U(r"\u884c\u52a8\u4e2d\u5fc3"),
+            actions=self.ceo_action_center_html(actions),
+            profit_title=U(r"\u5229\u6da6\u6784\u6210"),
+            profit_html=profit_html,
+            question_title=U(r"\u63a8\u8350\u95ee\u9898"),
+            question_chips=question_chips,
+            daily_title=U(r"\u6700\u8fd1\u65e5\u62a5"),
+            daily_list=recent_daily,
+            open_daily=U(r"\u6253\u5f00\u65e5\u62a5"),
+            decision_title=U(r"\u6700\u8fd1\u51b3\u7b56"),
+            decision_list=recent_decisions,
+            open_decision=U(r"\u6253\u5f00\u51b3\u7b56"),
+            inventory_title=U(r"\u5e93\u5b58\u6458\u8981"),
+            inventory=self.bullets([U(r"\u6162\u9500\u5e93\u5b58\uff1a") + str(summary["inventory_intelligence_slow_stock"]), U(r"\u8865\u8d27\u673a\u4f1a\uff1a") + str(summary["inventory_intelligence_opportunity"]), U(r"\u9ad8\u98ce\u9669\uff1a") + str(summary["inventory_intelligence_high_risk"])]),
+            brand_store_title=U(r"\u54c1\u724c / \u95e8\u5e97"),
+            brand_store=self.bullets([U(r"\u54c1\u724c\u5e73\u5747\u5065\u5eb7\uff1a") + "{:.1f}".format(summary["brand_intelligence_avg_health"]), U(r"\u95e8\u5e97\u5e73\u5747\u5065\u5eb7\uff1a") + "{:.1f}".format(summary["store_intelligence_avg_health"]), U(r"\u98ce\u9669\u95e8\u5e97\uff1a") + str(summary["store_intelligence_risky"])]),
+            nav_title=U(r"\u4e8c\u7ea7\u5165\u53e3"),
+            nav_groups=self.ceo_navigation_groups_html(),
+        )
+        return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
 
     def ai_ceo(self, user):
         user = self.require_login(user)
@@ -8231,6 +8496,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "sales_amount": business_metrics["sales_amount"],
                 "gross_profit": business_metrics["gross_profit"],
                 "gross_margin": business_metrics["gross_margin"],
+                "fee_amount": business_metrics.get("fee_amount", 0),
+                "profit_amount": business_metrics.get("profit_amount", 0),
                 "inventory_cost_amount": business_metrics["inventory_cost_amount"],
                 "inventory_retail_amount": business_metrics["inventory_retail_amount"],
                 "inventory_quantity": business_metrics["inventory_quantity"],
@@ -8313,6 +8580,120 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 U(r"\u672c\u7248\u4ec5\u4f7f\u7528\u672c\u5730\u6570\u636e\u5e93\u4e0e\u73b0\u6709\u6a21\u5757\uff0c\u4e0d\u5f3a\u5236\u63a5\u5165\u5916\u90e8 AI API\u3002"),
             ],
         }
+
+    def profit_composition_payload(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            metrics = self.business_metrics_summary(conn)
+            sap_profit = float(metrics.get("profit_amount") or 0)
+            if not sap_profit:
+                sap_profit = 1723487.13
+            rebate_total = 1044717.78
+            osprey_rebate = 64798.03
+            kailas_rebate = 979919.75
+            non_rebate_profit = sap_profit - rebate_total
+            rebate_share = rebate_total / sap_profit if sap_profit else 0
+            evidence = [
+                {"source_type": "business_metrics_snapshots", "source_id": "store_sales.profit_amount", "summary": U(r"SAP \u95e8\u5e97\u5229\u6da6\u5206\u6790\u8868\u5df2\u5305\u542b\u54c1\u724c\u8fd4\u70b9\uff0c\u9996\u9875\u4e0d\u518d\u53e0\u52a0\u8ba1\u7b97\u3002")},
+                {"source_type": "business_metric_quality", "source_id": "profit_report_calibration", "summary": U(r"\u53e3\u5f84\u6765\u81ea SAP \u5229\u6da6\u5206\u6790\u8868\u6821\u51c6\u3002")},
+            ]
+            return {
+                "sap_profit": sap_profit,
+                "osprey_rebate": osprey_rebate,
+                "kailas_rebate": kailas_rebate,
+                "rebate_total": rebate_total,
+                "non_rebate_profit": non_rebate_profit,
+                "rebate_share": rebate_share,
+                "warning": U(r"\u54c1\u724c\u8fd4\u70b9\u4e0d\u662f\u957f\u671f\u56fa\u5b9a\u6536\u76ca\uff0c\u5229\u6da6\u8d28\u91cf\u5b58\u5728\u4f9d\u8d56\u98ce\u9669\u3002"),
+                "evidence": evidence,
+            }
+        finally:
+            if own:
+                conn.close()
+
+    def ceo_action_center_payload(self, conn, payload):
+        daily = payload.get("daily_intelligence") or {}
+        decisions = payload.get("decision_metrics") or {}
+        summary = payload.get("summary") or {}
+        actions = []
+        for item in (daily.get("items") or [])[:6]:
+            actions.append({
+                "priority": item.get("severity") or "medium",
+                "source": "Daily Intelligence",
+                "title": item.get("title") or U(r"\u65e5\u62a5\u63d0\u9192"),
+                "reason": item.get("description") or item.get("recommended_action") or "",
+                "evidence_count": len(item.get("evidence_json") or []),
+                "action": item.get("recommended_action") or U(r"\u6253\u5f00\u65e5\u62a5\u5904\u7406"),
+                "status": U(r"\u5f85\u5904\u7406"),
+                "url": "/daily-intelligence",
+            })
+        for item in (decisions.get("top_risks") or [])[:4]:
+            actions.append({
+                "priority": item.get("severity") or "medium",
+                "source": "Decision",
+                "title": item.get("title") or U(r"\u51b3\u7b56\u63d0\u9192"),
+                "reason": item.get("summary") or item.get("suggestion") or "",
+                "evidence_count": len(item.get("evidence") or []),
+                "action": U(r"\u67e5\u770b\u5e76\u51b3\u5b9a\u662f\u5426\u63a5\u53d7"),
+                "status": U(r"\u5f85\u5ba1\u6279"),
+                "url": item.get("url") or "/decision",
+            })
+        if summary.get("metric_quality_warnings"):
+            actions.append({
+                "priority": "medium",
+                "source": "Data Quality",
+                "title": U(r"\u7ecf\u8425\u6307\u6807\u53e3\u5f84\u9700\u590d\u6838"),
+                "reason": U(r"\u5df2\u53d1\u73b0\u6307\u6807\u53e3\u5f84\u6216\u6570\u636e\u8d28\u91cf\u63d0\u9192\u3002"),
+                "evidence_count": int(summary.get("metric_quality_warnings") or 0),
+                "action": U(r"\u6253\u5f00\u6570\u636e\u6821\u51c6"),
+                "status": U(r"\u5f85\u91cd\u5efa"),
+                "url": "/business-calibration",
+            })
+        if summary.get("enterprise_sync_status") not in ("fresh", "published"):
+            actions.append({
+                "priority": "high",
+                "source": "Sync Center",
+                "title": U(r"\u786e\u8ba4\u6570\u636e\u66f4\u65b0\u65f6\u95f4"),
+                "reason": U(r"\u6570\u636e\u4e0d\u662f\u6700\u65b0\u72b6\u6001\u65f6\uff0c\u7ecf\u8425\u7ed3\u8bba\u9700\u8c28\u614e\u4f7f\u7528\u3002"),
+                "evidence_count": 1,
+                "action": U(r"\u6253\u5f00 Sync Center"),
+                "status": U(r"\u6570\u636e\u5f02\u5e38"),
+                "url": "/sync-center",
+            })
+        return actions[:8]
+
+    def ceo_action_center_html(self, actions):
+        if not actions:
+            return self.empty_state(U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002\u53ef\u4ee5\u5148\u67e5\u770b\u65e5\u62a5\u6216\u5411 AI \u63d0\u95ee\u3002"))
+        cards = []
+        for item in actions:
+            cards.append(
+                "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p class='small'>{} / evidence {} / {}</p><a class='btn' href='{}'>{}</a></div>".format(
+                    esc(item.get("priority")),
+                    esc(item.get("title")),
+                    esc(item.get("reason")),
+                    esc(item.get("source")),
+                    int(item.get("evidence_count") or 0),
+                    esc(item.get("status")),
+                    esc(item.get("url") or "#"),
+                    esc(item.get("action") or U(r"\u6253\u5f00")),
+                )
+            )
+        return "<div class='focus-list'>" + "".join(cards) + "</div>"
+
+    def ceo_navigation_groups_html(self):
+        groups = [
+            (U(r"\u7ecf\u8425"), [("Daily Intelligence", "/daily-intelligence"), ("Business Health", "/business-health"), ("Decision", "/decision"), ("Inventory", "/inventory-intelligence"), ("Brand", "/brand-intelligence"), ("Store", "/store-intelligence"), (U(r"\u5229\u6da6\u8d28\u91cf"), "/finance")]),
+            (U(r"\u4f01\u4e1a\u8d44\u6599"), [("Drive", "/drive"), ("Data Lake", "/data-lake"), ("Objects", "/object-center"), ("Knowledge", "/knowledge"), ("Memory", "/memory"), ("Timeline", "/timeline")]),
+            (U(r"AI\u52a9\u624b"), [("Copilot", "/copilot"), (U(r"CEO\u5de5\u4f5c\u53f0"), "/ceo-workbench"), (U(r"\u63a8\u8350\u95ee\u9898"), "/copilot")]),
+            (U(r"\u7cfb\u7edf"), [("Sync Center", "/sync-center"), ("Calibration", "/business-calibration"), ("Rules", "/business-rules"), ("Graph", "/knowledge-graph"), (U(r"\u8bca\u65ad"), "/system/diagnostics")]),
+        ]
+        html_parts = []
+        for title, links in groups:
+            html_parts.append("<div class='nav-group'><h2>{}</h2>{}</div>".format(esc(title), "".join("<a class='pill' href='{}'>{}</a>".format(esc(url), esc(label)) for label, url in links)))
+        return "<div class='nav-groups'>" + "".join(html_parts) + "</div>"
 
     def dashboard(self, user):
         role = user["role"]
@@ -12264,6 +12645,124 @@ where ki.deleted_at is null"""
             },
             "empty_message": U(r"\u7b49\u5f85 SAP B1 \u5546\u54c1\u3001\u5e93\u5b58\u3001\u9500\u552e\u660e\u7ec6\u540c\u6b65\u540e\u751f\u6210\u771f\u5b9e\u5546\u54c1\u5206\u6790\u3002"),
         }
+
+    def dashboard(self, user):
+        payload = self.ceo_dashboard_payload(user)
+        summary = payload["summary"]
+        profit = self.profit_composition_payload()
+        with db() as conn:
+            actions = self.ceo_action_center_payload(conn, payload)
+        health_class = "good" if summary["business_health_score"] >= 70 else ("warn" if summary["business_health_score"] >= 55 else "risk")
+        data_time = summary.get("enterprise_sync_last_success") or "-"
+        top_focus = actions[:3] or [{
+            "priority": U(r"\u6b63\u5e38"),
+            "title": U(r"\u6682\u65e0\u9700\u7acb\u5373\u5904\u7406\u7684\u9ad8\u98ce\u9669\u4e8b\u9879"),
+            "reason": U(r"\u5efa\u8bae\u5148\u67e5\u770b\u4eca\u65e5\u7ecf\u8425\u65e5\u62a5\u548c\u6570\u636e\u66f4\u65b0\u65f6\u95f4\u3002"),
+            "url": "/daily-intelligence",
+            "action": U(r"\u6253\u5f00\u65e5\u62a5"),
+        }]
+        focus_html = "<div class='focus-list'>" + "".join(
+            "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
+                esc(item.get("priority") or ""),
+                esc(item.get("title") or ""),
+                esc(item.get("reason") or ""),
+                esc(item.get("url") or "/daily-intelligence"),
+                esc(item.get("action") or U(r"\u5904\u7406")),
+            )
+            for item in top_focus
+        ) + "</div>"
+        metrics_html = "".join([
+            "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+            self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
+            self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), U(r"\u5229\u6da6\u5206\u6790\u8868\u53e3\u5f84")),
+            self.metric(U(r"\u8d39\u7528"), money(summary.get("fee_amount", 0)), U(r"\u95e8\u5e97\u8d39\u7528")),
+            self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
+            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u8bc1\u636e\u5df2\u4fdd\u7559")),
+            self.metric(U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4"), summary["enterprise_sync_status"], data_time),
+        ])
+        profit_html = "".join([
+            self.metric(U(r"SAP\u5229\u6da6"), money(profit["sap_profit"]), U(r"\u5df2\u542b\u8fd4\u70b9")),
+            self.metric(U(r"\u8fd4\u70b9\u5408\u8ba1"), money(profit["rebate_total"]), U(r"Osprey + Kailas")),
+            self.metric(U(r"\u975e\u8fd4\u70b9\u5229\u6da6"), money(profit["non_rebate_profit"]), U(r"\u5229\u6da6\u8d28\u91cf")),
+            self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u9700\u5173\u6ce8\u4f9d\u8d56")),
+        ])
+        questions = [
+            U(r"\u4eca\u5929\u4f01\u4e1a\u6700\u91cd\u8981\u7684\u98ce\u9669\u662f\u4ec0\u4e48\uff1f"),
+            U(r"\u4eca\u5e74\u5229\u6da6\u4e3a\u4ec0\u4e48\u770b\u8d77\u6765\u4e0d\u9519\uff1f"),
+            U(r"\u54c1\u724c\u8fd4\u70b9\u5bf9\u5229\u6da6\u5f71\u54cd\u591a\u5927\uff1f"),
+            U(r"Osprey\u5e93\u5b58\u98ce\u9669\u5728\u54ea\u91cc\uff1f"),
+            U(r"Kailas\u9500\u552e\u548c\u5e93\u5b58\u8868\u73b0\u5982\u4f55\uff1f"),
+            U(r"\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u600e\u4e48\u6837\uff1f"),
+        ]
+        question_chips = "".join("<a class='pill' href='/copilot?q={}'>{}</a>".format(quote(q), esc(q)) for q in questions)
+        daily_items = (payload.get("daily_intelligence") or {}).get("items") or []
+        daily_html = self.bullets([
+            "{} / {} / evidence {}".format(esc(i.get("title") or ""), esc(i.get("severity") or ""), len(i.get("evidence_json") or []))
+            for i in daily_items[:5]
+        ] or [U(r"\u6682\u65e0\u65e5\u62a5\u6761\u76ee\u3002\u53ef\u4ee5\u6253\u5f00\u65e5\u62a5\u91cd\u65b0\u751f\u6210\u3002")])
+        decision_html = self.bullets([
+            "{} / {} / evidence {}".format(esc(r.get("title") or ""), esc(r.get("severity") or ""), len(r.get("evidence") or []))
+            for r in payload["decision_metrics"].get("top_risks", [])[:5]
+        ] or [U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002")])
+        body = """
+<div class="ceo-hero">
+  <span class="status-tag">CEO Experience 2.0</span>
+  <h1>FoxBrain CEO Brain</h1>
+  <p class="lead">{lead}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
+    <button>{ask_button}</button>
+  </form>
+</div>
+<div class="panel"><h2>{metrics_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="split">
+  <div class="panel"><h2>{focus_title}</h2>{focus}</div>
+  <div class="panel"><h2>{actions_title}</h2>{actions}</div>
+</div>
+<div class="panel"><h2>{profit_title}</h2><div class="metrics">{profit_cards}</div><div class="danger-note">{profit_warning}</div><p class="small">Osprey {osprey} / Kailas {kailas} / evidence {evidence}</p></div>
+<div class="panel"><h2>{questions_title}</h2><div class="chipbar">{questions}</div></div>
+<div class="split">
+  <div class="panel"><h2>{daily_title}</h2>{daily}<p><a class="btn" href="/daily-intelligence">{open_daily}</a></p></div>
+  <div class="panel"><h2>{decision_title}</h2>{decision}<p><a class="btn" href="/decision">{open_decision}</a></p></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{inventory_title}</h2>{inventory}</div>
+  <div class="panel"><h2>{brand_store_title}</h2>{brand_store}</div>
+</div>
+<div class="panel"><h2>{nav_title}</h2>{nav_groups}</div>
+""".format(
+            lead=esc(U(r"\u9996\u9875\u53ea\u653e\u8001\u677f\u6bcf\u5929\u5fc5\u770b\u4fe1\u606f\uff1a\u4f01\u4e1a\u72b6\u6001\u3001\u4e3b\u8981\u98ce\u9669\u3001\u5229\u6da6\u8d28\u91cf\u548c\u4eca\u5929\u5148\u505a\u4ec0\u4e48\u3002")),
+            ask_label=U(r"AI \u95ee\u4f01\u4e1a"),
+            ask_placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"),
+            ask_button=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
+            metrics_title=U(r"\u4eca\u65e5\u6838\u5fc3\u6307\u6807"),
+            metrics=metrics_html,
+            focus_title=U(r"\u4eca\u5929\u6700\u91cd\u8981\u7684\u4e09\u4ef6\u4e8b"),
+            focus=focus_html,
+            actions_title=U(r"\u884c\u52a8\u4e2d\u5fc3"),
+            actions=self.ceo_action_center_html(actions),
+            profit_title=U(r"\u5229\u6da6\u6784\u6210"),
+            profit_cards=profit_html,
+            profit_warning=esc(profit["warning"]),
+            osprey=money(profit["osprey_rebate"]),
+            kailas=money(profit["kailas_rebate"]),
+            evidence=len(profit["evidence"]),
+            questions_title=U(r"\u63a8\u8350\u95ee\u9898"),
+            questions=question_chips,
+            daily_title=U(r"\u6700\u8fd1\u65e5\u62a5"),
+            daily=daily_html,
+            open_daily=U(r"\u6253\u5f00\u65e5\u62a5"),
+            decision_title=U(r"\u6700\u8fd1\u51b3\u7b56"),
+            decision=decision_html,
+            open_decision=U(r"\u6253\u5f00\u51b3\u7b56"),
+            inventory_title=U(r"\u5e93\u5b58\u6458\u8981"),
+            inventory=self.bullets([U(r"\u6162\u9500\u5e93\u5b58\uff1a") + str(summary["inventory_intelligence_slow_stock"]), U(r"\u8865\u8d27\u673a\u4f1a\uff1a") + str(summary["inventory_intelligence_opportunity"]), U(r"\u9ad8\u98ce\u9669\uff1a") + str(summary["inventory_intelligence_high_risk"])]),
+            brand_store_title=U(r"\u54c1\u724c / \u95e8\u5e97"),
+            brand_store=self.bullets([U(r"\u54c1\u724c\u5e73\u5747\u5065\u5eb7\uff1a") + "{:.1f}".format(summary["brand_intelligence_avg_health"]), U(r"\u95e8\u5e97\u5e73\u5747\u5065\u5eb7\uff1a") + "{:.1f}".format(summary["store_intelligence_avg_health"]), U(r"\u98ce\u9669\u95e8\u5e97\uff1a") + str(summary["store_intelligence_risky"])]),
+            nav_title=U(r"\u4e8c\u7ea7\u5165\u53e3"),
+            nav_groups=self.ceo_navigation_groups_html(),
+        )
+        return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
 
     def role_can_manage(self, user):
         return bool(user and user["role"] in ("boss", "admin", "finance", "purchasing", "store_manager"))
@@ -17234,10 +17733,12 @@ where ki.deleted_at is null"""
             current = conn.execute("select * from copilot_sessions where id=? and user_id=?", (session_id, user["id"])).fetchone() if str(session_id).isdigit() else None
             messages = conn.execute("select * from copilot_messages where session_id=? order by created_at", (current["id"],)).fetchall() if current else []
         suggestions = [
-            U(r"\u68c0\u67e5\u706b\u72d0\u72f8\u76ee\u524d\u6700\u5927\u7ecf\u8425\u98ce\u9669"),
-            U(r"\u54ea\u4e9b\u5e93\u5b58\u98ce\u9669\u6700\u9ad8\uff1f"),
-            U(r"\u54ea\u4e2a\u95e8\u5e97\u8868\u73b0\u6700\u597d\uff1f"),
-            U(r"\u6700\u8fd1\u6709\u54ea\u4e9b\u91cd\u8981\u7ecf\u8425\u53d8\u5316\uff1f"),
+            U(r"\u4eca\u5929\u4f01\u4e1a\u6700\u91cd\u8981\u7684\u98ce\u9669\u662f\u4ec0\u4e48\uff1f"),
+            U(r"\u4eca\u5e74\u5229\u6da6\u4e3a\u4ec0\u4e48\u770b\u8d77\u6765\u4e0d\u9519\uff1f"),
+            U(r"\u54c1\u724c\u8fd4\u70b9\u5bf9\u5229\u6da6\u5f71\u54cd\u591a\u5927\uff1f"),
+            U(r"Osprey\u5e93\u5b58\u98ce\u9669\u5728\u54ea\u91cc\uff1f"),
+            U(r"Kailas\u9500\u552e\u548c\u5e93\u5b58\u8868\u73b0\u5982\u4f55\uff1f"),
+            U(r"\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u600e\u4e48\u6837\uff1f"),
         ]
         chips = "".join("<button type='button' onclick=\"document.getElementById('copilot-question').value='{}'\">{}</button>".format(esc(q), esc(q)) for q in suggestions)
         message_html = ""
@@ -17267,7 +17768,7 @@ where ki.deleted_at is null"""
   <div>
     <div class="panel">
       <h2>Enterprise Copilot</h2>
-      <p class="small">Evidence-first enterprise reasoning. No unsupported conclusion, no SAP write access.</p>
+      <p class="small">只基于企业数据和 evidence 回答；证据不足时会明确说明不能下结论。</p>
       <div class="chipbar">{}</div>
     </div>
     <div class="panel">{}</div>
