@@ -62,3 +62,32 @@ Result:
 PASS
 ```
 
+## Production Cleanup Test
+
+Test run:
+
+```text
+SPRINT0185_TEST_PROD_20260711
+```
+
+Production cleanup result:
+
+```text
+deleted_sessions=5
+deleted_messages=10
+deleted_feedback=2
+archived_memories=1
+```
+
+Result:
+
+```text
+PASS
+```
+
+Safety confirmation:
+
+```text
+Only records matching test_run_id were cleaned.
+Real sessions and real enterprise memories were not selected by this cleanup.
+```

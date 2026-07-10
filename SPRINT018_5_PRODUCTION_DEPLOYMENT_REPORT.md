@@ -27,16 +27,72 @@ PASS: selective test cleanup validation
 Status:
 
 ```text
-Pending server deployment execution in this report version.
+DEPLOYED
 ```
 
-To be filled after server deployment:
+Deployment method:
 
-- repository commit
-- deployed commit
-- runtime directory
-- service status
-- route status
+```text
+GitHub fetch on server was unavailable due network/permission timeout.
+Deployed by securely copying locally verified portal_v2.py to /opt/firefox-portal/portal.py.
+```
+
+Repository commit:
+
+```text
+56d9f51 Implement Sprint018.5 copilot real data calibration
+```
+
+Runtime directory:
+
+```text
+/opt/firefox-portal
+```
+
+Service:
+
+```text
+firefox-portal.service
+status: active
+restart time: 2026-07-11 00:26:32 CST
+main pid observed: 3469580
+```
+
+Backups created:
+
+```text
+/opt/firefox-portal/portal.py.bak.sprint0185.20260711-002631
+/opt/firefox-portal/portal.db.bak.sprint0185.20260711-002631
+```
+
+Compile check on server:
+
+```text
+python3 -m py_compile /opt/firefox-portal/portal.py
+PASS
+```
+
+Production route status:
+
+```text
+/                              accessible, login page returned when unauthenticated
+/copilot                       accessible, login page returned when unauthenticated
+/api/copilot/sessions          401 login required when unauthenticated
+/api/dashboard/ceo             protected endpoint, requires login
+```
+
+Production calibration:
+
+```text
+PASS
+```
+
+Notes:
+
+```text
+Production Enterprise Sync freshness currently reports no_published_sync.
+This is surfaced to Copilot answers as data freshness context.
+```
 
 ## Routes To Verify
 
@@ -45,3 +101,4 @@ To be filled after server deployment:
 - `/api/copilot/sessions`
 - `/api/dashboard/ceo`
 
+All listed routes were checked after restart. Protected routes correctly require login.

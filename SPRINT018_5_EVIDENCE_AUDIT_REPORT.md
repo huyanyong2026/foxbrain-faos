@@ -34,6 +34,23 @@ Expected evidence:
 - Business Rules
 - Sync freshness
 
+Production result:
+
+```text
+reliable=true
+evidence_count=15
+freshness_status=no_published_sync
+```
+
+Evidence categories observed:
+
+- `business_health`
+- `business_metrics_snapshots`
+- `business_rules`
+- `decision_insights`
+- `knowledge_graph_nodes`
+- `sync_freshness`
+
 ### Osprey库存怎么样？有哪些风险？
 
 Expected evidence:
@@ -45,6 +62,21 @@ Expected evidence:
 - Business Rules
 - Decision evidence
 
+Production result:
+
+```text
+reliable=false
+missing=brand_evidence:Osprey, inventory_intelligence
+evidence_count=15
+freshness_status=no_published_sync
+```
+
+Audit conclusion:
+
+```text
+Production data is currently insufficient for a reliable Osprey inventory conclusion. Copilot correctly blocked a reliable conclusion.
+```
+
 ### Kailas销售和库存表现怎么样？
 
 Expected evidence:
@@ -54,6 +86,21 @@ Expected evidence:
 - SAP inventory
 - Inventory Intelligence
 - Data Lake metrics
+
+Production result:
+
+```text
+reliable=false
+missing=brand_evidence:Kailas, inventory_intelligence
+evidence_count=15
+freshness_status=no_published_sync
+```
+
+Audit conclusion:
+
+```text
+Production data is currently insufficient for a reliable Kailas sales/inventory conclusion. Copilot correctly blocked a reliable conclusion.
+```
 
 ### 南山店经营情况怎么样？
 
@@ -65,6 +112,21 @@ Expected evidence:
 - Decision Insights
 - Business Health
 
+Production result:
+
+```text
+reliable=false
+missing=store_evidence:南山店, store_intelligence
+evidence_count=15
+freshness_status=no_published_sync
+```
+
+Audit conclusion:
+
+```text
+Production data is currently insufficient for a reliable Nanshan Store conclusion. Copilot correctly blocked a reliable conclusion.
+```
+
 ### Data Insufficient Question
 
 Expected behavior:
@@ -73,9 +135,16 @@ Expected behavior:
 当前数据不足，无法形成可靠结论。
 ```
 
+Production result:
+
+```text
+question=火星店滑雪板库存怎么样？
+reliable=false
+missing=store_evidence:火星店, inventory_intelligence
+```
+
 ## Audit Rule
 
 Reliable answers require both general enterprise evidence and entity-specific evidence when the question names a brand or store.
 
 No secrets, database credentials, or SAP connection strings are included in this report.
-

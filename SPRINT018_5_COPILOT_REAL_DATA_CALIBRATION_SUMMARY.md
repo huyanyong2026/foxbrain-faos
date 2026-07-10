@@ -125,3 +125,16 @@ The cleanup archives only matching test memory drafts and deletes only matching 
 - No credentials committed.
 - Test cleanup is scoped by `test_run_id`.
 
+## Production Calibration Outcome
+
+Production deployment was completed on `huyan.vafox.com`.
+
+Key finding:
+
+```text
+Enterprise overview has enough evidence for a reliable answer.
+Osprey, Kailas and 南山店 currently lack entity-specific production evidence, so Copilot correctly returns data-insufficient responses.
+Enterprise Sync freshness reports no_published_sync and is displayed in Copilot freshness context.
+```
+
+This means Sprint018.5 passed the main safety requirement: Copilot does not invent conclusions when real production evidence is incomplete.

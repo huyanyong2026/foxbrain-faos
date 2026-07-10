@@ -83,11 +83,35 @@ Existing Sprint001-Sprint018 features were not removed or replaced.
 
 ## Production Real Data Validation
 
-Production validation is recorded separately in:
+Production validation was executed on `huyan.vafox.com` against the production portal database with test marker:
+
+```text
+SPRINT0185_TEST_PROD_20260711
+```
+
+Results:
+
+| Question | Reliable | Evidence Count | Missing |
+| --- | --- | ---: | --- |
+| 今天企业有什么主要风险？ | true | 15 | none |
+| Osprey库存怎么样？有哪些风险？ | false | 15 | brand_evidence:Osprey, inventory_intelligence |
+| Kailas销售和库存表现怎么样？ | false | 15 | brand_evidence:Kailas, inventory_intelligence |
+| 南山店经营情况怎么样？ | false | 15 | store_evidence:南山店, store_intelligence |
+| 火星店滑雪板库存怎么样？ | false | 15 | store_evidence:火星店, inventory_intelligence |
+
+Interpretation:
+
+```text
+PASS: Copilot did not fabricate unsupported brand/store/inventory conclusions.
+PASS: Data insufficiency was explicit when entity-specific evidence was missing.
+PASS: Data freshness showed no_published_sync.
+PASS: Feedback, memory draft, and cleanup were validated.
+```
+
+Production validation details are recorded separately in:
 
 ```text
 SPRINT018_5_PRODUCTION_DEPLOYMENT_REPORT.md
 SPRINT018_5_EVIDENCE_AUDIT_REPORT.md
 SPRINT018_5_TEST_DATA_CLEANUP_REPORT.md
 ```
-
