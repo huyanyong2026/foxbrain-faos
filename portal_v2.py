@@ -3415,6 +3415,63 @@ create table if not exists ceo_daily_reports(
         conn.execute("create index if not exists idx_ceo_daily_reports_date on ceo_daily_reports(report_date, approval_status)")
         conn.execute(
             """
+create table if not exists daily_intelligence_reports(
+ id integer primary key autoincrement,
+ report_date text not null,
+ summary text,
+ health_summary text,
+ decision_summary text,
+ risk_summary text,
+ opportunity_summary text,
+ execution_summary text,
+ evidence_json text,
+ status text not null default 'draft',
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists daily_intelligence_items(
+ id integer primary key autoincrement,
+ report_id integer not null,
+ item_type text not null,
+ severity text not null default 'medium',
+ title text not null,
+ description text,
+ entity_type text,
+ entity_id integer,
+ evidence_json text,
+ recommended_action text,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists daily_intelligence_schedules(
+ id integer primary key autoincrement,
+ schedule_key text unique not null,
+ schedule_time text,
+ enabled integer not null default 0,
+ approval_status text not null default 'disabled_until_approved',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        for idx in [
+            "create index if not exists idx_daily_intelligence_reports_date on daily_intelligence_reports(report_date, created_at)",
+            "create index if not exists idx_daily_intelligence_items_report on daily_intelligence_items(report_id, item_type, severity)",
+            "create index if not exists idx_daily_intelligence_schedules_enabled on daily_intelligence_schedules(enabled, approval_status)",
+        ]:
+            conn.execute(idx)
+        conn.execute(
+            "insert or ignore into daily_intelligence_schedules(schedule_key,schedule_time,enabled,approval_status,created_at,updated_at) values(?,?,?,?,?,?)",
+            ("daily_intelligence_0730", "07:30", 0, "disabled_until_approved", ts(), ts()),
+        )
+        conn.execute(
+            """
 create table if not exists data_sources(
  id integer primary key autoincrement,
  source_id text unique,
@@ -5150,6 +5207,8 @@ class App(BaseHTTPRequestHandler):
             return self.v64_decision_center(user)
         if path in ("/decision", "/decision/insights"):
             return self.decision_page(user, detail=(path == "/decision/insights"))
+        if path == "/daily-intelligence":
+            return self.daily_intelligence_page(user)
         if path == "/digital-brain":
             return self.enterprise_digital_brain_center(user)
         if path in ("/enterprise-ai-platform", "/integration-hub", "/developer-platform", "/platform-monitoring"):
@@ -5358,6 +5417,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_enterprise_memories_get(user, path)
         if path.startswith("/api/decision/") or re.match(r"^/api/objects/\d+/decisions$", path):
             return self.api_decision_get(user, path)
+        if path.startswith("/api/daily-intelligence"):
+            return self.api_daily_intelligence_get(user, path)
         if path.startswith("/api/business-rules"):
             return self.api_business_rules_get(user, path)
         if path.startswith("/api/business-health"):
@@ -5620,6 +5681,8 @@ class App(BaseHTTPRequestHandler):
             return self.api_enterprise_memories_post(self.current_user(), path)
         if path.startswith("/api/decision/"):
             return self.api_decision_post(self.current_user(), path)
+        if path.startswith("/api/daily-intelligence"):
+            return self.api_daily_intelligence_post(self.current_user(), path)
         if path.startswith("/api/memory") or path.startswith("/api/preferences") or path.startswith("/api/decisions"):
             return self.api_memory_post(self.current_user(), path)
         if path.startswith("/api/digital-brain"):
@@ -8065,6 +8128,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             brand_intelligence = self.brand_intelligence_summary(conn)
             store_intelligence = self.store_intelligence_summary(conn)
             sync_metrics = self.enterprise_sync_freshness_summary(conn)
+            daily_intelligence = self.latest_daily_intelligence(conn)
             recent_documents = safe_rows(conn, "select id,title,filename,original_filename,category,processing_status,created_at,updated_at from documents where deleted_at is null order by coalesce(updated_at, created_at) desc limit 6")
             recent_objects = safe_rows(conn, "select id,object_type,name,status,tags,created_at,updated_at from enterprise_objects where archived_at is null order by updated_at desc limit 6")
             recent_knowledge = safe_rows(conn, "select id,title,category,source_type,status,created_at,updated_at from knowledge_items where deleted_at is null order by updated_at desc limit 6")
@@ -8144,6 +8208,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "enterprise_sync_pending_runs": sync_metrics["pending_runs"],
                 "enterprise_sync_failed_runs": sync_metrics["failed_runs"],
                 "enterprise_sync_enabled_schedules": sync_metrics["enabled_schedules"],
+                "daily_intelligence_items": len(daily_intelligence.get("items", [])) if daily_intelligence else 0,
+                "daily_intelligence_risks": len([i for i in daily_intelligence.get("items", []) if i.get("item_type") == "risk"]) if daily_intelligence else 0,
+                "daily_intelligence_opportunities": len([i for i in daily_intelligence.get("items", []) if i.get("item_type") == "opportunity"]) if daily_intelligence else 0,
+                "daily_intelligence_date": daily_intelligence.get("report_date") if daily_intelligence else "-",
             },
             "business_metrics": business_metrics,
             "decision_metrics": decision_metrics,
@@ -8153,6 +8221,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "brand_intelligence": brand_intelligence,
             "store_intelligence": store_intelligence,
             "enterprise_sync": sync_metrics,
+            "daily_intelligence": daily_intelligence,
             "recent_documents": recent_documents,
             "recent_objects": recent_objects,
             "recent_knowledge": recent_knowledge,
@@ -8169,6 +8238,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 {"title": "Business Calibration", "url": "/business-calibration", "status": "ready"},
                 {"title": "Business Knowledge Graph", "url": "/knowledge-graph", "status": "ready"},
                 {"title": "Decision Engine", "url": "/decision", "status": "ready"},
+                {"title": "Daily Intelligence", "url": "/daily-intelligence", "status": "ready"},
                 {"title": "Business Rule Engine", "url": "/business-rules", "status": "ready"},
                 {"title": "Business Health Engine", "url": "/business-health", "status": "ready"},
                 {"title": "Inventory Intelligence", "url": "/inventory-intelligence", "status": "ready"},
@@ -8223,6 +8293,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             (U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), "risk {} / opp {}".format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
             ("Enterprise Sync", summary["enterprise_sync_status"], "last " + str(summary["enterprise_sync_last_success"])),
             ("Sync Staging", summary["enterprise_sync_pending_runs"], "manual approval"),
+            ("Daily Intelligence", summary["daily_intelligence_items"], "report " + str(summary["daily_intelligence_date"])),
         ]
         summary_html = "".join(self.metric(title, value, note) for title, value, note in summary_cards)
         core_cards = "".join(
@@ -8274,6 +8345,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "Brand Intelligence: brands={} avg_health={:.1f} risky={} opportunity={}".format(summary["brand_intelligence_count"], summary["brand_intelligence_avg_health"], summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"]),
             "Store Intelligence: stores={} avg_health={:.1f} risky={} opportunity={}".format(summary["store_intelligence_count"], summary["store_intelligence_avg_health"], summary["store_intelligence_risky"], summary["store_intelligence_opportunity"]),
             "Enterprise Sync: " + summary["enterprise_sync_status"] + " / last publish " + str(summary["enterprise_sync_last_success"]) + " / schedules enabled " + str(summary["enterprise_sync_enabled_schedules"]),
+            "Daily Intelligence: risks {} / opportunities {} / report {}".format(summary["daily_intelligence_risks"], summary["daily_intelligence_opportunities"], summary["daily_intelligence_date"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
             U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
             "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
@@ -8341,6 +8413,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             self.metric(U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), "risk {} / opp {}".format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
             self.metric(U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), "risk {} / opp {}".format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
             self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), summary["enterprise_sync_status"], summary["enterprise_sync_last_success"]),
+            self.metric(U(r"\u4eca\u65e5\u667a\u80fd"), summary["daily_intelligence_items"], "risk {} / opp {}".format(summary["daily_intelligence_risks"], summary["daily_intelligence_opportunities"])),
         ])
         recalculation_forms = """
 <form method="post" action="/api/business-health/recalculate"><button>{}</button></form>
@@ -8358,6 +8431,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         ceo_action_cards = "".join([
             self.card(U(r"AI \u95ee\u4f01\u4e1a"), U(r"\u76f4\u63a5\u95ee\u9500\u552e\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u548c\u51b3\u7b56\u539f\u56e0\u3002"), "/jarvis", "btn dark", True),
             self.card(U(r"\u51b3\u7b56\u63d0\u9192"), U(r"\u67e5\u770b\u6709\u8bc1\u636e\u7684\u7ecf\u8425\u5efa\u8bae\uff0c\u63a5\u53d7\u540e\u4f1a\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f\u3002"), "/decision", "btn dark", True),
+            self.card("Daily Intelligence", "Today's CEO briefing: risks, opportunities, actions and evidence.", "/daily-intelligence", "btn dark", True),
             self.card(U(r"\u4f01\u4e1a\u5065\u5eb7"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u3001\u6570\u636e\u8d28\u91cf\u7edf\u4e00\u8bc4\u5206\u3002"), "/business-health", "btn", True),
             self.card(U(r"\u5e93\u5b58\u667a\u80fd"), U(r"\u6ede\u9500\u3001\u9ad8\u98ce\u9669\u3001\u8865\u8d27\u673a\u4f1a\uff0c\u5168\u90e8\u5e26 SAP \u5bfc\u5165\u8bc1\u636e\u3002"), "/inventory-intelligence", "btn", True),
             self.card(U(r"\u54c1\u724c\u667a\u80fd"), U(r"\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u673a\u4f1a\u6392\u884c\u3002"), "/brand-intelligence", "btn", True),
@@ -16401,6 +16475,222 @@ where ki.deleted_at is null"""
                 )
             return self.json_out({"ok": True, "decision_id": cur.lastrowid})
         return self.json_out({"ok": False, "message": "unknown memory api"}, code=404)
+
+    def daily_intelligence_report_to_json(self, row, items=None):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        data["items"] = [self.daily_intelligence_item_to_json(r) for r in (items or [])]
+        data["url"] = "/daily-intelligence"
+        return data
+
+    def daily_intelligence_item_to_json(self, row):
+        data = row_dict(row) or {}
+        data["evidence_json"] = safe_json(data.get("evidence_json"), [])
+        data["url"] = "/api/daily-intelligence/items/{}".format(data.get("id", ""))
+        return data
+
+    def latest_daily_intelligence(self, conn=None):
+        own = conn is None
+        if own:
+            conn = db()
+        try:
+            report = conn.execute("select * from daily_intelligence_reports order by report_date desc, created_at desc, id desc limit 1").fetchone()
+            if not report:
+                return None
+            items = conn.execute("select * from daily_intelligence_items where report_id=? order by case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, id limit 30", (report["id"],)).fetchall()
+            return self.daily_intelligence_report_to_json(report, items)
+        finally:
+            if own:
+                conn.close()
+
+    def daily_item_evidence_ok(self, evidence):
+        return bool(evidence) and all(item.get("source_type") and str(item.get("source_id", "")) != "" for item in evidence)
+
+    def add_daily_intelligence_item(self, conn, report_id, item_type, severity, title, description, entity_type, entity_id, evidence, recommended_action):
+        if not self.daily_item_evidence_ok(evidence):
+            return None
+        cur = conn.execute(
+            "insert into daily_intelligence_items(report_id,item_type,severity,title,description,entity_type,entity_id,evidence_json,recommended_action,created_at) values(?,?,?,?,?,?,?,?,?,?)",
+            (report_id, item_type, severity or "medium", title, description, entity_type or "", int(entity_id) if str(entity_id or "").isdigit() else None, json.dumps(evidence, ensure_ascii=False), recommended_action or "", ts()),
+        )
+        return cur.lastrowid
+
+    def rebuild_daily_intelligence(self, user=None, run_pipeline=True):
+        pipeline = []
+        if run_pipeline:
+            for name, func in [
+                ("business_health", lambda: self.calculate_business_health(user)),
+                ("decision_rebuild", lambda: self.rebuild_decision_insights(user)),
+                ("inventory_intelligence", lambda: self.calculate_inventory_intelligence(user)),
+                ("brand_intelligence", lambda: self.calculate_brand_intelligence(user)),
+                ("store_intelligence", lambda: self.calculate_store_intelligence(user)),
+            ]:
+                try:
+                    result = func()
+                    pipeline.append({"stage": name, "ok": bool(result.get("ok", True)), "result": result})
+                except Exception as exc:
+                    pipeline.append({"stage": name, "ok": False, "error": str(exc)})
+        now = ts()
+        report_date = time.strftime("%Y-%m-%d", time.localtime(now))
+        with db() as conn:
+            sync = self.enterprise_sync_freshness_summary(conn)
+            health = self.business_health_summary(conn)
+            decisions = self.decision_engine_summary(conn)
+            inventory = self.inventory_intelligence_summary(conn)
+            brands = self.brand_intelligence_summary(conn)
+            stores = self.store_intelligence_summary(conn)
+            metrics = self.business_metrics_summary(conn)
+            evidence = [
+                {"source_type": "sync_runs", "source_id": str(sync.get("last_success_at") or "no_published_sync"), "evidence_title": "Data freshness", "evidence_summary": sync.get("message") or sync.get("status"), "confidence": 0.82},
+                {"source_type": "business_health_snapshots", "source_id": str((health.get("health_snapshot") or {}).get("id") or "summary"), "evidence_title": "Business Health", "evidence_summary": "score={:.1f} status={}".format(health.get("overall_score") or 0, health.get("health_status")), "confidence": 0.88},
+                {"source_type": "decision_insights", "source_id": "summary", "evidence_title": "Decision summary", "evidence_summary": "high_severity={} total={}".format(decisions.get("decision_high_severity"), decisions.get("decision_insights_total")), "confidence": 0.84},
+            ]
+            summary = "Daily Intelligence {}: health {:.1f}/100 ({}), sales {}, inventory risks H{} C{}, decision risks {}.".format(
+                report_date,
+                float(health.get("overall_score") or 0),
+                health.get("health_status"),
+                money(metrics.get("sales_amount") or 0),
+                inventory.get("high_risk_count") or 0,
+                inventory.get("critical_risk_count") or 0,
+                decisions.get("decision_high_severity") or 0,
+            )
+            cur = conn.execute(
+                "insert into daily_intelligence_reports(report_date,summary,health_summary,decision_summary,risk_summary,opportunity_summary,execution_summary,evidence_json,status,created_at) values(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    report_date,
+                    summary,
+                    "Business Health {:.1f}/100 / {}".format(float(health.get("overall_score") or 0), health.get("health_status")),
+                    "Decision insights total {}, high severity {}, pending actions {}.".format(decisions.get("decision_insights_total"), decisions.get("decision_high_severity"), decisions.get("decision_pending_actions")),
+                    "Inventory high {}, critical {}; risky brands {}; risky stores {}.".format(inventory.get("high_risk_count"), inventory.get("critical_risk_count"), len(brands.get("risky_brands", [])), len(stores.get("risky_stores", []))),
+                    "Inventory opportunities {}; brand opportunities {}; store opportunities {}.".format(inventory.get("opportunity_count"), len(brands.get("opportunity_brands", [])), len(stores.get("opportunity_stores", []))),
+                    json.dumps({"pipeline": pipeline, "scheduler_enabled": False, "no_sap_write": True}, ensure_ascii=False),
+                    json.dumps(evidence, ensure_ascii=False),
+                    "ready",
+                    now,
+                ),
+            )
+            report_id = cur.lastrowid
+            for d in (health.get("details") or [])[:3]:
+                if d.get("status") in ("critical", "warning"):
+                    ev = safe_json(d.get("evidence_json"), [])
+                    self.add_daily_intelligence_item(conn, report_id, "risk", "high" if d.get("status") == "critical" else "medium", "Health focus: " + d.get("dimension", ""), d.get("summary", ""), d.get("entity_type"), d.get("entity_id"), ev, "Review Business Health evidence and assign owner before action.")
+            for insight in decisions.get("top_risks", [])[:3]:
+                self.add_daily_intelligence_item(conn, report_id, "risk", insight.get("severity") or "medium", insight.get("title") or "Decision risk", insight.get("summary") or "", insight.get("entity_type"), insight.get("entity_id"), insight.get("evidence") or [], insight.get("suggestion") or "Open Decision Engine and review evidence.")
+            for item in (inventory.get("risk_ranking") or [])[:3]:
+                ev = safe_json(item.get("evidence_json"), [])
+                self.add_daily_intelligence_item(conn, report_id, "risk", "high" if item.get("risk_level") in ("critical", "high", "dead_stock") else "medium", "Inventory: " + (item.get("product_name") or item.get("product_code") or "item"), item.get("recommendation") or "", "inventory_intelligence", item.get("id"), ev, item.get("recommendation") or "Review inventory risk.")
+            for item in (inventory.get("opportunity_products") or [])[:3]:
+                ev = safe_json(item.get("evidence_json"), [])
+                self.add_daily_intelligence_item(conn, report_id, "opportunity", "medium", "Inventory opportunity: " + (item.get("product_name") or item.get("product_code") or "item"), item.get("recommendation") or "", "inventory_intelligence", item.get("id"), ev, item.get("recommendation") or "Review replenishment opportunity.")
+            for brand in (brands.get("risky_brands") or [])[:2]:
+                ev = safe_json(brand.get("evidence_json"), [])
+                self.add_daily_intelligence_item(conn, report_id, "risk", "medium", "Brand focus: " + (brand.get("brand_name") or ""), brand.get("summary") or "", "brand_intelligence", brand.get("id"), ev, "Open Brand Intelligence and review brand pressure.")
+            for brand in (brands.get("opportunity_brands") or [])[:2]:
+                ev = safe_json(brand.get("evidence_json"), [])
+                self.add_daily_intelligence_item(conn, report_id, "opportunity", "medium", "Brand opportunity: " + (brand.get("brand_name") or ""), brand.get("summary") or "", "brand_intelligence", brand.get("id"), ev, "Review brand investment opportunity.")
+            for store in (stores.get("risky_stores") or [])[:2]:
+                ev = safe_json(store.get("evidence_json"), [])
+                self.add_daily_intelligence_item(conn, report_id, "risk", "medium", "Store focus: " + (store.get("store_name") or ""), store.get("summary") or "", "store_intelligence", store.get("id"), ev, "Open Store Intelligence and review store pressure.")
+            for store in (stores.get("opportunity_stores") or [])[:2]:
+                ev = safe_json(store.get("evidence_json"), [])
+                self.add_daily_intelligence_item(conn, report_id, "opportunity", "medium", "Store opportunity: " + (store.get("store_name") or ""), store.get("summary") or "", "store_intelligence", store.get("id"), ev, "Review store opportunity.")
+            items = conn.execute("select * from daily_intelligence_items where report_id=? order by id", (report_id,)).fetchall()
+            self.add_timeline_event(conn, "daily_intelligence", report_id, "daily_intelligence_report_created", "Daily Intelligence Report Created", summary, "daily_intelligence_reports", report_id, {"item_count": len(items), "scheduler_enabled": False}, user["id"] if user else None, now)
+            return {"ok": True, "report": self.daily_intelligence_report_to_json(conn.execute("select * from daily_intelligence_reports where id=?", (report_id,)).fetchone(), items), "pipeline": pipeline, "scheduler_enabled": False, "safety": "no_sap_write_no_auto_scheduler"}
+
+    def daily_intelligence_memory_draft(self, user, item_id):
+        if not user:
+            return {"ok": False, "message": "login required"}, 401
+        now = ts()
+        with db() as conn:
+            item = conn.execute("select * from daily_intelligence_items where id=?", (item_id,)).fetchone()
+            if not item:
+                return {"ok": False, "message": "item not found"}, 404
+            evidence = safe_json(item["evidence_json"], [])
+            content = "\n".join(["{} #{}: {}".format(e.get("source_type"), e.get("source_id"), e.get("evidence_summary") or e.get("evidence_title")) for e in evidence])
+            cur = conn.execute(
+                "insert into enterprise_memories(title,memory_type,summary,content,reason,decision,impact,risk_level,status,tags,related_object_type,related_object_id,created_by,occurred_at,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (item["title"], "daily_intelligence", item["description"] or item["title"], content, "Daily Intelligence item selected for enterprise memory.", item["recommended_action"] or "Pending human review.", "Track whether the daily recommendation changed business outcome.", item["severity"], "draft", json.dumps(["daily-intelligence", item["item_type"]], ensure_ascii=False), "daily_intelligence_item", item["id"], user["id"], now, now, now, None),
+            )
+            conn.execute("insert into memory_relations(memory_id,target_type,target_id,relation_type,description,created_at) values(?,?,?,?,?,?)", (cur.lastrowid, "daily_intelligence_item", item["id"], "derived_from", item["title"], now))
+            self.add_timeline_event(conn, "memory", cur.lastrowid, "daily_intelligence_memory_draft_created", item["title"], item["description"] or "", "daily_intelligence_items", item["id"], {"memory_id": cur.lastrowid}, user["id"], now)
+        return {"ok": True, "memory_id": cur.lastrowid, "status": "draft"}, 200
+
+    def daily_intelligence_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        with db() as conn:
+            latest = self.latest_daily_intelligence(conn)
+            history = [row_dict(r) for r in conn.execute("select id,report_date,summary,status,created_at from daily_intelligence_reports order by report_date desc, created_at desc limit 20").fetchall()]
+            schedule = conn.execute("select * from daily_intelligence_schedules where schedule_key='daily_intelligence_0730'").fetchone()
+        if not latest:
+            metrics = self.metric("Daily Intelligence", "No report", "run rebuild")
+            risk_cards = self.empty_state("No daily intelligence report yet.")
+            opportunity_cards = ""
+            action_items = self.bullets(["Run Daily Intelligence rebuild to generate the first CEO briefing."])
+            summary = "No daily report yet."
+        else:
+            risks = [i for i in latest["items"] if i.get("item_type") == "risk"][:6]
+            opportunities = [i for i in latest["items"] if i.get("item_type") == "opportunity"][:6]
+            actions = [i for i in latest["items"] if i.get("recommended_action")][:8]
+            metrics = "".join([
+                self.metric("Report Date", latest["report_date"], latest["status"]),
+                self.metric("Risks", len(risks), "top risk items"),
+                self.metric("Opportunities", len(opportunities), "top opportunity items"),
+                self.metric("Evidence", sum(len(i.get("evidence_json") or []) for i in latest["items"]), "traceable"),
+            ])
+            risk_cards = "".join("<div class='card'><h2>{}</h2><p>{}</p><p class='small'>{} / evidence {}</p><form method='post' action='/api/daily-intelligence/items/{}/memory-draft'><button>Create Memory Draft</button></form></div>".format(esc(i["title"]), esc(i.get("description") or ""), esc(i.get("severity") or ""), len(i.get("evidence_json") or []), i["id"]) for i in risks) or self.empty_state("No risk items.")
+            opportunity_cards = "".join("<div class='card'><h2>{}</h2><p>{}</p><p class='small'>evidence {}</p><form method='post' action='/api/daily-intelligence/items/{}/memory-draft'><button>Create Memory Draft</button></form></div>".format(esc(i["title"]), esc(i.get("description") or ""), len(i.get("evidence_json") or []), i["id"]) for i in opportunities) or self.empty_state("No opportunity items.")
+            action_items = self.bullets([i.get("recommended_action") or i.get("title") for i in actions] or ["No recommended actions."])
+            summary = latest["summary"]
+        history_items = self.bullets(["{} / {} / {}".format(h["report_date"], h["status"], h["summary"][:120]) for h in history] or ["No historical reports."])
+        body = """
+<div class="panel"><h2>Daily Intelligence Engine</h2><p class="small">CEO-ready daily briefing generated from Sync freshness, Business Health, Decision, Inventory, Brand and Store Intelligence. Scheduler is disabled until approved.</p><form method="post" action="/api/daily-intelligence/rebuild" style="display:inline"><button>Rebuild Daily Intelligence</button></form> <a class="btn dark" href="/api/daily-intelligence/latest">Latest API</a><div class="metrics">{}</div><p>{}</p><p class="small">Schedule: {} / enabled: {}</p></div>
+<div class="split"><div class="panel"><h2>Top Risks</h2><div class="grid">{}</div></div><div class="panel"><h2>Top Opportunities</h2><div class="grid">{}</div></div></div>
+<div class="split"><div class="panel"><h2>Recommended Actions</h2>{}</div><div class="panel"><h2>History</h2>{}</div></div>
+""".format(metrics, esc(summary), esc(schedule["schedule_time"] if schedule else "07:30"), "yes" if schedule and schedule["enabled"] else "no", risk_cards, opportunity_cards, action_items, history_items)
+        self.out(layout("Daily Intelligence", body, user=user, wide=True))
+
+    def api_daily_intelligence_get(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/daily-intelligence/latest":
+            return self.json_out({"ok": True, "report": self.latest_daily_intelligence(), "scheduler_enabled": False})
+        if path == "/api/daily-intelligence/history":
+            with db() as conn:
+                rows = conn.execute("select * from daily_intelligence_reports order by report_date desc, created_at desc limit 100").fetchall()
+            return self.json_out({"ok": True, "reports": [self.daily_intelligence_report_to_json(r) for r in rows]})
+        m = re.match(r"^/api/daily-intelligence/items/(\d+)$", path)
+        if m:
+            with db() as conn:
+                row = conn.execute("select * from daily_intelligence_items where id=?", (m.group(1),)).fetchone()
+            if not row:
+                return self.json_out({"ok": False, "message": "not found"}, code=404)
+            return self.json_out({"ok": True, "item": self.daily_intelligence_item_to_json(row)})
+        return self.json_out({"ok": False, "message": "unknown daily intelligence api"}, code=404)
+
+    def api_daily_intelligence_post(self, user, path):
+        if not user:
+            return self.json_out({"ok": False, "message": "login required"}, code=401)
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/daily-intelligence/rebuild":
+            payload = self.rebuild_daily_intelligence(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/daily-intelligence")
+            return self.json_out(payload)
+        m = re.match(r"^/api/daily-intelligence/items/(\d+)/memory-draft$", path)
+        if m:
+            payload, code = self.daily_intelligence_memory_draft(user, int(m.group(1)))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/daily-intelligence")
+            return self.json_out(payload, code=code)
+        return self.json_out({"ok": False, "message": "unknown daily intelligence write api"}, code=404)
 
     def decision_severity_rank(self, severity):
         return {"critical": 0, "high": 1, "medium": 2, "low": 3}.get((severity or "medium").lower(), 2)
