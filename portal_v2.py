@@ -5146,7 +5146,7 @@ a,button,.btn,input,select,textarea{{touch-action:manipulation}}img,video,canvas
 .panel,.card{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.panel{{padding:18px;margin:14px 0}}.form{{max-width:520px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}}.card{{padding:18px;min-height:154px;display:flex;flex-direction:column;justify-content:space-between}}
 .metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}}.metric{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;min-height:92px}}.metric strong{{display:block;font-size:22px;margin-top:7px;line-height:1.15}}.metric span{{font-size:13px;color:#666}}.metric.good{{border-color:#b9dfc8;background:#f4fbf6}}.metric.warn{{border-color:#efd19a;background:#fff9ed}}.metric.risk{{border-color:#edb0aa;background:#fff5f4}}
-.ceo-hero{{background:#fff;border:1px solid #d8d0c2;border-radius:8px;padding:20px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.ceo-hero h1{{font-size:32px;margin:0 0 8px}}.ceo-ask{{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}}.focus-list{{display:grid;gap:10px}}.focus-item{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fbfaf7}}.focus-item strong{{display:block;margin-bottom:5px}}.status-tag{{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4ff;color:#1849a9;font-weight:800;font-size:12px}}.danger-note{{border-left:4px solid #b45f06;padding:10px 12px;background:#fff8ed;border-radius:8px}}.nav-groups{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}.nav-group{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fff}}.nav-group a{{display:inline-block;margin:4px 6px 4px 0}}
+.ceo-hero{{background:#fff;border:1px solid #d8d0c2;border-radius:8px;padding:20px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.ceo-hero.compact{{padding:18px;margin-top:8px}}.ceo-hero h1{{font-size:32px;margin:0 0 8px}}.ceo-ask{{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}}.compact-panel{{padding:15px;margin:10px 0;box-shadow:none}}.compact-split{{gap:10px}}.focus-list{{display:grid;gap:10px}}.focus-item{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fbfaf7}}.focus-item strong{{display:block;margin-bottom:5px}}.status-tag{{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4ff;color:#1849a9;font-weight:800;font-size:12px}}.danger-note{{border-left:4px solid #b45f06;padding:10px 12px;background:#fff8ed;border-radius:8px}}.nav-groups{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}.nav-group{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fff}}.nav-group a{{display:inline-block;margin:4px 6px 4px 0}}
 .split{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}}.list{{margin:0;padding-left:20px;line-height:1.85}}.pill{{display:inline-flex;align-items:center;max-width:100%;border:1px solid #ddd7cc;border-radius:999px;padding:7px 10px;margin:3px 5px 3px 0;background:#fff;font-weight:700;color:#333;text-decoration:none}}
 .store-row{{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:8px;border-top:1px solid #eee;padding:10px 0}}.store-row:first-child{{border-top:0}}
 .card h2{{margin-bottom:4px}}.card p{{color:#555;margin:0 0 18px}}.disabled{{opacity:.55}}
@@ -7832,6 +7832,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         self.out(layout(U(r"SAP B1 \u540c\u6b65"), body, user=user, wide=True))
 
     def dashboard(self, user):
+        compact_home = urlparse(getattr(self, "path", "/")).path == "/"
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         profit = self.profit_composition_payload()
@@ -12704,6 +12705,52 @@ where ki.deleted_at is null"""
             "{} / {} / evidence {}".format(esc(r.get("title") or ""), esc(r.get("severity") or ""), len(r.get("evidence") or []))
             for r in payload["decision_metrics"].get("top_risks", [])[:5]
         ] or [U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002")])
+        if compact_home:
+            light_metrics = "".join([
+                "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+                self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
+                self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
+                self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), summary["enterprise_sync_status"], data_time),
+            ])
+            primary_links = "".join([
+                '<a class="btn" href="/ceo-workbench">{}</a>'.format(U(r"\u6253\u5f00 CEO \u5de5\u4f5c\u53f0")),
+                '<a class="btn gray" href="/copilot">{}</a>'.format(U(r"AI \u95ee\u4f01\u4e1a")),
+                '<a class="btn gray" href="/daily-intelligence">{}</a>'.format(U(r"\u4eca\u65e5\u65e5\u62a5")),
+                '<a class="btn gray" href="/decision">{}</a>'.format(U(r"\u51b3\u7b56\u63d0\u9192")),
+            ])
+            body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">CEO Experience 2.0</span>
+  <h1>FoxBrain CEO Brain</h1>
+  <p class="lead">{lead}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
+    <button>{ask_button}</button>
+  </form>
+</div>
+<div class="panel compact-panel"><h2>{metrics_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="split compact-split">
+  <div class="panel compact-panel"><h2>{focus_title}</h2>{focus}</div>
+  <div class="panel compact-panel"><h2>{profit_title}</h2><div class="metrics">{profit_cards}</div><div class="danger-note">{profit_warning}</div></div>
+</div>
+<div class="panel compact-panel"><h2>{quick_title}</h2><div class="inline">{primary_links}</div><div class="chipbar">{questions}</div></div>
+""".format(
+                lead=esc(U(r"\u5148\u770b\u72b6\u6001\uff0c\u518d\u95ee AI\uff1b\u9996\u9875\u53ea\u7559\u4eca\u5929\u5fc5\u770b\u548c\u5fc5\u5904\u7406\u3002")),
+                ask_label=U(r"AI \u95ee\u4f01\u4e1a"),
+                ask_placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"),
+                ask_button=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
+                metrics_title=U(r"\u4eca\u65e5\u4e00\u773c\u770b\u61c2"),
+                metrics=light_metrics,
+                focus_title=U(r"\u4eca\u5929\u5148\u505a\u4ec0\u4e48"),
+                focus=focus_html,
+                profit_title=U(r"\u5229\u6da6\u8d28\u91cf\u63d0\u9192"),
+                profit_cards=self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u9700\u5173\u6ce8\u4f9d\u8d56")),
+                profit_warning=esc(profit["warning"]),
+                quick_title=U(r"\u5feb\u901f\u5165\u53e3"),
+                primary_links=primary_links,
+                questions=question_chips,
+            )
+            return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
         body = """
 <div class="ceo-hero">
   <span class="status-tag">CEO Experience 2.0</span>
