@@ -8039,6 +8039,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         self.out(layout(T["brand"], quick + '<div class="grid">' + "".join(cards) + "</div>" + info, user=user, wide=True))
 
     def dashboard(self, user):
+        compact_home = urlparse(getattr(self, "path", "/")).path == "/"
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         profit = self.profit_composition_payload()
@@ -12648,6 +12649,7 @@ where ki.deleted_at is null"""
         }
 
     def dashboard(self, user):
+        compact_home = urlparse(getattr(self, "path", "/")).path == "/"
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         profit = self.profit_composition_payload()
