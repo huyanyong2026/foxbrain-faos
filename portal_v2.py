@@ -5104,6 +5104,7 @@ init()
 def layout(title, body, user=None, msg="", wide=False):
     nav = ""
     bottom_nav = ""
+    copilot_launcher = ""
     if user:
         nav = (
             '<div class="topbar"><div><strong>{}</strong><small>{} 路 {}</small></div>'
@@ -5113,21 +5114,26 @@ def layout(title, body, user=None, msg="", wide=False):
         nav_items = [
             (U(r"\u9996\u9875"), "/"),
             (U(r"\u7ecf\u8425"), "/daily-intelligence"),
-            (U(r"\u4f01\u4e1a\u8d44\u6599"), "/drive"),
+            (U(r"\u4f01\u4e1a\u6863\u6848"), "/drive"),
             (U(r"AI\u52a9\u624b"), "/copilot"),
-            (U(r"\u7cfb\u7edf"), "/sync-center"),
+            (U(r"\u884c\u52a8\u4e2d\u5fc3"), "/action-center"),
         ]
         primary_nav = "".join('<a href="{}">{}</a>'.format(esc(href), esc(label)) for label, href in nav_items)
+        context_question = U(r"\u8bf7\u7ed3\u5408\u5f53\u524d\u9875\u9762\u89e3\u91ca\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\uff0c\u5e76\u5217\u51fa evidence\u3002")
+        copilot_launcher = (
+            '<a class="global-copilot" href="/copilot?q={}" title="{}">'
+            '<strong>AI</strong><span>{}</span></a>'
+        ).format(quote(context_question), U(r"\u5e26\u5f53\u524d\u9875\u9762\u4e0a\u4e0b\u6587\u63d0\u95ee"), U(r"\u95ee\u5f53\u524d\u9875"))
         nav = (
             '<div class="topbar os-topbar"><div><strong>{}</strong><small>{} / {}</small></div>'
             '<nav class="primary-nav">{}</nav>'
             '<form class="global-search" method="get" action="/os/search"><input name="q" value="" placeholder="{}"></form>'
-            '<div class="top-actions"><a href="/jarvis">AI</a><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
-        ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), primary_nav, esc(search_placeholder), T["change_password"], T["logout"])
+            '<div class="top-actions"><a href="/sync-center">{}</a><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
+        ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), primary_nav, esc(search_placeholder), U(r"\u7cfb\u7edf"), T["change_password"], T["logout"])
         bottom_nav = (
             '<nav class="bottom-nav"><a href="/">{}</a><a href="/daily-intelligence">{}</a>'
-            '<a href="/copilot">AI</a><a href="/sync-center">{}</a></nav>'
-        ).format(U(r"\u9996\u9875"), U(r"\u7ecf\u8425"), U(r"\u7cfb\u7edf"))
+            '<a href="/drive">{}</a><a href="/copilot">AI</a><a href="/action-center">{}</a></nav>'
+        ).format(U(r"\u9996\u9875"), U(r"\u7ecf\u8425"), U(r"\u6863\u6848"), U(r"\u884c\u52a8"))
     alert = f'<div class="alert">{esc(msg)}</div>' if msg else ""
     max_width = "1180px" if wide else "980px"
     subtitle_html = "" if user or not T.get("subtitle") else "<p class=\"lead\">{}</p>".format(T["subtitle"])
@@ -5142,22 +5148,28 @@ a,button,.btn,input,select,textarea{{touch-action:manipulation}}img,video,canvas
 .panel,.card,.metric,td,th,p,li,h1,h2,h3,strong,span,label,.btn,button{{min-width:0;overflow-wrap:anywhere;word-break:break-word}}
 .topbar{{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:12px 14px;margin-bottom:18px}}
 .topbar>div{{min-width:0}}.topbar small{{display:block;color:#666;margin-top:3px}}.topbar a{{margin-left:12px;color:#1849a9;text-decoration:none;font-weight:700}}.os-topbar{{position:sticky;top:10px;z-index:10}}.primary-nav{{display:flex;gap:6px;align-items:center;flex-wrap:wrap}}.primary-nav a{{margin:0;padding:8px 10px;border-radius:8px;background:#f6f3ed;color:#333}}.global-search{{flex:1;min-width:180px;max-width:360px}}.global-search input{{height:42px;padding:10px 13px;border-radius:999px}}.top-actions{{white-space:nowrap}}
-.bottom-nav{{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 10px 26px rgba(0,0,0,.12);grid-template-columns:repeat(4,1fr);overflow:hidden}}.bottom-nav a{{padding:12px 6px;text-align:center;text-decoration:none;color:#1849a9;font-weight:800}}
+.bottom-nav{{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 10px 26px rgba(0,0,0,.12);grid-template-columns:repeat(5,1fr);overflow:hidden}}.bottom-nav a{{padding:12px 4px;text-align:center;text-decoration:none;color:#1849a9;font-weight:800;font-size:13px}}
 .panel,.card{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.panel{{padding:18px;margin:14px 0}}.form{{max-width:520px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}}.card{{padding:18px;min-height:154px;display:flex;flex-direction:column;justify-content:space-between}}
 .metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}}.metric{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;min-height:92px}}.metric strong{{display:block;font-size:22px;margin-top:7px;line-height:1.15}}.metric span{{font-size:13px;color:#666}}.metric.good{{border-color:#b9dfc8;background:#f4fbf6}}.metric.warn{{border-color:#efd19a;background:#fff9ed}}.metric.risk{{border-color:#edb0aa;background:#fff5f4}}
-.ceo-hero{{background:#fff;border:1px solid #d8d0c2;border-radius:8px;padding:20px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.ceo-hero h1{{font-size:32px;margin:0 0 8px}}.ceo-ask{{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}}.focus-list{{display:grid;gap:10px}}.focus-item{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fbfaf7}}.focus-item strong{{display:block;margin-bottom:5px}}.status-tag{{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4ff;color:#1849a9;font-weight:800;font-size:12px}}.danger-note{{border-left:4px solid #b45f06;padding:10px 12px;background:#fff8ed;border-radius:8px}}.nav-groups{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}.nav-group{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fff}}.nav-group a{{display:inline-block;margin:4px 6px 4px 0}}
+.ceo-hero{{background:#fff;border:1px solid #d8d0c2;border-radius:8px;padding:20px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.ceo-hero.compact{{padding:18px;margin-top:8px}}.ceo-hero h1{{font-size:32px;margin:0 0 8px}}.ceo-ask{{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}}.compact-panel{{padding:15px;margin:10px 0;box-shadow:none}}.compact-split{{gap:10px}}.focus-list{{display:grid;gap:10px}}.focus-item{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fbfaf7}}.focus-item strong{{display:block;margin-bottom:5px}}.status-tag{{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4ff;color:#1849a9;font-weight:800;font-size:12px}}.danger-note{{border-left:4px solid #b45f06;padding:10px 12px;background:#fff8ed;border-radius:8px}}.nav-groups{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}.nav-group{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fff}}.nav-group a{{display:inline-block;margin:4px 6px 4px 0}}
 .split{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}}.list{{margin:0;padding-left:20px;line-height:1.85}}.pill{{display:inline-flex;align-items:center;max-width:100%;border:1px solid #ddd7cc;border-radius:999px;padding:7px 10px;margin:3px 5px 3px 0;background:#fff;font-weight:700;color:#333;text-decoration:none}}
 .store-row{{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:8px;border-top:1px solid #eee;padding:10px 0}}.store-row:first-child{{border-top:0}}
 .card h2{{margin-bottom:4px}}.card p{{color:#555;margin:0 0 18px}}.disabled{{opacity:.55}}
-.chat-shell{{display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);gap:14px;align-items:start;max-width:100%;overflow:hidden}}.chat-message{{border:1px solid #e4ded2;border-radius:8px;padding:14px;margin:10px 0;background:#fff}}.chat-message.user{{background:#f2f6ff;border-color:#cad8ff}}.chat-message.assistant{{background:#fbfaf7}}.chat-input{{position:sticky;bottom:0;background:#f6f3ed;padding:10px 0 4px;border-top:1px solid #e5ded2}}.chipbar{{display:flex;gap:8px;overflow:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch;max-width:100%}}.chipbar button{{white-space:normal;width:auto;max-width:100%;background:#fff;color:#1849a9;border:1px solid #cfd8ef}}.source-item{{border-top:1px solid #eee;padding:9px 0}}.confidence{{display:inline-block;border-radius:999px;background:#eef4ff;color:#1849a9;padding:5px 9px;font-weight:800}}
+.chat-shell{{display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);gap:14px;align-items:start;max-width:100%;overflow:hidden}}.chat-message{{border:1px solid #e4ded2;border-radius:8px;padding:14px;margin:10px 0;background:#fff}}.chat-message.user{{background:#f2f6ff;border-color:#cad8ff}}.chat-message.assistant{{background:#fbfaf7}}.chat-input{{position:sticky;bottom:0;background:#f6f3ed;padding:10px 0 4px;border-top:1px solid #e5ded2}}.chipbar{{display:flex;gap:8px;overflow:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch;max-width:100%}}.chipbar button{{white-space:normal;width:auto;max-width:100%;background:#fff;color:#1849a9;border:1px solid #cfd8ef}}.source-item,.evidence-card{{border:1px solid #e5ded2;border-radius:8px;padding:11px;margin:8px 0;background:#fff}}.evidence-card strong{{display:block;margin-bottom:5px}}.evidence-card summary{{cursor:pointer;font-weight:800;color:#1849a9}}.confidence{{display:inline-block;border-radius:999px;background:#eef4ff;color:#1849a9;padding:5px 9px;font-weight:800}}.empty-state{{border:1px dashed #d8d0c2;border-radius:8px;padding:14px;background:#fffdf8}}.empty-state strong{{display:block;margin-bottom:6px}}.skeleton{{position:relative;overflow:hidden;background:#f1eee8;border-radius:8px;min-height:48px}}.skeleton:after{{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shine 1.25s infinite}}@keyframes shine{{to{{transform:translateX(100%)}}}}button[disabled]{{opacity:.65;cursor:wait}}.global-copilot{{position:fixed;right:18px;bottom:82px;z-index:30;display:flex;gap:8px;align-items:center;background:#1849a9;color:#fff;text-decoration:none;border-radius:999px;padding:11px 14px;box-shadow:0 12px 28px rgba(0,0,0,.22)}}.global-copilot strong{{background:#fff;color:#1849a9;border-radius:999px;padding:4px 7px}}.global-copilot span{{font-weight:800}}
 label{{display:block;font-weight:800;margin:12px 0 7px}}input,select,textarea{{width:100%;padding:14px;border:1px solid #cfc8bb;border-radius:8px;font-size:16px;background:#fff}}textarea{{min-height:120px;font-family:inherit}}
 button,.btn{{display:inline-block;max-width:100%;border:0;border-radius:8px;background:#1849a9;color:#fff;text-decoration:none;font-weight:800;padding:13px 16px;cursor:pointer;font-size:16px;text-align:center;line-height:1.25}}
 .btn.full{{width:100%}}.red{{background:#ad1f15}}.green{{background:#18704c}}.dark{{background:#222}}.gray{{background:#777}}.orange{{background:#b45f06}}
 .alert{{padding:12px;background:#fff7d6;border:1px solid #ecd27a;border-radius:8px;margin:12px 0}}table{{width:100%;border-collapse:collapse;table-layout:auto}}th,td{{border-bottom:1px solid #eee;padding:10px;text-align:left;vertical-align:top}}th{{white-space:nowrap}}.inline{{display:flex;gap:8px;align-items:center;flex-wrap:wrap}}.inline form{{display:inline}}.small{{font-size:13px;color:#666}}
-@media(max-width:820px){{main{{width:calc(100% - 16px);padding:10px 0 86px;overflow:hidden}}section{{padding:0 2px}}h1{{font-size:24px;line-height:1.22}}h2{{font-size:18px}}.lead{{font-size:14px;line-height:1.55}}.grid,.metrics,.split,.chat-shell,.ceo-ask{{grid-template-columns:1fr;gap:12px}}.panel,.ceo-hero{{padding:14px;margin:10px 0;border-radius:8px;overflow:hidden}}.ceo-hero h1{{font-size:26px}}.card{{min-height:0;padding:14px}}.metric{{min-height:0;padding:12px}}.metric strong{{font-size:20px}}.store-row{{grid-template-columns:1fr}}.btn,button{{width:100%;padding:15px;min-height:48px}}.chat-input{{position:static;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;margin:10px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.chat-input p{{margin-bottom:0}}.chipbar{{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding:4px 0 0}}.chipbar button{{width:100%;min-height:44px;text-align:left;white-space:normal;line-height:1.35}}.topbar{{align-items:stretch;flex-direction:column;padding:12px;position:sticky;top:0;z-index:5}}.topbar a{{margin:0 8px 0 0;display:inline-block;padding:8px 0}}.primary-nav{{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}}.primary-nav a{{font-size:13px;text-align:center;padding:8px 4px}}.global-search{{max-width:none;width:100%}}.top-actions{{white-space:normal}}.bottom-nav{{display:grid}}table,tbody,tr,td,th{{display:block;width:100%}}thead{{display:none}}tr{{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px;background:#fff;overflow:hidden}}td{{border:0;padding:7px 4px}}td:empty{{display:none}}.inline{{display:grid;grid-template-columns:1fr;gap:8px}}.inline form{{display:block;margin-top:0}}.pill{{border-radius:8px}}}}
+@media(max-width:820px){{main{{width:calc(100% - 16px);padding:10px 0 92px;overflow:hidden}}section{{padding:0 2px}}h1{{font-size:24px;line-height:1.22}}h2{{font-size:18px}}.lead{{font-size:14px;line-height:1.55}}.grid,.metrics,.split,.chat-shell,.ceo-ask{{grid-template-columns:1fr;gap:12px}}.panel,.ceo-hero{{padding:14px;margin:10px 0;border-radius:8px;overflow:hidden}}.ceo-hero h1{{font-size:26px}}.card{{min-height:0;padding:14px}}.metric{{min-height:0;padding:12px}}.metric strong{{font-size:20px}}.store-row{{grid-template-columns:1fr}}.btn,button{{width:100%;padding:15px;min-height:48px}}.chat-input{{position:static;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;margin:10px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.chat-input p{{margin-bottom:0}}.chipbar{{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding:4px 0 0}}.chipbar button{{width:100%;min-height:44px;text-align:left;white-space:normal;line-height:1.35}}.topbar{{align-items:stretch;flex-direction:column;padding:12px;position:sticky;top:0;z-index:5}}.topbar a{{margin:0 8px 0 0;display:inline-block;padding:8px 0}}.primary-nav{{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}}.primary-nav a{{font-size:12px;text-align:center;padding:8px 3px}}.global-search{{max-width:none;width:100%}}.top-actions{{white-space:normal}}.bottom-nav{{display:grid}}.global-copilot{{right:12px;bottom:68px;padding:9px 11px}}.global-copilot span{{display:none}}table,tbody,tr,td,th{{display:block;width:100%}}thead{{display:none}}tr{{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px;background:#fff;overflow:hidden}}td{{border:0;padding:7px 4px}}td:empty{{display:none}}.inline{{display:grid;grid-template-columns:1fr;gap:8px}}.inline form{{display:block;margin-top:0}}.pill{{border-radius:8px}}}}
 @media(max-width:420px){{main{{width:calc(100% - 12px)}}h1{{font-size:22px}}.panel,.card{{padding:12px}}input,select,textarea{{padding:13px}}.metrics{{gap:8px}}}}
-</style></head><body><main>{nav}<section><h1>{esc(title)}</h1>{subtitle_html}</section>{alert}{body}</main>{bottom_nav}</body></html>"""
+</style><script>
+document.addEventListener('submit',function(e){{
+  var b=e.target.querySelector('button[type="submit"],button:not([type])');
+  if(b && !b.disabled){{b.dataset.oldText=b.textContent;b.textContent='处理中...';b.disabled=true;}}
+}});
+window.addEventListener('pageshow',function(){{document.querySelectorAll('button[disabled]').forEach(function(b){{b.disabled=false;if(b.dataset.oldText)b.textContent=b.dataset.oldText;}});}});
+</script></head><body><main>{nav}<section><h1>{esc(title)}</h1>{subtitle_html}</section>{alert}{body}</main>{copilot_launcher}{bottom_nav}</body></html>"""
 
 
 class App(BaseHTTPRequestHandler):
@@ -5258,6 +5270,8 @@ class App(BaseHTTPRequestHandler):
             return self.jarvis_center(user)
         if path == "/copilot":
             return self.enterprise_copilot_page(user)
+        if path == "/action-center":
+            return self.action_center_page(user)
         if path == "/agents":
             return self.agents(user)
         if path in ("/agents/v1.2", "/agents/orchestration"):
@@ -7832,6 +7846,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         self.out(layout(U(r"SAP B1 \u540c\u6b65"), body, user=user, wide=True))
 
     def dashboard(self, user):
+        compact_home = urlparse(getattr(self, "path", "/")).path == "/"
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         profit = self.profit_composition_payload()
@@ -8038,6 +8053,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         self.out(layout(T["brand"], quick + '<div class="grid">' + "".join(cards) + "</div>" + info, user=user, wide=True))
 
     def dashboard(self, user):
+        compact_home = urlparse(getattr(self, "path", "/")).path == "/"
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         profit = self.profit_composition_payload()
@@ -8591,8 +8607,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             if not sap_profit:
                 sap_profit = 1723487.13
             rebate_total = 1044717.78
-            osprey_rebate = 64798.03
-            kailas_rebate = 979919.75
+            osprey_rebate = 964798.03
+            kailas_rebate = 79919.75
             non_rebate_profit = sap_profit - rebate_total
             rebate_share = rebate_total / sap_profit if sap_profit else 0
             evidence = [
@@ -8682,6 +8698,52 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 )
             )
         return "<div class='focus-list'>" + "".join(cards) + "</div>"
+
+    def action_center_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        payload = self.ceo_dashboard_payload(user)
+        with db() as conn:
+            actions = self.ceo_action_center_payload(conn, payload)
+        decision_actions = [a for a in actions if a.get("status") == U(r"\u5f85\u5ba1\u6279")]
+        data_actions = [a for a in actions if a.get("status") in (U(r"\u6570\u636e\u5f02\u5e38"), U(r"\u5f85\u91cd\u5efa"))]
+        normal_actions = [a for a in actions if a not in decision_actions and a not in data_actions]
+        body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">{tag}</span>
+  <h1>{title}</h1>
+  <p class="lead">{lead}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{ask}</label><input name="q" placeholder="{placeholder}"></div>
+    <button>{ask_btn}</button>
+  </form>
+</div>
+<div class="split">
+  <div class="panel"><h2>{must_title}</h2>{must}</div>
+  <div class="panel"><h2>{approval_title}</h2>{approval}</div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{data_title}</h2>{data}</div>
+  <div class="panel"><h2>{done_title}</h2>{done}</div>
+</div>
+""".format(
+            tag=U(r"\u884c\u52a8\u4e2d\u5fc3"),
+            title=U(r"\u4eca\u5929\u9700\u8981\u63a8\u8fdb\u7684\u4e8b"),
+            lead=U(r"\u628a\u9ad8\u98ce\u9669\u51b3\u7b56\u3001\u6570\u636e\u5f02\u5e38\u3001\u91cd\u5efa\u4efb\u52a1\u548c\u4eba\u5de5\u5ba1\u6279\u653e\u5728\u4e00\u4e2a\u5730\u65b9\u3002"),
+            ask=U(r"AI \u95ee\u884c\u52a8"),
+            placeholder=U(r"\u4eca\u5929\u54ea\u4ef6\u4e8b\u6700\u5e94\u8be5\u5148\u505a\uff1f"),
+            ask_btn=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
+            must_title=U(r"\u4eca\u65e5\u5fc5\u987b\u5904\u7406"),
+            must=self.ceo_action_center_html(normal_actions),
+            approval_title=U(r"\u5f85\u5ba1\u6279"),
+            approval=self.ceo_action_center_html(decision_actions),
+            data_title=U(r"\u6570\u636e / \u91cd\u5efa\u95ee\u9898"),
+            data=self.ceo_action_center_html(data_actions),
+            done_title=U(r"\u5df2\u5b8c\u6210"),
+            done=self.empty_state(U(r"\u5df2\u5b8c\u6210\u4e8b\u9879\u540e\u7eed\u53ef\u4ece\u65f6\u95f4\u8f74\u548c\u65e5\u62a5\u4e2d\u56de\u770b\u3002")),
+        )
+        self.out(layout(U(r"\u884c\u52a8\u4e2d\u5fc3"), body, user=user, wide=False))
 
     def ceo_navigation_groups_html(self):
         groups = [
@@ -12349,7 +12411,40 @@ where ki.deleted_at is null"""
         return self.json_out({"ok": False, "message": "unknown knowledge api"}, code=404)
 
     def empty_state(self, text):
-        return "<p class='small'>{}</p>".format(esc(text))
+        return (
+            "<div class='empty-state'><strong>{}</strong><p class='small'>{}</p>"
+            "<p class='small'>{}</p><p><a class='btn gray' href='/copilot?q={}'>{}</a></p></div>"
+        ).format(
+            U(r"\u6682\u65e0\u53ef\u5c55\u793a\u6570\u636e"),
+            esc(text),
+            U(r"\u53ef\u80fd\u539f\u56e0\uff1a\u8fd8\u6ca1\u6709\u5bfc\u5165\u5bf9\u5e94\u6570\u636e\uff0c\u6216\u8be5\u5206\u6790\u9700\u8981\u91cd\u65b0\u751f\u6210\u3002"),
+            quote(U(r"\u8fd9\u4e2a\u9875\u9762\u4e3a\u4ec0\u4e48\u6ca1\u6709\u6570\u636e\uff1f\u4e0b\u4e00\u6b65\u5e94\u8be5\u600e\u4e48\u505a\uff1f")),
+            U(r"\u95ee AI \u4e0b\u4e00\u6b65"),
+        )
+
+    def evidence_cards(self, evidence, limit=6):
+        items = evidence or []
+        if isinstance(items, str):
+            items = safe_json(items, [])
+        cards = []
+        for e in items[:limit]:
+            if isinstance(e, str):
+                e = {"summary": e}
+            title = e.get("title") or e.get("evidence_title") or e.get("source_name") or e.get("source_type") or U(r"\u6570\u636e\u8bc1\u636e")
+            source = e.get("source_type") or e.get("source") or U(r"\u4f01\u4e1a\u6570\u636e")
+            source_id = e.get("source_id") or e.get("id") or "-"
+            summary = e.get("summary") or e.get("evidence_summary") or e.get("description") or U(r"\u5df2\u4fdd\u7559\u53ef\u8ffd\u6eaf\u6570\u636e\u3002")
+            updated = e.get("updated_at_text") or e.get("updated_at") or e.get("date_range") or "-"
+            freshness = e.get("freshness") or e.get("status") or U(r"\u5df2\u8bb0\u5f55")
+            value = e.get("key_value") or e.get("value") or e.get("confidence") or ""
+            url = e.get("url") or "/data-lake"
+            cards.append(
+                "<div class='evidence-card'><strong>{}</strong><p class='small'>{} #{} / {} / {}</p><p>{}</p><details><summary>{}</summary><p class='small'>{}</p></details><a class='btn gray' href='{}'>{}</a></div>".format(
+                    esc(title), esc(source), esc(source_id), esc(updated), esc(freshness), esc(summary),
+                    U(r"\u67e5\u770b\u539f\u59cb\u8bf4\u660e"), esc(str(value)), esc(url), U(r"\u6253\u5f00\u76f8\u5173\u9875")
+                )
+            )
+        return "<div class='source-list'>" + "".join(cards) + "</div>" if cards else self.empty_state(U(r"\u5f53\u524d\u7ed3\u8bba\u6ca1\u6709\u8db3\u591f evidence\uff0c\u6682\u4e0d\u5efa\u8bae\u4f5c\u4e3a\u7ecf\u8425\u51b3\u7b56\u3002"))
 
     def cockpit_data(self):
         s = load_summary()
@@ -12647,6 +12742,7 @@ where ki.deleted_at is null"""
         }
 
     def dashboard(self, user):
+        compact_home = urlparse(getattr(self, "path", "/")).path == "/"
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         profit = self.profit_composition_payload()
@@ -12704,6 +12800,98 @@ where ki.deleted_at is null"""
             "{} / {} / evidence {}".format(esc(r.get("title") or ""), esc(r.get("severity") or ""), len(r.get("evidence") or []))
             for r in payload["decision_metrics"].get("top_risks", [])[:5]
         ] or [U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002")])
+        if compact_home:
+            light_metrics = "".join([
+                "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+                self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
+                self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
+                self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), summary["enterprise_sync_status"], data_time),
+            ])
+            primary_links = "".join([
+                '<a class="btn" href="/ceo-workbench">{}</a>'.format(U(r"\u6253\u5f00 CEO \u5de5\u4f5c\u53f0")),
+                '<a class="btn gray" href="/copilot">{}</a>'.format(U(r"AI \u95ee\u4f01\u4e1a")),
+                '<a class="btn gray" href="/daily-intelligence">{}</a>'.format(U(r"\u4eca\u65e5\u65e5\u62a5")),
+                '<a class="btn gray" href="/action-center">{}</a>'.format(U(r"\u884c\u52a8\u4e2d\u5fc3")),
+            ])
+            body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">CEO Experience 2.0</span>
+  <h1>FoxBrain CEO Brain</h1>
+  <p class="lead">{lead}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
+    <button>{ask_button}</button>
+  </form>
+</div>
+<div class="panel compact-panel"><h2>{metrics_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="split compact-split">
+  <div class="panel compact-panel"><h2>{focus_title}</h2>{focus}</div>
+  <div class="panel compact-panel"><h2>{profit_title}</h2><div class="metrics">{profit_card}</div><div class="danger-note">{profit_warning}</div></div>
+</div>
+<div class="panel compact-panel"><h2>{quick_title}</h2><div class="inline">{primary_links}</div><div class="chipbar">{questions}</div></div>
+""".format(
+                lead=esc(U(r"\u5148\u770b\u72b6\u6001\uff0c\u518d\u95ee AI\uff1b\u9996\u9875\u53ea\u7559\u4eca\u5929\u5fc5\u770b\u548c\u5fc5\u5904\u7406\u3002")),
+                ask_label=U(r"AI \u95ee\u4f01\u4e1a"),
+                ask_placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"),
+                ask_button=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
+                metrics_title=U(r"\u4eca\u65e5\u4e00\u773c\u770b\u61c2"),
+                metrics=light_metrics,
+                focus_title=U(r"\u4eca\u5929\u5148\u505a\u4ec0\u4e48"),
+                focus=focus_html,
+                profit_title=U(r"\u5229\u6da6\u8d28\u91cf\u63d0\u9192"),
+                profit_card=self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u4e0d\u91cd\u590d\u52a0\u7b97")),
+                profit_warning=esc(profit["warning"]),
+                quick_title=U(r"\u5feb\u901f\u5165\u53e3"),
+                primary_links=primary_links,
+                questions=question_chips,
+            )
+            return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
+        if compact_home:
+            light_metrics = "".join([
+                "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+                self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
+                self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
+                self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), summary["enterprise_sync_status"], data_time),
+            ])
+            primary_links = "".join([
+                '<a class="btn" href="/ceo-workbench">{}</a>'.format(U(r"\u6253\u5f00 CEO \u5de5\u4f5c\u53f0")),
+                '<a class="btn gray" href="/copilot">{}</a>'.format(U(r"AI \u95ee\u4f01\u4e1a")),
+                '<a class="btn gray" href="/daily-intelligence">{}</a>'.format(U(r"\u4eca\u65e5\u65e5\u62a5")),
+                '<a class="btn gray" href="/action-center">{}</a>'.format(U(r"\u884c\u52a8\u4e2d\u5fc3")),
+            ])
+            body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">CEO Experience 2.0</span>
+  <h1>FoxBrain CEO Brain</h1>
+  <p class="lead">{lead}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
+    <button>{ask_button}</button>
+  </form>
+</div>
+<div class="panel compact-panel"><h2>{metrics_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="split compact-split">
+  <div class="panel compact-panel"><h2>{focus_title}</h2>{focus}</div>
+  <div class="panel compact-panel"><h2>{profit_title}</h2><div class="metrics">{profit_card}</div><div class="danger-note">{profit_warning}</div></div>
+</div>
+<div class="panel compact-panel"><h2>{quick_title}</h2><div class="inline">{primary_links}</div><div class="chipbar">{questions}</div></div>
+""".format(
+                lead=esc(U(r"\u5148\u770b\u72b6\u6001\uff0c\u518d\u95ee AI\uff1b\u9996\u9875\u53ea\u7559\u4eca\u5929\u5fc5\u770b\u548c\u5fc5\u5904\u7406\u3002")),
+                ask_label=U(r"AI \u95ee\u4f01\u4e1a"),
+                ask_placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"),
+                ask_button=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
+                metrics_title=U(r"\u4eca\u65e5\u4e00\u773c\u770b\u61c2"),
+                metrics=light_metrics,
+                focus_title=U(r"\u4eca\u5929\u5148\u505a\u4ec0\u4e48"),
+                focus=focus_html,
+                profit_title=U(r"\u5229\u6da6\u8d28\u91cf\u63d0\u9192"),
+                profit_card=self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u4e0d\u91cd\u590d\u52a0\u7b97")),
+                profit_warning=esc(profit["warning"]),
+                quick_title=U(r"\u5feb\u901f\u5165\u53e3"),
+                primary_links=primary_links,
+                questions=question_chips,
+            )
+            return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
         body = """
 <div class="ceo-hero">
   <span class="status-tag">CEO Experience 2.0</span>
@@ -17747,7 +17935,7 @@ where ki.deleted_at is null"""
             evidence = item.get("evidence", [])
             evidence_html = ""
             if evidence:
-                evidence_html = "<div class='source-list'>" + "".join("<div class='source-item'><strong>{}</strong><p class='small'>{} #{} / {:.0%} / updated {} / {}</p><p>{}</p>{}<a class='btn' href='{}'>{}</a></div>".format(esc(e.get("title")), esc(e.get("source_type")), esc(e.get("source_id")), float(e.get("confidence") or 0), esc(e.get("updated_at_text") or "-"), esc(e.get("freshness") or "unknown"), esc(e.get("summary")), ("<p class='small warn'>{}</p>".format(esc(e.get("stale_warning"))) if e.get("stale_warning") else ""), esc(e.get("url") or "#"), U(r"\u6253\u5f00\u8bc1\u636e")) for e in evidence[:10]) + "</div>"
+                evidence_html = self.evidence_cards(evidence, limit=10)
                 quality = item.get("context", {}).get("answer_quality", {})
                 test_run_id = item.get("context", {}).get("test_run_id", "")
                 feedback = """
