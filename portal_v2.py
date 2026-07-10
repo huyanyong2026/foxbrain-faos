@@ -4990,6 +4990,8 @@ class App(BaseHTTPRequestHandler):
             return self.knowledge_pipeline_page(user)
         if path == "/ceo-home":
             return self.ceo_home_v11_page(user)
+        if path == "/ceo-workbench":
+            return self.dashboard(user) if user else self.login()
         if path == "/owner/knowledge":
             return self.owner_os_center_page(user, path)
         if path.startswith("/owner/"):
@@ -8030,18 +8032,90 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             for label, href, allowed in minimal_links
             if allowed
         )
+        health_details = payload["health_metrics"].get("details", [])
+        weakest_health = sorted(health_details, key=lambda d: float(d.get("score") or 0))[:3]
+        health_focus = self.bullets([
+            "{} / {:.1f} / {}".format(esc(d.get("dimension") or ""), float(d.get("score") or 0), esc(d.get("summary") or ""))
+            for d in weakest_health
+        ] or [U(r"\u6682\u65e0\u4f01\u4e1a\u5065\u5eb7\u660e\u7ec6\uff0c\u53ef\u5148\u70b9\u51fb\u91cd\u65b0\u8ba1\u7b97\u3002")])
+        decision_cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / evidence {}</p></div><a class='btn full' href='{}'>{}</a></div>".format(
+                esc(r.get("title") or ""),
+                esc((r.get("summary") or r.get("suggestion") or "")[:180]),
+                esc(r.get("insight_type") or ""),
+                esc(r.get("severity") or ""),
+                len(r.get("evidence") or []),
+                esc(r.get("url") or "/decision"),
+                U(r"\u5904\u7406\u51b3\u7b56"),
+            )
+            for r in payload["decision_metrics"].get("top_risks", [])[:3]
+        ) or "<div class='card'><div><h2>{}</h2><p>{}</p></div><a class='btn full' href='/decision'>{}</a></div>".format(
+            U(r"\u6682\u65e0\u9ad8\u4f18\u5148\u7ea7\u51b3\u7b56"),
+            U(r"\u53ef\u70b9\u51fb\u91cd\u65b0\u751f\u6210\uff0c\u4ece\u5df2\u5bfc\u5165\u6570\u636e\u548c\u89c4\u5219\u91cc\u68c0\u67e5\u65b0\u6d1e\u5bdf\u3002"),
+            U(r"\u6253\u5f00\u51b3\u7b56\u4e2d\u5fc3"),
+        )
+        inventory_items = self.bullets([
+            "{} / {} / {}".format(esc(r.get("product_name") or r.get("product_code") or ""), esc(r.get("risk_level") or ""), money(r.get("inventory_amount") or 0))
+            for r in payload["inventory_intelligence"].get("risk_ranking", [])[:5]
+        ] or [U(r"\u6682\u65e0\u5e93\u5b58\u98ce\u9669\u6392\u884c\uff0c\u53ef\u91cd\u65b0\u5206\u6790\u5e93\u5b58\u3002")])
+        brand_items = self.bullets([
+            "{} / {} / {:.1f}".format(esc(r.get("brand_name") or ""), esc(r.get("status") or ""), float(r.get("overall_score") or 0))
+            for r in (payload["brand_intelligence"].get("risky_brands", []) + payload["brand_intelligence"].get("opportunity_brands", []))[:5]
+        ] or [U(r"\u6682\u65e0\u54c1\u724c\u98ce\u9669\u6216\u673a\u4f1a\u6392\u884c\uff0c\u53ef\u91cd\u65b0\u5206\u6790\u54c1\u724c\u3002")])
+        store_items = self.bullets([
+            "{} / {} / {:.1f}".format(esc(r.get("store_name") or ""), esc(r.get("status") or ""), float(r.get("overall_score") or 0))
+            for r in (payload["store_intelligence"].get("risky_stores", []) + payload["store_intelligence"].get("opportunity_stores", []))[:5]
+        ] or [U(r"\u6682\u65e0\u95e8\u5e97\u98ce\u9669\u6216\u673a\u4f1a\u6392\u884c\uff0c\u53ef\u91cd\u65b0\u5206\u6790\u95e8\u5e97\u3002")])
+        ceo_metrics = "".join([
+            self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), summary["business_health_status"]),
+            self.metric(U(r"\u5f85\u51b3\u7b56"), summary["decision_high_severity"], U(r"\u9ad8\u4f18\u5148\u7ea7")),
+            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u8bc1\u636e\u5df2\u4fdd\u7559")),
+            self.metric(U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), "risk {} / opp {}".format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
+            self.metric(U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), "risk {} / opp {}".format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
+            self.metric(U(r"\u6570\u636e\u65e5\u671f"), payload["business_metrics"].get("latest_snapshot_date") or payload["business_metrics"].get("snapshot_date") or "-", U(r"\u672c\u5730\u6570\u636e")),
+        ])
+        recalculation_forms = """
+<form method="post" action="/api/business-health/recalculate"><button>{}</button></form>
+<form method="post" action="/api/decision/rebuild"><button>{}</button></form>
+<form method="post" action="/api/inventory-intelligence/recalculate"><button>{}</button></form>
+<form method="post" action="/api/brand-intelligence/recalculate"><button>{}</button></form>
+<form method="post" action="/api/store-intelligence/recalculate"><button>{}</button></form>
+""".format(
+            U(r"\u91cd\u65b0\u8ba1\u7b97\u5065\u5eb7"),
+            U(r"\u91cd\u65b0\u751f\u6210\u51b3\u7b56"),
+            U(r"\u91cd\u65b0\u5206\u6790\u5e93\u5b58"),
+            U(r"\u91cd\u65b0\u5206\u6790\u54c1\u724c"),
+            U(r"\u91cd\u65b0\u5206\u6790\u95e8\u5e97"),
+        )
+        ceo_action_cards = "".join([
+            self.card(U(r"AI \u95ee\u4f01\u4e1a"), U(r"\u76f4\u63a5\u95ee\u9500\u552e\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u548c\u51b3\u7b56\u539f\u56e0\u3002"), "/jarvis", "btn dark", True),
+            self.card(U(r"\u51b3\u7b56\u63d0\u9192"), U(r"\u67e5\u770b\u6709\u8bc1\u636e\u7684\u7ecf\u8425\u5efa\u8bae\uff0c\u63a5\u53d7\u540e\u4f1a\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f\u3002"), "/decision", "btn dark", True),
+            self.card(U(r"\u4f01\u4e1a\u5065\u5eb7"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u3001\u6570\u636e\u8d28\u91cf\u7edf\u4e00\u8bc4\u5206\u3002"), "/business-health", "btn", True),
+            self.card(U(r"\u5e93\u5b58\u667a\u80fd"), U(r"\u6ede\u9500\u3001\u9ad8\u98ce\u9669\u3001\u8865\u8d27\u673a\u4f1a\uff0c\u5168\u90e8\u5e26 SAP \u5bfc\u5165\u8bc1\u636e\u3002"), "/inventory-intelligence", "btn", True),
+            self.card(U(r"\u54c1\u724c\u667a\u80fd"), U(r"\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u673a\u4f1a\u6392\u884c\u3002"), "/brand-intelligence", "btn", True),
+            self.card(U(r"\u95e8\u5e97\u667a\u80fd"), U(r"\u95e8\u5e97\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u7ecf\u8425\u673a\u4f1a\u3002"), "/store-intelligence", "btn", True),
+        ])
         body = """
 <div class="panel hero" data-home-contract="{}" data-legacy-title="FoxBrain CEO Home">
   <h1>FoxBrain CEO Brain</h1>
   <p class="lead">{}</p>
-  <form method="get" action="/search">
+  <form method="get" action="/jarvis">
     <label>{}</label>
     <input name="q" placeholder="{}">
-    <p><button>{}</button></p>
+    <p><button>{}</button> <a class="btn" href="/ceo-workbench">{}</a></p>
   </form>
 </div>
 <div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}<p><a class="btn dark" href="/business-health">{}</a></p></div>
+  <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+</div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}<p><a class="btn" href="/inventory-intelligence">{}</a></p></div>
+  <div class="panel"><h2>{}</h2>{}<p><a class="btn" href="/brand-intelligence">{}</a> <a class="btn" href="/store-intelligence">{}</a></p></div>
+</div>
+<div class="panel"><h2>{}</h2><div class="inline">{}</div><p class="small">{}</p></div>
 <div class="split">
   <div class="panel"><h2>{}</h2>{}</div>
   <div class="panel"><h2>{}</h2>{}</div>
@@ -8061,13 +8135,29 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
 """.format(
             esc(ceo_home.get("homepage_policy", "root_home_keeps_ten_entries_only_details_after_click")),
             esc(payload["subtitle"]),
-            U(r"\u5168\u5c40\u641c\u7d22"),
-            U(r"\u641c\u7d22\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u5408\u540c\u3001\u6587\u4ef6\u3001\u77e5\u8bc6\u2026\u2026"),
-            U(r"\u641c\u7d22"),
-            U(r"\u4eca\u65e5\u6458\u8981"),
-            summary_html,
-            U(r"\u6838\u5fc3\u5165\u53e3"),
-            core_cards,
+            U(r"AI \u95ee\u4f01\u4e1a"),
+            U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f\u5e93\u5b58\u6700\u5927\u98ce\u9669\u5728\u54ea\uff1f"),
+            U(r"\u5f00\u59cb\u5206\u6790"),
+            U(r"\u6253\u5f00\u5de5\u4f5c\u53f0"),
+            U(r"\u8001\u677f\u4eca\u65e5\u5fc5\u770b"),
+            ceo_metrics,
+            U(r"\u4eca\u65e5\u52a8\u4f5c"),
+            ceo_action_cards,
+            U(r"\u4f01\u4e1a\u5065\u5eb7\u7126\u70b9"),
+            health_focus,
+            U(r"\u67e5\u770b\u5065\u5eb7\u8bc1\u636e"),
+            U(r"\u51b3\u7b56\u63d0\u9192"),
+            decision_cards,
+            U(r"\u5e93\u5b58\u667a\u80fd\u6458\u8981"),
+            inventory_items,
+            U(r"\u67e5\u770b\u5e93\u5b58\u667a\u80fd"),
+            U(r"\u54c1\u724c / \u95e8\u5e97\u667a\u80fd"),
+            brand_items + store_items,
+            U(r"\u67e5\u770b\u54c1\u724c\u667a\u80fd"),
+            U(r"\u67e5\u770b\u95e8\u5e97\u667a\u80fd"),
+            U(r"\u91cd\u65b0\u8ba1\u7b97"),
+            recalculation_forms,
+            U(r"\u4ec5\u4f7f\u7528\u5df2\u6709\u672c\u5730\u6570\u636e\u548c\u5df2\u5bfc\u5165 SAP \u6570\u636e\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\uff0c\u4e0d\u81ea\u52a8\u6267\u884c\u9ad8\u98ce\u9669\u64cd\u4f5c\u3002"),
             U(r"\u6700\u8fd1\u6587\u4ef6"),
             recent_docs,
             U(r"\u6700\u8fd1\u5bf9\u8c61"),
@@ -8086,7 +8176,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             business_alerts,
             U(r"\u7cfb\u7edf\u72b6\u6001"),
             status_html,
-            U(r"\u66f4\u591a\u5165\u53e3"),
+            U(r"\u5341\u5927\u5165\u53e3"),
             buttons,
         )
         return self.out(layout(T["brand"], body, user=user, wide=False))
