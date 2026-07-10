@@ -1413,6 +1413,76 @@ create table if not exists sync_reconciliation_results(
 )
 """
         )
+        conn.execute(
+            """
+create table if not exists sync_source_mappings(
+ id integer primary key autoincrement,
+ domain text not null,
+ source_name text,
+ target_table text,
+ field_mapping_json text,
+ primary_key text,
+ cursor_field text,
+ mapping_status text not null default 'pending',
+ last_validation_status text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_permission_audits(
+ id integer primary key autoincrement,
+ audit_id text unique,
+ connection_id integer,
+ mode text,
+ source_identity text,
+ select_allowed integer not null default 0,
+ insert_denied integer not null default 0,
+ update_denied integer not null default 0,
+ delete_denied integer not null default 0,
+ ddl_denied integer not null default 0,
+ timeout_configured integer not null default 0,
+ query_timeout_configured integer not null default 0,
+ status text not null default 'pending',
+ details_json text,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_publish_approvals(
+ id integer primary key autoincrement,
+ approval_id text unique,
+ run_id integer not null,
+ status text not null default 'pending',
+ approved_by integer,
+ approved_at integer,
+ warning_summary text,
+ blocking_errors text,
+ approval_snapshot_json text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists sync_rollbacks(
+ id integer primary key autoincrement,
+ rollback_id text unique,
+ run_id integer not null,
+ batch_id integer,
+ status text not null default 'recorded',
+ reason text,
+ operator_id integer,
+ created_at integer not null
+)
+"""
+        )
         for col, ddl in [
             ("source_key", "source_key text"),
             ("job_name", "job_name text"),
@@ -1440,6 +1510,12 @@ create table if not exists sync_reconciliation_results(
             ("summary_json", "summary_json text"),
             ("created_by", "created_by integer"),
             ("updated_at", "updated_at integer"),
+            ("approval_status", "approval_status text not null default 'not_requested'"),
+            ("approved_by", "approved_by integer"),
+            ("approved_at", "approved_at integer"),
+            ("reconciliation_status", "reconciliation_status text"),
+            ("production_cursor_advanced", "production_cursor_advanced integer not null default 0"),
+            ("rollback_status", "rollback_status text"),
         ]:
             ensure_column(conn, "sync_runs", col, ddl)
         for col, ddl in [
@@ -1468,6 +1544,13 @@ create table if not exists sync_reconciliation_results(
             ("details_json", "details_json text"),
         ]:
             ensure_column(conn, "sync_reconciliation_results", col, ddl)
+        for idx in [
+            "create index if not exists idx_sync_source_mappings_domain on sync_source_mappings(domain, mapping_status)",
+            "create index if not exists idx_sync_permission_audits_connection on sync_permission_audits(connection_id, created_at)",
+            "create index if not exists idx_sync_publish_approvals_run on sync_publish_approvals(run_id, status)",
+            "create index if not exists idx_sync_rollbacks_run on sync_rollbacks(run_id, status)",
+        ]:
+            conn.execute(idx)
         conn.execute(
             """
 create table if not exists data_quality_checks(
@@ -13351,6 +13434,65 @@ where ki.deleted_at is null"""
                         "insert into sync_jobs(job_key,job_id,source_key,job_name,connection_id,dataset_type,sync_mode,schedule_expression,schedule_rule,status,is_enabled,last_cursor_json,last_success_at,last_failure_at,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (job_key, job_key, "enterprise_sync", job_key, active["id"], dataset, "incremental_sync" if dataset in ("sales", "inventory") else "full_sync", "manual_disabled", "manual_disabled", "manual_only", 0, "{}", None, None, now, now),
                     )
+        mapping_defs = {
+            "sales": ("sales", "sap_sales", {"source_key": "sync_source_key", "sale_date": "sale_date", "store_name": "store_name", "brand_name": "brand_name", "product_code": "product_code", "amount": "amount", "quantity": "quantity", "gross_profit": "gross_profit"}, "source_key", "updated_at", "ready"),
+            "inventory": ("inventory", "sap_inventory", {"source_key": "sync_source_key", "snapshot_date": "snapshot_date", "store_name": "store_name", "brand_name": "brand_name", "product_code": "product_code", "quantity": "quantity", "retail_amount": "retail_amount", "cost_amount": "cost_amount"}, "source_key", "updated_at", "ready"),
+            "products": ("derived_products", "enterprise_objects:product", {"product_code": "code", "product_name": "name", "brand_name": "metadata.brand"}, "product_code", "updated_at", "staging_ready"),
+            "brands": ("derived_brands", "enterprise_objects:brand", {"brand_name": "name"}, "brand_name", "updated_at", "staging_ready"),
+            "stores": ("derived_stores", "enterprise_objects:store", {"store_code": "code", "store_name": "name"}, "store_code/store_name", "updated_at", "staging_ready"),
+            "employees": ("pending", "pending", {}, "pending", "pending", "pending_mapping"),
+            "suppliers": ("pending", "pending", {}, "pending", "pending", "pending_mapping"),
+            "customers": ("pending", "pending", {}, "pending", "pending", "pending_mapping"),
+        }
+        for domain, (source_name, target_table, mapping, primary_key, cursor_field, status) in mapping_defs.items():
+            exists = conn.execute("select id from sync_source_mappings where domain=?", (domain,)).fetchone()
+            if not exists:
+                conn.execute(
+                    "insert into sync_source_mappings(domain,source_name,target_table,field_mapping_json,primary_key,cursor_field,mapping_status,last_validation_status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (domain, source_name, target_table, json.dumps(mapping, ensure_ascii=False, sort_keys=True), primary_key, cursor_field, status, "not_validated", now, now),
+                )
+
+    def enterprise_sync_environment_status(self):
+        mode = os.environ.get("FOX_SYNC_MODE", "fixture").strip() or "fixture"
+        required = [] if mode == "fixture" else ["FOX_SYNC_MODE"]
+        if mode in ("sql_replica", "sql_readonly"):
+            required += ["FOX_SYNC_SQL_HOST", "FOX_SYNC_SQL_PORT", "FOX_SYNC_SQL_DATABASE", "FOX_SYNC_SQL_USER", "FOX_SYNC_SQL_PASSWORD"]
+        if mode == "export_folder":
+            required += ["FOX_SYNC_EXPORT_DIR"]
+        missing = [key for key in required if not os.environ.get(key)]
+        return {
+            "ok": not missing or mode == "fixture",
+            "mode": mode,
+            "missing": missing,
+            "schedule_enabled": os.environ.get("FOX_SYNC_SCHEDULE_ENABLED", "false").lower() == "true",
+            "timeout_configured": bool(os.environ.get("FOX_SYNC_TIMEOUT_SECONDS")),
+            "query_timeout_configured": bool(os.environ.get("FOX_SYNC_QUERY_TIMEOUT_SECONDS") or os.environ.get("FOX_SYNC_TIMEOUT_SECONDS")),
+            "secrets_visible": False,
+            "message": "fixture mode only" if mode == "fixture" else ("ready" if not missing else "missing environment variables"),
+        }
+
+    def enterprise_sync_reconciliation_metrics(self, dataset, rows):
+        metrics = {"row_count": len(rows), "null_key_count": 0, "amount_total": 0.0, "quantity_total": 0.0, "gross_profit_total": 0.0, "retail_total": 0.0, "cost_total": 0.0, "earliest_updated_at": "", "latest_updated_at": ""}
+        for raw in rows:
+            normalized = self.enterprise_sync_normalize(dataset, raw)
+            key = normalized.get("source_key") or normalized.get("product_code") or normalized.get("brand_name") or normalized.get("store_name")
+            if not key:
+                metrics["null_key_count"] += 1
+            metrics["amount_total"] += float(normalized.get("amount") or 0)
+            metrics["quantity_total"] += float(normalized.get("quantity") or 0)
+            metrics["gross_profit_total"] += float(normalized.get("gross_profit") or 0)
+            metrics["retail_total"] += float(normalized.get("retail_amount") or 0)
+            metrics["cost_total"] += float(normalized.get("cost_amount") or normalized.get("cost") or 0)
+            updated = normalized.get("updated_at") or ""
+            if updated and (not metrics["earliest_updated_at"] or updated < metrics["earliest_updated_at"]):
+                metrics["earliest_updated_at"] = updated
+            if updated and updated > metrics["latest_updated_at"]:
+                metrics["latest_updated_at"] = updated
+        return metrics
+
+    def enterprise_sync_reconciliation_for_run(self, conn, run_id):
+        rows = [row_dict(r) for r in conn.execute("select * from sync_reconciliation_results where run_id=? order by id", (run_id,)).fetchall()]
+        return rows
 
     def enterprise_sync_source_tables(self):
         return {
@@ -13547,16 +13689,29 @@ where ki.deleted_at is null"""
                     if normalized.get("updated_at") and normalized.get("updated_at") > max_updated_at:
                         max_updated_at = normalized.get("updated_at")
                 target_estimate = conn.execute("select count(*) c from sync_staging_records where run_id=?", (run_id,)).fetchone()["c"]
+                accepted = conn.execute("select count(*) c from sync_staging_records where run_id=? and validation_status='ok'", (run_id,)).fetchone()["c"]
+                source_metrics = self.enterprise_sync_reconciliation_metrics(job["dataset_type"], source_rows)
+                staged_rows_for_metrics = [safe_json(r["normalized_json"], {}) for r in conn.execute("select normalized_json from sync_staging_records where run_id=?", (run_id,)).fetchall()]
+                staged_metrics = self.enterprise_sync_reconciliation_metrics(job["dataset_type"], staged_rows_for_metrics)
                 diff = int(len(source_rows) or 0) - int(target_estimate or 0)
+                blocking_errors = []
+                if diff:
+                    blocking_errors.append("source_staging_count_diff")
+                if failed:
+                    blocking_errors.append("validation_failed")
+                if source_metrics["null_key_count"]:
+                    blocking_errors.append("null_key_count")
+                reconciliation_status = "blocked" if blocking_errors else "matched"
+                details = {"skipped_duplicates": skipped, "failed_validation": failed, "accepted_rows": accepted, "source": source_metrics, "staged": staged_metrics, "blocking_errors": blocking_errors}
                 conn.execute(
                     "insert into sync_reconciliation_results(run_id,dataset_type,source_count,staged_count,target_count,source_total,target_total,diff_count,diff_amount,status,details_json,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (run_id, job["dataset_type"], len(source_rows), staged, target_estimate, 0, 0, diff, 0, "matched" if failed == 0 else "warning", json.dumps({"skipped_duplicates": skipped, "failed_validation": failed}, ensure_ascii=False), now),
+                    (run_id, job["dataset_type"], len(source_rows), staged, target_estimate, source_metrics.get("amount_total") or source_metrics.get("retail_total") or 0, staged_metrics.get("amount_total") or staged_metrics.get("retail_total") or 0, diff, (source_metrics.get("amount_total") or source_metrics.get("retail_total") or 0) - (staged_metrics.get("amount_total") or staged_metrics.get("retail_total") or 0), reconciliation_status, json.dumps(details, ensure_ascii=False), now),
                 )
-                status = "failed" if failed and failed == staged else ("warning" if failed else "staged")
+                status = "failed" if failed and failed == staged else ("warning" if blocking_errors else "staged")
                 summary = {"dataset_type": job["dataset_type"], "publish_policy": "manual_approval_required", "schedules_enabled": False, "max_updated_at": max_updated_at, "skipped_duplicates": skipped}
                 conn.execute(
-                    "update sync_runs set status=?,finished_at=?,source_count=?,staged_count=?,skipped_count=?,failed_count=?,source_checksum=?,cursor_json=?,summary_json=?,updated_at=? where id=?",
-                    (status, ts(), len(source_rows), staged, skipped, failed, source_checksum, json.dumps({"updated_at": max_updated_at}, ensure_ascii=False), json.dumps(summary, ensure_ascii=False), ts(), run_id),
+                    "update sync_runs set status=?,finished_at=?,source_count=?,staged_count=?,skipped_count=?,failed_count=?,source_checksum=?,cursor_json=?,summary_json=?,reconciliation_status=?,approval_status=?,production_cursor_advanced=0,updated_at=? where id=?",
+                    (status, ts(), len(source_rows), staged, skipped, failed, source_checksum, json.dumps({"updated_at": max_updated_at}, ensure_ascii=False), json.dumps(summary, ensure_ascii=False), reconciliation_status, "awaiting_approval" if reconciliation_status == "matched" else "blocked", ts(), run_id),
                 )
                 self.log_action(user, "enterprise_sync_stage", "sync_run", run_id, json.dumps(summary, ensure_ascii=False))
                 return {"ok": True, "run_id": run_id, "status": status, "source_count": len(source_rows), "staged_count": staged, "skipped_count": skipped, "failed_count": failed, "manual_approval_required": True}, 200
@@ -13577,6 +13732,11 @@ where ki.deleted_at is null"""
                 return {"ok": True, "message": "already published", "run_id": run_id}, 200
             if run["status"] not in ("staged", "warning"):
                 return {"ok": False, "message": "only staged or warning runs can be manually published", "status": run["status"]}, 409
+            if run["approval_status"] != "approved":
+                return {"ok": False, "message": "first publish requires manual approval before publish", "approval_status": run["approval_status"]}, 409
+            rec = conn.execute("select * from sync_reconciliation_results where run_id=? order by id desc limit 1", (run_id,)).fetchone()
+            if rec and rec["status"] != "matched":
+                return {"ok": False, "message": "reconciliation mismatch blocks publish", "reconciliation_status": rec["status"], "details": safe_json(rec["details_json"], {})}, 409
             job = conn.execute("select * from sync_jobs where id=?", (run["job_id"],)).fetchone()
             if not job:
                 return {"ok": False, "message": "sync job not found"}, 404
@@ -13635,9 +13795,95 @@ where ki.deleted_at is null"""
                 self.refresh_business_metrics(conn)
             cursor = safe_json(run["cursor_json"], {})
             conn.execute("update sync_jobs set last_cursor_json=?, last_success_at=?, updated_at=? where id=?", (json.dumps(cursor, ensure_ascii=False), now, now, job["id"]))
-            conn.execute("update sync_runs set status='published',finished_at=?,published_count=?,skipped_count=skipped_count+?,target_checksum=?,summary_json=?,updated_at=? where id=?", (now, inserted, skipped, self.data_lake_hash({"inserted": inserted, "skipped": skipped, "batch_id": batch_id}), json.dumps({"batch_id": batch_id, "inserted": inserted, "skipped": skipped, "manual_approved_by": user["id"]}, ensure_ascii=False), now, run_id))
+            conn.execute("update sync_runs set status='published',finished_at=?,published_count=?,skipped_count=skipped_count+?,target_checksum=?,summary_json=?,production_cursor_advanced=1,updated_at=? where id=?", (now, inserted, skipped, self.data_lake_hash({"inserted": inserted, "skipped": skipped, "batch_id": batch_id}), json.dumps({"batch_id": batch_id, "inserted": inserted, "skipped": skipped, "manual_approved_by": user["id"]}, ensure_ascii=False), now, run_id))
             self.log_action(user, "enterprise_sync_publish", "sync_run", run_id, json.dumps({"batch_id": batch_id, "inserted": inserted, "skipped": skipped}, ensure_ascii=False))
             return {"ok": True, "run_id": run_id, "batch_id": batch_id, "published_count": inserted, "skipped_count": skipped}, 200
+
+    def enterprise_sync_approve_run(self, run_id, user):
+        if not self.can_manage_sap_sync(user):
+            return {"ok": False, "message": "no permission"}, 403
+        now = ts()
+        with db() as conn:
+            run = conn.execute("select * from sync_runs where id=?", (run_id,)).fetchone()
+            if not run:
+                return {"ok": False, "message": "sync run not found"}, 404
+            rec_rows = self.enterprise_sync_reconciliation_for_run(conn, run_id)
+            blocking = []
+            for rec in rec_rows:
+                if rec.get("status") != "matched":
+                    blocking.append({"dataset_type": rec.get("dataset_type"), "status": rec.get("status"), "details": safe_json(rec.get("details_json"), {})})
+            if run["status"] not in ("staged", "warning") or blocking:
+                status = "blocked"
+                conn.execute("update sync_runs set approval_status='blocked',updated_at=? where id=?", (now, run_id))
+            else:
+                status = "approved"
+                conn.execute("update sync_runs set approval_status='approved',approved_by=?,approved_at=?,updated_at=? where id=?", (user["id"], now, now, run_id))
+            snapshot = {"run": row_dict(run), "reconciliation": rec_rows, "blocking_errors": blocking, "approved_by": user["id"] if status == "approved" else None}
+            conn.execute(
+                "insert into sync_publish_approvals(approval_id,run_id,status,approved_by,approved_at,warning_summary,blocking_errors,approval_snapshot_json,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                ("SPA-" + uuid.uuid4().hex[:10], run_id, status, user["id"] if status == "approved" else None, now if status == "approved" else None, json.dumps([r.get("details_json") for r in rec_rows], ensure_ascii=False), json.dumps(blocking, ensure_ascii=False), json.dumps(snapshot, ensure_ascii=False), now, now),
+            )
+            self.log_action(user, "enterprise_sync_approve", "sync_run", run_id, status)
+            return {"ok": status == "approved", "run_id": run_id, "approval_status": status, "blocking_errors": blocking}, 200 if status == "approved" else 409
+
+    def enterprise_sync_rollback_run(self, run_id, user, reason="manual rollback record"):
+        if not self.can_manage_sap_sync(user):
+            return {"ok": False, "message": "no permission"}, 403
+        now = ts()
+        with db() as conn:
+            run = conn.execute("select * from sync_runs where id=?", (run_id,)).fetchone()
+            if not run:
+                return {"ok": False, "message": "sync run not found"}, 404
+            summary = safe_json(run["summary_json"], {})
+            batch_id = summary.get("batch_id")
+            conn.execute("update sync_runs set rollback_status='rollback_recorded',updated_at=? where id=?", (now, run_id))
+            conn.execute("insert into sync_rollbacks(rollback_id,run_id,batch_id,status,reason,operator_id,created_at) values(?,?,?,?,?,?,?)", ("SRB-" + uuid.uuid4().hex[:10], run_id, batch_id, "recorded", reason, user["id"], now))
+            self.log_action(user, "enterprise_sync_rollback_recorded", "sync_run", run_id, reason)
+            return {"ok": True, "run_id": run_id, "batch_id": batch_id, "status": "rollback_recorded", "safety": "foxbrain_only_no_sap_change"}, 200
+
+    def enterprise_sync_verify_readonly_environment(self, user):
+        if not self.can_manage_sap_sync(user):
+            return {"ok": False, "message": "no permission"}, 403
+        env = self.enterprise_sync_environment_status()
+        with db() as conn:
+            self.ensure_enterprise_sync_defaults(conn)
+            connection = conn.execute("select * from sync_connections where source_type='sap_b1_sql_replica' order by id limit 1").fetchone()
+            connection_id = connection["id"] if connection else None
+            select_allowed = insert_denied = update_denied = delete_denied = ddl_denied = 0
+            details = {"mode": env["mode"], "real_connection_attempted": False, "source_identity": "local_sqlite_fixture_readonly"}
+            if env["mode"] == "fixture" and connection:
+                self.ensure_enterprise_sync_fixture_data()
+                uri = "file:{}?mode=ro".format(str(self.enterprise_sync_sql_fixture_path()).replace("\\", "/"))
+                source = sqlite3.connect(uri, uri=True)
+                try:
+                    source.execute("select count(*) from sales").fetchone()
+                    select_allowed = 1
+                    for key, sql in [("insert", "insert into sales(source_key) values('DENIED')"), ("update", "update sales set amount=0"), ("delete", "delete from sales"), ("ddl", "create table denied_test(id integer)")]:
+                        try:
+                            source.execute(sql)
+                            details[key + "_error"] = "write unexpectedly allowed"
+                        except Exception as exc:
+                            details[key + "_denied_message"] = exc.__class__.__name__
+                            if key == "insert":
+                                insert_denied = 1
+                            elif key == "update":
+                                update_denied = 1
+                            elif key == "delete":
+                                delete_denied = 1
+                            elif key == "ddl":
+                                ddl_denied = 1
+                finally:
+                    source.close()
+            else:
+                details["message"] = "real readonly source not configured in this coding run"
+            status = "passed" if all([select_allowed, insert_denied, update_denied, delete_denied, ddl_denied]) else "blocked"
+            timeout_configured = 1 if env["timeout_configured"] or env["mode"] == "fixture" else 0
+            query_timeout_configured = 1 if env["query_timeout_configured"] or env["mode"] == "fixture" else 0
+            conn.execute(
+                "insert into sync_permission_audits(audit_id,connection_id,mode,source_identity,select_allowed,insert_denied,update_denied,delete_denied,ddl_denied,timeout_configured,query_timeout_configured,status,details_json,created_by,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("SPA-" + uuid.uuid4().hex[:10], connection_id, env["mode"], details["source_identity"], select_allowed, insert_denied, update_denied, delete_denied, ddl_denied, timeout_configured, query_timeout_configured, status, json.dumps(details, ensure_ascii=False), user["id"], ts()),
+            )
+        return {"ok": status == "passed", "status": status, "environment": env, "audit": {"select_allowed": bool(select_allowed), "insert_denied": bool(insert_denied), "update_denied": bool(update_denied), "delete_denied": bool(delete_denied), "ddl_denied": bool(ddl_denied), "timeout_configured": bool(timeout_configured), "query_timeout_configured": bool(query_timeout_configured)}, "details": details}, 200 if status == "passed" else 409
 
     def enterprise_sync_test_connection(self, connection_id, user):
         if not self.can_manage_sap_sync(user):
@@ -13682,8 +13928,11 @@ where ki.deleted_at is null"""
             jobs = [row_dict(r) for r in conn.execute("select j.*, c.name connection_name, c.source_type source_type from sync_jobs j left join sync_connections c on c.id=j.connection_id order by j.id").fetchall()]
             runs = [row_dict(r) for r in conn.execute("select r.*, j.dataset_type, j.job_key from sync_runs r left join sync_jobs j on j.id=r.job_id order by r.id desc limit 50").fetchall()]
             reconciliation = [row_dict(r) for r in conn.execute("select * from sync_reconciliation_results order by id desc limit 50").fetchall()]
+            mappings = [row_dict(r) for r in conn.execute("select * from sync_source_mappings order by case when mapping_status like 'ready%' then 0 when mapping_status='staging_ready' then 1 else 2 end, domain").fetchall()]
+            audits = [row_dict(r) for r in conn.execute("select * from sync_permission_audits order by created_at desc limit 20").fetchall()]
+            approvals = [row_dict(r) for r in conn.execute("select * from sync_publish_approvals order by created_at desc limit 20").fetchall()]
             freshness = self.enterprise_sync_freshness_summary(conn)
-        return {"ok": True, "connections": connections, "jobs": jobs, "runs": runs, "reconciliation": reconciliation, "freshness": freshness, "safety": {"production_sap_connection": False, "source_writes": False, "schedules_enabled_by_default": False, "secrets_in_git": False}}
+        return {"ok": True, "connections": connections, "jobs": jobs, "runs": runs, "reconciliation": reconciliation, "mappings": mappings, "permission_audits": audits, "approvals": approvals, "environment": self.enterprise_sync_environment_status(), "freshness": freshness, "safety": {"production_sap_connection": False, "source_writes": False, "schedules_enabled_by_default": False, "secrets_in_git": False}}
 
     def sync_center_page(self, user, path="/sync-center"):
         user = self.require_login(user)
@@ -13712,8 +13961,8 @@ where ki.deleted_at is null"""
             for j in payload["jobs"]
         )
         run_rows = "".join(
-            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}/{}</td><td>{}</td><td><form method='post' action='/api/sync/runs/{}/publish'><button class='green'>Publish</button></form><form method='post' action='/api/sync/runs/{}/retry'><button>Retry</button></form><form method='post' action='/api/sync/runs/{}/discard'><button class='gray'>Discard</button></form></td></tr>".format(
-                r["id"], esc(r.get("dataset_type") or ""), esc(r["status"]), r["staged_count"], r["source_count"], esc(dt(r["created_at"])), r["id"], r["id"], r["id"]
+            "<tr><td>{}</td><td>{}</td><td>{} / {}</td><td>{}/{}</td><td>{}</td><td><form method='post' action='/api/sync/runs/{}/approve'><button>Approve</button></form><form method='post' action='/api/sync/runs/{}/publish'><button class='green'>Publish</button></form><form method='post' action='/api/sync/runs/{}/retry'><button>Retry</button></form><form method='post' action='/api/sync/runs/{}/discard'><button class='gray'>Discard</button></form></td></tr>".format(
+                r["id"], esc(r.get("dataset_type") or ""), esc(r["status"]), esc(r.get("approval_status") or ""), r["staged_count"], r["source_count"], esc(dt(r["created_at"])), r["id"], r["id"], r["id"], r["id"]
             )
             for r in payload["runs"][:30]
         ) or "<tr><td colspan='6'>No sync runs yet.</td></tr>"
@@ -13721,13 +13970,27 @@ where ki.deleted_at is null"""
             "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}/{}</td><td>{}</td></tr>".format(r["run_id"], esc(r["dataset_type"]), esc(r["status"]), r["staged_count"], r["source_count"], esc(r["details_json"] or ""))
             for r in payload["reconciliation"][:30]
         ) or "<tr><td colspan='5'>No reconciliation results.</td></tr>"
+        mapping_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(m["domain"]), esc(m["source_name"] or ""), esc(m["target_table"] or ""), esc(m["primary_key"] or ""), esc(m["cursor_field"] or ""), esc(m["mapping_status"]))
+            for m in payload["mappings"]
+        ) or "<tr><td colspan='6'>No mappings yet.</td></tr>"
+        audit_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}/{}/{}/{}/{}</td><td>{}</td></tr>".format(a["id"], esc(a["mode"] or ""), esc(a["status"]), a["select_allowed"], a["insert_denied"], a["update_denied"], a["delete_denied"], a["ddl_denied"], esc(dt(a["created_at"])))
+            for a in payload["permission_audits"][:10]
+        ) or "<tr><td colspan='5'>No readonly audit yet.</td></tr>"
+        approval_rows = "".join(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(a["run_id"], esc(a["status"]), esc(a["blocking_errors"] or ""), esc(dt(a["created_at"])))
+            for a in payload["approvals"][:10]
+        ) or "<tr><td colspan='4'>No approval records yet.</td></tr>"
         body = """
-<div class="panel"><h2>Enterprise Sync Engine</h2><p class="small">Production SAP is not connected in Sprint016. Sources are test replica/export fixtures; schedules are disabled until approved.</p><div class="metrics">{}</div></div>
+<div class="panel"><h2>Enterprise Sync Engine</h2><p class="small">Production SAP is not connected in Sprint016.5 coding simulation. Sources are test replica/export fixtures; schedules are disabled until approved.</p><div class="metrics">{}</div><p><form method="post" action="/api/sync/environment/test" style="display:inline"><button>Environment Test</button></form> <form method="post" action="/api/sync/readonly/verify" style="display:inline"><button class="dark">Readonly Audit</button></form> <form method="post" action="/api/sync/dry-run" style="display:inline"><button>Full Dry-run</button></form></p><p class="small">Mode: {} / schedule enabled: {} / secrets visible: false</p></div>
 <div class="panel"><h2>Connections</h2><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Status</th><th>Readonly</th><th>Action</th></tr></thead><tbody>{}</tbody></table></div>
+<div class="panel"><h2>Source Mappings</h2><table><thead><tr><th>Domain</th><th>Source</th><th>Target</th><th>Primary Key</th><th>Cursor</th><th>Status</th></tr></thead><tbody>{}</tbody></table></div>
 <div class="panel"><h2>Jobs</h2><table><thead><tr><th>ID</th><th>Job</th><th>Dataset</th><th>Connection</th><th>Schedule</th><th>Action</th></tr></thead><tbody>{}</tbody></table></div>
 <div class="panel"><h2>Runs</h2><table><thead><tr><th>ID</th><th>Dataset</th><th>Status</th><th>Staged/Source</th><th>Created</th><th>Approval</th></tr></thead><tbody>{}</tbody></table></div>
 <div class="panel"><h2>Reconciliation</h2><table><thead><tr><th>Run</th><th>Dataset</th><th>Status</th><th>Staged/Source</th><th>Details</th></tr></thead><tbody>{}</tbody></table></div>
-""".format(metrics, conn_rows, job_rows, run_rows, rec_rows)
+<div class="split"><div class="panel"><h2>Readonly Permission Audit</h2><table><thead><tr><th>ID</th><th>Mode</th><th>Status</th><th>SELECT/I/U/D/DDL</th><th>Time</th></tr></thead><tbody>{}</tbody></table></div><div class="panel"><h2>First Publish Approval</h2><table><thead><tr><th>Run</th><th>Status</th><th>Blocking</th><th>Time</th></tr></thead><tbody>{}</tbody></table></div></div>
+""".format(metrics, esc(payload["environment"]["mode"]), "yes" if payload["environment"]["schedule_enabled"] else "no", conn_rows, mapping_rows, job_rows, run_rows, rec_rows, audit_rows, approval_rows)
         self.out(layout("Enterprise Sync Center", body, user=user, wide=True))
 
     def sap_sync_config_status(self):
@@ -14193,8 +14456,15 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": True, "runs": payload["runs"]})
         if path == "/api/sync/reconciliation":
             return self.json_out({"ok": True, "reconciliation": payload["reconciliation"]})
+        if path == "/api/sync/mappings":
+            return self.json_out({"ok": True, "mappings": payload["mappings"]})
         if path == "/api/sync/freshness":
             return self.json_out({"ok": True, "freshness": payload["freshness"]})
+        m = re.match(r"^/api/sync/runs/(\d+)/reconciliation$", path)
+        if m:
+            with db() as conn:
+                rows = self.enterprise_sync_reconciliation_for_run(conn, int(m.group(1)))
+            return self.json_out({"ok": True, "run_id": int(m.group(1)), "reconciliation": rows})
         return self.json_out({"ok": False, "message": "unknown sync api"}, code=404)
 
     def api_enterprise_sync_post(self, user, path):
@@ -14202,6 +14472,28 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         if not self.can_manage_sap_sync(user):
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/sync/environment/test":
+            payload = self.enterprise_sync_payload()
+            result = {"ok": True, "environment": payload["environment"], "safety": payload["safety"], "message": "No production SAP connection attempted in coding simulation."}
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(result)
+        if path == "/api/sync/readonly/verify":
+            payload, code = self.enterprise_sync_verify_readonly_environment(user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        if path == "/api/sync/dry-run":
+            results = []
+            with db() as conn:
+                self.ensure_enterprise_sync_defaults(conn)
+                jobs = conn.execute("select id,dataset_type from sync_jobs where dataset_type in ('sales','inventory','products','brands','stores') order by id").fetchall()
+            for job in jobs:
+                payload, code = self.enterprise_sync_run_job(job["id"], user, "full_dry_run")
+                results.append({"dataset_type": job["dataset_type"], "code": code, "result": payload})
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out({"ok": all(r["result"].get("ok") for r in results), "results": results, "published": False, "cursor_advanced": False})
         m = re.match(r"^/api/sync/connections/(\d+)/test$", path)
         if m:
             payload, code = self.enterprise_sync_test_connection(int(m.group(1)), user)
@@ -14224,6 +14516,18 @@ where ki.deleted_at is null"""
         m = re.match(r"^/api/sync/runs/(\d+)/publish$", path)
         if m:
             payload, code = self.enterprise_sync_publish_run(int(m.group(1)), user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        m = re.match(r"^/api/sync/runs/(\d+)/approve$", path)
+        if m:
+            payload, code = self.enterprise_sync_approve_run(int(m.group(1)), user)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/sync-center")
+            return self.json_out(payload, code=code)
+        m = re.match(r"^/api/sync/runs/(\d+)/rollback$", path)
+        if m:
+            payload, code = self.enterprise_sync_rollback_run(int(m.group(1)), user)
             if "text/html" in (self.headers.get("Accept") or ""):
                 return self.redir("/sync-center")
             return self.json_out(payload, code=code)
