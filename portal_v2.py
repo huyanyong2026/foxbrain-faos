@@ -3478,6 +3478,7 @@ create table if not exists copilot_sessions(
  question text not null,
  intent text not null,
  status text not null default 'answered',
+ test_run_id text,
  created_at integer not null
 )
 """
@@ -3491,6 +3492,7 @@ create table if not exists copilot_messages(
  content text not null,
  evidence_json text,
  context_json text,
+ test_run_id text,
  created_at integer not null
 )
 """
@@ -3502,14 +3504,21 @@ create table if not exists copilot_feedback(
  message_id integer not null,
  feedback_type text not null,
  comment text,
+ test_run_id text,
  created_at integer not null
 )
 """
         )
+        ensure_column(conn, "copilot_sessions", "test_run_id", "test_run_id text")
+        ensure_column(conn, "copilot_messages", "test_run_id", "test_run_id text")
+        ensure_column(conn, "copilot_feedback", "test_run_id", "test_run_id text")
         for idx in [
             "create index if not exists idx_copilot_sessions_user on copilot_sessions(user_id, created_at)",
+            "create index if not exists idx_copilot_sessions_test_run on copilot_sessions(test_run_id, created_at)",
             "create index if not exists idx_copilot_messages_session on copilot_messages(session_id, created_at)",
+            "create index if not exists idx_copilot_messages_test_run on copilot_messages(test_run_id, created_at)",
             "create index if not exists idx_copilot_feedback_message on copilot_feedback(message_id, created_at)",
+            "create index if not exists idx_copilot_feedback_test_run on copilot_feedback(test_run_id, created_at)",
         ]:
             conn.execute(idx)
         conn.execute(
@@ -16758,7 +16767,25 @@ where ki.deleted_at is null"""
                 return intent
         return "business_question"
 
-    def copilot_evidence_item(self, source_type, source_id, title, summary, url="", confidence=0.75, related_type="", related_id=""):
+    def copilot_freshness_meta(self, updated_at):
+        try:
+            value = int(updated_at or 0)
+        except Exception:
+            value = 0
+        if not value:
+            return {"updated_at": None, "updated_at_text": "-", "freshness": "unknown", "stale_warning": "source update time unavailable"}
+        age = max(0, ts() - value)
+        if age <= 24 * 3600:
+            freshness = "fresh"
+        elif age <= 72 * 3600:
+            freshness = "stale"
+        else:
+            freshness = "outdated"
+        warning = "" if freshness == "fresh" else "data may be stale: " + dt(value)
+        return {"updated_at": value, "updated_at_text": dt(value), "freshness": freshness, "stale_warning": warning}
+
+    def copilot_evidence_item(self, source_type, source_id, title, summary, url="", confidence=0.75, related_type="", related_id="", updated_at=None):
+        freshness = self.copilot_freshness_meta(updated_at)
         return {
             "source_type": str(source_type or "unknown"),
             "source_id": str(source_id if source_id is not None else "summary"),
@@ -16768,7 +16795,58 @@ where ki.deleted_at is null"""
             "confidence": float(confidence or 0.75),
             "related_type": str(related_type or ""),
             "related_id": str(related_id or ""),
+            "updated_at": freshness["updated_at"],
+            "updated_at_text": freshness["updated_at_text"],
+            "freshness": freshness["freshness"],
+            "stale_warning": freshness["stale_warning"],
         }
+
+    def copilot_entity_filters(self, question):
+        q = (question or "").lower()
+        brands = []
+        stores = []
+        for key, label in [("osprey", "Osprey"), ("kailas", "Kailas"), ("mammut", "Mammut"), ("salomon", "Salomon"), ("deuter", "Deuter")]:
+            if key in q:
+                brands.append(label)
+        for raw, label in [(U(r"\u5357\u5c71"), U(r"\u5357\u5c71\u5e97")), (U(r"\u632f\u5174"), U(r"\u632f\u5174\u5e97")), (U(r"\u822a\u82d1"), U(r"\u822a\u82d1\u5e97")), (U(r"\u91d1\u6c99"), U(r"\u91d1\u6c99\u5e97"))]:
+            if raw in question:
+                stores.append(label)
+        if U(r"\u706b\u661f\u5e97") in question:
+            stores.append(U(r"\u706b\u661f\u5e97"))
+        if "NoDataBrand".lower() in q:
+            brands.append("NoDataBrand")
+        return {"brands": list(dict.fromkeys(brands)), "stores": list(dict.fromkeys(stores))}
+
+    def copilot_has_reliable_evidence(self, payload):
+        evidence = payload.get("evidence", [])
+        context = payload.get("context", {})
+        required = context.get("required_context", [])
+        categories = {e.get("source_type") for e in evidence}
+        if not evidence:
+            return False, [U(r"\u7f3a\u5c11\u53ef\u5f15\u7528 evidence")]
+        missing = []
+        filters = context.get("entity_filters", {})
+        entity_matches = context.get("entity_matches", {})
+        for brand in filters.get("brands", []):
+            if not entity_matches.get("brands", {}).get(brand):
+                missing.append("brand_evidence:" + brand)
+        for store in filters.get("stores", []):
+            if not entity_matches.get("stores", {}).get(store):
+                missing.append("store_evidence:" + store)
+        for item in required:
+            if item == "sync_freshness" and "sync_freshness" not in categories:
+                missing.append("sync_freshness")
+            elif item == "business_health" and "business_health" not in categories:
+                missing.append("business_health")
+            elif item == "inventory_intelligence" and not ({"inventory_intelligence", "sap_inventory"} & categories):
+                missing.append("inventory_intelligence")
+            elif item == "brand_intelligence" and not ({"brand_intelligence", "sap_sales", "sap_inventory"} & categories):
+                missing.append("brand_intelligence")
+            elif item == "store_intelligence" and not ({"store_intelligence", "sap_sales", "sap_inventory"} & categories):
+                missing.append("store_intelligence")
+            elif item == "decision_insight" and "decision_insights" not in categories:
+                missing.append("decision_insight")
+        return not missing, missing
 
     def copilot_context_engine(self, user, question):
         intent = self.copilot_detect_intent(question)
@@ -16778,7 +16856,31 @@ where ki.deleted_at is null"""
         related_memory = []
         context = {"intent": intent, "question": question, "sources": {}}
         q = (question or "").strip()
+        entity_filters = self.copilot_entity_filters(question)
+        required_context = ["sync_freshness"]
+        if intent == "business_question":
+            required_context += ["business_health", "decision_insight"]
+        if intent in ("inventory_question", "brand_question", "product_question"):
+            required_context += ["inventory_intelligence"]
+        if intent in ("brand_question", "sales_question"):
+            required_context += ["brand_intelligence"]
+        if intent == "store_question":
+            required_context += ["store_intelligence"]
+        context["entity_filters"] = entity_filters
+        context["required_context"] = list(dict.fromkeys(required_context))
+        context["entity_matches"] = {"brands": {brand: 0 for brand in entity_filters["brands"]}, "stores": {store: 0 for store in entity_filters["stores"]}}
         with db() as conn:
+            sync = self.enterprise_sync_freshness_summary(conn)
+            context["sources"]["sync_freshness"] = sync
+            evidence.append(self.copilot_evidence_item(
+                "sync_freshness",
+                "enterprise_sync",
+                "Enterprise Sync freshness",
+                "status={} last_success={} pending={} failed={} message={}".format(sync.get("status"), sync.get("last_success_text"), sync.get("pending_runs"), sync.get("failed_runs"), sync.get("message")),
+                "/sync-center",
+                0.88,
+                updated_at=sync.get("last_success_at"),
+            ))
             metrics = self.business_metrics_summary(conn)
             context["sources"]["data_lake"] = {
                 "sales_amount": metrics.get("sales_amount", 0),
@@ -16803,9 +16905,60 @@ where ki.deleted_at is null"""
                 "/data-lake",
                 0.78,
             ))
+            health = self.business_health_summary(conn)
+            context["sources"]["business_health"] = health
+            evidence.append(self.copilot_evidence_item(
+                "business_health",
+                "summary",
+                "Business Health summary",
+                "score={:.1f} status={} details={}".format(float(health.get("overall_score") or 0), health.get("health_status"), len(health.get("details") or [])),
+                "/business-health",
+                0.82,
+                updated_at=(health.get("health_snapshot") or {}).get("created_at") if isinstance(health.get("health_snapshot"), dict) else None,
+            ))
             latest_source = conn.execute("select * from data_lake_sources order by updated_at desc limit 1").fetchone()
             if latest_source:
-                evidence.append(self.copilot_evidence_item("data_lake_sources", latest_source["id"], latest_source["filename"] or latest_source["source_name"], "batch={} rows={} status={}".format(latest_source["batch_id"], latest_source["row_count"], latest_source["status"]), "/data-lake/sources", 0.8))
+                evidence.append(self.copilot_evidence_item("data_lake_sources", latest_source["id"], latest_source["filename"] or latest_source["source_name"], "batch={} rows={} status={}".format(latest_source["batch_id"], latest_source["row_count"], latest_source["status"]), "/data-lake/sources", 0.8, updated_at=latest_source["updated_at"]))
+
+            inventory = self.inventory_intelligence_summary(conn)
+            brand_intel = self.brand_intelligence_summary(conn)
+            store_intel = self.store_intelligence_summary(conn)
+            context["sources"]["inventory_intelligence"] = {k: inventory.get(k) for k in ("total_inventory_amount", "total_inventory_quantity", "high_risk_count", "critical_risk_count", "slow_stock_count", "opportunity_count")}
+            context["sources"]["brand_intelligence"] = {k: brand_intel.get(k) for k in ("brand_count", "avg_brand_health")}
+            context["sources"]["store_intelligence"] = {k: store_intel.get(k) for k in ("store_count", "avg_store_health")}
+            for item in inventory.get("risk_ranking", [])[:8]:
+                evidence.append(self.copilot_evidence_item("inventory_intelligence", item.get("id"), item.get("product_name") or item.get("product_code") or "Inventory risk", "{} / {} / amount={} qty={} risk={} recommendation={}".format(item.get("brand_name"), item.get("store_name"), item.get("inventory_amount"), item.get("inventory_quantity"), item.get("risk_level"), item.get("recommendation")), "/inventory-intelligence", 0.84, "inventory_intelligence", item.get("id"), updated_at=item.get("created_at")))
+            for item in brand_intel.get("top_brands", [])[:8]:
+                evidence.append(self.copilot_evidence_item("brand_intelligence", item.get("id"), item.get("brand_name") or "Brand intelligence", "score={:.1f} status={} sales={} margin={:.1%} inventory_pressure={:.1%}".format(float(item.get("overall_score") or 0), item.get("status"), item.get("sales_amount"), float(item.get("gross_margin") or 0), float(item.get("inventory_pressure") or 0)), "/brand-intelligence", 0.82, "brand_intelligence", item.get("id"), updated_at=item.get("created_at")))
+            for item in store_intel.get("top_stores", [])[:8]:
+                evidence.append(self.copilot_evidence_item("store_intelligence", item.get("id"), item.get("store_name") or "Store intelligence", "score={:.1f} status={} sales={} margin={:.1%} inventory_pressure={:.1%}".format(float(item.get("overall_score") or 0), item.get("status"), item.get("sales_amount"), float(item.get("gross_margin") or 0), float(item.get("inventory_pressure") or 0)), "/store-intelligence", 0.82, "store_intelligence", item.get("id"), updated_at=item.get("created_at")))
+
+            for brand in entity_filters["brands"]:
+                like = "%" + brand + "%"
+                for row in conn.execute("select * from brand_intelligence_snapshots where brand_name like ? order by created_at desc limit 5", (like,)).fetchall():
+                    context["entity_matches"]["brands"][brand] += 1
+                    evidence.append(self.copilot_evidence_item("brand_intelligence", row["id"], row["brand_name"], "score={:.1f} status={} sales={} gross_profit={} gross_margin={:.1%} inventory_amount={} inventory_pressure={:.1%}".format(float(row["overall_score"] or 0), row["status"], row["sales_amount"], row["gross_profit"], float(row["gross_margin"] or 0), row["inventory_amount"], float(row["inventory_pressure"] or 0)), "/brand-intelligence", 0.9, "brand", row["brand_name"], updated_at=row["created_at"]))
+                for row in conn.execute("select * from inventory_product_analysis where brand_name like ? order by case risk_level when 'critical' then 0 when 'high' then 1 when 'dead_stock' then 2 else 3 end, inventory_amount desc limit 10", (like,)).fetchall():
+                    context["entity_matches"]["brands"][brand] += 1
+                    evidence.append(self.copilot_evidence_item("inventory_intelligence", row["id"], (row["brand_name"] or "") + " / " + (row["product_name"] or row["product_code"] or ""), "store={} qty={} amount={} days={} risk={} recommendation={}".format(row["store_name"], row["inventory_quantity"], row["inventory_amount"], row["inventory_days"], row["risk_level"], row["recommendation"]), "/inventory-intelligence", 0.88, "inventory_intelligence", row["id"], updated_at=row["created_at"]))
+                for row in conn.execute("select * from sap_inventory where brand_name like ? order by id desc limit 8", (like,)).fetchall():
+                    context["entity_matches"]["brands"][brand] += 1
+                    evidence.append(self.copilot_evidence_item("sap_inventory", row["id"], (row["brand_name"] or "") + " inventory row", "store={} product={} qty={} retail_amount={} age_days={}".format(row["store_name"], row["product_name"] or row["product_code"], row["quantity"], row["retail_amount"], row["age_days"]), "/data-lake/records", 0.78, "brand", brand, updated_at=row["created_at"] if "created_at" in row.keys() else None))
+                for row in conn.execute("select * from sap_sales where brand_name like ? order by id desc limit 8", (like,)).fetchall():
+                    context["entity_matches"]["brands"][brand] += 1
+                    evidence.append(self.copilot_evidence_item("sap_sales", row["id"], (row["brand_name"] or "") + " sales row", "date={} store={} product={} qty={} amount={} gross_profit={}".format(row["sale_date"], row["store_name"], row["product_name"] or row["product_code"], row["quantity"], row["amount"], row["gross_profit"]), "/data-lake/records", 0.78, "brand", brand, updated_at=row["created_at"] if "created_at" in row.keys() else None))
+
+            for store in entity_filters["stores"]:
+                like = "%" + store.replace(U(r"\u5e97"), "") + "%"
+                for row in conn.execute("select * from store_intelligence_snapshots where store_name like ? order by created_at desc limit 5", (like,)).fetchall():
+                    context["entity_matches"]["stores"][store] += 1
+                    evidence.append(self.copilot_evidence_item("store_intelligence", row["id"], row["store_name"], "score={:.1f} status={} sales={} gross_profit={} gross_margin={:.1%} inventory_amount={} inventory_pressure={:.1%}".format(float(row["overall_score"] or 0), row["status"], row["sales_amount"], row["gross_profit"], float(row["gross_margin"] or 0), row["inventory_amount"], float(row["inventory_pressure"] or 0)), "/store-intelligence", 0.9, "store", row["store_name"], updated_at=row["created_at"]))
+                for row in conn.execute("select * from sap_sales where store_name like ? order by id desc limit 8", (like,)).fetchall():
+                    context["entity_matches"]["stores"][store] += 1
+                    evidence.append(self.copilot_evidence_item("sap_sales", row["id"], (row["store_name"] or "") + " sales row", "date={} brand={} product={} qty={} amount={} gross_profit={}".format(row["sale_date"], row["brand_name"], row["product_name"] or row["product_code"], row["quantity"], row["amount"], row["gross_profit"]), "/data-lake/records", 0.78, "store", store, updated_at=row["created_at"] if "created_at" in row.keys() else None))
+                for row in conn.execute("select * from sap_inventory where store_name like ? order by id desc limit 8", (like,)).fetchall():
+                    context["entity_matches"]["stores"][store] += 1
+                    evidence.append(self.copilot_evidence_item("sap_inventory", row["id"], (row["store_name"] or "") + " inventory row", "brand={} product={} qty={} retail_amount={} age_days={}".format(row["brand_name"], row["product_name"] or row["product_code"], row["quantity"], row["retail_amount"], row["age_days"]), "/data-lake/records", 0.78, "store", store, updated_at=row["created_at"] if "created_at" in row.keys() else None))
 
             object_rows = []
             if q:
@@ -16890,30 +17043,53 @@ where ki.deleted_at is null"""
         decision = context.get("sources", {}).get("decision") or {}
         rules = context.get("sources", {}).get("business_rules") or {}
         graph = context.get("sources", {}).get("knowledge_graph") or {}
+        sync = context.get("sources", {}).get("sync_freshness") or {}
+        reliable, missing = self.copilot_has_reliable_evidence(payload)
         if not evidence:
             return {
-                "answer": "Conclusion: FoxBrain has no usable enterprise evidence for this question yet.\n\nEvidence: none.\n\nNext step: import or sync source data, then ask again. I will not create unsupported business conclusions.",
+                "answer": U(r"\u7ed3\u8bba\uff1a\u5f53\u524d\u6570\u636e\u4e0d\u8db3\uff0c\u65e0\u6cd5\u5f62\u6210\u53ef\u9760\u7ed3\u8bba\u3002") + "\n\n" + U(r"\u539f\u56e0\uff1a\u672a\u627e\u5230\u53ef\u5f15\u7528\u7684 Enterprise OS evidence\u3002") + "\n\n" + U(r"\u5efa\u8bae\uff1a\u5148\u5b8c\u6210 SAP/Data Lake/Intelligence \u6570\u636e\u66f4\u65b0\u540e\u518d\u95ee\u3002"),
                 "confidence": "low",
+                "reliable": False,
+                "missing": ["evidence"],
+            }
+        if not reliable:
+            return {
+                "answer": "\n\n".join([
+                    U(r"\u7ed3\u8bba\uff1a\u5f53\u524d\u6570\u636e\u4e0d\u8db3\uff0c\u65e0\u6cd5\u5f62\u6210\u53ef\u9760\u7ed3\u8bba\u3002"),
+                    U(r"\u539f\u56e0\uff1a\u7f3a\u5c11\u5fc5\u8981\u8bc1\u636e\u7c7b\u578b\uff1a") + ", ".join(missing),
+                    U(r"\u5173\u952e\u6570\u636e\uff1a\u5df2\u627e\u5230 {} \u6761 evidence\uff0c\u4f46\u8fd8\u4e0d\u8db3\u4ee5\u652f\u6491\u8be5\u95ee\u9898\u7684\u7ecf\u8425\u7ed3\u8bba\u3002").format(len(evidence)),
+                    U(r"\u5efa\u8bae\uff1a\u8bf7\u5148\u91cd\u65b0\u8ba1\u7b97\u76f8\u5173\u667a\u80fd\u6a21\u5757\uff0c\u6216\u786e\u8ba4 SAP \u6570\u636e\u5df2\u8fdb\u5165 Data Lake\u3002"),
+                    U(r"\u8bc1\u636e\uff1a\u4e0b\u65b9\u4ecd\u663e\u793a\u5df2\u627e\u5230\u7684 evidence\uff0c\u4f46\u4e0d\u628a\u5b83\u89c6\u4e3a\u53ef\u9760\u7ed3\u8bba\u3002"),
+                    U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4\uff1a") + str(sync.get("last_success_text") or "-") + " / " + str(sync.get("status") or "unknown"),
+                ]),
+                "confidence": "low",
+                "reliable": False,
+                "missing": missing,
             }
         top_titles = [e.get("title") for e in evidence[:6] if e.get("title")]
         risks = decision.get("top_risks", [])[:3]
-        risk_text = "; ".join([r.get("title", "") for r in risks]) or "No active high-priority decision risk in current evidence."
-        daily_text = daily.get("summary") or "No Daily Intelligence report yet."
+        risk_text = "; ".join([r.get("title", "") for r in risks]) or U(r"\u5f53\u524d evidence \u4e2d\u6ca1\u6709\u9ad8\u4f18\u5148\u7ea7\u51b3\u7b56\u98ce\u9669\u3002")
+        daily_text = daily.get("summary") or U(r"\u6682\u65e0 Daily Intelligence \u65e5\u62a5\u3002")
+        stale_items = [e for e in evidence if e.get("freshness") in ("stale", "outdated", "unknown")]
+        stale_text = U(r"\u6709 {} \u6761 evidence \u7f3a\u5c11\u66f4\u65b0\u65f6\u95f4\u6216\u5df2\u53ef\u80fd\u8fc7\u671f\uff0c\u9700\u590d\u6838\u3002").format(len(stale_items)) if stale_items else U(r"\u4e3b\u8981\u8bc1\u636e\u672a\u89e6\u53d1\u9648\u65e7\u8b66\u544a\u3002")
         answer = "\n\n".join([
-            "Conclusion: I can answer only from FoxBrain Enterprise OS evidence now available. The current evidence points to sales {}, gross profit {}, inventory amount {}, and inventory quantity {}.".format(
+            U(r"\u7ed3\u8bba\uff1a\u53ea\u57fa\u4e8e FoxBrain Enterprise OS \u5df2\u6709 evidence \u56de\u7b54\u3002\u5f53\u524d\u53ef\u4fe1\u7ecf\u8425\u6458\u8981\uff1a\u9500\u552e {} \uff0c\u6bdb\u5229 {} \uff0c\u5e93\u5b58\u91d1\u989d {} \uff0c\u5e93\u5b58\u6570\u91cf {}\u3002").format(
                 money(metrics.get("sales_amount") or 0),
                 money(metrics.get("gross_profit") or 0),
                 money(metrics.get("inventory_retail_amount") or 0),
                 int(float(metrics.get("inventory_quantity") or 0)),
             ),
-            "Evidence used: {} evidence items from Data Lake, Objects, Knowledge Graph, Business Rules, Decision, Memory, and Daily Intelligence. Key evidence: {}.".format(len(evidence), "; ".join(top_titles[:5])),
-            "Decision context: {}.".format(risk_text),
-            "Daily Intelligence: {}.".format(daily_text),
-            "System constraints: Business Rule active rules {}, Knowledge Graph nodes {}, edges {}. No SAP write action is used, and high-risk execution still requires human approval.".format(rules.get("business_rules_active", 0), graph.get("graph_nodes", 0), graph.get("graph_edges", 0)),
-            "Recommended next step: open the cited evidence below, confirm the source rows and decision insight, then convert useful conclusions into an enterprise memory draft.",
+            U(r"\u539f\u56e0\uff1a\u5df2\u8c03\u7528 Data Lake\u3001Object\u3001Knowledge Graph\u3001Business Rule\u3001Decision\u3001Memory\u3001Daily Intelligence \u7b49\u73b0\u6709\u6570\u636e\u5c42\u3002"),
+            U(r"\u5173\u952e\u6570\u636e\uff1a\u672c\u6b21\u4f7f\u7528 {} \u6761 evidence\u3002\u5173\u952e evidence\uff1a{}").format(len(evidence), "; ".join(top_titles[:5])),
+            U(r"\u98ce\u9669 / \u673a\u4f1a\uff1a") + risk_text,
+            U(r"\u65e5\u62a5\u4e0a\u4e0b\u6587\uff1a") + daily_text,
+            U(r"\u5efa\u8bae\uff1a\u5148\u6253\u5f00\u4e0b\u65b9 evidence \u590d\u6838\u539f\u59cb\u6765\u6e90\uff0c\u518d\u628a\u53ef\u7528\u7ed3\u8bba\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f\u3002\u9ad8\u98ce\u9669\u6267\u884c\u4ecd\u9700\u4eba\u5de5\u5ba1\u6279\u3002"),
+            U(r"\u8bc1\u636e\uff1a\u4e0b\u65b9 evidence \u5217\u8868\u5c55\u793a source type\u3001source id\u3001confidence\u3001updated_at \u548c freshness\u3002"),
+            U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4\uff1a") + str(sync.get("last_success_text") or "-") + " / " + str(sync.get("status") or "unknown") + " / " + stale_text,
+            U(r"\u7cfb\u7edf\u7ea6\u675f\uff1aBusiness Rule active rules {} \uff0cKnowledge Graph nodes {} \uff0cedges {}\u3002\u672c\u56de\u7b54\u4e0d\u4f7f\u7528 SAP \u5199\u6743\u9650\u3002").format(rules.get("business_rules_active", 0), graph.get("graph_nodes", 0), graph.get("graph_edges", 0)),
         ])
         confidence = "high" if len(evidence) >= 5 and (metrics.get("data_lake_records", 0) or decision.get("decision_evidence_total", 0)) else "medium"
-        return {"answer": answer, "confidence": confidence}
+        return {"answer": answer, "confidence": confidence, "reliable": True, "missing": []}
 
     def copilot_message_to_json(self, row):
         data = row_dict(row) or {}
@@ -16921,26 +17097,33 @@ where ki.deleted_at is null"""
         data["context"] = safe_json(data.get("context_json"), {})
         return data
 
-    def create_copilot_answer(self, user, question):
+    def create_copilot_answer(self, user, question, test_run_id=""):
         question = (question or "").strip()
         if not question:
             return {"ok": False, "message": "question required"}, 400
+        test_run_id = (test_run_id or "").strip()
         payload = self.copilot_context_engine(user, question)
         answer_payload = self.copilot_answer_from_context(question, payload)
         now = ts()
+        payload["answer_quality"] = {
+            "reliable": bool(answer_payload.get("reliable")),
+            "confidence": answer_payload.get("confidence"),
+            "missing": answer_payload.get("missing", []),
+        }
+        payload["test_run_id"] = test_run_id
         with db() as conn:
             cur = conn.execute(
-                "insert into copilot_sessions(user_id,question,intent,status,created_at) values(?,?,?,?,?)",
-                (user["id"] if user else None, question, payload["intent"], "answered", now),
+                "insert into copilot_sessions(user_id,question,intent,status,test_run_id,created_at) values(?,?,?,?,?,?)",
+                (user["id"] if user else None, question, payload["intent"], "answered", test_run_id, now),
             )
             session_id = cur.lastrowid
             conn.execute(
-                "insert into copilot_messages(session_id,role,content,evidence_json,context_json,created_at) values(?,?,?,?,?,?)",
-                (session_id, "user", question, "[]", json.dumps({"intent": payload["intent"]}, ensure_ascii=False), now),
+                "insert into copilot_messages(session_id,role,content,evidence_json,context_json,test_run_id,created_at) values(?,?,?,?,?,?,?)",
+                (session_id, "user", question, "[]", json.dumps({"intent": payload["intent"], "test_run_id": test_run_id}, ensure_ascii=False), test_run_id, now),
             )
             assistant = conn.execute(
-                "insert into copilot_messages(session_id,role,content,evidence_json,context_json,created_at) values(?,?,?,?,?,?)",
-                (session_id, "assistant", answer_payload["answer"], json.dumps(payload["evidence"], ensure_ascii=False), json.dumps(payload, ensure_ascii=False), now),
+                "insert into copilot_messages(session_id,role,content,evidence_json,context_json,test_run_id,created_at) values(?,?,?,?,?,?,?)",
+                (session_id, "assistant", answer_payload["answer"], json.dumps(payload["evidence"], ensure_ascii=False), json.dumps(payload, ensure_ascii=False), test_run_id, now),
             )
             self.add_timeline_event(conn, "copilot", session_id, "copilot_answer_created", summarize_text(question, 80), answer_payload["answer"], "copilot_sessions", session_id, {"message_id": assistant.lastrowid, "evidence_count": len(payload["evidence"]), "intent": payload["intent"]}, user["id"] if user else None, now)
         self.log_action(user, "copilot_question_asked", "copilot_session", session_id, payload["intent"])
@@ -16951,10 +17134,14 @@ where ki.deleted_at is null"""
             "intent": payload["intent"],
             "answer": answer_payload["answer"],
             "confidence": answer_payload["confidence"],
+            "reliable": bool(answer_payload.get("reliable")),
+            "missing": answer_payload.get("missing", []),
+            "data_freshness": payload["context"].get("sources", {}).get("sync_freshness", {}),
             "evidence": payload["evidence"],
             "related_objects": payload["related_objects"],
             "related_decisions": payload["related_decisions"],
             "related_memory": payload["related_memory"],
+            "test_run_id": test_run_id,
             "safety": payload["safety"],
         }, 200
 
@@ -16999,6 +17186,42 @@ where ki.deleted_at is null"""
         self.log_action(user, "copilot_memory_draft_created", "enterprise_memory", cur.lastrowid, str(message_id))
         return {"ok": True, "memory_id": cur.lastrowid, "status": "draft"}, 200
 
+    def cleanup_copilot_test_data(self, user, test_run_id):
+        test_run_id = (test_run_id or "").strip()
+        if not test_run_id.startswith("SPRINT0185_TEST"):
+            return {"ok": False, "message": "cleanup blocked: test_run_id must start with SPRINT0185_TEST"}, 400
+        now = ts()
+        with db() as conn:
+            session_rows = conn.execute("select id from copilot_sessions where test_run_id=?", (test_run_id,)).fetchall()
+            session_ids = [int(r["id"]) for r in session_rows]
+            if not session_ids:
+                return {"ok": True, "test_run_id": test_run_id, "deleted_sessions": 0, "deleted_messages": 0, "deleted_feedback": 0, "archived_memories": 0, "note": "no test sessions found"}, 200
+            placeholders = ",".join("?" for _ in session_ids)
+            message_rows = conn.execute("select id from copilot_messages where session_id in (" + placeholders + ")", session_ids).fetchall()
+            message_ids = [int(r["id"]) for r in message_rows]
+            archived_memories = 0
+            if message_ids:
+                msg_placeholders = ",".join("?" for _ in message_ids)
+                deleted_feedback = conn.execute("select count(*) c from copilot_feedback where message_id in (" + msg_placeholders + ") or test_run_id=?", message_ids + [test_run_id]).fetchone()["c"]
+                memory_rows = conn.execute("select id from enterprise_memories where related_object_type='copilot_message' and related_object_id in (" + msg_placeholders + ") and archived_at is null", message_ids).fetchall()
+                memory_ids = [int(r["id"]) for r in memory_rows]
+                archived_memories = len(memory_ids)
+                if memory_ids:
+                    mem_placeholders = ",".join("?" for _ in memory_ids)
+                    conn.execute("update enterprise_memories set status='archived', archived_at=?, updated_at=? where id in (" + mem_placeholders + ")", [now, now] + memory_ids)
+                conn.execute("delete from copilot_feedback where message_id in (" + msg_placeholders + ") or test_run_id=?", message_ids + [test_run_id])
+                conn.execute("delete from memory_relations where target_type='copilot_message' and target_id in (" + msg_placeholders + ")", message_ids)
+                conn.execute("delete from timeline_events where (source_type='copilot_sessions' and source_id in (" + placeholders + ")) or (source_type='copilot_messages' and source_id in (" + msg_placeholders + "))", session_ids + message_ids)
+            else:
+                deleted_feedback = conn.execute("select count(*) c from copilot_feedback where test_run_id=?", (test_run_id,)).fetchone()["c"]
+                conn.execute("delete from copilot_feedback where test_run_id=?", (test_run_id,))
+            conn.execute("delete from copilot_messages where session_id in (" + placeholders + ")", session_ids)
+            deleted_messages = len(message_ids)
+            conn.execute("delete from copilot_sessions where id in (" + placeholders + ")", session_ids)
+            deleted_sessions = len(session_ids)
+        self.log_action(user, "copilot_test_data_cleaned", "copilot_test_run", None, test_run_id)
+        return {"ok": True, "test_run_id": test_run_id, "deleted_sessions": deleted_sessions, "deleted_messages": deleted_messages, "deleted_feedback": deleted_feedback, "archived_memories": archived_memories, "safety": "only_sessions_with_matching_test_run_id_cleaned"}, 200
+
     def enterprise_copilot_page(self, user):
         user = self.require_login(user)
         if not user:
@@ -17023,8 +17246,18 @@ where ki.deleted_at is null"""
             evidence = item.get("evidence", [])
             evidence_html = ""
             if evidence:
-                evidence_html = "<div class='source-list'>" + "".join("<div class='source-item'><strong>{}</strong><p class='small'>{} #{} / {:.0%}</p><p>{}</p><a class='btn' href='{}'>{}</a></div>".format(esc(e.get("title")), esc(e.get("source_type")), esc(e.get("source_id")), float(e.get("confidence") or 0), esc(e.get("summary")), esc(e.get("url") or "#"), U(r"\u6253\u5f00\u8bc1\u636e")) for e in evidence[:8]) + "</div>"
-                evidence_html += "<form method='post' action='/api/copilot/messages/{}/memory-draft'><button>{}</button></form>".format(item["id"], U(r"\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f"))
+                evidence_html = "<div class='source-list'>" + "".join("<div class='source-item'><strong>{}</strong><p class='small'>{} #{} / {:.0%} / updated {} / {}</p><p>{}</p>{}<a class='btn' href='{}'>{}</a></div>".format(esc(e.get("title")), esc(e.get("source_type")), esc(e.get("source_id")), float(e.get("confidence") or 0), esc(e.get("updated_at_text") or "-"), esc(e.get("freshness") or "unknown"), esc(e.get("summary")), ("<p class='small warn'>{}</p>".format(esc(e.get("stale_warning"))) if e.get("stale_warning") else ""), esc(e.get("url") or "#"), U(r"\u6253\u5f00\u8bc1\u636e")) for e in evidence[:10]) + "</div>"
+                quality = item.get("context", {}).get("answer_quality", {})
+                test_run_id = item.get("context", {}).get("test_run_id", "")
+                feedback = """
+<div class="inline">
+  <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><button name="feedback_type" value="useful">{}</button></form>
+  <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><button class="gray" name="feedback_type" value="not_useful">{}</button></form>
+  <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><input name="comment" placeholder="{}"><button class="orange" name="feedback_type" value="missing_evidence">{}</button></form>
+</div>""".format(item["id"], esc(test_run_id), U(r"\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u6ca1\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u8865\u5145\u7f3a\u5931\u8bc1\u636e\u8bf4\u660e"), U(r"\u7f3a evidence"))
+                evidence_html = "<p class='small'><span class='confidence'>{}: {}</span> <span class='confidence'>{}: {}</span></p>".format(U(r"\u53ef\u9760"), "yes" if quality.get("reliable") else "no", U(r"\u4fe1\u5fc3"), esc(quality.get("confidence") or "")) + evidence_html
+                evidence_html += feedback
+                evidence_html += "<form method='post' action='/api/copilot/messages/{}/memory-draft' onsubmit=\"return confirm('{}')\"><button>{}</button></form>".format(item["id"], U(r"\u786e\u8ba4\u4ec5\u751f\u6210\u8349\u7a3f\uff0c\u4e0d\u4f1a\u81ea\u52a8\u6210\u4e3a\u6b63\u5f0f\u8bb0\u5fc6\uff1f"), U(r"\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f"))
             message_html += "<div class='chat-message {}'><strong>{}</strong><p>{}</p>{}</div>".format(esc(item["role"]), esc(item["role"]), esc(item["content"]).replace("\n", "<br>"), evidence_html)
         if not message_html:
             message_html = "<div class='chat-message assistant'><strong>Enterprise Copilot</strong><p>{}</p></div>".format(U(r"\u6211\u53ea\u57fa\u4e8e FoxBrain Enterprise OS \u5df2\u6709\u6570\u636e\u56de\u7b54\uff1aData Lake\u3001Object\u3001Knowledge Graph\u3001Business Rule\u3001Decision\u3001Memory\u3001Daily Intelligence\u3002\u6bcf\u4e2a\u7ed3\u8bba\u90fd\u4f1a\u5c55\u793a evidence\u3002"))
@@ -17072,7 +17305,7 @@ where ki.deleted_at is null"""
         if not user:
             return self.redir("/login")
         form = self.form()
-        payload, code = self.create_copilot_answer(user, form.get("question", ""))
+        payload, code = self.create_copilot_answer(user, form.get("question", ""), form.get("test_run_id", ""))
         if not payload.get("ok"):
             return self.redir("/copilot")
         return self.redir("/copilot?session_id={}".format(payload["session_id"]))
@@ -17103,20 +17336,26 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         form = self.form()
         if path == "/api/copilot/ask":
-            payload, code = self.create_copilot_answer(user, form.get("question", ""))
+            payload, code = self.create_copilot_answer(user, form.get("question", ""), form.get("test_run_id", ""))
             return self.json_out(payload, code=code)
         if path == "/api/copilot/feedback":
             message_id = form.get("message_id", "")
             feedback_type = form.get("feedback_type", "useful")
-            if feedback_type not in ("useful", "not_useful", "needs_review"):
+            if feedback_type not in ("useful", "not_useful", "needs_review", "correction", "missing_evidence"):
                 feedback_type = "needs_review"
+            test_run_id = (form.get("test_run_id", "") or "").strip()
             with db() as conn:
                 msg = conn.execute("select m.* from copilot_messages m join copilot_sessions s on s.id=m.session_id where m.id=? and s.user_id=?", (message_id, user["id"])).fetchone()
                 if not msg:
                     return self.json_out({"ok": False, "message": "message not found"}, code=404)
-                cur = conn.execute("insert into copilot_feedback(message_id,feedback_type,comment,created_at) values(?,?,?,?)", (message_id, feedback_type, form.get("comment", ""), ts()))
+                cur = conn.execute("insert into copilot_feedback(message_id,feedback_type,comment,test_run_id,created_at) values(?,?,?,?,?)", (message_id, feedback_type, form.get("comment", ""), test_run_id or msg["test_run_id"], ts()))
             self.log_action(user, "copilot_feedback_created", "copilot_message", message_id, feedback_type)
             return self.json_out({"ok": True, "feedback_id": cur.lastrowid})
+        if path == "/api/copilot/test-cleanup":
+            if not self.can_open(user, ("boss", "admin")):
+                return self.json_out({"ok": False, "message": "no permission"}, code=403)
+            payload, code = self.cleanup_copilot_test_data(user, form.get("test_run_id", ""))
+            return self.json_out(payload, code=code)
         m = re.match(r"^/api/copilot/messages/(\d+)/memory-draft$", path)
         if m:
             payload, code = self.copilot_memory_draft(user, int(m.group(1)))
