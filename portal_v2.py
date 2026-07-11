@@ -263,7 +263,7 @@ def load_env_file():
 load_env_file()
 
 T = {
-    "brand": "FoxBrain Owner OS",
+    "brand": "FoxBrain \u8001\u677f\u7ecf\u8425\u7cfb\u7edf",
     "subtitle": "",
     "login": U(r"\u767b\u5f55"),
     "register": U(r"\u65b0\u5458\u5de5\u6ce8\u518c"),
@@ -5380,21 +5380,22 @@ def layout(title, body, user=None, msg="", wide=False):
             (U(r"\u884c\u52a8\u4e2d\u5fc3"), "/action-center"),
         ]
         primary_nav = "".join('<a href="{}">{}</a>'.format(esc(href), esc(label)) for label, href in nav_items)
-        context_question = U(r"\u8bf7\u7ed3\u5408\u5f53\u524d\u9875\u9762\u89e3\u91ca\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\uff0c\u5e76\u5217\u51fa evidence\u3002")
+        context_question = U(r"\u8bf7\u7ed3\u5408\u5f53\u524d\u9875\u9762\u89e3\u91ca\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\uff0c\u5e76\u5217\u51fa\u4f9d\u636e\u3002")
         copilot_launcher = (
             '<a class="global-copilot" href="/copilot?q={}" title="{}">'
             '<strong>AI</strong><span>{}</span></a>'
         ).format(quote(context_question), U(r"\u5e26\u5f53\u524d\u9875\u9762\u4e0a\u4e0b\u6587\u63d0\u95ee"), U(r"\u95ee\u5f53\u524d\u9875"))
+        admin_link = '<a href="/sync-center">{}</a>'.format(U(r"\u7cfb\u7edf\u7ba1\u7406")) if user["role"] == "admin" else ""
         nav = (
             '<div class="topbar os-topbar"><div><strong>{}</strong><small>{} / {}</small></div>'
             '<nav class="primary-nav">{}</nav>'
             '<form class="global-search" method="get" action="/os/search"><input name="q" value="" placeholder="{}"></form>'
-            '<div class="top-actions"><a href="/sync-center">{}</a><a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
-        ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), primary_nav, esc(search_placeholder), U(r"\u7cfb\u7edf"), T["change_password"], T["logout"])
+            '<div class="top-actions">{}<a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
+        ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), primary_nav, esc(search_placeholder), admin_link, T["change_password"], T["logout"])
         bottom_nav = (
             '<nav class="bottom-nav"><a href="/">{}</a><a href="/daily-intelligence">{}</a>'
-            '<a href="/drive">{}</a><a href="/copilot">AI</a><a href="/action-center">{}</a></nav>'
-        ).format(U(r"\u9996\u9875"), U(r"\u7ecf\u8425"), U(r"\u6863\u6848"), U(r"\u884c\u52a8"))
+            '<a href="/drive">{}</a><a href="/copilot">{}</a><a href="/action-center">{}</a></nav>'
+        ).format(U(r"\u9996\u9875"), U(r"\u7ecf\u8425"), U(r"\u6863\u6848"), U(r"AI\u52a9\u624b"), U(r"\u884c\u52a8"))
     alert = f'<div class="alert">{esc(msg)}</div>' if msg else ""
     max_width = "1180px" if wide else "980px"
     subtitle_html = "" if user or not T.get("subtitle") else "<p class=\"lead\">{}</p>".format(T["subtitle"])
@@ -5886,7 +5887,9 @@ class App(BaseHTTPRequestHandler):
             return self.dashboard(user) if user else self.login()
         if path == "/daily":
             return self.redir("/wiki/firefox-hq/daily")
-        return self.redir("/")
+        if path.startswith("/api/"):
+            return self.json_out({"ok": False, "message": U(r"\u8bf7\u6c42\u7684\u529f\u80fd\u4e0d\u5b58\u5728\u6216\u5df2\u8c03\u6574")}, code=404)
+        return self.friendly_error_page(user, 404, U(r"\u8bf7\u5e2e\u6211\u627e\u5230\u8fd9\u4e2a\u529f\u80fd\u7684\u65b0\u5165\u53e3"))
 
     def do_POST(self):
         path = urlparse(self.path).path
@@ -8148,9 +8151,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ]
         focus_html = "<div class='focus-list'>" + "".join(
             "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
-                esc(item.get("priority") or ""),
-                esc(item.get("title") or ""),
-                esc(item.get("reason") or ""),
+                esc(self.status_label(item.get("priority"))),
+                esc(self.friendly_business_text(item.get("title"), U(r"\u7ecf\u8425\u5173\u6ce8\u4e8b\u9879"))),
+                esc(self.friendly_business_text(item.get("reason"), U(r"\u8bf7\u6253\u5f00\u8be6\u60c5\u67e5\u770b\u539f\u56e0\u548c\u4f9d\u636e\u3002"))),
                 esc(item.get("url") or "/daily-intelligence"),
                 esc(item.get("action") or U(r"\u5904\u7406")),
             )
@@ -8159,7 +8162,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         health_class = "good" if summary["business_health_score"] >= 70 else ("warn" if summary["business_health_score"] >= 55 else "risk")
         sync_note = summary.get("enterprise_sync_last_success") or "-"
         core_metrics = "".join([
-            "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+            "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(self.status_label(summary["business_health_status"]))),
             self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
             self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), U(r"\u5229\u6da6\u5206\u6790\u8868\u53e3\u5f84")),
             self.metric(U(r"\u8d39\u7528"), money(summary.get("fee_amount", 0)), U(r"\u95e8\u5e97\u8d39\u7528")),
@@ -8354,9 +8357,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ]
         focus_html = "<div class='focus-list'>" + "".join(
             "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
-                esc(item.get("priority") or ""),
-                esc(item.get("title") or ""),
-                esc(item.get("reason") or ""),
+                esc(self.status_label(item.get("priority"))),
+                esc(self.friendly_business_text(item.get("title"), U(r"\u7ecf\u8425\u5173\u6ce8\u4e8b\u9879"))),
+                esc(self.friendly_business_text(item.get("reason"), U(r"\u8bf7\u6253\u5f00\u8be6\u60c5\u67e5\u770b\u539f\u56e0\u548c\u4f9d\u636e\u3002"))),
                 esc(item.get("url") or "/daily-intelligence"),
                 esc(item.get("action") or U(r"\u5904\u7406")),
             )
@@ -8365,7 +8368,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         health_class = "good" if summary["business_health_score"] >= 70 else ("warn" if summary["business_health_score"] >= 55 else "risk")
         sync_note = summary.get("enterprise_sync_last_success") or "-"
         core_metrics = "".join([
-            "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+            "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(self.status_label(summary["business_health_status"]))),
             self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
             self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), U(r"\u5229\u6da6\u5206\u6790\u8868\u53e3\u5f84")),
             self.metric(U(r"\u8d39\u7528"), money(summary.get("fee_amount", 0)), U(r"\u95e8\u5e97\u8d39\u7528")),
@@ -8960,7 +8963,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 "title": U(r"\u786e\u8ba4\u6570\u636e\u66f4\u65b0\u65f6\u95f4"),
                 "reason": U(r"\u6570\u636e\u4e0d\u662f\u6700\u65b0\u72b6\u6001\u65f6\uff0c\u7ecf\u8425\u7ed3\u8bba\u9700\u8c28\u614e\u4f7f\u7528\u3002"),
                 "evidence_count": 1,
-                "action": U(r"\u6253\u5f00 Sync Center"),
+                "action": U(r"\u6253\u5f00\u6570\u636e\u540c\u6b65\u4e2d\u5fc3"),
                 "status": U(r"\u6570\u636e\u5f02\u5e38"),
                 "url": "/sync-center",
             })
@@ -8972,15 +8975,15 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         cards = []
         for item in actions:
             cards.append(
-                "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p class='small'>{} / evidence {} / {}</p><a class='btn' href='{}'>{}</a></div>".format(
-                    esc(item.get("priority")),
-                    esc(item.get("title")),
-                    esc(item.get("reason")),
-                    esc(item.get("source")),
+                "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p class='small'>{} / {} {} / {}</p><a class='btn' href='{}'>{}</a></div>".format(
+                    esc(self.status_label(item.get("priority"))),
+                    esc(self.friendly_business_text(item.get("title"), U(r"\u7ecf\u8425\u5173\u6ce8\u4e8b\u9879"))),
+                    esc(self.friendly_business_text(item.get("reason"), U(r"\u8bf7\u67e5\u770b\u8be6\u60c5\u548c\u4f9d\u636e\u3002"))),
+                    U(r"\u6765\u6e90"), U(r"\u4f9d\u636e"),
                     int(item.get("evidence_count") or 0),
                     esc(item.get("status")),
                     esc(item.get("url") or "#"),
-                    esc(item.get("action") or U(r"\u6253\u5f00")),
+                    esc(self.friendly_business_text(item.get("action"), U(r"\u6253\u5f00\u8be6\u60c5"))),
                 )
             )
         return "<div class='focus-list'>" + "".join(cards) + "</div>"
@@ -9033,10 +9036,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
 
     def ceo_navigation_groups_html(self):
         groups = [
-            (U(r"\u7ecf\u8425"), [("Daily Intelligence", "/daily-intelligence"), ("Business Health", "/business-health"), ("Decision", "/decision"), ("Inventory", "/inventory-intelligence"), ("Brand", "/brand-intelligence"), ("Store", "/store-intelligence"), (U(r"\u5229\u6da6\u8d28\u91cf"), "/finance")]),
-            (U(r"\u4f01\u4e1a\u8d44\u6599"), [("Drive", "/drive"), ("Data Lake", "/data-lake"), ("Objects", "/object-center"), ("Knowledge", "/knowledge"), ("Memory", "/memory"), ("Timeline", "/timeline")]),
-            (U(r"AI\u52a9\u624b"), [("Copilot", "/copilot"), (U(r"CEO\u5de5\u4f5c\u53f0"), "/ceo-workbench"), (U(r"\u63a8\u8350\u95ee\u9898"), "/copilot")]),
-            (U(r"\u7cfb\u7edf"), [("Sync Center", "/sync-center"), ("Calibration", "/business-calibration"), ("Rules", "/business-rules"), ("Graph", "/knowledge-graph"), (U(r"\u8bca\u65ad"), "/system/diagnostics")]),
+            (U(r"\u7ecf\u8425"), [(U(r"\u7ecf\u8425\u603b\u89c8"), "/business-overview"), (U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5"), "/daily-intelligence"), (U(r"\u4f01\u4e1a\u5065\u5eb7"), "/business-health"), (U(r"\u7ecf\u8425\u51b3\u7b56"), "/decision"), (U(r"\u5e93\u5b58\u5206\u6790"), "/inventory-intelligence"), (U(r"\u54c1\u724c\u5206\u6790"), "/brand-intelligence"), (U(r"\u95e8\u5e97\u5206\u6790"), "/store-intelligence"), (U(r"\u5229\u6da6\u8d28\u91cf"), "/finance")]),
+            (U(r"\u4f01\u4e1a\u6863\u6848"), [(U(r"\u4f01\u4e1a\u7f51\u76d8"), "/drive"), (U(r"\u4f01\u4e1a\u5bf9\u8c61"), "/object-center"), (U(r"\u4f01\u4e1a\u77e5\u8bc6"), "/knowledge"), (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "/memory"), (U(r"\u4f01\u4e1a\u5173\u7cfb"), "/knowledge-graph"), (U(r"\u7ecf\u8425\u65f6\u95f4\u7ebf"), "/timeline")]),
+            (U(r"AI\u52a9\u624b"), [(U(r"\u95ee\u4f01\u4e1a"), "/copilot"), (U(r"\u8001\u677f\u5de5\u4f5c\u53f0"), "/ceo-workbench")]),
         ]
         html_parts = []
         for title, links in groups:
@@ -9050,19 +9052,19 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         summary_cards = [
-            (U(r"\u6587\u4ef6\u603b\u6570"), summary["documents_total"], U(r"Drive")),
+            (U(r"\u6587\u4ef6\u603b\u6570"), summary["documents_total"], U(r"\u4f01\u4e1a\u7f51\u76d8")),
             (U(r"\u5f85\u5904\u7406\u6587\u4ef6"), summary["documents_pending"], U(r"\u9700\u5173\u6ce8")),
-            (U(r"\u4f01\u4e1a\u5bf9\u8c61"), summary["objects_total"], U(r"Object Engine")),
-            (U(r"\u77e5\u8bc6\u6761\u76ee"), summary["knowledge_items_total"], U(r"Knowledge")),
-            (U(r"\u65f6\u95f4\u8f74\u4e8b\u4ef6"), summary["timeline_events_total"], U(r"Timeline")),
-            (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), summary["enterprise_memories_total"], U(r"Memory")),
+            (U(r"\u4f01\u4e1a\u5bf9\u8c61"), summary["objects_total"], U(r"\u4f01\u4e1a\u6863\u6848")),
+            (U(r"\u77e5\u8bc6\u6761\u76ee"), summary["knowledge_items_total"], U(r"\u4f01\u4e1a\u77e5\u8bc6")),
+            (U(r"\u65f6\u95f4\u8f74\u4e8b\u4ef6"), summary["timeline_events_total"], U(r"\u7ecf\u8425\u65f6\u95f4\u7ebf")),
+            (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), summary["enterprise_memories_total"], U(r"\u7ecf\u8425\u7ecf\u9a8c")),
             (U(r"\u9ad8\u98ce\u9669\u8bb0\u5fc6"), summary["high_risk_memories_total"], U(r"\u9700\u5173\u6ce8")),
-            ("Data Lake", summary["data_lake_records"], "records"),
-            (U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), "sales"),
-            (U(r"\u6bdb\u5229"), money(summary.get("gross_" + "profit", 0)), "gross profit"),
-            (U(r"\u6bdb\u5229\u7387"), "{:.1%}".format(summary["gross_margin"]), "calibrated"),
-            (U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["inventory_retail_amount"]), "inventory"),
-            (U(r"\u5e93\u5b58\u6210\u672c"), money(summary["inventory_cost_amount"]), "cost basis"),
+            (U(r"\u4f01\u4e1a\u6570\u636e"), summary["data_lake_records"], U(r"\u539f\u59cb\u8bb0\u5f55")),
+            (U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"\u5df2\u5f52\u4e00")),
+            (U(r"\u6bdb\u5229"), money(summary.get("gross_" + "profit", 0)), U(r"\u7ecf\u8425\u53e3\u5f84")),
+            (U(r"\u6bdb\u5229\u7387"), "{:.1%}".format(summary["gross_margin"]), U(r"\u5df2\u6821\u51c6")),
+            (U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["inventory_retail_amount"]), U(r"\u96f6\u552e\u53e3\u5f84")),
+            (U(r"\u5e93\u5b58\u6210\u672c"), money(summary["inventory_cost_amount"]), U(r"\u6210\u672c\u53e3\u5f84")),
             (U(r"\u5bf9\u8c61\u5efa\u8bae"), summary["suggested_objects"], "match center"),
             (U(r"\u6821\u51c6\u63d0\u9192"), summary["metric_quality_warnings"], "business calibration"),
             (U(r"\u56fe\u8c31\u8282\u70b9"), summary["graph_nodes"], "knowledge graph"),
@@ -9116,27 +9118,27 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "{} / {}".format(esc(r.get("brand_name") or ""), money(r.get("sales_amount") or 0))
             for r in payload["business_metrics"]["top_brand_sales"]
         ] or [U(r"\u6682\u65e0\u54c1\u724c\u9500\u552e\u6392\u884c\u3002")])
-        decision_top_risks = "; ".join([r.get("title", "") for r in payload["decision_metrics"].get("top_risks", [])]) or "No active decision risk."
-        latest_accepted_decision = (payload["decision_metrics"].get("latest_accepted_decision") or {}).get("title") or "No accepted decision yet."
+        decision_top_risks = "；".join([r.get("title", "") for r in payload["decision_metrics"].get("top_risks", [])]) or U(r"\u6682\u65e0\u9ad8\u4f18\u5148\u7ea7\u51b3\u7b56\u98ce\u9669\u3002")
+        latest_accepted_decision = (payload["decision_metrics"].get("latest_accepted_decision") or {}).get("title") or U(r"\u6682\u65e0\u5df2\u63a5\u53d7\u7684\u51b3\u7b56\u3002")
         latest_rule_run = payload["rule_metrics"].get("latest_rule_run") or {}
         business_alerts = self.bullets([
             U(r"\u6570\u636e\u8d28\u91cf\u544a\u8b66\uff1a") + str(summary["quality_alerts"]),
             U(r"\u7ecf\u8425\u6307\u6807\u53e3\u5f84\u63d0\u9192\uff1a") + str(summary["metric_quality_warnings"]),
             U(r"\u5f85\u786e\u8ba4\u5bf9\u8c61\u5efa\u8bae\uff1a") + str(summary["suggested_objects"]),
             U(r"\u9ad8\u98ce\u9669\u51b3\u7b56\u6d1e\u5bdf\uff1a") + str(summary["decision_high_severity"]),
-            "Top 3 decision risks: " + decision_top_risks,
-            "Latest accepted decision: " + latest_accepted_decision,
-            "Business Rule Engine active rules: " + str(summary["business_rules_active"]),
-            "Latest rule run: " + (str(latest_rule_run.get("id")) + " / " + str(latest_rule_run.get("status")) if latest_rule_run else "none"),
-            "Business Health: {:.1f}/100 / {}".format(summary["business_health_score"], summary["business_health_status"]),
-            "Inventory Intelligence: high={} critical={} slow={} opportunity={}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"], summary["inventory_intelligence_slow_stock"], summary["inventory_intelligence_opportunity"]),
-            "Brand Intelligence: brands={} avg_health={:.1f} risky={} opportunity={}".format(summary["brand_intelligence_count"], summary["brand_intelligence_avg_health"], summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"]),
-            "Store Intelligence: stores={} avg_health={:.1f} risky={} opportunity={}".format(summary["store_intelligence_count"], summary["store_intelligence_avg_health"], summary["store_intelligence_risky"], summary["store_intelligence_opportunity"]),
-            "Enterprise Sync: " + summary["enterprise_sync_status"] + " / last publish " + str(summary["enterprise_sync_last_success"]) + " / schedules enabled " + str(summary["enterprise_sync_enabled_schedules"]),
-            "Daily Intelligence: risks {} / opportunities {} / report {}".format(summary["daily_intelligence_risks"], summary["daily_intelligence_opportunities"], summary["daily_intelligence_date"]),
+            U(r"\u4f18\u5148\u51b3\u7b56\u98ce\u9669\uff1a") + decision_top_risks,
+            U(r"\u6700\u8fd1\u63a5\u53d7\u7684\u51b3\u7b56\uff1a") + latest_accepted_decision,
+            U(r"\u4f7f\u7528\u4e2d\u7684\u7ecf\u8425\u89c4\u5219\uff1a") + str(summary["business_rules_active"]),
+            U(r"\u6700\u8fd1\u89c4\u5219\u8fd0\u884c\uff1a") + (self.status_label(latest_rule_run.get("status")) if latest_rule_run else U(r"\u6682\u65e0\u8bb0\u5f55")),
+            U(r"\u4f01\u4e1a\u5065\u5eb7\uff1a") + "{:.1f}/100 / {}".format(summary["business_health_score"], self.status_label(summary["business_health_status"])),
+            U(r"\u5e93\u5b58\u5206\u6790\uff1a\u9ad8\u98ce\u9669 {}\uff0c\u4e25\u91cd\u98ce\u9669 {}\uff0c\u6ede\u9500 {}\uff0c\u673a\u4f1a {}\u3002").format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"], summary["inventory_intelligence_slow_stock"], summary["inventory_intelligence_opportunity"]),
+            U(r"\u54c1\u724c\u5206\u6790\uff1a\u54c1\u724c {}\uff0c\u5e73\u5747\u5065\u5eb7 {:.1f}\uff0c\u98ce\u9669 {}\uff0c\u673a\u4f1a {}\u3002").format(summary["brand_intelligence_count"], summary["brand_intelligence_avg_health"], summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"]),
+            U(r"\u95e8\u5e97\u5206\u6790\uff1a\u95e8\u5e97 {}\uff0c\u5e73\u5747\u5065\u5eb7 {:.1f}\uff0c\u98ce\u9669 {}\uff0c\u673a\u4f1a {}\u3002").format(summary["store_intelligence_count"], summary["store_intelligence_avg_health"], summary["store_intelligence_risky"], summary["store_intelligence_opportunity"]),
+            U(r"\u6570\u636e\u540c\u6b65\uff1a") + self.status_label(summary["enterprise_sync_status"]) + U(r"\uff0c\u6700\u8fd1\u53d1\u5e03\uff1a") + str(summary["enterprise_sync_last_success"]),
+            U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5\uff1a\u98ce\u9669 {}\uff0c\u673a\u4f1a {}\uff0c\u65e5\u671f {}\u3002").format(summary["daily_intelligence_risks"], summary["daily_intelligence_opportunities"], summary["daily_intelligence_date"]),
             U(r"\u95e8\u5e97/\u54c1\u724c\u5df2\u542f\u7528\u5f52\u4e00\u53e3\u5f84\uff1a") + str(summary["store_aliases"]) + " / " + str(summary["brand_aliases"]),
-            U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + " nodes / " + str(summary["graph_relationships"]) + " relationships",
-            "Decision Engine: all_decision_insights_must_have_evidence / rule_based_decision_engine_no_external_ai_api_no_auto_execution",
+            U(r"\u4f01\u4e1a\u5173\u7cfb\u56fe\u8c31\uff1a") + str(summary["graph_nodes"]) + U(r" \u4e2a\u5bf9\u8c61 / ") + str(summary["graph_relationships"]) + U(r" \u6761\u5173\u7cfb"),
+            U(r"\u51b3\u7b56\u8fb9\u754c\uff1a\u6240\u6709\u5efa\u8bae\u5fc5\u987b\u6709\u4f9d\u636e\uff0c\u4e0d\u8c03\u7528\u5916\u90e8AI\u731c\u6d4b\uff0c\u4e0d\u81ea\u52a8\u6267\u884c\u3002"),
             U(r"\u672c\u5c42\u4ec5\u5904\u7406\u5df2\u4e0a\u4f20 SAP \u5bfc\u51fa\u6587\u4ef6\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\u3002"),
         ])
         status_html = "".join(
@@ -9195,13 +9197,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             for r in (payload["store_intelligence"].get("risky_stores", []) + payload["store_intelligence"].get("opportunity_stores", []))[:5]
         ] or [U(r"\u6682\u65e0\u95e8\u5e97\u98ce\u9669\u6216\u673a\u4f1a\u6392\u884c\uff0c\u53ef\u91cd\u65b0\u5206\u6790\u95e8\u5e97\u3002")])
         ceo_metrics = "".join([
-            self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), summary["business_health_status"]),
+            self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), self.status_label(summary["business_health_status"])),
             self.metric(U(r"\u5f85\u51b3\u7b56"), summary["decision_high_severity"], U(r"\u9ad8\u4f18\u5148\u7ea7")),
-            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u8bc1\u636e\u5df2\u4fdd\u7559")),
-            self.metric(U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), "risk {} / opp {}".format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
-            self.metric(U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), "risk {} / opp {}".format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
-            self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), summary["enterprise_sync_status"], summary["enterprise_sync_last_success"]),
-            self.metric(U(r"\u4eca\u65e5\u667a\u80fd"), summary["daily_intelligence_items"], "risk {} / opp {}".format(summary["daily_intelligence_risks"], summary["daily_intelligence_opportunities"])),
+            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "{} / {}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u9ad8\u98ce\u9669 / \u4e25\u91cd\u98ce\u9669")),
+            self.metric(U(r"\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["brand_intelligence_avg_health"]), U(r"\u98ce\u9669 {} / \u673a\u4f1a {}").format(summary["brand_intelligence_risky"], summary["brand_intelligence_opportunity"])),
+            self.metric(U(r"\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["store_intelligence_avg_health"]), U(r"\u98ce\u9669 {} / \u673a\u4f1a {}").format(summary["store_intelligence_risky"], summary["store_intelligence_opportunity"])),
+            self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), self.status_label(summary["enterprise_sync_status"]), summary["enterprise_sync_last_success"]),
+            self.metric(U(r"\u4eca\u65e5\u7b80\u62a5"), summary["daily_intelligence_items"], U(r"\u98ce\u9669 {} / \u673a\u4f1a {}").format(summary["daily_intelligence_risks"], summary["daily_intelligence_opportunities"])),
         ])
         recalculation_forms = """
 <form method="post" action="/api/business-health/recalculate"><button>{}</button></form>
@@ -9217,18 +9219,18 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u91cd\u65b0\u5206\u6790\u95e8\u5e97"),
         )
         ceo_action_cards = "".join([
-            self.card(U(r"AI \u95ee\u4f01\u4e1a"), U(r"\u76f4\u63a5\u95ee\u9500\u552e\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u548c\u51b3\u7b56\u539f\u56e0\uff0c\u6bcf\u4e2a\u56de\u7b54\u90fd\u5e26 evidence\u3002"), "/copilot", "btn dark", True),
+            self.card(U(r"AI \u95ee\u4f01\u4e1a"), U(r"\u76f4\u63a5\u95ee\u9500\u552e\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u548c\u51b3\u7b56\u539f\u56e0\uff0c\u6bcf\u4e2a\u56de\u7b54\u90fd\u5e26\u4f9d\u636e\u3002"), "/copilot", "btn dark", True),
             self.card(U(r"\u51b3\u7b56\u63d0\u9192"), U(r"\u67e5\u770b\u6709\u8bc1\u636e\u7684\u7ecf\u8425\u5efa\u8bae\uff0c\u63a5\u53d7\u540e\u4f1a\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f\u3002"), "/decision", "btn dark", True),
-            self.card("Daily Intelligence", "Today's CEO briefing: risks, opportunities, actions and evidence.", "/daily-intelligence", "btn dark", True),
+            self.card(U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5"), U(r"\u67e5\u770b\u4eca\u65e5\u98ce\u9669\u3001\u673a\u4f1a\u3001\u5efa\u8bae\u884c\u52a8\u548c\u4f9d\u636e\u3002"), "/daily-intelligence", "btn dark", True),
             self.card(U(r"\u4f01\u4e1a\u5065\u5eb7"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u3001\u6570\u636e\u8d28\u91cf\u7edf\u4e00\u8bc4\u5206\u3002"), "/business-health", "btn", True),
             self.card(U(r"\u5e93\u5b58\u667a\u80fd"), U(r"\u6ede\u9500\u3001\u9ad8\u98ce\u9669\u3001\u8865\u8d27\u673a\u4f1a\uff0c\u5168\u90e8\u5e26 SAP \u5bfc\u5165\u8bc1\u636e\u3002"), "/inventory-intelligence", "btn", True),
             self.card(U(r"\u54c1\u724c\u667a\u80fd"), U(r"\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u673a\u4f1a\u6392\u884c\u3002"), "/brand-intelligence", "btn", True),
             self.card(U(r"\u95e8\u5e97\u667a\u80fd"), U(r"\u95e8\u5e97\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u7ecf\u8425\u673a\u4f1a\u3002"), "/store-intelligence", "btn", True),
-            self.card("Enterprise Sync", "Dry-run, staging, reconciliation, manual publish, and data freshness.", "/sync-center", "btn", True),
+            self.card(U(r"\u6570\u636e\u540c\u6b65\u4e2d\u5fc3"), U(r"\u67e5\u770b\u6570\u636e\u65b0\u9c9c\u5ea6\u3001\u5bf9\u8d26\u7ed3\u679c\u4e0e\u4eba\u5de5\u53d1\u5e03\u72b6\u6001\u3002"), "/sync-center", "btn", True),
         ])
         body = """
 <div class="panel hero" data-home-contract="{}" data-legacy-title="FoxBrain CEO Home">
-  <h1>FoxBrain CEO Brain</h1>
+  <h1>FoxBrain 老板经营大脑</h1>
   <p class="lead">{}</p>
   <form method="get" action="/copilot">
     <label>{}</label>
@@ -9717,7 +9719,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         if not path or not os.path.exists(path):
             return self.empty_state(U(r"\u539f\u59cb\u6587\u4ef6\u8def\u5f84\u4e0d\u53ef\u7528\uff0c\u4e0b\u8f7d\u6216\u9884\u89c8\u9700\u8981\u68c0\u67e5\u670d\u52a1\u5668\u6587\u4ef6\u3002"))
         if ext in ("jpg", "jpeg", "png", "gif", "webp"):
-            return "<img src='/api/drive/files/{}/download' alt='preview' style='max-height:520px;border-radius:8px;border:1px solid #ddd7cc'>".format(file_id)
+            return "<img src='/api/drive/files/{}/download' alt='\u6587\u4ef6\u9884\u89c8' style='max-height:520px;border-radius:8px;border:1px solid #ddd7cc'>".format(file_id)
         if ext == "pdf":
             return "<iframe src='/api/drive/files/{}/download' style='width:100%;height:620px;border:1px solid #ddd7cc;border-radius:8px'></iframe>".format(file_id)
         if ext in ("txt", "md", "csv", "tsv", "json", "log"):
@@ -9748,11 +9750,11 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             self.metric(U(r"\u6587\u4ef6\u7c7b\u578b"), item.get("extension") or "-", item.get("mime_type") or ""),
             self.metric(U(r"\u5927\u5c0f"), str(item.get("size_bytes") or 0), "bytes"),
             self.metric(U(r"AI \u72b6\u6001"), self.drive_status_label(item.get("processing_status")), item.get("processing_error") or ""),
-            self.metric(U(r"\u7248\u672c"), "v" + str(item.get("version") or 1), item.get("content_hash") or ""),
+            self.metric(U(r"\u7248\u672c"), U(r"\u7b2c") + str(item.get("version") or 1) + U(r"\u7248"), U(r"\u5386\u53f2\u7248\u672c\u5df2\u4fdd\u7559")),
         ])
-        version_rows = self.bullets(["v{} / {} / {}".format(v["version_number"], v["size_bytes"], dt(v["created_at"])) for v in versions] or [U(r"\u6682\u65e0\u7248\u672c\u8bb0\u5f55\u3002")])
+        version_rows = self.bullets([U(r"\u7b2c{}\u7248 / {}\u5b57\u8282 / {}").format(v["version_number"], v["size_bytes"], dt(v["created_at"])) for v in versions] or [U(r"\u6682\u65e0\u7248\u672c\u8bb0\u5f55\u3002")])
         chunk_cards = self.evidence_cards([
-            {"title": U(r"\u6bb5\u843d ") + str(c["chunk_index"] + 1), "source_type": "drive_file_chunks", "source_id": c["id"], "summary": c["summary"] or c["content"], "date_range": "chunk " + str(c["chunk_index"] + 1), "url": "/drive/files/{}".format(file_id)}
+            {"title": U(r"\u6bb5\u843d ") + str(c["chunk_index"] + 1), "source_type": U(r"\u4f01\u4e1a\u7f51\u76d8\u6587\u4ef6"), "source_id": c["id"], "summary": c["summary"] or c["content"], "date_range": U(r"\u7b2c") + str(c["chunk_index"] + 1) + U(r"\u6bb5"), "url": "/drive/files/{}".format(file_id)}
             for c in chunks
         ], limit=8)
         link_items = self.bullets(["{} #{} / {}".format(l["object_type"], l["object_id"], l["link_type"]) for l in links] or [U(r"\u6682\u65e0\u5df2\u786e\u8ba4\u5173\u8054\u5bf9\u8c61\u3002")])
@@ -9845,7 +9847,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         categories = self.drive_categories()
         category_options = "".join('<option value="{}"{}>{}</option>'.format(esc(c), " selected" if c == category_filter else "", esc(c)) for c in categories)
         type_options = "".join('<option value="{}"{}>{}</option>'.format(esc(ext), " selected" if ext == ext_filter else "", esc(ext)) for ext in sorted(self.drive_supported_extensions()))
-        category_cards = "".join(self.card(c, "FoxBrain Drive category", "/drive?category=" + esc(c), "btn", True) for c in categories)
+        category_cards = "".join(self.card(c, U(r"\u6309\u4f01\u4e1a\u8d44\u6599\u7c7b\u578b\u67e5\u770b"), "/drive?category=" + esc(c), "btn", True) for c in categories)
         ask_folder_q = quote(U(r"\u53ea\u57fa\u4e8e\u5f53\u524d\u7f51\u76d8\u6587\u4ef6\u5939\u7684\u6587\u4ef6\u8bc1\u636e\u56de\u7b54\uff1a\u8fd9\u4e2a\u6587\u4ef6\u5939\u6709\u54ea\u4e9b\u91cd\u8981\u5185\u5bb9\u548c\u98ce\u9669\uff1f"))
         object_options = '<option value="">{}</option>'.format(U(r"\u4e0d\u5173\u8054"))
         object_options += "".join(
@@ -9916,7 +9918,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             file_rows = "<tr><td colspan='8'>{}</td></tr>".format(empty)
             file_cards = empty
         recent_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["category"] for row in recent] or [U(r"\u6682\u65e0\u6700\u8fd1\u6587\u4ef6")]
-        queue_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["processing_status"] for row in queue] or [U(r"\u5f53\u524d\u65e0\u5f85\u5904\u7406\u961f\u5217")]
+        queue_items = [self.document_to_json(row)["original_filename"] + " / " + self.drive_status_label(self.document_to_json(row)["processing_status"]) for row in queue] or [U(r"\u5f53\u524d\u65e0\u5f85\u5904\u7406\u6587\u4ef6")]
         body = """
 <div class="panel">
   <h2>{}</h2>
@@ -9944,15 +9946,15 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
     <select name="category"><option value="">{}</option>{}</select>
     <label>{}</label><input name="tags">
     <label>{}</label><select name="related_object_ref">{}</select>
-    <label>{}</label><input name="related_object_type" placeholder="brand / store / product">
-    <label>{}</label><input name="related_object_id" placeholder="optional id">
+    <label>{}</label><input name="related_object_type" placeholder="\u54c1\u724c\u3001\u95e8\u5e97\u6216\u4ea7\u54c1">
+    <label>{}</label><input name="related_object_id" placeholder="\u9009\u586b\uff1a\u6863\u6848\u7f16\u53f7">
     <p><button>{}</button></p>
   </form>
  </div>
 </div>
 <div class="panel">
   <form method="get" action="/drive">
-    <label>{}</label><input name="q" value="{}" placeholder="PDF / SAP / Kailas / contract">
+    <label>{}</label><input name="q" value="{}" placeholder="PDF / SAP / Kailas / \u5408\u540c">
     <label>{}</label><select name="category"><option value="">{}</option>{}</select>
     <label>{}</label><select name="type"><option value="">{}</option>{}</select>
     <p><button>{}</button></p>
@@ -9965,7 +9967,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
 <div class="panel"><h2>{}</h2>{file_area}</div>""".format(
             U(r"\u4f01\u4e1a AI \u7f51\u76d8"),
-            U(r"\u50cf\u7f51\u76d8\u4e00\u6837\u7ba1\u7406\u6587\u4ef6\uff0c\u540c\u65f6\u8ba9 AI \u80fd\u591f\u641c\u7d22\u3001\u6458\u8981\u3001\u5f15\u7528 evidence\u3002"),
+            U(r"\u50cf\u7f51\u76d8\u4e00\u6837\u7ba1\u7406\u6587\u4ef6\uff0c\u540c\u65f6\u8ba9 AI \u80fd\u591f\u641c\u7d22\u3001\u6458\u8981\u548c\u5f15\u7528\u4f9d\u636e\u3002"),
             U(r"\u5168\u90e8"),
             U(r"\u6700\u8fd1"),
             U(r"\u661f\u6807"),
@@ -9989,8 +9991,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u5173\u8054\u5230\u5bf9\u8c61"),
             object_options,
             U(r"\u5173\u8054\u5bf9\u8c61\u7c7b\u578b"),
-            U(r"\u5173\u8054\u5bf9\u8c61 ID"),
-            U(r"\u4e0a\u4f20\u5230 Drive"),
+            U(r"\u5173\u8054\u5bf9\u8c61\u7f16\u53f7"),
+            U(r"\u4e0a\u4f20\u5230\u4f01\u4e1a\u7f51\u76d8"),
             U(r"\u641c\u7d22"),
             esc(q),
             U(r"\u5206\u7c7b"),
@@ -10013,7 +10015,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             folder_options=folder_options,
             file_area=("<div class='grid'>" + file_cards + "</div>") if view == "grid" else "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table>".format(U(r"\u6587\u4ef6"), U(r"\u5206\u7c7b"), U(r"\u7c7b\u578b"), U(r"\u5927\u5c0f"), U(r"\u72b6\u6001"), U(r"AI \u6458\u8981"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u64cd\u4f5c"), file_rows),
         )
-        self.out(layout("FoxBrain Drive 2.0", body, user=user, wide=True))
+        self.out(layout(U(r"\u4f01\u4e1a\u7f51\u76d8"), body, user=user, wide=True))
 
     def object_engine_page(self, user):
         user = self.require_login(user)
@@ -10175,11 +10177,11 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         doc_rows = ""
         for doc in docs:
             item = self.document_to_json(doc)
-            doc_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/api/drive/files/{}'>API</a> <form method='post' action='/api/objects/{}/documents/{}/unlink' style='display:inline'><button>{}</button></form></td></tr>".format(
+            doc_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/drive/files/{}'>{}</a> <form method='post' action='/api/objects/{}/documents/{}/unlink' style='display:inline'><button>{}</button></form></td></tr>".format(
                 esc(item["original_filename"]),
                 esc(item["category"]),
                 esc(dt(item["created_at"])),
-                item["id"],
+                item["id"], U(r"\u6253\u5f00\u6587\u4ef6"),
                 obj["id"],
                 item["id"],
                 U(r"\u53d6\u6d88\u5173\u8054"),
@@ -13034,6 +13036,74 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": True, "result": answer_data})
         return self.json_out({"ok": False, "message": "unknown knowledge api"}, code=404)
 
+    def status_label(self, value):
+        key = str(value or "").strip().lower()
+        labels = {
+            "pending": U(r"\u5f85\u5904\u7406"), "pending_review": U(r"\u5f85\u5ba1\u6838"),
+            "processing": U(r"\u6b63\u5728\u5904\u7406"), "reading": U(r"\u6b63\u5728\u8bfb\u53d6"),
+            "summarizing": U(r"\u6b63\u5728\u751f\u6210\u6458\u8981"), "completed": U(r"\u5df2\u5b8c\u6210"),
+            "success": U(r"\u5df2\u5b8c\u6210"), "ready": U(r"\u5df2\u5c31\u7eea"), "failed": U(r"\u5904\u7406\u5931\u8d25"),
+            "error": U(r"\u5904\u7406\u5931\u8d25"), "manual_review": U(r"\u9700\u8981\u4eba\u5de5\u786e\u8ba4"),
+            "approved": U(r"\u5df2\u901a\u8fc7"), "rejected": U(r"\u5df2\u62d2\u7edd"), "draft": U(r"\u8349\u7a3f"),
+            "active": U(r"\u4f7f\u7528\u4e2d"), "inactive": U(r"\u5df2\u505c\u7528"), "archived": U(r"\u5df2\u5f52\u6863"),
+            "healthy": U(r"\u5065\u5eb7"), "normal": U(r"\u6b63\u5e38"), "watch": U(r"\u9700\u5173\u6ce8"),
+            "warning": U(r"\u9884\u8b66"), "risk": U(r"\u6709\u98ce\u9669"), "critical": U(r"\u4e25\u91cd\u98ce\u9669"),
+            "high": U(r"\u9ad8\u98ce\u9669"), "medium": U(r"\u4e2d\u7b49"), "low": U(r"\u8f83\u4f4e"),
+            "opportunity": U(r"\u6709\u673a\u4f1a"), "missing": U(r"\u7f3a\u5c11\u6570\u636e"), "unknown": U(r"\u5f85\u786e\u8ba4"),
+            "no_published_sync": U(r"\u6682\u65e0\u5df2\u53d1\u5e03\u7684\u540c\u6b65\u6570\u636e"), "never_run": U(r"\u5c1a\u672a\u8fd0\u884c"),
+            "slow_stock": U(r"\u6ede\u9500"), "dead_stock": U(r"\u957f\u671f\u6ede\u9500"),
+        }
+        return labels.get(key, value or U(r"\u5f85\u786e\u8ba4"))
+
+    def updated_at_text(self, value):
+        if not value:
+            return U(r"\u66f4\u65b0\u65f6\u95f4\u5f85\u786e\u8ba4")
+        try:
+            return U(r"\u6570\u636e\u66f4\u65b0\uff1a") + time.strftime("%Y-%m-%d %H:%M", time.localtime(int(value)))
+        except (TypeError, ValueError, OSError):
+            return U(r"\u6570\u636e\u66f4\u65b0\uff1a") + str(value)
+
+    def friendly_business_text(self, value, fallback=None):
+        text = str(value or "").strip()
+        if not text:
+            return fallback or U(r"\u6682\u65e0\u8be6\u7ec6\u8bf4\u660e\u3002")
+        replacements = {
+            "No daily intelligence report yet; run rebuild.": U(r"\u5c1a\u672a\u751f\u6210\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5\uff0c\u8bf7\u70b9\u51fb\u91cd\u65b0\u751f\u6210\u3002"),
+            "No daily report yet.": U(r"\u5c1a\u672a\u751f\u6210\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5\u3002"),
+            "Run Daily Intelligence rebuild to generate the first CEO briefing.": U(r"\u8bf7\u91cd\u65b0\u751f\u6210\u7b2c\u4e00\u4efd\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5\u3002"),
+            "Open Sync Center": U(r"\u6253\u5f00\u6570\u636e\u540c\u6b65\u4e2d\u5fc3"),
+        }
+        if text in replacements:
+            return replacements[text]
+        if re.search(r"[\u4e00-\u9fff]", text):
+            return text.replace("evidence", U(r"\u4f9d\u636e"))
+        return fallback or U(r"\u8be5\u5386\u53f2\u5185\u5bb9\u4e3a\u65e7\u7248\u8bb0\u5f55\uff0c\u8bf7\u91cd\u65b0\u751f\u6210\u4e2d\u6587\u5206\u6790\u3002")
+
+    def guided_empty_state(self, reason, missing, action_url="/sync-center", action_label=None, question=None):
+        action_label = action_label or U(r"\u67e5\u770b\u6570\u636e\u51c6\u5907\u60c5\u51b5")
+        question = question or U(r"\u5f53\u524d\u9875\u9762\u8fd8\u7f3a\u5c11\u54ea\u4e9b\u6570\u636e\uff0c\u4e0b\u4e00\u6b65\u600e\u4e48\u505a\uff1f")
+        return (
+            "<div class='empty-state'><strong>{}</strong><p>{}</p><p class='small'><b>{}</b>{}</p>"
+            "<div class='inline'><a class='btn' href='{}'>{}</a><a class='btn gray' href='/copilot?q={}'>{}</a></div></div>"
+        ).format(
+            U(r"\u6682\u65e0\u53ef\u9760\u6570\u636e"), esc(reason), U(r"\u9700\u8981\u8865\u9f50\uff1a"), esc(missing),
+            esc(action_url), esc(action_label), quote(question), U(r"\u8be2\u95eeAI\u52a9\u624b"),
+        )
+
+    def friendly_error_page(self, user, code=404, message=""):
+        if code == 403:
+            title = U(r"\u6682\u65e0\u8bbf\u95ee\u6743\u9650")
+            reason = U(r"\u5f53\u524d\u8d26\u53f7\u6ca1\u6709\u67e5\u770b\u8be5\u5185\u5bb9\u7684\u6743\u9650\uff0c\u4e0d\u4f1a\u5f71\u54cd\u4f01\u4e1a\u6570\u636e\u3002")
+        elif code >= 500:
+            title = U(r"\u9875\u9762\u6682\u65f6\u65e0\u6cd5\u6253\u5f00")
+            reason = U(r"\u7cfb\u7edf\u9047\u5230\u4e34\u65f6\u95ee\u9898\uff0c\u5df2\u4fdd\u7559\u6570\u636e\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002")
+        else:
+            title = U(r"\u6ca1\u6709\u627e\u5230\u8fd9\u4e2a\u9875\u9762")
+            reason = U(r"\u5165\u53e3\u53ef\u80fd\u5df2\u5408\u5e76\u6216\u79fb\u52a8\uff0c\u4f01\u4e1a\u6570\u636e\u4e0d\u53d7\u5f71\u54cd\u3002")
+        body = "<div class='panel'><h2>{}</h2><p>{}</p><div class='inline'><a class='btn' href='/'>{}</a><a class='btn gray' href='/copilot?q={}'>{}</a></div></div>".format(
+            esc(title), esc(reason), U(r"\u8fd4\u56de\u9996\u9875"), quote(message or title), U(r"\u8be2\u95eeAI\u52a9\u624b"))
+        return self.out(layout(title, body, user=user), code=code)
+
     def empty_state(self, text):
         return (
             "<div class='empty-state'><strong>{}</strong><p class='small'>{}</p>"
@@ -13383,11 +13453,11 @@ where ki.deleted_at is null"""
         }]
         focus_html = "<div class='focus-list'>" + "".join(
             "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
-                esc(item.get("priority") or ""),
-                esc(item.get("title") or ""),
-                esc(item.get("reason") or ""),
+                esc(self.status_label(item.get("priority"))),
+                esc(self.friendly_business_text(item.get("title"), U(r"\u7ecf\u8425\u5173\u6ce8\u4e8b\u9879"))),
+                esc(self.friendly_business_text(item.get("reason"), U(r"\u8bf7\u6253\u5f00\u8be6\u60c5\u67e5\u770b\u539f\u56e0\u548c\u4f9d\u636e\u3002"))),
                 esc(item.get("url") or "/daily-intelligence"),
-                esc(item.get("action") or U(r"\u5904\u7406")),
+                esc(self.friendly_business_text(item.get("action"), U(r"\u6253\u5f00\u8be6\u60c5"))),
             )
             for item in top_focus
         ) + "</div>"
@@ -13397,8 +13467,8 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u6bdb\u5229"), money(summary["gross_profit"]), U(r"\u5229\u6da6\u5206\u6790\u8868\u53e3\u5f84")),
             self.metric(U(r"\u8d39\u7528"), money(summary.get("fee_amount", 0)), U(r"\u95e8\u5e97\u8d39\u7528")),
             self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
-            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u8bc1\u636e\u5df2\u4fdd\u7559")),
-            self.metric(U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4"), summary["enterprise_sync_status"], data_time),
+            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "{} / {}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u9ad8\u98ce\u9669 / \u4e25\u91cd\u98ce\u9669")),
+            self.metric(U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4"), self.status_label(summary["enterprise_sync_status"]), data_time),
         ])
         profit_html = "".join([
             self.metric(U(r"SAP\u5229\u6da6"), money(profit["sap_profit"]), U(r"\u5df2\u542b\u8fd4\u70b9")),
@@ -13417,30 +13487,30 @@ where ki.deleted_at is null"""
         question_chips = "".join("<a class='pill' href='/copilot?q={}'>{}</a>".format(quote(q), esc(q)) for q in questions)
         daily_items = (payload.get("daily_intelligence") or {}).get("items") or []
         daily_html = self.bullets([
-            "{} / {} / evidence {}".format(esc(i.get("title") or ""), esc(i.get("severity") or ""), len(i.get("evidence_json") or []))
+            "{} / {} / {} {}".format(esc(i.get("title") or ""), esc(self.status_label(i.get("severity"))), U(r"\u4f9d\u636e"), len(i.get("evidence_json") or []))
             for i in daily_items[:5]
         ] or [U(r"\u6682\u65e0\u65e5\u62a5\u6761\u76ee\u3002\u53ef\u4ee5\u6253\u5f00\u65e5\u62a5\u91cd\u65b0\u751f\u6210\u3002")])
         decision_html = self.bullets([
-            "{} / {} / evidence {}".format(esc(r.get("title") or ""), esc(r.get("severity") or ""), len(r.get("evidence") or []))
+            "{} / {} / {} {}".format(esc(r.get("title") or ""), esc(self.status_label(r.get("severity"))), U(r"\u4f9d\u636e"), len(r.get("evidence") or []))
             for r in payload["decision_metrics"].get("top_risks", [])[:5]
         ] or [U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002")])
         if compact_home:
             light_metrics = "".join([
-                "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
+                "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(self.status_label(summary["business_health_status"]))),
                 self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
                 self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
-                self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), summary["enterprise_sync_status"], data_time),
+                self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), self.status_label(summary["enterprise_sync_status"]), data_time),
             ])
             primary_links = "".join([
-                '<a class="btn" href="/ceo-workbench">{}</a>'.format(U(r"\u6253\u5f00 CEO \u5de5\u4f5c\u53f0")),
+                '<a class="btn" href="/ceo-workbench">{}</a>'.format(U(r"\u6253\u5f00\u8001\u677f\u5de5\u4f5c\u53f0")),
                 '<a class="btn gray" href="/copilot">{}</a>'.format(U(r"AI \u95ee\u4f01\u4e1a")),
                 '<a class="btn gray" href="/daily-intelligence">{}</a>'.format(U(r"\u4eca\u65e5\u65e5\u62a5")),
                 '<a class="btn gray" href="/action-center">{}</a>'.format(U(r"\u884c\u52a8\u4e2d\u5fc3")),
             ])
             body = """
 <div class="ceo-hero compact">
-  <span class="status-tag">CEO Experience 2.0</span>
-  <h1>FoxBrain CEO Brain</h1>
+  <span class="status-tag">\u8001\u677f\u7ecf\u8425\u5de5\u4f5c\u53f0</span>
+  <h1>FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
   <p class="lead">{lead}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
@@ -13469,7 +13539,7 @@ where ki.deleted_at is null"""
                 primary_links=primary_links,
                 questions=question_chips,
             )
-            return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
+            return self.out(layout(U(r"FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
         if compact_home:
             light_metrics = "".join([
                 "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
@@ -13485,8 +13555,8 @@ where ki.deleted_at is null"""
             ])
             body = """
 <div class="ceo-hero compact">
-  <span class="status-tag">CEO Experience 2.0</span>
-  <h1>FoxBrain CEO Brain</h1>
+  <span class="status-tag">\u8001\u677f\u7ecf\u8425\u5de5\u4f5c\u53f0</span>
+  <h1>FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
   <p class="lead">{lead}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
@@ -13515,11 +13585,11 @@ where ki.deleted_at is null"""
                 primary_links=primary_links,
                 questions=question_chips,
             )
-            return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
+            return self.out(layout(U(r"FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
         body = """
 <div class="ceo-hero">
-  <span class="status-tag">CEO Experience 2.0</span>
-  <h1>FoxBrain CEO Brain</h1>
+  <span class="status-tag">\u8001\u677f\u7ecf\u8425\u5de5\u4f5c\u53f0</span>
+  <h1>FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
   <p class="lead">{lead}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
@@ -13531,7 +13601,7 @@ where ki.deleted_at is null"""
   <div class="panel"><h2>{focus_title}</h2>{focus}</div>
   <div class="panel"><h2>{actions_title}</h2>{actions}</div>
 </div>
-<div class="panel"><h2>{profit_title}</h2><div class="metrics">{profit_cards}</div><div class="danger-note">{profit_warning}</div><p class="small">Osprey {osprey} / Kailas {kailas} / evidence {evidence}</p></div>
+<div class="panel"><h2>{profit_title}</h2><div class="metrics">{profit_cards}</div><div class="danger-note">{profit_warning}</div><p class="small">Osprey {osprey} / Kailas {kailas} / \u4f9d\u636e {evidence}</p></div>
 <div class="panel"><h2>{questions_title}</h2><div class="chipbar">{questions}</div></div>
 <div class="split">
   <div class="panel"><h2>{daily_title}</h2>{daily}<p><a class="btn" href="/daily-intelligence">{open_daily}</a></p></div>
@@ -13574,7 +13644,7 @@ where ki.deleted_at is null"""
             nav_title=U(r"\u4e8c\u7ea7\u5165\u53e3"),
             nav_groups=self.ceo_navigation_groups_html(),
         )
-        return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
+        return self.out(layout(U(r"FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
 
     def role_can_manage(self, user):
         return bool(user and user["role"] in ("boss", "admin", "finance", "purchasing", "store_manager"))
@@ -14355,7 +14425,7 @@ where ki.deleted_at is null"""
             events = [row_dict(r) for r in conn.execute("select * from timeline_events order by coalesce(occurred_at, created_at) desc limit 120").fetchall()]
             logs = []
         items = ["{} / {} #{} / {} / {}".format(dt(e.get("occurred_at") or e.get("created_at")), e.get("entity_type") or e.get("target_type"), e.get("entity_id") or e.get("target_id"), e.get("event_type") or "", e.get("description") or e.get("body") or e.get("title")) for e in events] or [U(r"\u6682\u65e0\u5168\u5c40\u65f6\u95f4\u7ebf\u3002")]
-        body = "<div class='panel'><h2>Enterprise Timeline</h2><p><a class='btn dark' href='/api/timeline'>API</a></p>{}</div>".format(self.bullets(items))
+        body = "<div class='panel'><h2>{}</h2><p>{}</p>{}</div>".format(U(r"\u4f01\u4e1a\u7ecf\u8425\u65f6\u95f4\u7ebf"), U(r"\u6309\u65f6\u95f4\u67e5\u770b\u4f01\u4e1a\u6570\u636e\u3001\u51b3\u7b56\u3001\u4efb\u52a1\u548c\u8bb0\u5fc6\u7684\u53d8\u5316\u3002"), self.bullets(items))
         self.out(layout(U(r"\u5168\u5c40\u65f6\u95f4\u7ebf"), body, user=user, wide=True))
 
     def risk_save(self):
@@ -17997,32 +18067,32 @@ where ki.deleted_at is null"""
             history = [row_dict(r) for r in conn.execute("select id,report_date,summary,status,created_at from daily_intelligence_reports order by report_date desc, created_at desc limit 20").fetchall()]
             schedule = conn.execute("select * from daily_intelligence_schedules where schedule_key='daily_intelligence_0730'").fetchone()
         if not latest:
-            metrics = self.metric("Daily Intelligence", "No report", "run rebuild")
-            risk_cards = self.empty_state("No daily intelligence report yet.")
+            metrics = self.metric(U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5"), U(r"\u5f85\u751f\u6210"), U(r"\u70b9\u51fb\u91cd\u65b0\u751f\u6210"))
+            risk_cards = self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5\u3002"), U(r"\u9500\u552e\u3001\u5e93\u5b58\u3001\u4f01\u4e1a\u5065\u5eb7\u548c\u51b3\u7b56\u6570\u636e"), "/daily-intelligence", U(r"\u91cd\u65b0\u751f\u6210"))
             opportunity_cards = ""
-            action_items = self.bullets(["Run Daily Intelligence rebuild to generate the first CEO briefing."])
-            summary = "No daily report yet."
+            action_items = self.bullets([U(r"\u70b9\u51fb\u201c\u91cd\u65b0\u751f\u6210\u201d\uff0c\u6839\u636e\u5f53\u524d\u4f01\u4e1a\u6570\u636e\u751f\u6210\u7b2c\u4e00\u4efd\u7ecf\u8425\u7b80\u62a5\u3002")])
+            summary = U(r"\u5f53\u524d\u8fd8\u6ca1\u6709\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5\u3002\u9700\u8981\u5148\u51c6\u5907\u9500\u552e\u3001\u5e93\u5b58\u3001\u4f01\u4e1a\u5065\u5eb7\u548c\u51b3\u7b56\u6570\u636e\u3002")
         else:
             risks = [i for i in latest["items"] if i.get("item_type") == "risk"][:6]
             opportunities = [i for i in latest["items"] if i.get("item_type") == "opportunity"][:6]
             actions = [i for i in latest["items"] if i.get("recommended_action")][:8]
             metrics = "".join([
-                self.metric("Report Date", latest["report_date"], latest["status"]),
-                self.metric("Risks", len(risks), "top risk items"),
-                self.metric("Opportunities", len(opportunities), "top opportunity items"),
-                self.metric("Evidence", sum(len(i.get("evidence_json") or []) for i in latest["items"]), "traceable"),
+                self.metric(U(r"\u62a5\u544a\u65e5\u671f"), latest["report_date"], self.status_label(latest["status"])),
+                self.metric(U(r"\u98ce\u9669"), len(risks), U(r"\u4f18\u5148\u5173\u6ce8")),
+                self.metric(U(r"\u673a\u4f1a"), len(opportunities), U(r"\u53ef\u8003\u8651\u63a8\u8fdb")),
+                self.metric(U(r"\u4f9d\u636e"), sum(len(i.get("evidence_json") or []) for i in latest["items"]), U(r"\u53ef\u8ffd\u6eaf")),
             ])
-            risk_cards = "".join("<div class='card'><h2>{}</h2><p>{}</p><p class='small'>{} / evidence {}</p><form method='post' action='/api/daily-intelligence/items/{}/memory-draft'><button>Create Memory Draft</button></form></div>".format(esc(i["title"]), esc(i.get("description") or ""), esc(i.get("severity") or ""), len(i.get("evidence_json") or []), i["id"]) for i in risks) or self.empty_state("No risk items.")
-            opportunity_cards = "".join("<div class='card'><h2>{}</h2><p>{}</p><p class='small'>evidence {}</p><form method='post' action='/api/daily-intelligence/items/{}/memory-draft'><button>Create Memory Draft</button></form></div>".format(esc(i["title"]), esc(i.get("description") or ""), len(i.get("evidence_json") or []), i["id"]) for i in opportunities) or self.empty_state("No opportunity items.")
-            action_items = self.bullets([i.get("recommended_action") or i.get("title") for i in actions] or ["No recommended actions."])
-            summary = latest["summary"]
-        history_items = self.bullets(["{} / {} / {}".format(h["report_date"], h["status"], h["summary"][:120]) for h in history] or ["No historical reports."])
+            risk_cards = "".join("<div class='card'><h2>{}</h2><p>{}</p><p class='small'>{} / {} {}</p><form method='post' action='/api/daily-intelligence/items/{}/memory-draft'><button>{}</button></form></div>".format(esc(self.friendly_business_text(i["title"], U(r"\u7ecf\u8425\u98ce\u9669\u63d0\u9192"))), esc(self.friendly_business_text(i.get("description"), U(r"\u8be6\u7ec6\u539f\u56e0\u5f85\u8865\u5145\u3002"))), esc(self.status_label(i.get("severity"))), U(r"\u4f9d\u636e"), len(i.get("evidence_json") or []), i["id"], U(r"\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f")) for i in risks) or self.guided_empty_state(U(r"\u672c\u671f\u6682\u65e0\u660e\u786e\u98ce\u9669\u9879\u3002"), U(r"\u6301\u7eed\u7684\u9500\u552e\u3001\u5e93\u5b58\u548c\u51b3\u7b56\u6570\u636e"), "/copilot?q=" + quote(U(r"\u4eca\u5929\u4f01\u4e1a\u6709\u4ec0\u4e48\u4e3b\u8981\u98ce\u9669\uff1f")), U(r"\u8bf7AI\u52a9\u624b\u68c0\u67e5"))
+            opportunity_cards = "".join("<div class='card'><h2>{}</h2><p>{}</p><p class='small'>{} {}</p><form method='post' action='/api/daily-intelligence/items/{}/memory-draft'><button>{}</button></form></div>".format(esc(self.friendly_business_text(i["title"], U(r"\u7ecf\u8425\u673a\u4f1a\u63d0\u9192"))), esc(self.friendly_business_text(i.get("description"), U(r"\u8be6\u7ec6\u8bf4\u660e\u5f85\u8865\u5145\u3002"))), U(r"\u4f9d\u636e"), len(i.get("evidence_json") or []), i["id"], U(r"\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f")) for i in opportunities) or self.guided_empty_state(U(r"\u672c\u671f\u6682\u65e0\u8bc1\u636e\u5145\u8db3\u7684\u673a\u4f1a\u9879\u3002"), U(r"\u8fde\u7eed\u7684\u7ecf\u8425\u53d8\u5316\u6570\u636e"), "/copilot?q=" + quote(U(r"\u5f53\u524d\u6709\u54ea\u4e9b\u503c\u5f97\u5173\u6ce8\u7684\u7ecf\u8425\u673a\u4f1a\uff1f")), U(r"\u8be2\u95eeAI\u52a9\u624b"))
+            action_items = self.bullets([self.friendly_business_text(i.get("recommended_action") or i.get("title"), U(r"\u8be5\u5efa\u8bae\u9700\u8981\u91cd\u65b0\u751f\u6210\u4e2d\u6587\u8bf4\u660e\u3002")) for i in actions] or [U(r"\u6682\u65e0\u5efa\u8bae\u884c\u52a8\uff0c\u8bf7\u5148\u8865\u9f50\u76f8\u5173\u7ecf\u8425\u6570\u636e\u3002")])
+            summary = self.friendly_business_text(latest["summary"])
+        history_items = self.bullets(["{} / {} / {}".format(h["report_date"], self.status_label(h["status"]), self.friendly_business_text(h["summary"])[:120]) for h in history] or [U(r"\u6682\u65e0\u5386\u53f2\u7b80\u62a5\uff0c\u6bcf\u6b21\u751f\u6210\u540e\u4f1a\u81ea\u52a8\u4fdd\u7559\u3002")])
         body = """
-<div class="panel"><h2>Daily Intelligence Engine</h2><p class="small">CEO-ready daily briefing generated from Sync freshness, Business Health, Decision, Inventory, Brand and Store Intelligence. Scheduler is disabled until approved.</p><form method="post" action="/api/daily-intelligence/rebuild" style="display:inline"><button>Rebuild Daily Intelligence</button></form> <a class="btn dark" href="/api/daily-intelligence/latest">Latest API</a><div class="metrics">{}</div><p>{}</p><p class="small">Schedule: {} / enabled: {}</p></div>
-<div class="split"><div class="panel"><h2>Top Risks</h2><div class="grid">{}</div></div><div class="panel"><h2>Top Opportunities</h2><div class="grid">{}</div></div></div>
-<div class="split"><div class="panel"><h2>Recommended Actions</h2>{}</div><div class="panel"><h2>History</h2>{}</div></div>
-""".format(metrics, esc(summary), esc(schedule["schedule_time"] if schedule else "07:30"), "yes" if schedule and schedule["enabled"] else "no", risk_cards, opportunity_cards, action_items, history_items)
-        self.out(layout("Daily Intelligence", body, user=user, wide=True))
+<div class="panel"><h2>每日经营简报</h2><p class="small">综合数据新鲜度、企业健康、经营决策、库存、品牌和门店表现生成。自动生成仍保持关闭，启用前必须人工批准。</p><form method="post" action="/api/daily-intelligence/rebuild" style="display:inline"><button>重新生成</button></form><div class="metrics">{}</div><p>{}</p><p class="small">计划时间：{} / 自动生成：{}</p></div>
+<div class="split"><div class="panel"><h2>主要风险</h2><div class="grid">{}</div></div><div class="panel"><h2>主要机会</h2><div class="grid">{}</div></div></div>
+<div class="split"><div class="panel"><h2>建议行动</h2>{}</div><div class="panel"><h2>历史简报</h2>{}</div></div>
+""".format(metrics, esc(summary), esc(schedule["schedule_time"] if schedule else "07:30"), U(r"\u5df2\u5f00\u542f") if schedule and schedule["enabled"] else U(r"\u5df2\u5173\u95ed"), risk_cards, opportunity_cards, action_items, history_items)
+        self.out(layout(U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5"), body, user=user, wide=True))
 
     def api_daily_intelligence_get(self, user, path):
         if not user:
@@ -18568,19 +18638,20 @@ where ki.deleted_at is null"""
   <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><button class="gray" name="feedback_type" value="not_useful">{}</button></form>
   <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><input name="comment" placeholder="{}"><button class="orange" name="feedback_type" value="missing_evidence">{}</button></form>
 </div>""".format(item["id"], esc(test_run_id), U(r"\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u6ca1\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u8865\u5145\u7f3a\u5931\u8bc1\u636e\u8bf4\u660e"), U(r"\u7f3a evidence"))
-                evidence_html = "<p class='small'><span class='confidence'>{}: {}</span> <span class='confidence'>{}: {}</span></p>".format(U(r"\u53ef\u9760"), "yes" if quality.get("reliable") else "no", U(r"\u4fe1\u5fc3"), esc(quality.get("confidence") or "")) + evidence_html
+                evidence_html = "<p class='small'><span class='confidence'>{}: {}</span> <span class='confidence'>{}: {}</span></p>".format(U(r"\u7ed3\u8bba\u53ef\u9760\u6027"), U(r"\u53ef\u9760") if quality.get("reliable") else U(r"\u9700\u590d\u6838"), U(r"\u4f9d\u636e\u5145\u8db3\u7a0b\u5ea6"), esc(quality.get("confidence") or U(r"\u5f85\u786e\u8ba4"))) + evidence_html
                 evidence_html += feedback
                 evidence_html += "<form method='post' action='/api/copilot/messages/{}/memory-draft' onsubmit=\"return confirm('{}')\"><button>{}</button></form>".format(item["id"], U(r"\u786e\u8ba4\u4ec5\u751f\u6210\u8349\u7a3f\uff0c\u4e0d\u4f1a\u81ea\u52a8\u6210\u4e3a\u6b63\u5f0f\u8bb0\u5fc6\uff1f"), U(r"\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f"))
-            message_html += "<div class='chat-message {}'><strong>{}</strong><p>{}</p>{}</div>".format(esc(item["role"]), esc(item["role"]), esc(item["content"]).replace("\n", "<br>"), evidence_html)
+            role_label = U(r"AI\u52a9\u624b") if item["role"] == "assistant" else U(r"\u6211")
+            message_html += "<div class='chat-message {}'><strong>{}</strong><p>{}</p>{}</div>".format(esc(item["role"]), esc(role_label), esc(item["content"]).replace("\n", "<br>"), evidence_html)
         if not message_html:
-            message_html = "<div class='chat-message assistant'><strong>Enterprise Copilot</strong><p>{}</p></div>".format(U(r"\u6211\u53ea\u57fa\u4e8e FoxBrain Enterprise OS \u5df2\u6709\u6570\u636e\u56de\u7b54\uff1aData Lake\u3001Object\u3001Knowledge Graph\u3001Business Rule\u3001Decision\u3001Memory\u3001Daily Intelligence\u3002\u6bcf\u4e2a\u7ed3\u8bba\u90fd\u4f1a\u5c55\u793a evidence\u3002"))
-        links = "".join("<a class='pill' href='/copilot?session_id={}'>{}</a>".format(s["id"], esc(s["question"])) for s in sessions) or self.empty_state(U(r"\u6682\u65e0 Copilot \u5386\u53f2\u3002"))
+            message_html = "<div class='chat-message assistant'><strong>{}</strong><p>{}</p></div>".format(U(r"AI\u52a9\u624b"), U(r"\u6211\u4f1a\u7ed3\u5408\u4f01\u4e1a\u6570\u636e\u3001\u6863\u6848\u3001\u5173\u7cfb\u3001\u7ecf\u8425\u89c4\u5219\u3001\u51b3\u7b56\u8bb0\u5f55\u3001\u4f01\u4e1a\u8bb0\u5fc6\u548c\u6bcf\u65e5\u7b80\u62a5\u56de\u7b54\u3002\u6bcf\u4e2a\u53ef\u9760\u7ed3\u8bba\u90fd\u4f1a\u5c55\u793a\u4f9d\u636e\uff1b\u6570\u636e\u4e0d\u8db3\u65f6\u4f1a\u660e\u786e\u8bf4\u660e\u3002"))
+        links = "".join("<a class='pill' href='/copilot?session_id={}'>{}</a>".format(s["id"], esc(s["question"])) for s in sessions) or self.guided_empty_state(U(r"\u8fd8\u6ca1\u6709AI\u52a9\u624b\u5bf9\u8bdd\u8bb0\u5f55\u3002"), U(r"\u4e00\u4e2a\u60f3\u4e86\u89e3\u7684\u7ecf\u8425\u95ee\u9898"), "/copilot", U(r"\u5f00\u59cb\u7b2c\u4e00\u6b21\u63d0\u95ee"))
         body = """
 <div class="chat-shell">
   <div>
     <div class="panel">
-      <h2>Enterprise Copilot</h2>
-      <p class="small">只基于企业数据和 evidence 回答；证据不足时会明确说明不能下结论。</p>
+      <h2>AI助手</h2>
+      <p class="small">只基于企业数据和依据回答；依据不足时会明确说明不能下结论。</p>
       <div class="chipbar">{}</div>
     </div>
     <div class="panel">{}</div>
@@ -18594,8 +18665,8 @@ where ki.deleted_at is null"""
   </div>
   <div>
     <div class="panel"><h2>{}</h2>{}<p><a class="btn gray" href="/copilot">{}</a></p></div>
-    <div class="panel"><h2>Context Engine</h2>{}</div>
-    <div class="panel"><h2>API</h2>{}</div>
+    <div class="panel"><h2>回答依据范围</h2>{}</div>
+    <div class="panel"><h2>回答原则</h2>{}</div>
   </div>
 </div>
 """.format(
@@ -18608,10 +18679,10 @@ where ki.deleted_at is null"""
             U(r"\u5386\u53f2\u95ee\u9898"),
             links,
             U(r"\u65b0\u5bf9\u8bdd"),
-            self.bullets(["Data Lake", "Object Engine", "Knowledge Graph", "Business Rule", "Decision Engine", "Memory Engine", "Daily Intelligence"]),
-            self.bullets(["POST /api/copilot/ask", "GET /api/copilot/sessions", "GET /api/copilot/sessions/:id", "POST /api/copilot/feedback", "POST /api/copilot/messages/:id/memory-draft"]),
+            self.bullets([U(r"\u4f01\u4e1a\u6570\u636e"), U(r"\u4f01\u4e1a\u6863\u6848"), U(r"\u4f01\u4e1a\u5173\u7cfb"), U(r"\u7ecf\u8425\u89c4\u5219"), U(r"\u51b3\u7b56\u8bb0\u5f55"), U(r"\u4f01\u4e1a\u8bb0\u5fc6"), U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5")]),
+            self.bullets([U(r"\u7ed3\u8bba\u5fc5\u987b\u6709\u4f9d\u636e"), U(r"\u6570\u636e\u4e0d\u8db3\u65f6\u4e0d\u4f1a\u731c\u6d4b"), U(r"\u91cd\u8981\u884c\u52a8\u5fc5\u987b\u7531\u4eba\u5de5\u5ba1\u6279"), U(r"\u53ef\u5c06\u6709\u4ef7\u503c\u7684\u7ed3\u8bba\u4fdd\u5b58\u4e3a\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f")]),
         )
-        self.out(layout("Enterprise Copilot", body, user=user, wide=True))
+        self.out(layout(U(r"AI\u52a9\u624b"), body, user=user, wide=True))
 
     def copilot_ask_post(self):
         user = self.current_user()
@@ -18986,62 +19057,62 @@ limit 6
             insight = context["insight"]
             evidence_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{:.0%}</td></tr>".format(esc(e.get("source_type")), esc(e.get("source_id")), esc(e.get("evidence_summary")), float(e.get("confidence") or 0)) for e in insight.get("evidence_rows", []))
             action_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(a.get("action_title")), esc(a.get("action_type")), esc(a.get("status")), esc(a.get("owner"))) for a in insight.get("actions", []))
-            graph_items = ["{} #{} / {}".format(n.get("node_type"), n.get("id"), n.get("name") or n.get("label")) for n in context.get("knowledge_graph_nodes", [])] or ["No graph node yet."]
-            memory_items = [m.get("title", "") + " / " + m.get("status", "") for m in context.get("related_memories", [])] or ["Memory will be prepared after accepted/resolved status."]
+            graph_items = ["{} / {}".format(self.object_type_label(n.get("node_type")), n.get("name") or n.get("label")) for n in context.get("knowledge_graph_nodes", [])] or [U(r"\u6682\u65e0\u76f8\u5173\u4f01\u4e1a\u5173\u7cfb\u3002")]
+            memory_items = [m.get("title", "") + " / " + self.status_label(m.get("status")) for m in context.get("related_memories", [])] or [U(r"\u51b3\u7b56\u63a5\u53d7\u6216\u5b8c\u6210\u540e\uff0c\u53ef\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f\u3002")]
             body = """
 <div class="panel">
   <h2>{}</h2>
   <p class="small">{} / {} / {} / {}</p>
   <p>{}</p>
-  <p><a class="btn" href="/decision">{}</a> <a class="btn dark" href="/api/decision/insights/{}">API</a></p>
+  <p><a class="btn" href="/decision">{}</a></p>
 </div>
 <div class="split">
-  <div class="panel"><h2>Evidence</h2><table><thead><tr><th>Source</th><th>ID</th><th>Summary</th><th>Confidence</th></tr></thead><tbody>{}</tbody></table></div>
-  <div class="panel"><h2>Suggestion</h2><p>{}</p><h2>Actions</h2><table><tbody>{}</tbody></table></div>
+  <div class="panel"><h2>依据</h2><table><thead><tr><th>来源</th><th>记录</th><th>说明</th><th>可信度</th></tr></thead><tbody>{}</tbody></table></div>
+  <div class="panel"><h2>建议</h2><p>{}</p><h2>行动</h2><table><tbody>{}</tbody></table></div>
 </div>
 <div class="split">
-  <div class="panel"><h2>Knowledge Graph</h2>{}</div>
-  <div class="panel"><h2>Memory</h2>{}</div>
+  <div class="panel"><h2>相关企业关系</h2>{}</div>
+  <div class="panel"><h2>相关企业记忆</h2>{}</div>
 </div>
 <div class="panel form">
-  <h2>Status</h2>
+  <h2>人工审核</h2>
   <form method="post" action="/api/decision/insights/{}/status">
-    <label>Status</label><select name="status"><option>reviewing</option><option>accepted</option><option>rejected</option><option>resolved</option><option>archived</option></select>
-    <label>Decision note</label><textarea name="note"></textarea>
-    <p><button>Update with human review</button></p>
+    <label>审核结果</label><select name="status"><option value="reviewing">审核中</option><option value="accepted">接受建议</option><option value="rejected">拒绝建议</option><option value="resolved">已处理</option><option value="archived">归档</option></select>
+    <label>决策说明</label><textarea name="note"></textarea>
+    <p><button>保存人工审核结果</button></p>
   </form>
 </div>""".format(
-                esc(insight["title"]), esc(insight["insight_type"]), esc(insight["severity"]), esc(insight["status"]), esc(dt(insight["updated_at"])), esc(insight["summary"] or ""), U(r"\u8fd4\u56de"), insight["id"], evidence_rows or "<tr><td colspan='4'>No evidence</td></tr>", esc(insight.get("suggestion") or ""), action_rows or "<tr><td>No action</td></tr>", self.bullets(graph_items), self.bullets(memory_items), insight["id"]
+                esc(insight["title"]), esc(insight["insight_type"]), esc(self.status_label(insight["severity"])), esc(self.status_label(insight["status"])), esc(dt(insight["updated_at"])), esc(insight["summary"] or ""), U(r"\u8fd4\u56de"), evidence_rows or "<tr><td colspan='4'>\u6682\u65e0\u53ef\u7528\u4f9d\u636e</td></tr>", esc(insight.get("suggestion") or ""), action_rows or "<tr><td>\u6682\u65e0\u5efa\u8bae\u884c\u52a8</td></tr>", self.bullets(graph_items), self.bullets(memory_items), insight["id"]
             )
-            return self.out(layout("Decision Insight", body, user=user, wide=True))
+            return self.out(layout(U(r"\u7ecf\u8425\u51b3\u7b56\u8be6\u60c5"), body, user=user, wide=True))
         summary = self.decision_engine_summary()
         with db() as conn:
             rows = conn.execute("select * from decision_insights order by case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, updated_at desc limit 80").fetchall()
         cards = ""
         for row in rows:
             item = self.decision_insight_to_json(row)
-            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / evidence {}</p></div><a class='btn full' href='/decision/insights?id={}'>{}</a></div>".format(esc(item["title"]), esc(item["summary"] or ""), esc(item["insight_type"]), esc(item["severity"]), len(item["evidence"]), item["id"], U(r"\u67e5\u770b"))
+            cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / {} {}</p></div><a class='btn full' href='/decision/insights?id={}'>{}</a></div>".format(esc(item["title"]), esc(item["summary"] or ""), U(r"\u7c7b\u578b"), esc(item["insight_type"]), U(r"\u4f9d\u636e"), len(item["evidence"]), item["id"], U(r"\u67e5\u770b"))
         if not cards:
-            cards = "<div class='panel'>{}</div>".format(self.empty_state("No decision insight yet. Run rebuild after SAP file import and Data Lake refresh."))
+            cards = "<div class='panel'>{}</div>".format(self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u53ef\u9760\u7684\u7ecf\u8425\u51b3\u7b56\u63d0\u9192\u3002"), U(r"\u5df2\u5bfc\u5165\u7684\u9500\u552e\u3001\u5e93\u5b58\u6570\u636e\u548c\u6709\u6548\u7ecf\u8425\u89c4\u5219"), "/decision", U(r"\u6839\u636e\u4f9d\u636e\u91cd\u65b0\u5206\u6790")))
         metrics = "".join([
-            self.metric("Insights", summary["decision_insights_total"], "decision_insights"),
-            self.metric("High severity", summary["decision_high_severity"], "high/critical"),
-            self.metric("Evidence", summary["decision_evidence_total"], "decision_evidence"),
-            self.metric("Pending actions", summary["decision_pending_actions"], "manual review"),
+            self.metric(U(r"\u51b3\u7b56\u63d0\u9192"), summary["decision_insights_total"], U(r"\u5df2\u751f\u6210")),
+            self.metric(U(r"\u9ad8\u4f18\u5148\u7ea7"), summary["decision_high_severity"], U(r"\u9700\u8981\u4f18\u5148\u590d\u6838")),
+            self.metric(U(r"\u4f9d\u636e"), summary["decision_evidence_total"], U(r"\u53ef\u8ffd\u6eaf")),
+            self.metric(U(r"\u5f85\u5904\u7406\u884c\u52a8"), summary["decision_pending_actions"], U(r"\u9700\u8981\u4eba\u5de5\u5ba1\u6838")),
         ])
-        risk_items = [r["title"] + " / " + r["severity"] for r in summary["top_risks"]] or ["No active risk insight."]
+        risk_items = [r["title"] + " / " + self.status_label(r["severity"]) for r in summary["top_risks"]] or [U(r"\u6682\u65e0\u6d3b\u8dc3\u7684\u9ad8\u4f18\u5148\u7ea7\u98ce\u9669\u3002")]
         body = """
 <div class="panel">
-  <h2>Decision Engine Foundation</h2>
-  <p class="small">Rule-based only. No external AI API. Every insight must cite evidence before it appears here.</p>
-  <p><a class="btn dark" href="/api/decision/insights">API</a> <form method="post" action="/api/decision/rebuild" style="display:inline"><button>Rebuild from evidence</button></form></p>
+  <h2>经营决策</h2>
+  <p class="small">根据已验证的经营数据和规则生成。每条建议必须有依据，重要行动必须由人工审核。</p>
+  <p><form method="post" action="/api/decision/rebuild" style="display:inline"><button>根据依据重新分析</button></form></p>
   <div class="metrics">{}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>Top Risks</h2>{}</div>
-  <div class="panel"><h2>Guardrails</h2>{}</div>
+  <div class="panel"><h2>主要风险</h2>{}</div>
+  <div class="panel"><h2>决策边界</h2>{}</div>
 </div>
-<div class="grid">{}</div>""".format(metrics, self.bullets(risk_items), self.bullets([summary["evidence_rule"], summary["execution_rule"], "high_risk_actions_require_human_review"]), cards)
+<div class="grid">{}</div>""".format(metrics, self.bullets(risk_items), self.bullets([U(r"\u6240\u6709\u51b3\u7b56\u5fc5\u987b\u6709\u4f9d\u636e"), U(r"\u4e0d\u81ea\u52a8\u6267\u884c\u7ecf\u8425\u64cd\u4f5c"), U(r"\u9ad8\u98ce\u9669\u884c\u52a8\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279")]), cards)
         self.out(layout(U(r"\u7ecf\u8425\u51b3\u7b56"), body, user=user, wide=True))
 
     def api_decision_get(self, user, path):
@@ -19580,22 +19651,24 @@ order by gross_profit asc limit 300
             trend = conn.execute("select * from business_health_snapshots order by created_at desc limit 20").fetchall()
         latest = summary["health_snapshot"]
         if not latest:
-            metrics = self.metric("Overall", "No snapshot", "run health calculation")
-            details_html = self.empty_state("No health snapshot yet.")
+            metrics = self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7\u5ea6"), U(r"\u5f85\u5206\u6790"), U(r"\u9700\u8981\u9500\u552e\u3001\u5e93\u5b58\u4e0e\u7ecf\u8425\u6570\u636e"))
+            details_html = self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u4f01\u4e1a\u5065\u5eb7\u8bc4\u5206\u3002"), U(r"\u6700\u65b0\u9500\u552e\u3001\u5e93\u5b58\u3001\u54c1\u724c\u548c\u95e8\u5e97\u5206\u6790"), "/business-health", U(r"\u5f00\u59cb\u91cd\u65b0\u5206\u6790"))
         else:
             metrics = "".join([
-                self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7\u5ea6"), "{:.1f}/100".format(summary["overall_score"]), summary["health_status"]),
-                self.metric("Sales", latest["sales_score"], "sales_health"),
-                self.metric("Margin", latest["margin_score"], "margin_health"),
-                self.metric("Inventory", latest["inventory_score"], "inventory_health"),
-                self.metric("Data", latest["data_score"], "data_health"),
+                self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7\u5ea6"), "{:.1f}/100".format(summary["overall_score"]), self.status_label(summary["health_status"])),
+                self.metric(U(r"\u9500\u552e\u5065\u5eb7"), latest["sales_score"], U(r"\u9500\u552e\u8868\u73b0")),
+                self.metric(U(r"\u5229\u6da6\u5065\u5eb7"), latest["margin_score"], U(r"\u6bdb\u5229\u8868\u73b0")),
+                self.metric(U(r"\u5e93\u5b58\u5065\u5eb7"), latest["inventory_score"], U(r"\u5e93\u5b58\u538b\u529b")),
+                self.metric(U(r"\u6570\u636e\u5b8c\u6574\u5ea6"), latest["data_score"], U(r"\u4f9d\u636e\u53ef\u7528\u6027")),
             ])
-            details_html = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>{}</p><p class='small'>evidence {}</p></div>".format(esc(d["dimension"]), float(d["score"]), esc(d["status"]), esc(d["summary"] or ""), len(d["evidence_json"])) for d in summary["details"])
-        trend_items = self.bullets(["{} / {:.1f} / {}".format(r["snapshot_date"], r["overall_score"], r["status"]) for r in trend] or ["No historical trend yet."])
-        weight_items = self.bullets(["{} weight {}".format(w["dimension"], w["weight"]) for w in summary["weights"]] or ["No active weights."])
+            dimension_labels = {"sales_health": U(r"\u9500\u552e\u5065\u5eb7"), "margin_health": U(r"\u5229\u6da6\u5065\u5eb7"), "inventory_health": U(r"\u5e93\u5b58\u5065\u5eb7"), "brand_health": U(r"\u54c1\u724c\u5065\u5eb7"), "store_health": U(r"\u95e8\u5e97\u5065\u5eb7"), "operation_health": U(r"\u8fd0\u8425\u5065\u5eb7"), "data_health": U(r"\u6570\u636e\u5065\u5eb7")}
+            details_html = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>{}</p><p class='small'>{} {}</p></div>".format(esc(dimension_labels.get(d["dimension"], d["dimension"])), float(d["score"]), esc(self.status_label(d["status"])), esc(d["summary"] or U(r"\u8be6\u7ec6\u8bf4\u660e\u5f85\u8865\u5145")), U(r"\u4f9d\u636e"), len(d["evidence_json"])) for d in summary["details"])
+        trend_items = self.bullets(["{} / {:.1f} / {}".format(r["snapshot_date"], r["overall_score"], self.status_label(r["status"])) for r in trend] or [U(r"\u6682\u65e0\u5386\u53f2\u8d8b\u52bf\uff0c\u5b8c\u6210\u9996\u6b21\u5206\u6790\u540e\u5c06\u81ea\u52a8\u7d2f\u79ef\u3002")])
+        weight_labels = {"sales_health": U(r"\u9500\u552e\u5065\u5eb7"), "margin_health": U(r"\u5229\u6da6\u5065\u5eb7"), "inventory_health": U(r"\u5e93\u5b58\u5065\u5eb7"), "brand_health": U(r"\u54c1\u724c\u5065\u5eb7"), "store_health": U(r"\u95e8\u5e97\u5065\u5eb7"), "operation_health": U(r"\u8fd0\u8425\u5065\u5eb7"), "data_health": U(r"\u6570\u636e\u5065\u5eb7")}
+        weight_items = self.bullets(["{}\uff1a{}".format(weight_labels.get(w["dimension"], U(r"\u5176\u4ed6\u7ef4\u5ea6")), w["weight"]) for w in summary["weights"]] or [U(r"\u6682\u65e0\u53ef\u7528\u7684\u8bc4\u5206\u6743\u91cd\u3002")])
         body = """
-<div class="panel"><h2>Business Health Engine</h2><p class="small">Every health score is evidence-backed. Weights are database-configurable and ready for future Business Rule Engine control.</p><form method="post" action="/api/business-health/recalculate" style="display:inline"><button>Calculate Health</button></form> <a class="btn dark" href="/api/business-health">API</a><div class="metrics">{}</div></div>
-<div class="split"><div class="panel"><h2>Top Risks / Opportunities</h2>{}</div><div class="panel"><h2>Health Weights</h2>{}</div></div>
+<div class="panel"><h2>企业健康</h2><p>综合销售、利润、库存、品牌、门店和数据完整度，帮助老板快速判断企业当前状态。</p><form method="post" action="/api/business-health/recalculate" style="display:inline"><button>重新分析</button></form><div class="metrics">{}</div></div>
+<div class="split"><div class="panel"><h2>风险与机会变化</h2>{}</div><div class="panel"><h2>评分依据</h2>{}</div></div>
 <div class="grid">{}</div>""".format(metrics, trend_items, weight_items, details_html)
         self.out(layout(U(r"\u4f01\u4e1a\u5065\u5eb7"), body, user=user, wide=True))
 
@@ -19808,23 +19881,23 @@ group by coalesce(store_name,''), coalesce(product_code,'')
         summary = self.inventory_intelligence_summary()
         snapshot = summary["inventory_snapshot"]
         metrics = "".join([
-            self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["total_inventory_amount"]), "SAP import"),
-            self.metric(U(r"\u5e93\u5b58\u6570\u91cf"), money(summary["total_inventory_quantity"]), "quantity"),
-            self.metric(U(r"\u9ad8\u98ce\u9669"), summary["high_risk_count"], "high"),
-            self.metric(U(r"\u4e25\u91cd\u98ce\u9669"), summary["critical_risk_count"], "critical"),
-            self.metric(U(r"\u6ede\u9500"), summary["slow_stock_count"], "slow stock"),
-            self.metric(U(r"\u8865\u8d27\u673a\u4f1a"), summary["opportunity_count"], "opportunity"),
+            self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), money(summary["total_inventory_amount"]), U(r"\u6765\u81ea\u5df2\u5bfc\u5165\u7ecf\u8425\u6570\u636e")),
+            self.metric(U(r"\u5e93\u5b58\u6570\u91cf"), money(summary["total_inventory_quantity"]), U(r"\u5546\u54c1\u4ef6\u6570")),
+            self.metric(U(r"\u9ad8\u98ce\u9669"), summary["high_risk_count"], U(r"\u9700\u8981\u4f18\u5148\u5904\u7406")),
+            self.metric(U(r"\u4e25\u91cd\u98ce\u9669"), summary["critical_risk_count"], U(r"\u5efa\u8bae\u7acb\u5373\u590d\u6838")),
+            self.metric(U(r"\u6ede\u9500"), summary["slow_stock_count"], U(r"\u9500\u552e\u901f\u5ea6\u504f\u6162")),
+            self.metric(U(r"\u8865\u8d27\u673a\u4f1a"), summary["opportunity_count"], U(r"\u6709\u9700\u6c42\u4e14\u5e93\u5b58\u504f\u4f4e")),
         ])
-        risk_cards = "".join("<div class='card'><h2>{}</h2><p>{} / {}</p><p>{}</p><p class='small'>evidence {}</p></div>".format(esc(r.get("product_name") or r.get("product_code") or ""), esc(r.get("store_name") or ""), esc(r.get("risk_level") or ""), esc(r.get("recommendation") or ""), len(r.get("evidence_json") or [])) for r in summary["risk_ranking"]) or self.empty_state("No inventory risk snapshot yet.")
-        opportunity_cards = "".join("<div class='card'><h2>{}</h2><p>{} / velocity {:.3f}</p><p>{}</p></div>".format(esc(r.get("product_name") or r.get("product_code") or ""), esc(r.get("store_name") or ""), float(r.get("sales_velocity") or 0), esc(r.get("recommendation") or "")) for r in summary["opportunity_products"]) or self.empty_state("No replenishment opportunity yet.")
-        brand_items = self.bullets(["{} / risk {} / {}".format(esc(r.get("brand_name") or ""), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["brand_pressure"]] or ["No brand pressure yet."])
-        store_items = self.bullets(["{} / risk {} / {}".format(esc(r.get("store_name") or ""), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["store_pressure"]] or ["No store pressure yet."])
+        risk_cards = "".join("<div class='card'><h2>{}</h2><p>{} / {}</p><p>{}</p><p class='small'>{} {}</p></div>".format(esc(r.get("product_name") or r.get("product_code") or ""), esc(r.get("store_name") or U(r"\u95e8\u5e97\u5f85\u786e\u8ba4")), esc(self.status_label(r.get("risk_level"))), esc(r.get("recommendation") or U(r"\u5efa\u8bae\u7531\u8d1f\u8d23\u4eba\u6838\u5bf9\u540e\u5904\u7406\u3002")), U(r"\u4f9d\u636e"), len(r.get("evidence_json") or [])) for r in summary["risk_ranking"]) or self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u5e93\u5b58\u98ce\u9669\u5206\u6790\u3002"), U(r"\u6700\u65b0\u5e93\u5b58\u4e0e\u9500\u552e\u6570\u636e"), "/inventory-intelligence", U(r"\u91cd\u65b0\u5206\u6790\u5e93\u5b58"))
+        opportunity_cards = "".join("<div class='card'><h2>{}</h2><p>{} / {} {:.3f}</p><p>{}</p></div>".format(esc(r.get("product_name") or r.get("product_code") or ""), esc(r.get("store_name") or ""), U(r"\u65e5\u5747\u9500\u552e\u901f\u5ea6"), float(r.get("sales_velocity") or 0), esc(r.get("recommendation") or "")) for r in summary["opportunity_products"]) or self.guided_empty_state(U(r"\u6682\u672a\u53d1\u73b0\u53ef\u9760\u7684\u8865\u8d27\u673a\u4f1a\u3002"), U(r"\u8fde\u7eed\u9500\u552e\u548c\u5e93\u5b58\u53d8\u5316\u6570\u636e"), "/copilot?q=" + quote(U(r"\u5e93\u5b58\u6570\u636e\u8fd8\u7f3a\u5c11\u4ec0\u4e48\uff1f")), U(r"\u8bf7AI\u52a9\u624b\u68c0\u67e5"))
+        brand_items = self.bullets(["{} / {} {} / {}".format(esc(r.get("brand_name") or ""), U(r"\u98ce\u9669\u9879"), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["brand_pressure"]] or [U(r"\u6682\u65e0\u54c1\u724c\u5e93\u5b58\u538b\u529b\u6570\u636e\uff0c\u8bf7\u5148\u5b8c\u6210\u5e93\u5b58\u5206\u6790\u3002")])
+        store_items = self.bullets(["{} / {} {} / {}".format(esc(r.get("store_name") or ""), U(r"\u98ce\u9669\u9879"), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["store_pressure"]] or [U(r"\u6682\u65e0\u95e8\u5e97\u5e93\u5b58\u538b\u529b\u6570\u636e\uff0c\u8bf7\u5148\u5b8c\u6210\u95e8\u5e97\u5f52\u4e00\u3002")])
         body = """
-<div class="panel"><h2>Inventory Intelligence</h2><p class="small">Rule-based, evidence-backed inventory risk and opportunity analysis. No production SAP connection.</p><form method="post" action="/api/inventory-intelligence/recalculate" style="display:inline"><button>Analyze Inventory</button></form> <a class="btn dark" href="/api/inventory-intelligence">API</a><div class="metrics">{}</div></div>
-<div class="split"><div class="panel"><h2>Brand Pressure</h2>{}</div><div class="panel"><h2>Store Pressure</h2>{}</div></div>
-<div class="panel"><h2>Risk Ranking</h2><div class="grid">{}</div></div>
-<div class="panel"><h2>Opportunity Products</h2><div class="grid">{}</div></div>""".format(metrics, brand_items, store_items, risk_cards, opportunity_cards)
-        self.out(layout("Inventory Intelligence", body, user=user, wide=True))
+<div class="panel"><h2>库存分析</h2><p>根据库存、销售速度和库龄识别积压风险与补货机会，所有建议均保留依据。</p><form method="post" action="/api/inventory-intelligence/recalculate" style="display:inline"><button>重新分析</button></form><div class="metrics">{}</div><p class="small">{}</p></div>
+<div class="split"><div class="panel"><h2>品牌库存压力</h2>{}</div><div class="panel"><h2>门店库存压力</h2>{}</div></div>
+<div class="panel"><h2>风险排序</h2><div class="grid">{}</div></div>
+<div class="panel"><h2>补货机会</h2><div class="grid">{}</div></div>""".format(metrics, self.updated_at_text(snapshot.get("created_at") if snapshot else None), brand_items, store_items, risk_cards, opportunity_cards)
+        self.out(layout(U(r"\u5e93\u5b58\u5206\u6790"), body, user=user, wide=True))
 
     def api_inventory_intelligence_get(self, user, path):
         if not user:
@@ -20023,21 +20096,21 @@ group by coalesce(brand_name,'')
             return self.dashboard(user)
         summary = self.brand_intelligence_summary()
         metrics = "".join([
-            self.metric(U(r"\u54c1\u724c\u6570"), summary["brand_count"], "brands"),
-            self.metric(U(r"\u5e73\u5747\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["avg_brand_health"]), "score"),
-            self.metric(U(r"\u98ce\u9669\u54c1\u724c"), len(summary["risky_brands"]), "risk/watch"),
-            self.metric(U(r"\u673a\u4f1a\u54c1\u724c"), len(summary["opportunity_brands"]), "opportunity"),
+            self.metric(U(r"\u54c1\u724c\u6570"), summary["brand_count"], U(r"\u5df2\u5b8c\u6210\u5206\u6790")),
+            self.metric(U(r"\u5e73\u5747\u54c1\u724c\u5065\u5eb7"), "{:.1f}".format(summary["avg_brand_health"]), U(r"\u6ee1\u5206100")),
+            self.metric(U(r"\u98ce\u9669\u54c1\u724c"), len(summary["risky_brands"]), U(r"\u9700\u590d\u6838")),
+            self.metric(U(r"\u673a\u4f1a\u54c1\u724c"), len(summary["opportunity_brands"]), U(r"\u53ef\u5173\u6ce8")),
         ])
-        rank_cards = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>sales {} / margin {:.1%} / inventory pressure {:.1%}</p><p class='small'>evidence {}</p></div>".format(esc(r.get("brand_name") or ""), float(r.get("overall_score") or 0), esc(r.get("status") or ""), money(r.get("sales_amount") or 0), float(r.get("gross_margin") or 0), float(r.get("inventory_pressure") or 0), len(r.get("evidence_json") or [])) for r in summary["top_brands"]) or self.empty_state("No brand intelligence snapshot yet.")
-        risk_items = self.bullets(["{} / {} / pressure {:.1%}".format(esc(r.get("brand_name") or ""), esc(r.get("status") or ""), float(r.get("inventory_pressure") or 0)) for r in summary["risky_brands"]] or ["No risky brands yet."])
-        opportunity_items = self.bullets(["{} / score {:.1f}".format(esc(r.get("brand_name") or ""), float(r.get("overall_score") or 0)) for r in summary["opportunity_brands"]] or ["No opportunity brands yet."])
-        pressure_items = self.bullets(["{} / pressure {:.1%} / {}".format(esc(r.get("brand_name") or ""), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_brands"]] or ["No inventory pressure yet."])
+        rank_cards = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>{} {} / {} {:.1%} / {} {:.1%}</p><p class='small'>{} {}</p></div>".format(esc(r.get("brand_name") or ""), float(r.get("overall_score") or 0), esc(self.status_label(r.get("status"))), U(r"\u9500\u552e"), money(r.get("sales_amount") or 0), U(r"\u6bdb\u5229\u7387"), float(r.get("gross_margin") or 0), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0), U(r"\u4f9d\u636e"), len(r.get("evidence_json") or [])) for r in summary["top_brands"]) or self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u54c1\u724c\u5206\u6790\u3002"), U(r"\u54c1\u724c\u5f52\u4e00\u540e\u7684\u9500\u552e\u548c\u5e93\u5b58\u6570\u636e"), "/brand-intelligence", U(r"\u91cd\u65b0\u5206\u6790\u54c1\u724c"))
+        risk_items = self.bullets(["{} / {} / {} {:.1%}".format(esc(r.get("brand_name") or ""), self.status_label(r.get("status")), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0)) for r in summary["risky_brands"]] or [U(r"\u6682\u672a\u53d1\u73b0\u660e\u786e\u7684\u54c1\u724c\u98ce\u9669\u3002")])
+        opportunity_items = self.bullets(["{} / {} {:.1f}".format(esc(r.get("brand_name") or ""), U(r"\u5065\u5eb7\u5ea6"), float(r.get("overall_score") or 0)) for r in summary["opportunity_brands"]] or [U(r"\u6682\u672a\u53d1\u73b0\u8bc1\u636e\u5145\u8db3\u7684\u54c1\u724c\u673a\u4f1a\u3002")])
+        pressure_items = self.bullets(["{} / {} {:.1%} / {}".format(esc(r.get("brand_name") or ""), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_brands"]] or [U(r"\u6682\u65e0\u54c1\u724c\u5e93\u5b58\u538b\u529b\u6570\u636e\u3002")])
         body = """
-<div class="panel"><h2>Brand Intelligence</h2><p class="small">Evidence-backed brand sales, profit, inventory pressure and strategic health analysis. No production SAP connection.</p><form method="post" action="/api/brand-intelligence/recalculate" style="display:inline"><button>Analyze Brands</button></form> <a class="btn dark" href="/api/brand-intelligence">API</a><div class="metrics">{}</div></div>
-<div class="split"><div class="panel"><h2>Risks</h2>{}</div><div class="panel"><h2>Opportunities</h2>{}</div></div>
-<div class="panel"><h2>Inventory Pressure</h2>{}</div>
-<div class="panel"><h2>Brand Ranking</h2><div class="grid">{}</div></div>""".format(metrics, risk_items, opportunity_items, pressure_items, rank_cards)
-        self.out(layout("Brand Intelligence", body, user=user, wide=True))
+<div class="panel"><h2>品牌分析</h2><p>综合品牌销售、毛利和库存压力，帮助判断风险、机会与资源投入方向。</p><form method="post" action="/api/brand-intelligence/recalculate" style="display:inline"><button>重新分析</button></form><div class="metrics">{}</div><p class="small">{}</p></div>
+<div class="split"><div class="panel"><h2>品牌风险</h2>{}</div><div class="panel"><h2>品牌机会</h2>{}</div></div>
+<div class="panel"><h2>库存压力</h2>{}</div>
+<div class="panel"><h2>品牌排行</h2><div class="grid">{}</div></div>""".format(metrics, self.updated_at_text(summary.get("brand_snapshot_at")), risk_items, opportunity_items, pressure_items, rank_cards)
+        self.out(layout(U(r"\u54c1\u724c\u5206\u6790"), body, user=user, wide=True))
 
     def api_brand_intelligence_get(self, user, path):
         if not user:
@@ -20245,21 +20318,21 @@ group by coalesce(store_name,'')
             return self.dashboard(user)
         summary = self.store_intelligence_summary()
         metrics = "".join([
-            self.metric(U(r"\u95e8\u5e97\u6570"), summary["store_count"], "stores"),
-            self.metric(U(r"\u5e73\u5747\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["avg_store_health"]), "score"),
-            self.metric(U(r"\u98ce\u9669\u95e8\u5e97"), len(summary["risky_stores"]), "risk/watch"),
-            self.metric(U(r"\u673a\u4f1a\u95e8\u5e97"), len(summary["opportunity_stores"]), "opportunity"),
+            self.metric(U(r"\u95e8\u5e97\u6570"), summary["store_count"], U(r"\u5df2\u5b8c\u6210\u5206\u6790")),
+            self.metric(U(r"\u5e73\u5747\u95e8\u5e97\u5065\u5eb7"), "{:.1f}".format(summary["avg_store_health"]), U(r"\u6ee1\u5206100")),
+            self.metric(U(r"\u98ce\u9669\u95e8\u5e97"), len(summary["risky_stores"]), U(r"\u9700\u590d\u6838")),
+            self.metric(U(r"\u673a\u4f1a\u95e8\u5e97"), len(summary["opportunity_stores"]), U(r"\u53ef\u5173\u6ce8")),
         ])
-        rank_cards = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>sales {} / margin {:.1%} / inventory pressure {:.1%}</p><p class='small'>evidence {}</p></div>".format(esc(r.get("store_name") or ""), float(r.get("overall_score") or 0), esc(r.get("status") or ""), money(r.get("sales_amount") or 0), float(r.get("gross_margin") or 0), float(r.get("inventory_pressure") or 0), len(r.get("evidence_json") or [])) for r in summary["top_stores"]) or self.empty_state("No store intelligence snapshot yet.")
-        risk_items = self.bullets(["{} / {} / pressure {:.1%}".format(esc(r.get("store_name") or ""), esc(r.get("status") or ""), float(r.get("inventory_pressure") or 0)) for r in summary["risky_stores"]] or ["No risky stores yet."])
-        opportunity_items = self.bullets(["{} / score {:.1f}".format(esc(r.get("store_name") or ""), float(r.get("overall_score") or 0)) for r in summary["opportunity_stores"]] or ["No opportunity stores yet."])
-        pressure_items = self.bullets(["{} / pressure {:.1%} / {}".format(esc(r.get("store_name") or ""), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_stores"]] or ["No inventory pressure yet."])
+        rank_cards = "".join("<div class='card'><h2>{}</h2><p><strong>{:.1f}</strong> / {}</p><p>{} {} / {} {:.1%} / {} {:.1%}</p><p class='small'>{} {}</p></div>".format(esc(r.get("store_name") or ""), float(r.get("overall_score") or 0), esc(self.status_label(r.get("status"))), U(r"\u9500\u552e"), money(r.get("sales_amount") or 0), U(r"\u6bdb\u5229\u7387"), float(r.get("gross_margin") or 0), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0), U(r"\u4f9d\u636e"), len(r.get("evidence_json") or [])) for r in summary["top_stores"]) or self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u95e8\u5e97\u5206\u6790\u3002"), U(r"\u5f52\u4e00\u540e\u7684\u95e8\u5e97\u9500\u552e\u548c\u5e93\u5b58\u6570\u636e"), "/store-intelligence", U(r"\u91cd\u65b0\u5206\u6790\u95e8\u5e97"))
+        risk_items = self.bullets(["{} / {} / {} {:.1%}".format(esc(r.get("store_name") or ""), self.status_label(r.get("status")), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0)) for r in summary["risky_stores"]] or [U(r"\u6682\u672a\u53d1\u73b0\u660e\u786e\u7684\u95e8\u5e97\u98ce\u9669\u3002")])
+        opportunity_items = self.bullets(["{} / {} {:.1f}".format(esc(r.get("store_name") or ""), U(r"\u5065\u5eb7\u5ea6"), float(r.get("overall_score") or 0)) for r in summary["opportunity_stores"]] or [U(r"\u6682\u672a\u53d1\u73b0\u8bc1\u636e\u5145\u8db3\u7684\u95e8\u5e97\u673a\u4f1a\u3002")])
+        pressure_items = self.bullets(["{} / {} {:.1%} / {}".format(esc(r.get("store_name") or ""), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_stores"]] or [U(r"\u6682\u65e0\u95e8\u5e97\u5e93\u5b58\u538b\u529b\u6570\u636e\u3002")])
         body = """
-<div class="panel"><h2>Store Intelligence</h2><p class="small">Evidence-backed store sales, margin, inventory pressure and operating profile. No production SAP connection.</p><form method="post" action="/api/store-intelligence/recalculate" style="display:inline"><button>Analyze Stores</button></form> <a class="btn dark" href="/api/store-intelligence">API</a><div class="metrics">{}</div></div>
-<div class="split"><div class="panel"><h2>Risks</h2>{}</div><div class="panel"><h2>Opportunities</h2>{}</div></div>
-<div class="panel"><h2>Inventory Pressure</h2>{}</div>
-<div class="panel"><h2>Store Ranking</h2><div class="grid">{}</div></div>""".format(metrics, risk_items, opportunity_items, pressure_items, rank_cards)
-        self.out(layout("Store Intelligence", body, user=user, wide=True))
+<div class="panel"><h2>门店分析</h2><p>综合门店销售、毛利、库存压力和经营效率，帮助老板找到需要调整与值得投入的门店。</p><form method="post" action="/api/store-intelligence/recalculate" style="display:inline"><button>重新分析</button></form><div class="metrics">{}</div><p class="small">{}</p></div>
+<div class="split"><div class="panel"><h2>门店风险</h2>{}</div><div class="panel"><h2>门店机会</h2>{}</div></div>
+<div class="panel"><h2>库存压力</h2>{}</div>
+<div class="panel"><h2>门店排行</h2><div class="grid">{}</div></div>""".format(metrics, self.updated_at_text(summary.get("store_snapshot_at")), risk_items, opportunity_items, pressure_items, rank_cards)
+        self.out(layout(U(r"\u95e8\u5e97\u5206\u6790"), body, user=user, wide=True))
 
     def api_store_intelligence_get(self, user, path):
         if not user:
