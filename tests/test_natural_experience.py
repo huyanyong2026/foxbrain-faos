@@ -38,6 +38,7 @@ class NaturalExperienceTests(unittest.TestCase):
             conn.execute("delete from tasks")
             conn.execute("delete from copilot_messages")
             conn.execute("delete from copilot_sessions")
+            conn.execute("delete from decision_outcomes")
             self.user = conn.execute("select * from users where email=?", ("natural@example.test",)).fetchone()
 
     def test_page_context_is_clean_and_bounded(self):
@@ -248,6 +249,47 @@ class NaturalExperienceTests(unittest.TestCase):
             titles = [row["title"] for row in conn.execute("select title from proactive_signals").fetchall()]
         self.assertIn("evidence-backed", titles)
         self.assertNotIn("unsupported", titles)
+
+    def test_decision_action_and_outcome_form_closed_loop(self):
+        now = int(time.time())
+        with portal.db() as conn:
+            cur = conn.execute(
+                "insert into decision_insights(insight_type,title,summary,severity,status,evidence,suggestion,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                ("risk", "closed-loop-test", "verified", "high", "accepted", json.dumps([{"source": "test"}]), "review stock", now, now),
+            )
+            insight_id = cur.lastrowid
+            conn.execute(
+                "insert into decision_evidence(insight_id,source_type,source_id,evidence_title,evidence_summary,confidence,created_at) values(?,?,?,?,?,?,?)",
+                (insight_id, "test", "1", "test evidence", "verified", 0.9, now),
+            )
+        self.app.headers = {"Accept": "application/json"}
+        self.app.json_out = lambda data, code=200: (data, code)
+        self.app.api_object_payload = lambda: {"action_title": "review stock", "owner": "owner"}
+        action, action_code = self.app.api_decision_post(self.user, "/api/decision/insights/{}/actions".format(insight_id))
+        self.assertEqual(action_code, 200)
+        self.assertTrue(action["ok"])
+        self.app.api_object_payload = lambda: {"outcome_status": "effective", "result_summary": "sales improved", "actual_impact": "+10%", "evidence_note": "weekly sales report"}
+        outcome, outcome_code = self.app.api_decision_post(self.user, "/api/decision/insights/{}/outcomes".format(insight_id))
+        self.assertEqual(outcome_code, 200)
+        self.assertTrue(outcome["ok"])
+        with portal.db() as conn:
+            task = conn.execute("select * from tasks where id=?", (action["task_id"],)).fetchone()
+            saved = conn.execute("select * from decision_outcomes where id=?", (outcome["outcome_id"],)).fetchone()
+        self.assertEqual(task["status"], "draft")
+        self.assertEqual(saved["outcome_status"], "effective")
+        self.assertTrue(json.loads(saved["evidence_json"]))
+
+    def test_ceo_operating_workbench_and_object_center_are_business_friendly(self):
+        rendered = []
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.ceo_operating_workbench_page(self.user)
+        self.app.path = "/object-center"
+        self.app.object_engine_page(self.user)
+        combined = "\n".join(rendered)
+        self.assertIn(portal.U(r"CEO \u7ecf\u8425\u5de5\u4f5c\u53f0"), combined)
+        self.assertIn(portal.U(r"\u4f01\u4e1a\u5bf9\u8c61\u5de5\u4f5c\u53f0"), combined)
+        self.assertNotIn("Everything is an Object", combined)
+        self.assertNotIn("V1.1 Contract", combined)
 
 
 def tearDownModule():
