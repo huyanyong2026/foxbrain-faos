@@ -42,6 +42,8 @@ class NaturalExperienceTests(unittest.TestCase):
             conn.execute("delete from agent_learning_feedback")
             conn.execute("delete from enterprise_training_samples")
             conn.execute("delete from ai_agent_runs")
+            conn.execute("delete from enterprise_relationships")
+            conn.execute("delete from enterprise_entity_registry")
             self.user = conn.execute("select * from users where email=?", ("natural@example.test",)).fetchone()
 
     def test_page_context_is_clean_and_bounded(self):
@@ -198,19 +200,64 @@ class NaturalExperienceTests(unittest.TestCase):
         self.assertNotEqual(copied["storage_path"], str(source_path))
         self.assertEqual(Path(copied["storage_path"]).read_text(encoding="utf-8"), "copy source")
 
-    def test_today_page_has_fixed_ceo_structure_and_profit_scope(self):
+    def test_today_page_has_genesis_ceo_structure(self):
         rendered = []
         self.app.path = "/"
         self.app.out = lambda html, code=200: rendered.append(html)
         self.app.dashboard(self.user)
         page = rendered[0]
-        for text in ["当前经营数字", "企业健康", "销售额", "毛利", "费用", "利润", "今天先做什么", "AI 问企业"]:
+        for text in ["企业健康", "今日经营", "今日风险", "今日机会", "今日建议", "今日行动", "CEO Vault"]:
             self.assertIn(text, page)
-        self.assertIn("1,723,487.13", page)
-        self.assertIn("1,044,717.78", page)
-        self.assertIn("不得再次相加", page)
+        self.assertNotIn("当前经营数字", page)
+        self.assertNotIn("快速入口", page)
         self.assertNotIn("/api/", page)
         self.assertNotIn("Engine", page)
+
+    def test_genesis_foundation_builds_stable_evidence_backed_relations(self):
+        now = int(time.time())
+        with portal.db() as conn:
+            cur = conn.execute(
+                "insert into enterprise_objects(object_type,code,name,status,description,tags,metadata,ai_summary,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)",
+                ("brand", "GENESIS-BRAND", "Genesis Test Brand", "active", "", "[]", "{}", "", self.user["id"], now, now),
+            )
+            object_id = cur.lastrowid
+            root = conn.execute("select id from drive_folders where parent_id is null order by id limit 1").fetchone()
+            cur = conn.execute(
+                "insert into documents(title,file_name,file_type,file_path,uploaded_by,created_at,updated_at,filename,original_filename,storage_path,mime_type,extension,size_bytes,category,processing_status,version,created_by,drive_folder_id,content_hash,drive_visibility,related_object_type,related_object_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("Genesis evidence", "genesis.txt", "txt", "genesis.txt", self.user["id"], now, now, "genesis.txt", "genesis.txt", "genesis.txt", "text/plain", "txt", 1, "品牌资料", "indexed", 1, self.user["id"], root["id"], "genesis-evidence-hash", "team", "brand", object_id),
+            )
+            document_id = cur.lastrowid
+        first = self.app.rebuild_enterprise_foundation(self.user)
+        with portal.db() as conn:
+            object_row = conn.execute("select * from enterprise_entity_registry where local_table='enterprise_objects' and local_id=?", (str(object_id),)).fetchone()
+            document_row = conn.execute("select * from enterprise_entity_registry where local_table='documents' and local_id=?", (str(document_id),)).fetchone()
+            relation = conn.execute("select * from enterprise_relationships where source_global_id=? and target_global_id=?", (document_row["global_id"], object_row["global_id"])).fetchone()
+            count_before = conn.execute("select count(*) from enterprise_relationships").fetchone()[0]
+        second = self.app.rebuild_enterprise_foundation(self.user)
+        with portal.db() as conn:
+            stable = conn.execute("select global_id from enterprise_entity_registry where local_table='enterprise_objects' and local_id=?", (str(object_id),)).fetchone()[0]
+            count_after = conn.execute("select count(*) from enterprise_relationships").fetchone()[0]
+            missing = conn.execute("select count(*) from enterprise_relationships where evidence_json is null or evidence_json='' or evidence_json='[]'").fetchone()[0]
+        self.assertTrue(first["ok"])
+        self.assertTrue(second["ok"])
+        self.assertEqual(object_row["global_id"], stable)
+        self.assertIsNotNone(relation)
+        self.assertTrue(json.loads(relation["evidence_json"]))
+        self.assertEqual(count_before, count_after)
+        self.assertEqual(missing, 0)
+
+    def test_genesis_pages_are_chinese_and_hide_technical_details(self):
+        rendered = []
+        self.app.path = "/ceo-memory"
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.enterprise_foundation_page(self.user)
+        self.app.enterprise_dna_page(self.user)
+        self.app.ceo_memory_page(self.user)
+        combined = "\n".join(rendered)
+        for text in ["企业基础", "企业 DNA", "企业时间机"]:
+            self.assertIn(text, combined)
+        for technical in ["enterprise_entity_registry", "enterprise_relationships", "JSON"]:
+            self.assertNotIn(technical, combined)
 
     def test_drive_page_supports_batch_drag_and_progress(self):
         rendered = []
