@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import os
 import shutil
@@ -93,6 +94,35 @@ class NaturalExperienceTests(unittest.TestCase):
             task = conn.execute("select * from tasks where id=?", (created["task_id"],)).fetchone()
         self.assertEqual(task["status"], "draft")
         self.assertEqual(task["source_type"], "copilot_message")
+
+    def test_drive_upload_uses_current_extraction_schema(self):
+        class Upload:
+            filename = "upload-regression.txt"
+            type = "text/plain"
+            file = io.BytesIO(b"FoxBrain upload regression test")
+
+        class Form(dict):
+            def getfirst(self, key, default=""):
+                return self.get(key, default)
+
+        self.app.headers = {"Content-Length": "35", "Accept": "application/json"}
+        self.app.multipart = lambda: Form(file=Upload(), folder_id="")
+        self.app.log_action = lambda *args, **kwargs: None
+        self.app.process_document_to_knowledge = lambda *args, **kwargs: {"ok": True}
+        self.app.json_out = lambda data, code=200: (data, code)
+
+        result, code = self.app.api_drive_upload(self.user)
+
+        self.assertEqual(code, 200)
+        self.assertTrue(result["ok"])
+        file_id = result["file"]["id"]
+        with portal.db() as conn:
+            extraction = conn.execute(
+                "select text_content, created_at, updated_at from drive_file_extractions where file_id=?",
+                (file_id,),
+            ).fetchone()
+        self.assertIn("FoxBrain upload regression test", extraction["text_content"])
+        self.assertEqual(extraction["created_at"], extraction["updated_at"])
 
 
 def tearDownModule():
