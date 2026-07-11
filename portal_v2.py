@@ -5523,6 +5523,48 @@ create table if not exists proactive_signals(
         ensure_column(conn, "proactive_signals", "quality_score", "quality_score real not null default 0")
         ensure_column(conn, "proactive_signals", "quality_reason", "quality_reason text")
         conn.execute("create index if not exists idx_proactive_signals_status on proactive_signals(status,severity,updated_at)")
+        conn.execute(
+            """
+create table if not exists enterprise_entity_registry(
+ id integer primary key autoincrement,
+ global_id text not null unique,
+ entity_type text not null,
+ local_table text not null,
+ local_id text not null,
+ canonical_name text not null,
+ access_scope text not null default 'enterprise',
+ source_type text not null,
+ source_id text not null,
+ metadata_json text not null default '{}',
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null,
+ unique(local_table,local_id)
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists enterprise_relationships(
+ id integer primary key autoincrement,
+ source_global_id text not null,
+ target_global_id text not null,
+ relation_type text not null,
+ source_type text not null,
+ source_id text not null,
+ evidence_json text not null default '[]',
+ confidence real not null default 1,
+ status text not null default 'active',
+ created_at integer not null,
+ updated_at integer not null,
+ unique(source_global_id,target_global_id,relation_type,source_type,source_id)
+)
+"""
+        )
+        conn.execute("create index if not exists idx_entity_registry_type on enterprise_entity_registry(entity_type,status)")
+        conn.execute("create index if not exists idx_entity_registry_source on enterprise_entity_registry(source_type,source_id)")
+        conn.execute("create index if not exists idx_enterprise_relationships_source on enterprise_relationships(source_global_id,status)")
+        conn.execute("create index if not exists idx_enterprise_relationships_target on enterprise_relationships(target_global_id,status)")
         vault_root = conn.execute("select id from drive_folders where name=? and deleted_at is null order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
         if not vault_root:
             root = conn.execute("select id from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
@@ -5757,6 +5799,12 @@ class App(BaseHTTPRequestHandler):
             return self.action_center_page(user)
         if path == "/enterprise":
             return self.enterprise_center_page(user)
+        if path == "/enterprise-foundation":
+            return self.enterprise_foundation_page(user)
+        if path == "/enterprise-dna":
+            return self.enterprise_dna_page(user)
+        if path == "/ceo-memory":
+            return self.ceo_memory_page(user)
         if path == "/ceo-vault":
             return self.ceo_vault_page(user)
         if path == "/enterprise-links":
@@ -6153,6 +6201,8 @@ class App(BaseHTTPRequestHandler):
             return self.copilot_ask_post()
         if path.startswith("/api/knowledge-training/"):
             return self.api_knowledge_training_post(self.current_user(), path)
+        if path == "/api/enterprise-foundation/rebuild":
+            return self.enterprise_foundation_rebuild_post()
         if path == "/api/proactive-intelligence/rebuild":
             return self.proactive_intelligence_rebuild_post()
         if path == "/reports/save":
@@ -7136,6 +7186,12 @@ class App(BaseHTTPRequestHandler):
 
     def object_type_label(self, object_type):
         labels = {item["key"]: item["label"] for item in self.object_types()}
+        labels.update({
+            "document": U(r"\u4f01\u4e1a\u8d44\u6599"),
+            "decision": U(r"\u7ecf\u8425\u51b3\u7b56"),
+            "memory": U(r"\u4f01\u4e1a\u8bb0\u5fc6"),
+            "knowledge": U(r"\u4f01\u4e1a\u77e5\u8bc6"),
+        })
         return labels.get(object_type or "", object_type or "")
 
     def object_metadata_from_form(self, form, object_type):
@@ -9342,6 +9398,122 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         )
         self.out(layout(U(r"\u884c\u52a8\u4e2d\u5fc3"), body, user=user, wide=False))
 
+    def genesis_global_id(self, entity_type, local_id):
+        prefix = re.sub(r"[^A-Z0-9]", "", (entity_type or "ENTITY").upper())[:12] or "ENTITY"
+        value = str(local_id)
+        return "FOX-{}-{}".format(prefix, value.zfill(8) if value.isdigit() else hashlib.sha256(value.encode("utf-8")).hexdigest()[:12].upper())
+
+    def rebuild_enterprise_foundation(self, user):
+        if not user or user["role"] not in ("boss", "admin"):
+            return {"ok": False, "message": U(r"\u53ea\u6709\u8001\u677f\u6216\u7ba1\u7406\u5458\u53ef\u4ee5\u91cd\u5efa\u4f01\u4e1a\u7d22\u5f15\u3002")}
+        now = ts()
+        entity_count = 0
+        relation_count = 0
+        with db() as conn:
+            def register(entity_type, table, local_id, name, source_type, source_id, access="enterprise", metadata=None):
+                nonlocal entity_count
+                gid = self.genesis_global_id(entity_type, local_id)
+                conn.execute("""insert into enterprise_entity_registry(global_id,entity_type,local_table,local_id,canonical_name,access_scope,source_type,source_id,metadata_json,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,'active',?,?) on conflict(local_table,local_id) do update set canonical_name=excluded.canonical_name,access_scope=excluded.access_scope,source_type=excluded.source_type,source_id=excluded.source_id,metadata_json=excluded.metadata_json,status='active',updated_at=excluded.updated_at""", (gid, entity_type, table, str(local_id), name or gid, access, source_type, str(source_id), json.dumps(metadata or {}, ensure_ascii=False), now, now))
+                entity_count += 1
+                return gid
+            def relate(source_gid, target_gid, relation_type, source_type, source_id, evidence, confidence=1.0):
+                nonlocal relation_count
+                if not source_gid or not target_gid or not evidence:
+                    return
+                conn.execute("""insert into enterprise_relationships(source_global_id,target_global_id,relation_type,source_type,source_id,evidence_json,confidence,status,created_at,updated_at) values(?,?,?,?,?,?,?,'active',?,?) on conflict(source_global_id,target_global_id,relation_type,source_type,source_id) do update set evidence_json=excluded.evidence_json,confidence=excluded.confidence,status='active',updated_at=excluded.updated_at""", (source_gid, target_gid, relation_type, source_type, str(source_id), json.dumps(evidence, ensure_ascii=False), confidence, now, now))
+                relation_count += 1
+            def object_gid(object_type, object_id):
+                value = str(object_id or "").strip()
+                if not object_type or not value.isdigit():
+                    return None
+                return object_gids.get((object_type, int(value)))
+            object_gids = {}
+            for row in conn.execute("select * from enterprise_objects where archived_at is null").fetchall():
+                object_gids[(row["object_type"], int(row["id"]))] = register(row["object_type"], "enterprise_objects", row["id"], row["name"], "enterprise_object", row["id"], metadata={"code": row["code"], "status": row["status"]})
+            document_gids = {}
+            for row in conn.execute("select * from documents where deleted_at is null").fetchall():
+                access = "owner_only" if row["drive_visibility"] == "owner" else "enterprise"
+                document_gids[int(row["id"])] = register("document", "documents", row["id"], row["original_filename"] or row["title"], "document", row["id"], access, {"category": row["category"], "version": row["version"]})
+            decision_gids = {}
+            for row in conn.execute("select * from decision_insights").fetchall():
+                decision_gids[int(row["id"])] = register("decision", "decision_insights", row["id"], row["title"], "decision", row["id"], metadata={"status": row["status"], "severity": row["severity"]})
+            memory_gids = {}
+            for row in conn.execute("select * from enterprise_memories where archived_at is null").fetchall():
+                access = "owner_only" if row["memory_type"] == "decision" else "enterprise"
+                memory_gids[int(row["id"])] = register("memory", "enterprise_memories", row["id"], row["title"], "memory", row["id"], access, {"status": row["status"], "memory_type": row["memory_type"]})
+            knowledge_gids = {}
+            for row in conn.execute("select * from knowledge_items where deleted_at is null").fetchall():
+                knowledge_gids[int(row["id"])] = register("knowledge", "knowledge_items", row["id"], row["title"], "knowledge", row["id"], metadata={"status": row["status"], "category": row["category"]})
+            for row in conn.execute("select * from object_relations").fetchall():
+                relate(object_gid(row["source_object_type"], row["source_object_id"]), object_gid(row["target_object_type"], row["target_object_id"]), row["relation_type"], "object_relation", row["id"], [{"source": "object_relations", "record_id": row["id"], "description": row["description"] or ""}], float(row["confidence"] or 1))
+            for row in conn.execute("select id,related_object_type,related_object_id from documents where deleted_at is null and related_object_type is not null and related_object_id is not null").fetchall():
+                relate(document_gids.get(int(row["id"])), object_gid(row["related_object_type"], row["related_object_id"]), "DOCUMENT_ABOUT", "document", row["id"], [{"source": "documents", "record_id": row["id"], "field": "related_object"}])
+            for row in conn.execute("select * from drive_file_object_links where status='confirmed'").fetchall():
+                relate(document_gids.get(int(row["file_id"])), object_gid(row["object_type"], row["object_id"]), "DOCUMENT_ABOUT", "drive_file_object_link", row["id"], [{"source": row["source"] or "manual_confirmation", "record_id": row["id"], "confidence": row["confidence"]}], float(row["confidence"] or 1))
+            for row in conn.execute("select id,entity_type,entity_id,evidence from decision_insights where entity_type is not null and entity_id is not null").fetchall():
+                relate(decision_gids.get(int(row["id"])), object_gid(row["entity_type"], row["entity_id"]), "DECISION_ABOUT", "decision", row["id"], safe_json(row["evidence"], []), 0.9)
+            for row in conn.execute("select id,related_object_type,related_object_id,related_document_id from enterprise_memories where archived_at is null").fetchall():
+                if row["related_object_type"] and row["related_object_id"]:
+                    relate(memory_gids.get(int(row["id"])), object_gid(row["related_object_type"], row["related_object_id"]), "MEMORY_ABOUT", "memory", row["id"], [{"source": "enterprise_memories", "record_id": row["id"]}])
+                if row["related_document_id"]:
+                    relate(memory_gids.get(int(row["id"])), document_gids.get(int(row["related_document_id"])), "MEMORY_CITES_DOCUMENT", "memory", row["id"], [{"source": "enterprise_memories", "record_id": row["id"], "field": "related_document_id"}])
+            for row in conn.execute("select id,document_id,object_type,object_id,source_file_id from knowledge_items where deleted_at is null").fetchall():
+                doc_id = row["document_id"] or row["source_file_id"]
+                if doc_id:
+                    relate(knowledge_gids.get(int(row["id"])), document_gids.get(int(doc_id)), "KNOWLEDGE_DERIVED_FROM", "knowledge", row["id"], [{"source": "knowledge_items", "record_id": row["id"], "document_id": doc_id}])
+                if row["object_type"] and row["object_id"]:
+                    relate(knowledge_gids.get(int(row["id"])), object_gid(row["object_type"], row["object_id"]), "KNOWLEDGE_ABOUT", "knowledge", row["id"], [{"source": "knowledge_items", "record_id": row["id"], "field": "object_relation"}])
+        return {"ok": True, "entities_processed": entity_count, "relationships_processed": relation_count, "sap_policy": "no_sap_write", "execution_policy": "index_only_no_business_execution"}
+
+    def enterprise_foundation_rebuild_post(self):
+        result = self.rebuild_enterprise_foundation(self.current_user())
+        if not result.get("ok"):
+            return self.json_out(result, code=403)
+        return self.redir("/enterprise-foundation")
+
+    def enterprise_foundation_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            counts = conn.execute("select entity_type,count(*) c from enterprise_entity_registry where status='active' group by entity_type order by c desc").fetchall()
+            relationship_count = int(conn.execute("select count(*) c from enterprise_relationships where status='active'").fetchone()["c"] or 0)
+            missing_evidence = int(conn.execute("select count(*) c from enterprise_relationships where status='active' and (evidence_json is null or evidence_json='' or evidence_json='[]')").fetchone()["c"] or 0)
+            rows = conn.execute("select r.*,s.canonical_name source_name,t.canonical_name target_name from enterprise_relationships r join enterprise_entity_registry s on s.global_id=r.source_global_id join enterprise_entity_registry t on t.global_id=r.target_global_id where r.status='active' order by r.updated_at desc limit 30").fetchall()
+        metrics = "".join(self.metric(self.object_type_label(r["entity_type"]), r["c"], U(r"\u7edf\u4e00\u5bf9\u8c61 ID")) for r in counts)
+        relations = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{} → {}</h2><p>{}</p><p class='small'>{} {} · {} {}</p></div></div>".format(U(r"\u53ef\u8ffd\u6eaf"), esc(r["source_name"]), esc(r["target_name"]), esc(self.status_label(r["relation_type"])), U(r"\u4f9d\u636e"), len(safe_json(r["evidence_json"], [])), U(r"\u6765\u6e90"), esc(self.status_label(r["source_type"]))) for r in rows)
+        rebuild = "<form method='post' action='/api/enterprise-foundation/rebuild'><button>{}</button></form>".format(U(r"\u91cd\u5efa\u7edf\u4e00\u4f01\u4e1a\u7d22\u5f15")) if user["role"] in ("boss", "admin") else ""
+        body = "<div class='ceo-hero compact'><span class='status-tag'>Genesis</span><h1>{}</h1><p class='lead'>{}</p>{}</div><div class='metrics'>{}{}{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u4f01\u4e1a\u57fa\u7840"), U(r"\u7528\u7edf\u4e00\u5bf9\u8c61 ID \u548c\u5e26\u6765\u6e90\u4f9d\u636e\u7684\u5173\u7cfb，\u8fde\u63a5\u6574\u4e2a\u4f01\u4e1a\u6570\u5b57\u4e16\u754c\u3002"), rebuild, metrics, self.metric(U(r"\u4f01\u4e1a\u5173\u7cfb"), relationship_count, U(r"\u5df2\u8fde\u63a5")), self.metric(U(r"\u7f3a\u5c11\u4f9d\u636e\u5173\u7cfb"), missing_evidence, U(r"\u5fc5\u987b\u4e3a 0")), U(r"\u6700\u8fd1\u4f01\u4e1a\u5173\u7cfb"), relations or self.guided_empty_state(U(r"\u5c1a\u672a\u5efa\u7acb\u7edf\u4e00\u4f01\u4e1a\u5173\u7cfb\u3002"), U(r"\u9700\u8981\u8001\u677f\u6216\u7ba1\u7406\u5458\u624b\u52a8\u91cd\u5efa\u7d22\u5f15\u3002"), "/enterprise", U(r"\u8fd4\u56de\u4f01\u4e1a\u4e2d\u5fc3")))
+        self.out(layout(U(r"\u4f01\u4e1a\u57fa\u7840"), body, user=user, wide=True))
+
+    def enterprise_dna_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            rules = conn.execute("select * from business_rules where archived_at is null order by case status when 'active' then 0 else 1 end,priority desc limit 80").fetchall()
+            samples = conn.execute("select * from enterprise_training_samples where approval_status='approved' order by approved_at desc limit 30").fetchall()
+        groups = {}
+        for row in rules:
+            groups.setdefault(row["rule_type"] or "business", []).append(row)
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} · {}</p></div><a class='btn' href='/business-rules/{}'>{}</a></div>".format(esc(self.status_label(r["status"])), esc(r["rule_name"]), esc(r["description"] or ""), esc(self.status_label(r["rule_type"])), esc(r["source"] or U(r"\u4f01\u4e1a\u7ecf\u9a8c")), r["id"], U(r"\u67e5\u770b\u4e0e\u5ba1\u6838")) for r in rules)
+        body = "<div class='ceo-hero compact'><span class='status-tag'>Genesis</span><h1>{}</h1><p class='lead'>{}</p><a class='btn' href='/knowledge-training'>{}</a></div><div class='metrics'>{}{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u4f01\u4e1a DNA"), U(r"\u6c89\u6dc0\u706b\u72d0\u72f8\u7684\u7ecf\u8425\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4f1a\u5458\u3001\u91c7\u8d2d\u3001\u5185\u5bb9\u548c CEO \u5224\u65ad\u89c4\u5219\u3002"), U(r"\u8fdb\u5165\u77e5\u8bc6\u8bad\u7ec3"), self.metric(U(r"\u4f01\u4e1a\u89c4\u5219"), len(rules), U(r"\u9700\u4eba\u5de5\u5ba1\u6838")), self.metric(U(r"\u5df2\u6279\u51c6\u7ecf\u9a8c"), len(samples), U(r"\u53ef\u4f9b Agent \u53c2\u8003")), U(r"\u7ecf\u8425\u89c4\u5219\u5e93"), cards or self.empty_state(U(r"\u5c1a\u65e0\u53ef\u7528\u89c4\u5219\u3002")))
+        self.out(layout(U(r"\u4f01\u4e1a DNA"), body, user=user, wide=True))
+
+    def ceo_memory_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance"):
+            return self.redir("/")
+        q = (parse_qs(urlparse(self.path).query).get("q", [""])[0] or "").strip()
+        like = "%" + q + "%"
+        with db() as conn:
+            memories = conn.execute("select * from enterprise_memories where archived_at is null and memory_type='decision' and (?='' or title like ? or coalesce(summary,'') like ? or coalesce(decision,'') like ?) order by coalesce(occurred_at,created_at) desc limit 50", (q, like, like, like)).fetchall()
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p>{}</p><p class='small'>{} · {}</p></div><a class='btn' href='/memory'>{}</a></div>".format(esc(self.status_label(m["status"])), esc(m["title"]), esc(m["summary"] or m["reason"] or ""), esc(m["decision"] or ""), esc(dt(m["occurred_at"] or m["created_at"])), U(r"\u53ef\u56de\u653e\u51b3\u7b56\u80cc\u666f"), U(r"\u67e5\u770b\u5b8c\u6574\u8bb0\u5fc6")) for m in memories)
+        body = "<div class='ceo-hero compact'><span class='status-tag'>Genesis</span><h1>{}</h1><p class='lead'>{}</p><form class='ceo-ask' method='get' action='/ceo-memory'><div><label>{}</label><input name='q' value='{}' placeholder='{}'></div><button>{}</button></form></div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"CEO Memory \u4f01\u4e1a\u65f6\u95f4\u673a"), U(r"\u56de\u770b\u5f53\u65f6\u7684\u6570\u636e\u3001\u5e93\u5b58\u3001\u5408\u540c\u3001\u6587\u4ef6\u3001\u4f1a\u8bae\u3001\u51b3\u7b56\u548c\u6267\u884c\u7ed3\u679c\u3002"), U(r"\u641c\u7d22\u5386\u53f2\u51b3\u7b56"), esc(q), U(r"\u4f8b\u5982：\u4e3a\u4ec0\u4e48\u5f53\u5e74\u8c03\u6574 Osprey \u6298\u6263？"), U(r"\u67e5\u627e"), U(r"\u5386\u53f2\u51b3\u7b56"), cards or self.guided_empty_state(U(r"\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u5386\u53f2\u51b3\u7b56\u3002"), U(r"\u9700\u8981\u5148\u5c06 CEO \u51b3\u7b56\u4ee5\u53ca\u5f53\u65f6\u4f9d\u636e\u5b58\u5165\u4f01\u4e1a\u8bb0\u5fc6\u3002"), "/knowledge-training", U(r"\u8bb0\u5f55 CEO \u51b3\u7b56")))
+        self.out(layout(U(r"CEO Memory"), body, user=user, wide=True))
+
     def enterprise_center_page(self, user):
         user = self.require_login(user)
         if not user:
@@ -9395,6 +9567,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 self.card(U(r"\u5458\u5de5\u4e0e\u5ba2\u6237"), U(r"\u5c97\u4f4d\u3001\u9500\u552e\u3001\u670d\u52a1\u4e0e\u5173\u7cfb\u8bb0\u5f55\u3002"), "/object-center", "btn", True),
                 self.card(U(r"\u5bf9\u8c61\u5173\u8054"), U(r"\u4eba\u5de5\u786e\u8ba4\u8d44\u6599\u4e0e\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4ea7\u54c1\u7684\u5173\u7cfb\u3002"), "/enterprise-links", "btn", True),
                 self.card(U(r"\u4f01\u4e1a\u77e5\u8bc6\u7f51\u7edc"), U(r"\u67e5\u770b\u6709\u6765\u6e90\u3001\u53ef\u8ffd\u6eaf\u7684\u4f01\u4e1a\u5173\u7cfb\u3002"), "/enterprise-network", "btn", True),
+                self.card(U(r"\u4f01\u4e1a\u57fa\u7840"), U(r"\u7edf\u4e00\u5bf9\u8c61 ID \u4e0e\u6765\u6e90\u5173\u7cfb\u3002"), "/enterprise-foundation", "btn", True),
+                self.card(U(r"\u4f01\u4e1a DNA"), U(r"\u706b\u72d0\u72f8\u7ecf\u8425\u89c4\u5219\u4e0e\u5df2\u6279\u51c6\u7ecf\u9a8c\u3002"), "/enterprise-dna", "btn", True),
+                self.card(U(r"CEO Memory"), U(r"\u56de\u653e\u5386\u53f2\u51b3\u7b56\u3001\u5f53\u65f6\u4f9d\u636e\u548c\u5b9e\u9645\u7ed3\u679c\u3002"), "/ceo-memory", "btn", True),
             ]),
         )
         self.out(layout(U(r"\u4f01\u4e1a"), body, user=user, wide=True))
@@ -9415,7 +9590,7 @@ select v.*,d.original_filename,d.title,d.size_bytes,d.ai_status,d.updated_at doc
 from ceo_vault_items v join documents d on d.id=v.document_id
 where d.deleted_at is null and v.status='active' order by v.updated_at desc limit 100
 """).fetchall()
-        categories = [U(r"\u8425\u4e1a\u6267\u7167"), U(r"\u5546\u6807\u6ce8\u518c"), U(r"\u80a1\u6743\u67b6\u6784"), U(r"\u94f6\u884c\u8d44\u6599"), U(r"\u6218\u7565\u6587\u4ef6"), U(r"\u6295\u8d44\u8d44\u6599"), U(r"\u91cd\u8981\u5408\u540c"), U(r"\u5176\u4ed6\u91cd\u8981\u8d44\u6599")]
+        categories = [U(r"\u8425\u4e1a\u6267\u7167"), U(r"\u5546\u6807"), U(r"\u80a1\u6743"), U(r"\u94f6\u884c"), U(r"\u6218\u7565"), U(r"\u6295\u8d44"), U(r"\u5408\u540c"), U(r"\u79df\u8d41"), U(r"\u6cd5\u5f8b"), U(r"\u8463\u4e8b\u4f1a"), U(r"\u5176\u4ed6\u91cd\u8981\u8d44\u6599")]
         files = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{} · {}</p></div><a class='btn' href='/drive/files/{}'>{}</a></div>".format(
             esc(r["vault_category"]), esc(r["original_filename"] or r["title"]), esc(self.status_label(r["ai_status"])), esc(fmt_time(r["document_updated_at"])), r["document_id"], U(r"\u5b89\u5168\u6253\u5f00")) for r in rows)
         if not files:
@@ -10528,7 +10703,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
 </div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
 <div class="panel"><h2>{}</h2>{file_area}</div>""".format(
-            U(r"\u4f01\u4e1a AI \u7f51\u76d8"),
+            U(r"\u4f01\u4e1a\u6570\u5b57\u8d44\u4ea7\u4e2d\u5fc3"),
             U(r"\u50cf\u7f51\u76d8\u4e00\u6837\u7ba1\u7406\u6587\u4ef6\uff0c\u540c\u65f6\u8ba9 AI \u80fd\u591f\u641c\u7d22\u3001\u6458\u8981\u548c\u5f15\u7528\u4f9d\u636e\u3002"),
             U(r"\u5168\u90e8"),
             U(r"\u6700\u8fd1"),
@@ -10556,7 +10731,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             object_options,
             U(r"\u5173\u8054\u5bf9\u8c61\u7c7b\u578b"),
             U(r"\u5173\u8054\u5bf9\u8c61\u7f16\u53f7"),
-            U(r"\u4e0a\u4f20\u5230\u4f01\u4e1a\u7f51\u76d8"),
+            U(r"\u5b58\u5165\u4f01\u4e1a\u6570\u5b57\u8d44\u4ea7\u4e2d\u5fc3"),
             U(r"\u641c\u7d22"),
             esc(q),
             U(r"\u5206\u7c7b"),
@@ -10898,6 +11073,8 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             decisions = conn.execute("select * from decision_insights where entity_type=? and entity_id=? order by updated_at desc limit 10", (row["object_type"], row["id"])).fetchall()
             memories = conn.execute("select * from enterprise_memories where archived_at is null and related_object_type=? and related_object_id=? order by updated_at desc limit 10", (row["object_type"], row["id"])).fetchall()
             timeline_rows = self.timeline_rows_for_entity(conn, row["object_type"], row["id"], 20)
+            registry = conn.execute("select * from enterprise_entity_registry where local_table='enterprise_objects' and local_id=?", (str(row["id"]),)).fetchone()
+            registry_relation_count = int(conn.execute("select count(*) c from enterprise_relationships where status='active' and (source_global_id=? or target_global_id=?)", (registry["global_id"], registry["global_id"])).fetchone()["c"] or 0) if registry else 0
             insight = None
             if row["object_type"] == "brand":
                 insight = conn.execute("select * from brand_intelligence_snapshots where brand_name like ? order by created_at desc limit 1", ("%" + row["name"] + "%",)).fetchone()
@@ -10907,6 +11084,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
                 insight = conn.execute("select * from inventory_product_analysis where product_name like ? or product_code=? order by created_at desc limit 1", ("%" + row["name"] + "%", row["code"] or "")).fetchone()
         obj = self.enterprise_object_to_json(row, len(docs))
         metrics = []
+        metrics.append(self.metric(U(r"\u7edf\u4e00\u5bf9\u8c61 ID"), registry["global_id"] if registry else U(r"\u5f85\u5efa\u7acb"), U(r"\u4f01\u4e1a\u5173\u7cfb ") + str(registry_relation_count)))
         if insight:
             keys = insight.keys()
             for key, label, formatter in [
@@ -13796,7 +13974,19 @@ where ki.deleted_at is null"""
             "high": U(r"\u9ad8\u98ce\u9669"), "medium": U(r"\u4e2d\u7b49"), "low": U(r"\u8f83\u4f4e"),
             "opportunity": U(r"\u6709\u673a\u4f1a"), "missing": U(r"\u7f3a\u5c11\u6570\u636e"), "unknown": U(r"\u5f85\u786e\u8ba4"),
             "no_published_sync": U(r"\u6682\u65e0\u5df2\u53d1\u5e03\u7684\u540c\u6b65\u6570\u636e"), "never_run": U(r"\u5c1a\u672a\u8fd0\u884c"),
+            "stale": U(r"\u6570\u636e\u5df2\u9648\u65e7"),
             "slow_stock": U(r"\u6ede\u9500"), "dead_stock": U(r"\u957f\u671f\u6ede\u9500"),
+            "document_about": U(r"\u8d44\u6599\u5173\u4e8e\u5bf9\u8c61"),
+            "decision_about": U(r"\u51b3\u7b56\u5173\u4e8e\u5bf9\u8c61"),
+            "memory_about": U(r"\u8bb0\u5fc6\u5173\u4e8e\u5bf9\u8c61"),
+            "memory_cites_document": U(r"\u8bb0\u5fc6\u5f15\u7528\u8d44\u6599"),
+            "knowledge_derived_from": U(r"\u77e5\u8bc6\u6765\u81ea\u8d44\u6599"),
+            "knowledge_about": U(r"\u77e5\u8bc6\u5173\u4e8e\u5bf9\u8c61"),
+            "knowledge": U(r"\u4f01\u4e1a\u77e5\u8bc6"),
+            "document": U(r"\u4f01\u4e1a\u8d44\u6599"),
+            "decision": U(r"\u7ecf\u8425\u51b3\u7b56"),
+            "memory": U(r"\u4f01\u4e1a\u8bb0\u5fc6"),
+            "object_relation": U(r"\u5bf9\u8c61\u5173\u7cfb"),
         }
         return labels.get(key, value or U(r"\u5f85\u786e\u8ba4"))
 
@@ -13820,6 +14010,14 @@ where ki.deleted_at is null"""
         }
         if text in replacements:
             return replacements[text]
+        for old, new in {
+            "Inventory intelligence: dead_stock /": U(r"\u957f\u671f\u6ede\u9500\u5e93\u5b58\uff1a"),
+            "Inventory intelligence: slow_stock /": U(r"\u6ede\u9500\u5e93\u5b58\uff1a"),
+            "Inventory intelligence:": U(r"\u5e93\u5b58\u98ce\u9669\uff1a"),
+            "dead_stock": U(r"\u957f\u671f\u6ede\u9500"),
+            "slow_stock": U(r"\u6ede\u9500"),
+        }.items():
+            text = text.replace(old, new)
         if re.search(r"[\u4e00-\u9fff]", text):
             return text.replace("evidence", U(r"\u4f9d\u636e"))
         return fallback or U(r"\u8be5\u5386\u53f2\u5185\u5bb9\u4e3a\u65e7\u7248\u8bb0\u5f55\uff0c\u8bf7\u91cd\u65b0\u751f\u6210\u4e2d\u6587\u5206\u6790\u3002")
@@ -14272,6 +14470,19 @@ where ki.deleted_at is null"""
                 self.friendly_business_text(i.get("title"), U(r"\u4eca\u65e5\u7ecf\u8425\u5173\u6ce8\u4e8b\u9879"))
                 for i in daily_items[:3]
             ] or [U(r"\u5c1a\u672a\u751f\u6210\u4eca\u65e5\u7ecf\u8425\u7b80\u62a5\uff0c\u53ef\u8fdb\u5165\u65e5\u62a5\u9875\u67e5\u770b\u539f\u56e0\u3002")])
+            genesis_health = "<div class='metrics'><div class='metric {}'><span>{}</span><strong>{:.1f}/100</strong><span>{}</span></div></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), float(summary["business_health_score"] or 0), esc(self.status_label(summary["business_health_status"])))
+            genesis_today = "".join([self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"\u5f53\u524d\u7ecf\u8425\u53e3\u5f84")), self.metric(U(r"\u6bdb\u5229"), money(summary.get("gross_profit", 0)), U(r"\u5f53\u524d\u7ecf\u8425\u53e3\u5f84")), self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u5df2\u5305\u542b\u54c1\u724c\u8fd4\u70b9")), self.metric(U(r"\u6570\u636e\u66f4\u65b0"), self.status_label(summary["enterprise_sync_status"]), data_time)])
+            genesis_vault = "<p>{}</p><a class='btn' href='/ceo-vault'>{}</a>".format(U(r"\u80a1\u6743\u3001\u94f6\u884c\u3001\u6218\u7565\u3001\u6295\u8d44\u3001\u5408\u540c\u3001\u79df\u8d41\u3001\u6cd5\u5f8b\u548c\u8463\u4e8b\u4f1a\u8d44\u6599\u3002"), U(r"\u5b89\u5168\u6253\u5f00 CEO Vault")) if user["role"] in ("boss", "admin") else self.empty_state(U(r"\u5f53\u524d\u8d26\u53f7\u65e0 CEO Vault \u6743\u9650\u3002"))
+            genesis_body = """
+<div class="ceo-hero compact"><span class="status-tag">{today}</span><h1>{welcome}</h1><p class="lead">{lead}</p></div>
+<div class="panel compact-panel"><h2>{health_title}</h2>{health}<p><a class="btn gray" href="/business-health">{health_action}</a></p></div>
+<div class="panel compact-panel"><h2>{business_title}</h2><div class="metrics">{business}</div><p><a class="btn gray" href="/daily-intelligence">{business_action}</a></p></div>
+<div class="split compact-split"><div class="panel compact-panel"><h2>{risk_title}</h2>{risks}<p><a class="btn gray" href="/decision">{risk_action}</a></p></div><div class="panel compact-panel"><h2>{opportunity_title}</h2>{opportunities}<p><a class="btn gray" href="/daily-intelligence">{opportunity_action}</a></p></div></div>
+<div class="panel compact-panel"><h2>{advice_title}</h2>{advice}<p><a class="btn gray" href="/agents">{advice_action}</a></p></div>
+<div class="panel compact-panel"><h2>{action_title}</h2>{actions}<p><a class="btn" href="/action-center">{action_open}</a></p></div>
+<div class="panel compact-panel"><h2>CEO Vault</h2>{vault}</div>
+""".format(today=esc(today_text), welcome=esc(U(r"\u60a8\u597d，") + (user["name"] or U(r"\u547c\u603b"))), lead=U(r"\u8fd9\u91cc\u53ea\u663e\u793a\u4eca\u5929\u7684\u4f01\u4e1a，\u4e0d\u663e\u793a\u7cfb\u7edf\u3002"), health_title=U(r"\u4f01\u4e1a\u5065\u5eb7"), health=genesis_health, health_action=U(r"\u67e5\u770b\u5065\u5eb7\u4f9d\u636e"), business_title=U(r"\u4eca\u65e5\u7ecf\u8425"), business=genesis_today, business_action=U(r"\u6253\u5f00\u4eca\u65e5\u7ecf\u8425\u62a5\u544a"), risk_title=U(r"\u4eca\u65e5\u98ce\u9669"), risks=home_risks, risk_action=U(r"\u67e5\u770b\u98ce\u9669\u4f9d\u636e"), opportunity_title=U(r"\u4eca\u65e5\u673a\u4f1a"), opportunities=home_opportunities, opportunity_action=U(r"\u67e5\u770b\u673a\u4f1a\u6765\u6e90"), advice_title=U(r"\u4eca\u65e5\u5efa\u8bae"), advice=home_daily, advice_action=U(r"\u8bf7 AI Agent \u6df1\u5165\u5206\u6790"), action_title=U(r"\u4eca\u65e5\u884c\u52a8"), actions=focus_html, action_open=U(r"\u8fdb\u5165\u884c\u52a8\u4e2d\u5fc3"), vault=genesis_vault)
+            return self.out(layout(U(r"FoxBrain \u4f01\u4e1a\u6570\u5b57\u603b\u90e8"), genesis_body, user=user, wide=False))
             body = """
 <div class="ceo-hero compact">
   <span class="status-tag">{today}</span>
