@@ -264,6 +264,18 @@ def load_env_file():
 
 load_env_file()
 
+
+def baidu_drive_share_url():
+    share_url = (os.environ.get("BAIDU_DRIVE_SHARE_URL") or "").strip()
+    share_code = (os.environ.get("BAIDU_DRIVE_SHARE_CODE") or "").strip()
+    parsed = urlparse(share_url)
+    if parsed.scheme != "https" or parsed.hostname != "pan.baidu.com" or not parsed.path.startswith("/s/"):
+        return ""
+    if share_code and "pwd=" not in parsed.query:
+        separator = "&" if parsed.query else "?"
+        share_url += separator + "pwd=" + quote(share_code)
+    return share_url
+
 T = {
     "brand": "FoxBrain \u8001\u677f\u7ecf\u8425\u7cfb\u7edf",
     "subtitle": "",
@@ -5689,6 +5701,17 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_second_brain_page(user)
         if path == "/drive" or path in ("/drive/recent", "/drive/starred", "/drive/shared", "/drive/trash", "/drive/search") or re.match(r"^/drive/folders/\d+$", path):
             return self.drive_2_page(user)
+        if path == "/drive/external/baidu":
+            user = self.require_login(user)
+            if not user:
+                return
+            if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+                return self.dashboard(user)
+            share_url = baidu_drive_share_url()
+            if not share_url:
+                return self.out(layout(U(r"\u767e\u5ea6\u7f51\u76d8"), self.empty_state(U(r"\u767e\u5ea6\u7f51\u76d8\u5171\u4eab\u8fd8\u6ca1\u6709\u914d\u7f6e\uff0c\u8bf7\u8054\u7cfb\u7cfb\u7edf\u7ba1\u7406\u5458\u3002")), user=user))
+            self.log_action(user, "external_drive_open", "baidu_drive", "shared_folder", U(r"\u53ea\u8bfb\u5171\u4eab"))
+            return self.redir(share_url)
         m_drive_file_page = re.match(r"^/drive/files/(\d+)$", path)
         if m_drive_file_page:
             return self.drive_file_detail_page(user, int(m_drive_file_page.group(1)))
@@ -10000,6 +10023,20 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             file_cards = empty
         recent_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["category"] for row in recent] or [U(r"\u6682\u65e0\u6700\u8fd1\u6587\u4ef6")]
         queue_items = [self.document_to_json(row)["original_filename"] + " / " + self.drive_status_label(self.document_to_json(row)["processing_status"]) for row in queue] or [U(r"\u5f53\u524d\u65e0\u5f85\u5904\u7406\u6587\u4ef6")]
+        baidu_drive_card = ""
+        if baidu_drive_share_url():
+            baidu_drive_card = """
+<div class="panel">
+  <h2>{}</h2>
+  <p>{}</p>
+  <p class="small">{}</p>
+  <a class="btn" href="/drive/external/baidu" target="_blank" rel="noopener noreferrer">{}</a>
+</div>""".format(
+                U(r"\u767e\u5ea6\u7f51\u76d8\uff5cFoxBrain\u4f01\u4e1a\u5171\u4eab"),
+                U(r"\u5df2\u8fde\u63a5\u5916\u90e8\u53ea\u8bfb\u5171\u4eab\u6587\u4ef6\u5939\u3002"),
+                U(r"\u6587\u4ef6\u4ecd\u4fdd\u5b58\u5728\u767e\u5ea6\u7f51\u76d8\uff1bFoxBrain \u6682\u4e0d\u4f1a\u81ea\u52a8\u590d\u5236\u3001\u5220\u9664\u6216\u7528\u4f5c AI \u8bc1\u636e\u3002"),
+                U(r"\u6253\u5f00\u767e\u5ea6\u7f51\u76d8"),
+            )
         body = """
 <div class="panel">
   <h2>{}</h2>
@@ -10007,6 +10044,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
   {breadcrumb}
   <div class="inline"><a class="btn dark" href="/drive">{}</a><a class="btn gray" href="/drive/recent">{}</a><a class="btn gray" href="/drive/starred">{}</a><a class="btn gray" href="/drive/shared">{}</a><a class="btn gray" href="/drive/trash">{}</a><a class="btn gray" href="/drive?view=grid">{}</a><a class="btn gray" href="/copilot?q={ask_folder_q}">{}</a></div>
 </div>
+{baidu_drive_card}
 <div class="split">
  <div class="panel">
   <h2>{}</h2>
@@ -10092,6 +10130,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u6587\u4ef6"),
             breadcrumb=breadcrumb,
             ask_folder_q=ask_folder_q,
+            baidu_drive_card=baidu_drive_card,
             folder_tree=folder_tree,
             folder_options=folder_options,
             file_area=("<div class='grid'>" + file_cards + "</div>") if view == "grid" else "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table>".format(U(r"\u6587\u4ef6"), U(r"\u5206\u7c7b"), U(r"\u7c7b\u578b"), U(r"\u5927\u5c0f"), U(r"\u72b6\u6001"), U(r"AI \u6458\u8981"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u64cd\u4f5c"), file_rows),

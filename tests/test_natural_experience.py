@@ -124,6 +124,25 @@ class NaturalExperienceTests(unittest.TestCase):
         self.assertIn("FoxBrain upload regression test", extraction["text_content"])
         self.assertEqual(extraction["created_at"], extraction["updated_at"])
 
+    def test_baidu_drive_share_requires_official_https_url(self):
+        old_url = os.environ.get("BAIDU_DRIVE_SHARE_URL")
+        old_code = os.environ.get("BAIDU_DRIVE_SHARE_CODE")
+        try:
+            os.environ["BAIDU_DRIVE_SHARE_URL"] = "https://pan.baidu.com/s/test-share"
+            os.environ["BAIDU_DRIVE_SHARE_CODE"] = "1102"
+            self.assertEqual(portal.baidu_drive_share_url(), "https://pan.baidu.com/s/test-share?pwd=1102")
+            os.environ["BAIDU_DRIVE_SHARE_URL"] = "https://example.com/s/test-share"
+            self.assertEqual(portal.baidu_drive_share_url(), "")
+        finally:
+            if old_url is None:
+                os.environ.pop("BAIDU_DRIVE_SHARE_URL", None)
+            else:
+                os.environ["BAIDU_DRIVE_SHARE_URL"] = old_url
+            if old_code is None:
+                os.environ.pop("BAIDU_DRIVE_SHARE_CODE", None)
+            else:
+                os.environ["BAIDU_DRIVE_SHARE_CODE"] = old_code
+
 
 def tearDownModule():
     shutil.rmtree(TEST_APP_DIR, ignore_errors=True)
