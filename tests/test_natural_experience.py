@@ -220,6 +220,36 @@ class NaturalExperienceTests(unittest.TestCase):
         self.assertIn("上传完成：成功", page)
 
 
+    def test_ceo_vault_and_enterprise_network_render(self):
+        rendered = []
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.ceo_vault_page(self.user)
+        self.app.enterprise_network_page(self.user)
+        self.assertEqual(len(rendered), 2)
+        self.assertIn(portal.U(r"\u8001\u677f\u4fdd\u9669\u5e93"), rendered[0])
+        self.assertIn(portal.U(r"\u4f01\u4e1a\u77e5\u8bc6\u7f51\u7edc"), rendered[1])
+
+    def test_proactive_signals_require_evidence(self):
+        now = int(time.time())
+        with portal.db() as conn:
+            conn.execute("delete from proactive_signals")
+            conn.execute("delete from decision_insights")
+            conn.execute(
+                "insert into decision_insights(insight_type,title,summary,severity,status,evidence,suggestion,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                ("risk", "evidence-backed", "verified", "high", "new", json.dumps([{"source": "test", "value": 1}]), "review", now, now),
+            )
+            conn.execute(
+                "insert into decision_insights(insight_type,title,summary,severity,status,evidence,suggestion,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                ("risk", "unsupported", "must not publish", "high", "new", "[]", "ignore", now, now),
+            )
+        result = self.app.rebuild_proactive_signals(self.user)
+        self.assertTrue(result["ok"])
+        with portal.db() as conn:
+            titles = [row["title"] for row in conn.execute("select title from proactive_signals").fetchall()]
+        self.assertIn("evidence-backed", titles)
+        self.assertNotIn("unsupported", titles)
+
+
 def tearDownModule():
     shutil.rmtree(TEST_APP_DIR, ignore_errors=True)
 

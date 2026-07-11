@@ -5394,6 +5394,71 @@ create table if not exists v5_items(
 """
         )
         conn.execute("create index if not exists idx_v5_items_type on v5_items(item_type, status)")
+        conn.execute(
+            """
+create table if not exists ceo_vault_items(
+ id integer primary key autoincrement,
+ document_id integer not null unique,
+ vault_category text not null,
+ confidentiality text not null default 'owner_only',
+ review_date text,
+ status text not null default 'active',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_ceo_vault_category on ceo_vault_items(vault_category,status)")
+        conn.execute(
+            """
+create table if not exists enterprise_object_links(
+ id integer primary key autoincrement,
+ source_type text not null,
+ source_id text not null,
+ target_object_type text not null,
+ target_object_id integer,
+ relation_type text not null,
+ evidence_json text not null default '[]',
+ status text not null default 'suggested',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null,
+ unique(source_type,source_id,target_object_type,target_object_id,relation_type)
+)
+"""
+        )
+        conn.execute("create index if not exists idx_enterprise_links_target on enterprise_object_links(target_object_type,target_object_id,status)")
+        conn.execute(
+            """
+create table if not exists proactive_signals(
+ id integer primary key autoincrement,
+ signal_type text not null,
+ severity text not null,
+ title text not null,
+ summary text,
+ recommended_action text,
+ entity_type text,
+ entity_id text,
+ source_type text not null,
+ source_id text not null,
+ evidence_json text not null,
+ status text not null default 'new',
+ created_at integer not null,
+ updated_at integer not null,
+ unique(signal_type,source_type,source_id)
+)
+"""
+        )
+        conn.execute("create index if not exists idx_proactive_signals_status on proactive_signals(status,severity,updated_at)")
+        vault_root = conn.execute("select id from drive_folders where name=? and deleted_at is null order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
+        if not vault_root:
+            root = conn.execute("select id from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
+            now_vault = int(time.time())
+            conn.execute(
+                "insert into drive_folders(parent_id,name,path,owner_id,visibility,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                (root["id"] if root else None, U(r"\u8001\u677f\u4fdd\u9669\u5e93"), U(r"/\u8001\u677f\u4fdd\u9669\u5e93"), None, "owner", None, now_vault, now_vault),
+            )
         admin_email = os.environ.get("PORTAL_ADMIN_EMAIL", "vafox@126.com").strip().lower()
         existing_admin = conn.execute("select id from users where role='admin' limit 1").fetchone()
         if not existing_admin:
@@ -5620,6 +5685,14 @@ class App(BaseHTTPRequestHandler):
             return self.action_center_page(user)
         if path == "/enterprise":
             return self.enterprise_center_page(user)
+        if path == "/ceo-vault":
+            return self.ceo_vault_page(user)
+        if path == "/enterprise-links":
+            return self.enterprise_links_page(user)
+        if path == "/enterprise-network":
+            return self.enterprise_network_page(user)
+        if path == "/proactive-intelligence":
+            return self.proactive_intelligence_page(user)
         if path == "/system":
             return self.system_center_page(user)
         if path == "/agents":
@@ -6004,6 +6077,8 @@ class App(BaseHTTPRequestHandler):
             return self.jarvis_action_post()
         if path == "/copilot/ask":
             return self.copilot_ask_post()
+        if path == "/api/proactive-intelligence/rebuild":
+            return self.proactive_intelligence_rebuild_post()
         if path == "/reports/save":
             return self.report_save()
         if path == "/content/save":
@@ -9209,9 +9284,126 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 self.card(U(r"\u54c1\u724c"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8fd4\u70b9\u548c\u5386\u53f2\u51b3\u7b56\u3002"), "/object-center?type=brand", "btn", True),
                 self.card(U(r"\u4ea7\u54c1"), U(r"\u9500\u552e\u3001\u5e93\u5b58\u3001\u8d44\u6599\u548c\u5173\u8054\u54c1\u724c\u3002"), "/object-center?type=product", "btn", True),
                 self.card(U(r"\u5458\u5de5\u4e0e\u5ba2\u6237"), U(r"\u5c97\u4f4d\u3001\u9500\u552e\u3001\u670d\u52a1\u4e0e\u5173\u7cfb\u8bb0\u5f55\u3002"), "/object-center", "btn", True),
+                self.card(U(r"\u5bf9\u8c61\u5173\u8054"), U(r"\u4eba\u5de5\u786e\u8ba4\u8d44\u6599\u4e0e\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4ea7\u54c1\u7684\u5173\u7cfb\u3002"), "/enterprise-links", "btn", True),
+                self.card(U(r"\u4f01\u4e1a\u77e5\u8bc6\u7f51\u7edc"), U(r"\u67e5\u770b\u6709\u6765\u6e90\u3001\u53ef\u8ffd\u6eaf\u7684\u4f01\u4e1a\u5173\u7cfb\u3002"), "/enterprise-network", "btn", True),
             ]),
         )
         self.out(layout(U(r"\u4f01\u4e1a"), body, user=user, wide=True))
+
+    def ceo_vault_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.out(layout(U(r"\u8001\u677f\u4fdd\u9669\u5e93"), self.guided_empty_state(
+                U(r"\u8fd9\u91cc\u4fdd\u5b58\u4f01\u4e1a\u6700\u673a\u5bc6\u7684\u8d44\u6599\u3002"),
+                U(r"\u5f53\u524d\u8d26\u53f7\u6ca1\u6709\u8001\u677f\u4fdd\u9669\u5e93\u6743\u9650\uff0c\u8bf7\u8054\u7cfb\u8001\u677f\u6216\u7ba1\u7406\u5458\u3002"),
+                "/enterprise", U(r"\u8fd4\u56de\u4f01\u4e1a\u8d44\u6599\u4e2d\u5fc3")), user=user, wide=False))
+        with db() as conn:
+            folder = conn.execute("select id from drive_folders where name=? order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
+            rows = conn.execute("""
+select v.*,d.original_filename,d.title,d.size_bytes,d.ai_status,d.updated_at document_updated_at
+from ceo_vault_items v join documents d on d.id=v.document_id
+where d.deleted_at is null and v.status='active' order by v.updated_at desc limit 100
+""").fetchall()
+        categories = [U(r"\u8425\u4e1a\u6267\u7167"), U(r"\u5546\u6807\u6ce8\u518c"), U(r"\u80a1\u6743\u67b6\u6784"), U(r"\u94f6\u884c\u8d44\u6599"), U(r"\u6218\u7565\u6587\u4ef6"), U(r"\u6295\u8d44\u8d44\u6599"), U(r"\u91cd\u8981\u5408\u540c"), U(r"\u5176\u4ed6\u91cd\u8981\u8d44\u6599")]
+        files = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{} · {}</p></div><a class='btn' href='/drive/files/{}'>{}</a></div>".format(
+            esc(r["vault_category"]), esc(r["original_filename"] or r["title"]), esc(self.status_label(r["ai_status"])), esc(fmt_time(r["document_updated_at"])), r["document_id"], U(r"\u5b89\u5168\u6253\u5f00")) for r in rows)
+        if not files:
+            files = self.guided_empty_state(U(r"\u4fdd\u9669\u5e93\u8fd8\u6ca1\u6709\u6587\u4ef6\u3002"), U(r"\u8bf7\u5148\u9009\u62e9\u8d44\u6599\u7c7b\u522b\uff0c\u518d\u4e0a\u4f20\u539f\u59cb\u6587\u4ef6\u3002\u7cfb\u7edf\u4f1a\u4fdd\u7559\u539f\u6587\u4ef6\u548c\u7248\u672c\u3002"), "/drive", U(r"\u6253\u5f00\u4f01\u4e1a\u7f51\u76d8"))
+        options = "".join("<option value='{}'>{}</option>".format(esc(x), esc(x)) for x in categories)
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">{tag}</span><h1>{title}</h1><p class="lead">{lead}</p></div>
+<div class="panel"><h2>{upload}</h2><form method="post" action="/api/drive/upload" enctype="multipart/form-data"><input type="hidden" name="drive_visibility" value="owner"><input type="hidden" name="folder_id" value="{folder_id}"><input type="hidden" name="category" value="CEO Vault"><label>{category}</label><select name="vault_category">{options}</select><label>{file}</label><input type="file" name="file" required><button>{save}</button></form><p class="small">{warning}</p></div>
+<div class="panel"><h2>{files_title}</h2><div class="grid">{files}</div></div>
+""".format(tag=U(r"\u4ec5\u8001\u677f\u4e0e\u7ba1\u7406\u5458\u53ef\u89c1"), title=U(r"\u8001\u677f\u4fdd\u9669\u5e93"), lead=U(r"\u96c6\u4e2d\u4fdd\u7ba1\u80a1\u6743\u3001\u94f6\u884c\u3001\u6295\u8d44\u3001\u6218\u7565\u548c\u91cd\u8981\u5408\u540c\u8d44\u6599\u3002"), upload=U(r"\u5b89\u5168\u5b58\u5165"), folder_id=folder["id"] if folder else "", category=U(r"\u8d44\u6599\u7c7b\u522b"), options=options, file=U(r"\u9009\u62e9\u6587\u4ef6"), save=U(r"\u5b58\u5165\u4fdd\u9669\u5e93"), warning=U(r"\u6587\u4ef6\u4e0d\u4f1a\u88ab\u9759\u9ed8\u8986\u76d6\uff1b\u91cd\u590d\u6587\u4ef6\u4f1a\u63d0\u9192\uff0c\u65b0\u7248\u672c\u4f1a\u4fdd\u7559\u5386\u53f2\u3002"), files_title=U(r"\u5df2\u4fdd\u7ba1\u8d44\u6599"), files=files)
+        self.out(layout(U(r"\u8001\u677f\u4fdd\u9669\u5e93"), body, user=user, wide=True))
+
+    def enterprise_links_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            confirmed = int(conn.execute("select count(*) c from drive_file_object_links where status='confirmed'").fetchone()["c"] or 0)
+            suggested = int(conn.execute("select count(*) c from drive_file_link_suggestions where status='pending'").fetchone()["c"] or 0)
+            rows = conn.execute("""select l.*,d.original_filename,o.name object_name from drive_file_object_links l join documents d on d.id=l.file_id left join enterprise_objects o on o.id=l.object_id where l.status='confirmed' order by l.updated_at desc limit 30""").fetchall()
+        links = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}：{} · {}</p></div><a class='btn' href='/drive/files/{}'>{}</a></div>".format(U(r"\u5df2\u786e\u8ba4"), esc(r["original_filename"]), esc(self.object_type_label(r["object_type"])), esc(r["object_name"] or r["object_id"]), U(r"\u4eba\u5de5\u786e\u8ba4\u5173\u8054"), r["file_id"], U(r"\u67e5\u770b\u8d44\u6599")) for r in rows)
+        if not links:
+            links = self.guided_empty_state(U(r"\u5c1a\u65e0\u5df2\u786e\u8ba4\u7684\u8d44\u6599\u5173\u8054\u3002"), U(r"\u5148\u5728\u4f01\u4e1a\u7f51\u76d8\u4e0a\u4f20\u8d44\u6599\uff0c\u518d\u5c06\u5efa\u8bae\u5173\u8054\u4eba\u5de5\u786e\u8ba4\u5230\u54c1\u724c\u3001\u95e8\u5e97\u6216\u4ea7\u54c1\u3002"), "/drive", U(r"\u8fdb\u5165\u4f01\u4e1a\u7f51\u76d8"))
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='metrics'>{}{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u4eba\u5de5\u786e\u8ba4\u540e\u751f\u6548"), U(r"\u4f01\u4e1a\u5bf9\u8c61\u5173\u8054"), U(r"\u628a\u6587\u4ef6\u3001\u54c1\u724c\u3001\u95e8\u5e97\u548c\u4ea7\u54c1\u8fde\u6210\u53ef\u8ffd\u6eaf\u7684\u4f01\u4e1a\u6863\u6848\u3002"), self.metric(U(r"\u5df2\u786e\u8ba4\u5173\u8054"), confirmed, U(r"\u53ef\u76f4\u63a5\u4f7f\u7528")), self.metric(U(r"\u5f85\u786e\u8ba4\u5efa\u8bae"), suggested, U(r"\u4e0d\u4f1a\u81ea\u52a8\u751f\u6548")), U(r"\u6700\u8fd1\u5173\u8054"), links)
+        self.out(layout(U(r"\u4f01\u4e1a\u5bf9\u8c61\u5173\u8054"), body, user=user, wide=True))
+
+    def enterprise_network_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            node_count = int(conn.execute("select count(*) c from knowledge_graph_nodes where status='active'").fetchone()["c"] or 0)
+            rows = conn.execute("""select e.*,coalesce(a.label,a.name,e.from_node_id) source_name,coalesce(b.label,b.name,e.to_node_id) target_name from knowledge_graph_edges e left join knowledge_graph_nodes a on a.node_id=e.from_node_id or a.id=e.source_node_id left join knowledge_graph_nodes b on b.node_id=e.to_node_id or b.id=e.target_node_id where e.status='active' order by e.updated_at desc limit 40""").fetchall()
+        cards = []
+        for r in rows:
+            try:
+                evidence = json.loads(r["evidence_json"] or "[]")
+            except (TypeError, ValueError):
+                evidence = []
+            cards.append("<div class='card'><div><span class='status-tag'>{}</span><h2>{} → {}</h2><p>{} {} · {} {}</p></div></div>".format(U(r"\u53ef\u8ffd\u6eaf"), esc(r["source_name"] or U(r"\u672a\u547d\u540d\u5bf9\u8c61")), esc(r["target_name"] or U(r"\u672a\u547d\u540d\u5bf9\u8c61")), U(r"\u5173\u7cfb"), esc(r["edge_type"] or r["relation_type"] or U(r"\u76f8\u5173")), U(r"\u4f9d\u636e"), len(evidence)))
+        network = "".join(cards) or self.guided_empty_state(U(r"\u4f01\u4e1a\u77e5\u8bc6\u7f51\u7edc\u8fd8\u6ca1\u6709\u53ef\u7528\u5173\u7cfb\u3002"), U(r"\u9700\u8981\u5148\u786e\u8ba4\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4ea7\u54c1\u548c\u8d44\u6599\u4e4b\u95f4\u7684\u5173\u8054\uff0c\u4e14\u6bcf\u6761\u5173\u7cfb\u5fc5\u987b\u6709\u6765\u6e90\u3002"), "/enterprise-links", U(r"\u53bb\u786e\u8ba4\u5bf9\u8c61\u5173\u8054"))
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p><form class='ceo-ask' method='get' action='/copilot'><input type='hidden' name='ctx_page' value='/enterprise-network'><input type='hidden' name='ctx_title' value='企业知识网络'><div><label>{}</label><input name='q' placeholder='{}'></div><button>{}</button></form></div><div class='metrics'>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u6bcf\u6761\u5173\u7cfb\u90fd\u6709\u6765\u6e90"), U(r"\u4f01\u4e1a\u77e5\u8bc6\u7f51\u7edc"), U(r"\u67e5\u770b\u4f01\u4e1a\u3001\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4ea7\u54c1\u4e0e\u8d44\u6599\u4e4b\u95f4\u7684\u771f\u5b9e\u8054\u7cfb\u3002"), U(r"AI \u95ee\u5f53\u524d\u5173\u7cfb"), U(r"\u4f8b\u5982\uff1aOsprey \u4e0e\u54ea\u4e9b\u95e8\u5e97\u548c\u8d44\u6599\u6709\u5173\uff1f"), U(r"\u57fa\u4e8e\u4f9d\u636e\u56de\u7b54"), self.metric(U(r"\u4f01\u4e1a\u5bf9\u8c61"), node_count, U(r"\u5df2\u8fdb\u5165\u77e5\u8bc6\u7f51\u7edc")), U(r"\u6700\u8fd1\u4f01\u4e1a\u5173\u7cfb"), network)
+        self.out(layout(U(r"\u4f01\u4e1a\u77e5\u8bc6\u7f51\u7edc"), body, user=user, wide=True))
+
+    def rebuild_proactive_signals(self, user):
+        if not user or user["role"] not in ("boss", "admin"):
+            return {"ok": False, "message": U(r"\u5f53\u524d\u8d26\u53f7\u65e0\u6743\u91cd\u5efa\u7ecf\u8425\u63d0\u9192\u3002"), "created": 0}
+        now = ts()
+        candidates = []
+        with db() as conn:
+            for r in conn.execute("select * from decision_insights where status in ('new','reviewing','active') order by updated_at desc limit 100").fetchall():
+                raw = r["evidence"] or ""
+                try:
+                    evidence = json.loads(raw) if raw else []
+                except (TypeError, ValueError):
+                    evidence = []
+                if evidence:
+                    candidates.append(("risk", r["severity"], r["title"], r["summary"], r["suggestion"], r["entity_type"], str(r["entity_id"] or ""), "decision", str(r["id"]), json.dumps(evidence, ensure_ascii=False)))
+            report = conn.execute("select id from daily_intelligence_reports order by created_at desc limit 1").fetchone()
+            if report:
+                for r in conn.execute("select * from daily_intelligence_items where report_id=? order by id desc limit 100", (report["id"],)).fetchall():
+                    try:
+                        evidence = json.loads(r["evidence_json"] or "[]")
+                    except (TypeError, ValueError):
+                        evidence = []
+                    if evidence:
+                        signal_type = "opportunity" if r["item_type"] == "opportunity" else "risk"
+                        candidates.append((signal_type, r["severity"], r["title"], r["description"], r["recommended_action"], r["entity_type"], str(r["entity_id"] or ""), "daily_intelligence", str(r["id"]), json.dumps(evidence, ensure_ascii=False)))
+            for item in candidates:
+                conn.execute("""insert into proactive_signals(signal_type,severity,title,summary,recommended_action,entity_type,entity_id,source_type,source_id,evidence_json,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?, 'active',?,?) on conflict(source_type,source_id,signal_type) do update set severity=excluded.severity,title=excluded.title,summary=excluded.summary,recommended_action=excluded.recommended_action,evidence_json=excluded.evidence_json,status='active',updated_at=excluded.updated_at""", item + (now, now))
+        return {"ok": True, "created": len(candidates), "message": U(r"\u5df2\u57fa\u4e8e\u73b0\u6709\u4f9d\u636e\u91cd\u5efa\u7ecf\u8425\u63d0\u9192\u3002")}
+
+    def proactive_intelligence_rebuild_post(self):
+        user = self.current_user()
+        result = self.rebuild_proactive_signals(user)
+        if not result["ok"]:
+            return self.json_out(result, code=403)
+        return self.redir("/proactive-intelligence")
+
+    def proactive_intelligence_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from proactive_signals where status='active' order by case severity when 'critical' then 0 when 'high' then 1 else 2 end,updated_at desc limit 60").fetchall()
+        cards = []
+        for r in rows:
+            try:
+                evidence = json.loads(r["evidence_json"] or "[]")
+            except (TypeError, ValueError):
+                evidence = []
+            source_url = "/decision" if r["source_type"] == "decision" else "/daily-intelligence"
+            cards.append("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} {} · {}</p></div><a class='btn' href='{}'>{}</a></div>".format(self.status_label(r["severity"]), esc(r["title"]), esc(r["summary"] or r["recommended_action"] or ""), U(r"\u4f9d\u636e"), len(evidence), U(r"\u9700\u4eba\u5de5\u590d\u6838"), source_url, U(r"\u67e5\u770b\u6765\u6e90")))
+        signals = "".join(cards) or self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u4e3b\u52a8\u7ecf\u8425\u63d0\u9192\u3002"), U(r"\u53ef\u4ee5\u7531\u8001\u677f\u6216\u7ba1\u7406\u5458\u624b\u52a8\u91cd\u5efa\u3002\u53ea\u6709\u5e26\u4f9d\u636e\u7684\u98ce\u9669\u548c\u673a\u4f1a\u624d\u4f1a\u8fdb\u5165\u6b64\u5904\u3002"), "/decision", U(r"\u5148\u67e5\u770b\u7ecf\u8425\u51b3\u7b56"))
+        rebuild = "<form method='post' action='/api/proactive-intelligence/rebuild'><button>{}</button></form>".format(U(r"\u624b\u52a8\u91cd\u5efa\u63d0\u9192")) if user["role"] in ("boss", "admin") else ""
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u81ea\u52a8\u8c03\u5ea6\u5df2\u5173\u95ed"), U(r"\u4e3b\u52a8\u7ecf\u8425\u667a\u80fd"), U(r"\u4ece\u73b0\u6709\u51b3\u7b56\u548c\u6bcf\u65e5\u7b80\u62a5\u4e2d\u63d0\u53d6\u6709\u4f9d\u636e\u7684\u98ce\u9669\u4e0e\u673a\u4f1a\u3002\u7cfb\u7edf\u4e0d\u4f1a\u81ea\u52a8\u6267\u884c\u884c\u52a8\u3002"), rebuild, U(r"\u5f85\u4eba\u5de5\u590d\u6838"), signals)
+        self.out(layout(U(r"\u4e3b\u52a8\u7ecf\u8425\u667a\u80fd"), body, user=user, wide=True))
 
     def system_center_page(self, user):
         user = self.require_login(user)
@@ -9914,6 +10106,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
     def drive_can_access_file(self, user, row):
         if not user or not row:
             return False
+        visibility = row["drive_visibility"] if "drive_visibility" in row.keys() else "team"
+        if visibility == "owner" and user["role"] not in ("boss", "admin"):
+            return False
         if user["role"] in ("boss", "admin", "finance", "purchasing", "store_manager"):
             return True
         return int(row["uploaded_by"] or row["created_by"] or 0) == int(user["id"])
@@ -10049,6 +10244,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         params = []
         if path == "/drive/trash":
             where = ["deleted_at is not null"]
+        if user["role"] not in ("boss", "admin"):
+            where.append("coalesce(drive_visibility,'team')!='owner'")
         if path == "/drive/starred":
             where.append("starred_at is not null")
         if folder_id:
@@ -11035,6 +11232,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             folder_id = (query.get("folder_id", [""])[0] or "").strip()
             where = ["deleted_at is null"]
             params = []
+            if user["role"] not in ("boss", "admin"):
+                where.append("coalesce(drive_visibility,'team')!='owner'")
             if q:
                 like = "%" + q + "%"
                 where.append("(coalesce(original_filename,file_name,title) like ? or coalesce(tags,'') like ? or coalesce(ai_summary,summary,'') like ?)")
@@ -11224,6 +11423,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         related_object_type = module_key(form.getfirst("related_object_type", "") or "")
         related_object_id_raw = (form.getfirst("related_object_id", "") or "").strip()
         related_object_ref = (form.getfirst("related_object_ref", "") or "").strip()
+        requested_visibility = (form.getfirst("drive_visibility", "team") or "team").strip()
+        drive_visibility = "owner" if requested_visibility == "owner" and user["role"] in ("boss", "admin") else "team"
+        vault_category = (form.getfirst("vault_category", "") or "").strip()
         if ":" in related_object_ref:
             ref_type, ref_id = related_object_ref.split(":", 1)
             related_object_type = module_key(ref_type)
@@ -11298,10 +11500,15 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                     content_hash,
                     "ready" if processing_status in ("completed", "indexed") else "waiting",
                     duplicate["id"] if duplicate else None,
-                    "team",
+                    drive_visibility,
                 ),
             )
             doc_id = cur.lastrowid
+            if drive_visibility == "owner":
+                conn.execute(
+                    "insert into ceo_vault_items(document_id,vault_category,confidentiality,status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?)",
+                    (doc_id, vault_category or U(r"\u5176\u4ed6\u91cd\u8981\u8d44\u6599"), "owner_only", "active", user["id"], now, now),
+                )
             cur_v = conn.execute(
                 "insert into drive_file_versions(file_id,version_number,storage_key,file_path,content_hash,size_bytes,uploaded_by,created_at,change_note) values(?,?,?,?,?,?,?,?,?)",
                 (doc_id, 1, str(file_path), str(file_path), content_hash, len(data), user["id"], now, "uploaded_to_enterprise_drive"),
@@ -11323,6 +11530,12 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 conn.execute(
                     "insert into drive_file_object_links(file_id,object_type,object_id,link_type,confidence,status,source,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
                     (doc_id, related_object_type, int(related_object_id_raw), "manual", 1.0, "confirmed", "upload_form", user["id"], now, now),
+                )
+                conn.execute(
+                    """insert into enterprise_object_links(source_type,source_id,target_object_type,target_object_id,relation_type,evidence_json,status,created_by,created_at,updated_at)
+values('document',?,?,?,?,?,'confirmed',?,?,?)
+on conflict(source_type,source_id,target_object_type,target_object_id,relation_type) do update set evidence_json=excluded.evidence_json,status='confirmed',updated_at=excluded.updated_at""",
+                    (str(doc_id), related_object_type, int(related_object_id_raw), "related_to", json.dumps([{"source": "manual_upload", "document_id": doc_id}], ensure_ascii=False), user["id"], now, now),
                 )
             haystack = (original + "\n" + extracted[:5000]).lower()
             for obj in conn.execute("select id,object_type,name from enterprise_objects where archived_at is null order by updated_at desc limit 300").fetchall():
@@ -13885,6 +14098,8 @@ where ki.deleted_at is null"""
                 '<a class="btn gray" href="/copilot">{}</a>'.format(U(r"AI \u95ee\u4f01\u4e1a")),
                 '<a class="btn gray" href="/daily-intelligence">{}</a>'.format(U(r"\u4eca\u65e5\u65e5\u62a5")),
                 '<a class="btn gray" href="/action-center">{}</a>'.format(U(r"\u884c\u52a8\u4e2d\u5fc3")),
+                '<a class="btn gray" href="/proactive-intelligence">{}</a>'.format(U(r"\u4e3b\u52a8\u7ecf\u8425\u63d0\u9192")),
+                '<a class="btn gray" href="/ceo-vault">{}</a>'.format(U(r"\u8001\u677f\u4fdd\u9669\u5e93")) if user["role"] in ("boss", "admin") else "",
             ])
             home_risks = self.bullets([
                 self.friendly_business_text(r.get("title"), U(r"\u7ecf\u8425\u98ce\u9669\u5f85\u590d\u6838"))
