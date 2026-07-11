@@ -143,6 +143,82 @@ class NaturalExperienceTests(unittest.TestCase):
             else:
                 os.environ["BAIDU_DRIVE_SHARE_CODE"] = old_code
 
+    def test_ceo_navigation_uses_five_product_entries(self):
+        page = portal.layout("测试", "", user=self.user)
+        for label, url in [("今天", "/"), ("企业", "/enterprise"), ("企业资料", "/drive"), ("AI助手", "/copilot"), ("系统", "/system")]:
+            self.assertIn('href="{}">{}'.format(url, label), page)
+        self.assertNotIn('class="primary-nav"><a href="/">首页', page)
+
+    def test_profit_composition_never_adds_rebate_twice(self):
+        profit = self.app.profit_composition_payload()
+        self.assertAlmostEqual(profit["sap_profit"], 1723487.13, places=2)
+        self.assertAlmostEqual(profit["rebate_total"], 1044717.78, places=2)
+        self.assertAlmostEqual(profit["non_rebate_profit"], 678769.35, places=2)
+        self.assertAlmostEqual(profit["osprey_rebate"] + profit["kailas_rebate"], profit["rebate_total"], places=2)
+
+    def test_enterprise_and_system_pages_are_friendly(self):
+        rendered = []
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.enterprise_center_page(self.user)
+        self.app.system_center_page(self.user)
+        combined = "\n".join(rendered)
+        self.assertIn("企业数字档案", combined)
+        self.assertIn("账号与管理", combined)
+        self.assertNotIn("/api/", combined)
+        self.assertNotIn("JSON", combined)
+
+    def test_drive_copy_creates_independent_file(self):
+        drive_dir = Path(TEST_APP_DIR) / "uploads" / "drive"
+        drive_dir.mkdir(parents=True, exist_ok=True)
+        source_path = drive_dir / "copy-source.txt"
+        source_path.write_text("copy source", encoding="utf-8")
+        now = int(time.time())
+        with portal.db() as conn:
+            root = conn.execute("select id from drive_folders where parent_id is null order by id limit 1").fetchone()
+            cur = conn.execute(
+                "insert into documents(title,file_name,file_type,file_path,uploaded_by,created_at,updated_at,filename,original_filename,storage_path,mime_type,extension,size_bytes,category,processing_status,version,created_by,drive_folder_id,content_hash,drive_visibility) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("copy-source.txt", "copy-source.txt", "txt", str(source_path), self.user["id"], now, now, "copy-source.txt", "copy-source.txt", str(source_path), "text/plain", "txt", source_path.stat().st_size, "其他资料", "indexed", 1, self.user["id"], root["id"], "copy-test-hash", "team"),
+            )
+            source_id = cur.lastrowid
+        self.app.headers = {"Accept": "application/json"}
+        self.app.form = lambda: {}
+        self.app.log_action = lambda *args, **kwargs: None
+        self.app.process_document_to_knowledge = lambda *args, **kwargs: {"ok": True}
+        self.app.json_out = lambda data, code=200: (data, code)
+        result, code = self.app.api_drive_post(self.user, "/api/drive/files/{}/copy".format(source_id))
+        self.assertEqual(code, 200)
+        self.assertNotEqual(result["id"], source_id)
+        with portal.db() as conn:
+            copied = conn.execute("select * from documents where id=?", (result["id"],)).fetchone()
+        self.assertTrue(copied["original_filename"].startswith("副本 - "))
+        self.assertNotEqual(copied["storage_path"], str(source_path))
+        self.assertEqual(Path(copied["storage_path"]).read_text(encoding="utf-8"), "copy source")
+
+    def test_today_page_has_fixed_ceo_structure_and_profit_scope(self):
+        rendered = []
+        self.app.path = "/"
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.dashboard(self.user)
+        page = rendered[0]
+        for text in ["当前经营数字", "企业健康", "销售额", "毛利", "费用", "利润", "今天先做什么", "AI 问企业"]:
+            self.assertIn(text, page)
+        self.assertIn("1,723,487.13", page)
+        self.assertIn("1,044,717.78", page)
+        self.assertIn("不得再次相加", page)
+        self.assertNotIn("/api/", page)
+        self.assertNotIn("Engine", page)
+
+    def test_drive_page_supports_batch_drag_and_progress(self):
+        rendered = []
+        self.app.path = "/drive"
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.drive_2_page(self.user)
+        page = rendered[0]
+        self.assertIn('type="file" multiple', page)
+        self.assertIn("drive-drop-zone", page)
+        self.assertIn("drive-upload-progress", page)
+        self.assertIn("上传完成：成功", page)
+
 
 def tearDownModule():
     shutil.rmtree(TEST_APP_DIR, ignore_errors=True)

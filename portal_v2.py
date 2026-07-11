@@ -370,6 +370,19 @@ def ts():
     return int(time.time())
 
 
+PAGE_CACHE = {}
+
+
+def cached_page_data(key, ttl_seconds, builder):
+    now = time.time()
+    cached = PAGE_CACHE.get(key)
+    if cached and now - cached[0] <= ttl_seconds:
+        return cached[1]
+    value = builder()
+    PAGE_CACHE[key] = (now, value)
+    return value
+
+
 def dt(value):
     try:
         return time.strftime("%Y-%m-%d %H:%M", time.localtime(int(value or 0)))
@@ -571,14 +584,14 @@ def extract_file_text(path, filename):
             try:
                 import pypdf
                 reader = pypdf.PdfReader(path)
-                return "\n".join((p.extract_text() or "") for p in reader.pages)[:200000]
+                return "\n".join("[第{}页]\n{}".format(index + 1, page.extract_text() or "") for index, page in enumerate(reader.pages))[:200000]
             except Exception:
                 return ""
         if ext == ".docx":
             try:
                 import docx
                 doc = docx.Document(path)
-                return "\n".join(p.text for p in doc.paragraphs)[:200000]
+                return "\n".join("[第{}段] {}".format(index + 1, paragraph.text) for index, paragraph in enumerate(doc.paragraphs) if paragraph.text.strip())[:200000]
             except Exception:
                 return ""
         if ext in (".xlsx", ".xls"):
@@ -587,8 +600,9 @@ def extract_file_text(path, filename):
                 wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
                 lines = []
                 for ws in wb.worksheets[:3]:
-                    for row in ws.iter_rows(max_row=200, values_only=True):
-                        lines.append("\t".join("" if v is None else str(v) for v in row))
+                    lines.append("[工作表：{}]".format(ws.title))
+                    for row_number, row in enumerate(ws.iter_rows(max_row=200, values_only=True), 1):
+                        lines.append("第{}行\t{}".format(row_number, "\t".join("" if v is None else str(v) for v in row)))
                 return "\n".join(lines)[:200000]
             except Exception:
                 return ""
@@ -5406,11 +5420,11 @@ def layout(title, body, user=None, msg="", wide=False):
         ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), T["change_password"], T["logout"])
         search_placeholder = U(r"\u641c\u7d22\u5546\u54c1\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001SAP\u3001\u77e5\u8bc6")
         nav_items = [
-            (U(r"\u9996\u9875"), "/"),
-            (U(r"\u7ecf\u8425"), "/daily-intelligence"),
-            (U(r"\u4f01\u4e1a\u6863\u6848"), "/drive"),
+            (U(r"\u4eca\u5929"), "/"),
+            (U(r"\u4f01\u4e1a"), "/enterprise"),
+            (U(r"\u4f01\u4e1a\u8d44\u6599"), "/drive"),
             (U(r"AI\u52a9\u624b"), "/copilot"),
-            (U(r"\u884c\u52a8\u4e2d\u5fc3"), "/action-center"),
+            (U(r"\u7cfb\u7edf"), "/system"),
         ]
         primary_nav = "".join('<a href="{}">{}</a>'.format(esc(href), esc(label)) for label, href in nav_items)
         context_question = U(r"\u8bf7\u7ed3\u5408\u5f53\u524d\u9875\u9762\u89e3\u91ca\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\uff0c\u5e76\u5217\u51fa\u4f9d\u636e\u3002")
@@ -5418,7 +5432,7 @@ def layout(title, body, user=None, msg="", wide=False):
             '<a id="global-copilot" class="global-copilot" href="/copilot?q={}" title="{}">'
             '<strong>AI</strong><span>{}</span></a>'
         ).format(quote(context_question), U(r"\u5e26\u5f53\u524d\u9875\u9762\u4e0a\u4e0b\u6587\u63d0\u95ee"), U(r"\u95ee\u5f53\u524d\u9875"))
-        admin_link = '<a href="/sync-center">{}</a>'.format(U(r"\u7cfb\u7edf\u7ba1\u7406")) if user["role"] == "admin" else ""
+        admin_link = ""
         nav = (
             '<div class="topbar os-topbar"><div><strong>{}</strong><small>{} / {}</small></div>'
             '<nav class="primary-nav">{}</nav>'
@@ -5426,9 +5440,9 @@ def layout(title, body, user=None, msg="", wide=False):
             '<div class="top-actions">{}<a href="/change-password">{}</a><a href="/logout">{}</a></div></div>'
         ).format(esc(user["name"]), esc(ROLES.get(user["role"], user["role"])), esc(user["store"]), primary_nav, esc(search_placeholder), admin_link, T["change_password"], T["logout"])
         bottom_nav = (
-            '<nav class="bottom-nav"><a href="/">{}</a><a href="/daily-intelligence">{}</a>'
-            '<a href="/drive">{}</a><a href="/copilot">{}</a><a href="/action-center">{}</a></nav>'
-        ).format(U(r"\u9996\u9875"), U(r"\u7ecf\u8425"), U(r"\u6863\u6848"), U(r"AI\u52a9\u624b"), U(r"\u884c\u52a8"))
+            '<nav class="bottom-nav"><a href="/">{}</a><a href="/enterprise">{}</a>'
+            '<a href="/drive">{}</a><a href="/copilot">{}</a><a href="/system">{}</a></nav>'
+        ).format(U(r"\u4eca\u5929"), U(r"\u4f01\u4e1a"), U(r"\u8d44\u6599"), U(r"AI\u52a9\u624b"), U(r"\u7cfb\u7edf"))
     alert = f'<div class="alert">{esc(msg)}</div>' if msg else ""
     max_width = "1180px" if wide else "980px"
     subtitle_html = "" if user or not T.get("subtitle") else "<p class=\"lead\">{}</p>".format(T["subtitle"])
@@ -5467,7 +5481,10 @@ document.addEventListener('submit',function(e){{
 window.addEventListener('DOMContentLoaded',function(){{
   document.body.classList.add('page-ready');
   var path=window.location.pathname;
-  document.querySelectorAll('.primary-nav a,.bottom-nav a').forEach(function(a){{var href=a.getAttribute('href');if(href==='/'?path==='/':href&&path.indexOf(href)===0)a.classList.add('active');}});
+  var navPath=path;
+  if(/^\\/(object-center|objects|knowledge|memory|knowledge-graph|timeline)/.test(path))navPath='/enterprise';
+  if(/^\\/(sync-center|business-calibration|admin|change-password|settings)/.test(path))navPath='/system';
+  document.querySelectorAll('.primary-nav a,.bottom-nav a').forEach(function(a){{var href=a.getAttribute('href');if(href==='/'?navPath==='/':href&&navPath.indexOf(href)===0)a.classList.add('active');}});
   var ai=document.getElementById('global-copilot');
   if(ai){{var u=new URL(ai.href,window.location.origin);u.searchParams.set('ctx_page',path);u.searchParams.set('ctx_title',(document.querySelector('main h1')||document.querySelector('title')).textContent.trim());u.searchParams.set('ctx_url',path+window.location.search);ai.href=u.pathname+'?'+u.searchParams.toString();}}
   var key='foxbrain-scroll:'+path+window.location.search;var saved=sessionStorage.getItem(key);if(saved&&Number(saved)>0)requestAnimationFrame(function(){{window.scrollTo(0,Number(saved));}});window.addEventListener('pagehide',function(){{sessionStorage.setItem(key,String(window.scrollY||0));}});
@@ -5601,6 +5618,10 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_copilot_page(user)
         if path == "/action-center":
             return self.action_center_page(user)
+        if path == "/enterprise":
+            return self.enterprise_center_page(user)
+        if path == "/system":
+            return self.system_center_page(user)
         if path == "/agents":
             return self.agents(user)
         if path in ("/agents/v1.2", "/agents/orchestration"):
@@ -8227,7 +8248,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
 
     def dashboard(self, user):
         compact_home = urlparse(getattr(self, "path", "/")).path == "/"
-        payload = self.ceo_dashboard_payload(user)
+        payload = cached_page_data("ceo-dashboard:" + str(user["role"]), 15, lambda: self.ceo_dashboard_payload(user))
         summary = payload["summary"]
         profit = self.profit_composition_payload()
         actions = []
@@ -9137,6 +9158,88 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         )
         self.out(layout(U(r"\u884c\u52a8\u4e2d\u5fc3"), body, user=user, wide=False))
 
+    def enterprise_center_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            object_count = int(conn.execute("select count(*) c from enterprise_objects where archived_at is null").fetchone()["c"] or 0)
+            document_count = int(conn.execute("select count(*) c from documents where deleted_at is null").fetchone()["c"] or 0)
+            memory_count = int(conn.execute("select count(*) c from enterprise_memories where archived_at is null").fetchone()["c"] or 0)
+            graph_count = int(conn.execute("select count(*) c from knowledge_graph_edges").fetchone()["c"] or 0)
+            recent_objects = conn.execute("select * from enterprise_objects where archived_at is null order by updated_at desc limit 8").fetchall()
+        object_html = "".join(
+            "<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p></div><a class='btn' href='/object-center?id={}'>{}</a></div>".format(
+                esc(self.object_type_label(row["object_type"])), esc(row["name"]), esc(self.status_label(row["status"])), row["id"], U(r"\u6253\u5f00\u6570\u5b57\u6863\u6848")
+            ) for row in recent_objects
+        )
+        if not object_html:
+            object_html = self.guided_empty_state(
+                U(r"\u5c1a\u672a\u751f\u6210\u4f01\u4e1a\u6570\u5b57\u6863\u6848\u3002"),
+                U(r"\u9700\u8981\u5148\u5c06\u5df2\u5bfc\u5165\u7684\u95e8\u5e97\u3001\u54c1\u724c\u548c\u4ea7\u54c1\u6570\u636e\u5b8c\u6210\u4eba\u5de5\u5339\u914d\u786e\u8ba4\u3002"),
+                "/object-center",
+                U(r"\u8fdb\u5165\u4f01\u4e1a\u6570\u5b57\u6863\u6848"),
+            )
+        body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">{tag}</span>
+  <h1>{title}</h1>
+  <p class="lead">{lead}</p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <input type="hidden" name="ctx_page" value="/enterprise"><input type="hidden" name="ctx_title" value="{title}">
+    <div><label>{ask}</label><input name="q" placeholder="{placeholder}"></div><button>{ask_button}</button>
+  </form>
+</div>
+<div class="metrics">{metrics}</div>
+<div class="panel"><h2>{recent_title}</h2><div class="grid">{objects}</div></div>
+<div class="panel"><h2>{entry_title}</h2><div class="grid">{entries}</div></div>
+""".format(
+            tag=U(r"\u4f01\u4e1a\u6570\u5b57\u6863\u6848"), title=U(r"\u4f01\u4e1a"),
+            lead=U(r"\u4ece\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u5458\u5de5\u3001\u5ba2\u6237\u548c\u4f9b\u5e94\u5546\u7406\u89e3\u4f01\u4e1a\u3002"),
+            ask=U(r"\u95ee\u5f53\u524d\u4f01\u4e1a"), placeholder=U(r"\u4f8b\u5982\uff1a\u54ea\u4e2a\u54c1\u724c\u548c\u95e8\u5e97\u6700\u9700\u5173\u6ce8\uff1f"), ask_button=U(r"\u57fa\u4e8e\u4f9d\u636e\u56de\u7b54"),
+            metrics="".join([
+                self.metric(U(r"\u6570\u5b57\u6863\u6848"), object_count, U(r"\u5df2\u786e\u8ba4\u5bf9\u8c61")),
+                self.metric(U(r"\u76f8\u5173\u8d44\u6599"), document_count, U(r"\u4f01\u4e1a\u7f51\u76d8")),
+                self.metric(U(r"\u4f01\u4e1a\u8bb0\u5fc6"), memory_count, U(r"\u5386\u53f2\u7ecf\u9a8c")),
+                self.metric(U(r"\u4f01\u4e1a\u5173\u7cfb"), graph_count, U(r"\u53ef\u8ffd\u6eaf\u5173\u7cfb")),
+            ]),
+            recent_title=U(r"\u6700\u8fd1\u6570\u5b57\u6863\u6848"), objects=object_html,
+            entry_title=U(r"\u5206\u7c7b\u67e5\u770b"), entries="".join([
+                self.card(U(r"\u95e8\u5e97"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u5458\u5de5\u548c\u98ce\u9669\u3002"), "/object-center?type=store", "btn", True),
+                self.card(U(r"\u54c1\u724c"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8fd4\u70b9\u548c\u5386\u53f2\u51b3\u7b56\u3002"), "/object-center?type=brand", "btn", True),
+                self.card(U(r"\u4ea7\u54c1"), U(r"\u9500\u552e\u3001\u5e93\u5b58\u3001\u8d44\u6599\u548c\u5173\u8054\u54c1\u724c\u3002"), "/object-center?type=product", "btn", True),
+                self.card(U(r"\u5458\u5de5\u4e0e\u5ba2\u6237"), U(r"\u5c97\u4f4d\u3001\u9500\u552e\u3001\u670d\u52a1\u4e0e\u5173\u7cfb\u8bb0\u5f55\u3002"), "/object-center", "btn", True),
+            ]),
+        )
+        self.out(layout(U(r"\u4f01\u4e1a"), body, user=user, wide=True))
+
+    def system_center_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        common = [
+            (U(r"\u4fee\u6539\u5bc6\u7801"), U(r"\u7ba1\u7406\u5f53\u524d\u8d26\u53f7\u5b89\u5168\u3002"), "/change-password"),
+            (U(r"\u5168\u5c40\u641c\u7d22"), U(r"\u641c\u7d22\u4f01\u4e1a\u8d44\u6599\u3001\u77e5\u8bc6\u548c\u7ecf\u8425\u8bb0\u5f55\u3002"), "/search"),
+        ]
+        admin = []
+        if user["role"] in ("admin", "boss"):
+            admin = [
+                (U(r"\u6570\u636e\u540c\u6b65"), U(r"\u67e5\u770b\u6570\u636e\u66f4\u65b0\u3001\u5bf9\u8d26\u548c\u5f02\u5e38\u3002"), "/sync-center"),
+                (U(r"\u6570\u636e\u6821\u51c6"), U(r"\u590d\u6838\u95e8\u5e97\u3001\u54c1\u724c\u548c\u4ea7\u54c1\u5f52\u4e00\u3002"), "/business-calibration"),
+                (U(r"\u7528\u6237\u7ba1\u7406"), U(r"\u7ba1\u7406\u8d26\u53f7\u3001\u89d2\u8272\u548c\u8bbf\u95ee\u6743\u9650\u3002"), "/admin"),
+            ]
+        cards = "".join(self.card(title, desc, url, "btn", True) for title, desc, url in common + admin)
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">{tag}</span><h1>{title}</h1><p class="lead">{lead}</p></div>
+<div class="panel"><h2>{account}</h2><div class="grid">{cards}</div></div>
+<div class="panel"><h2>{safety}</h2>{rules}</div>
+""".format(
+            tag=U(r"\u7cfb\u7edf"), title=U(r"\u8d26\u53f7\u4e0e\u7ba1\u7406"), lead=U(r"\u65e5\u5e38\u4f7f\u7528\u53ea\u4fdd\u7559\u5fc5\u8981\u5165\u53e3\uff1b\u6280\u672f\u5de5\u5177\u4e0d\u518d\u51fa\u73b0\u5728\u8001\u677f\u5bfc\u822a\u4e2d\u3002"),
+            account=U(r"\u53ef\u7528\u529f\u80fd"), cards=cards, safety=U(r"\u5b89\u5168\u8fb9\u754c"),
+            rules=self.bullets([U(r"\u4e0d\u4fee\u6539\u751f\u4ea7 SAP\u3002"), U(r"\u91cd\u8981\u884c\u52a8\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279\u3002"), U(r"AI \u6ca1\u6709\u4f9d\u636e\u65f6\u4e0d\u5f97\u4e0b\u7ed3\u8bba\u3002")]),
+        )
+        self.out(layout(U(r"\u7cfb\u7edf"), body, user=user, wide=False))
+
     def ceo_navigation_groups_html(self):
         groups = [
             (U(r"\u7ecf\u8425"), [(U(r"\u7ecf\u8425\u603b\u89c8"), "/business-overview"), (U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5"), "/daily-intelligence"), (U(r"\u4f01\u4e1a\u5065\u5eb7"), "/business-health"), (U(r"\u7ecf\u8425\u51b3\u7b56"), "/decision"), (U(r"\u5e93\u5b58\u5206\u6790"), "/inventory-intelligence"), (U(r"\u54c1\u724c\u5206\u6790"), "/brand-intelligence"), (U(r"\u95e8\u5e97\u5206\u6790"), "/store-intelligence"), (U(r"\u5229\u6da6\u8d28\u91cf"), "/finance")]),
@@ -9835,6 +9938,31 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return self.empty_state(U(r"\u8be5 Office \u6587\u4ef6\u5df2\u4fdd\u5b58\u539f\u4ef6\u548c AI \u6458\u8981\uff0c\u5b8c\u6574\u5728\u7ebf\u9884\u89c8\u9700\u8981\u540e\u7eed\u63a5\u5165\u6587\u6863\u6e32\u67d3\u670d\u52a1\u3002\u76ee\u524d\u53ef\u5148\u4e0b\u8f7d\u6216\u95ee\u8fd9\u4e2a\u6587\u4ef6\u3002"))
         return self.empty_state(U(r"\u8be5\u7c7b\u578b\u6682\u4e0d\u652f\u6301\u76f4\u63a5\u9884\u89c8\uff0c\u4f46\u539f\u59cb\u6587\u4ef6\u5df2\u5b89\u5168\u4fdd\u7559\uff0c\u53ef\u4e0b\u8f7d\u6216\u7b49 AI \u5904\u7406\u540e\u63d0\u95ee\u3002"))
 
+    def drive_file_preview_html(self, item):
+        path = item.get("file_path") or item.get("storage_path") or ""
+        ext = (item.get("extension") or "").lower()
+        file_id = item.get("id")
+        if not path or not os.path.exists(path):
+            return self.guided_empty_state("原始文件暂时无法读取。", "服务器中的原始文件", "/drive", "返回企业资料")
+        if ext in ("jpg", "jpeg", "png", "gif", "webp"):
+            return "<img src='/api/drive/files/{}/download' alt='文件预览' style='max-height:620px;border-radius:8px;border:1px solid #ddd7cc'>".format(file_id)
+        if ext == "pdf":
+            return "<iframe title='PDF 文件预览' src='/api/drive/files/{}/download' style='width:100%;height:620px;border:1px solid #ddd7cc;border-radius:8px'></iframe>".format(file_id)
+        if ext in ("mp4", "webm", "mov"):
+            return "<video controls preload='metadata' style='width:100%;max-height:620px'><source src='/api/drive/files/{}/download' type='{}'>当前浏览器不支持视频播放，请下载查看。</video>".format(file_id, esc(item.get("mime_type") or "video/mp4"))
+        if ext in ("txt", "md", "csv", "tsv", "json", "log"):
+            try:
+                text = Path(path).read_text(encoding="utf-8", errors="ignore")[:30000]
+            except Exception:
+                text = item.get("extracted_text") or ""
+            return "<pre style='max-height:620px;overflow:auto;background:#fbfaf7;border:1px solid #ddd7cc;border-radius:8px;padding:12px'>{}</pre>".format(esc(text or "文本预览暂时没有内容。"))
+        if ext in ("xls", "xlsx", "doc", "docx", "ppt", "pptx"):
+            extracted = item.get("extracted_text") or ""
+            if extracted:
+                return "<div class='alert'>当前显示可搜索文本预览；需要查看原始排版时请下载原文件。</div><pre style='max-height:620px;overflow:auto;background:#fbfaf7;border:1px solid #ddd7cc;border-radius:8px;padding:12px'>{}</pre>".format(esc(extracted[:30000]))
+            return self.guided_empty_state("该文档暂时无法提取预览内容。", "可读取的文档文字", "/api/drive/files/{}/download".format(file_id), "下载原文件")
+        return self.guided_empty_state("这种文件暂不支持在线预览，但原文件已经安全保留。", "浏览器支持的预览格式", "/api/drive/files/{}/download".format(file_id), "下载原文件")
+
     def drive_file_detail_page(self, user, file_id):
         user = self.require_login(user)
         if not user:
@@ -9850,8 +9978,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             suggestions = conn.execute("select * from drive_file_link_suggestions where file_id=? order by confidence desc, created_at desc limit 12", (file_id,)).fetchall()
         ask_file = U(r"\u53ea\u57fa\u4e8e\u6587\u4ef6\u300a") + (item.get("original_filename") or item.get("title") or "") + U(r"\u300b\u56de\u7b54\uff1a\u8fd9\u4e2a\u6587\u4ef6\u6700\u91cd\u8981\u7684\u4fe1\u606f\u662f\u4ec0\u4e48\uff1f")
         meta = "".join([
-            self.metric(U(r"\u6587\u4ef6\u7c7b\u578b"), item.get("extension") or "-", item.get("mime_type") or ""),
-            self.metric(U(r"\u5927\u5c0f"), str(item.get("size_bytes") or 0), "bytes"),
+            self.metric(U(r"\u6587\u4ef6\u7c7b\u578b"), (item.get("extension") or "-").upper(), U(r"\u539f\u59cb\u6587\u4ef6")),
+            self.metric(U(r"\u5927\u5c0f"), "{:.1f} MB".format(float(item.get("size_bytes") or 0) / 1024 / 1024), U(r"\u6587\u4ef6\u5bb9\u91cf")),
             self.metric(U(r"AI \u72b6\u6001"), self.drive_status_label(item.get("processing_status")), item.get("processing_error") or ""),
             self.metric(U(r"\u7248\u672c"), U(r"\u7b2c") + str(item.get("version") or 1) + U(r"\u7248"), U(r"\u5386\u53f2\u7248\u672c\u5df2\u4fdd\u7559")),
         ])
@@ -9860,8 +9988,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             {"title": U(r"\u6bb5\u843d ") + str(c["chunk_index"] + 1), "source_type": U(r"\u4f01\u4e1a\u7f51\u76d8\u6587\u4ef6"), "source_id": c["id"], "summary": c["summary"] or c["content"], "date_range": U(r"\u7b2c") + str(c["chunk_index"] + 1) + U(r"\u6bb5"), "url": "/drive/files/{}".format(file_id)}
             for c in chunks
         ], limit=8)
-        link_items = self.bullets(["{} #{} / {}".format(l["object_type"], l["object_id"], l["link_type"]) for l in links] or [U(r"\u6682\u65e0\u5df2\u786e\u8ba4\u5173\u8054\u5bf9\u8c61\u3002")])
-        suggestion_items = self.bullets(["{} / {} / {:.0%}".format(s["object_type"], s["object_name"] or s["object_id"] or "-", float(s["confidence"] or 0)) for s in suggestions] or [U(r"\u6682\u65e0\u5f85\u786e\u8ba4\u5173\u8054\u5efa\u8bae\u3002")])
+        link_items = self.bullets(["{} / {}".format(self.object_type_label(l["object_type"]), U(r"\u5df2\u786e\u8ba4\u5173\u8054")) for l in links] or [U(r"\u6682\u65e0\u5df2\u786e\u8ba4\u5173\u8054\u5bf9\u8c61\u3002")])
+        suggestion_items = self.bullets(["{} / {} / {:.0%}".format(self.object_type_label(s["object_type"]), s["object_name"] or U(r"\u5f85\u786e\u8ba4"), float(s["confidence"] or 0)) for s in suggestions] or [U(r"\u6682\u65e0\u5f85\u786e\u8ba4\u5173\u8054\u5efa\u8bae\u3002")])
         body = """
 <div class="ceo-hero compact">
   <span class="status-tag">{status}</span>
@@ -9995,8 +10123,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             trash_op = "<form method='post' action='/api/drive/files/{}/restore' style='display:inline'><button>{}</button></form>".format(item["id"], U(r"\u6062\u590d")) if row["deleted_at"] else "<form method='post' action='/api/drive/files/{}/delete' style='display:inline'><button>{}</button></form>".format(item["id"], U(r"\u56de\u6536\u7ad9"))
             star_action = "unstar" if row["starred_at"] else "star"
             star_label = U(r"\u53d6\u6d88\u661f\u6807") if row["starred_at"] else U(r"\u661f\u6807")
-            ops = "<a class='btn' href='/drive/files/{}'>{}</a> <a class='btn gray' href='/api/drive/files/{}/download'>{}</a> <a class='btn gray' href='/copilot?q={}'>{}</a> <form method='post' action='/api/drive/files/{}/{}' style='display:inline'><button>{}</button></form> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form> {} {}".format(
-                item["id"], U(r"\u6253\u5f00"), item["id"], U(r"\u4e0b\u8f7d"), ask_q, U(r"\u95ee\u6587\u4ef6"), item["id"], star_action, star_label, item["id"], U(r"\u91cd\u5904\u7406"), trash_op, link_form
+            ops = "<a class='btn' href='/drive/files/{}'>{}</a> <a class='btn gray' href='/api/drive/files/{}/download'>{}</a> <a class='btn gray' href='/copilot?q={}'>{}</a> <form method='post' action='/api/drive/files/{}/copy' style='display:inline'><button>{}</button></form> <form method='post' action='/api/drive/files/{}/{}' style='display:inline'><button>{}</button></form> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form> {} {}".format(
+                item["id"], U(r"\u6253\u5f00"), item["id"], U(r"\u4e0b\u8f7d"), ask_q, U(r"\u95ee\u6587\u4ef6"), item["id"], U(r"\u590d\u5236"), item["id"], star_action, star_label, item["id"], U(r"\u91cd\u5904\u7406"), trash_op, link_form
             )
             file_rows += "<tr><td><a href='/drive/files/{}'>{}</a></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
                 item["id"],
@@ -10057,9 +10185,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
  </div>
  <div class="panel">
   <h2>{}</h2>
-  <form method="post" action="/api/drive/upload" enctype="multipart/form-data">
+  <form id="drive-upload-form" method="post" action="/api/drive/upload" enctype="multipart/form-data">
     <label>{}</label>
-    <input name="file" type="file" required>
+    <div id="drive-drop-zone" class="empty-state"><strong>{}</strong><span>{}</span><input id="drive-files" name="file" type="file" multiple required></div>
     <label>{}</label><select name="folder_id"><option value="">{}</option>{folder_options}</select>
     <label>{}</label>
     <select name="category"><option value="">{}</option>{}</select>
@@ -10067,7 +10195,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
     <label>{}</label><select name="related_object_ref">{}</select>
     <label>{}</label><input name="related_object_type" placeholder="\u54c1\u724c\u3001\u95e8\u5e97\u6216\u4ea7\u54c1">
     <label>{}</label><input name="related_object_id" placeholder="\u9009\u586b\uff1a\u6863\u6848\u7f16\u53f7">
-    <p><button>{}</button></p>
+    <p><button type="submit">{}</button></p>
+    <div id="drive-upload-progress" class="small" aria-live="polite"></div>
   </form>
  </div>
 </div>
@@ -10100,6 +10229,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u6839\u76ee\u5f55"),
             U(r"\u521b\u5efa"),
             U(r"\u4e0a\u4f20\u6587\u4ef6"),
+            "拖拽文件到这里，或点击选择",
+            "可一次选择多个文件；每个文件都会显示上传结果。",
             U(r"\u4e0a\u4f20\u6587\u4ef6"),
             U(r"\u4e0a\u4f20\u5230"),
             U(r"\u5f53\u524d\u6216\u6839\u76ee\u5f55"),
@@ -10135,6 +10266,30 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             folder_options=folder_options,
             file_area=("<div class='grid'>" + file_cards + "</div>") if view == "grid" else "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table>".format(U(r"\u6587\u4ef6"), U(r"\u5206\u7c7b"), U(r"\u7c7b\u578b"), U(r"\u5927\u5c0f"), U(r"\u72b6\u6001"), U(r"AI \u6458\u8981"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u64cd\u4f5c"), file_rows),
         )
+        body += """
+<script>
+(function(){
+  var form=document.getElementById('drive-upload-form'), input=document.getElementById('drive-files'), zone=document.getElementById('drive-drop-zone'), progress=document.getElementById('drive-upload-progress');
+  if(!form||!input||!zone||!progress)return;
+  ['dragenter','dragover'].forEach(function(name){zone.addEventListener(name,function(e){e.preventDefault();zone.style.borderColor='#1849a9';});});
+  ['dragleave','drop'].forEach(function(name){zone.addEventListener(name,function(e){e.preventDefault();zone.style.borderColor='';});});
+  zone.addEventListener('drop',function(e){if(e.dataTransfer&&e.dataTransfer.files.length)input.files=e.dataTransfer.files;});
+  form.addEventListener('submit',async function(e){
+    if(!input.files||input.files.length<2)return;
+    e.preventDefault();
+    var button=form.querySelector('button[type=submit]'); if(button)button.disabled=true;
+    var ok=0, failed=0;
+    for(var i=0;i<input.files.length;i++){
+      progress.textContent='正在上传 '+(i+1)+' / '+input.files.length+'：'+input.files[i].name;
+      var data=new FormData(form); data.set('file',input.files[i]);
+      try{var response=await fetch('/api/drive/upload',{method:'POST',body:data,headers:{'Accept':'application/json'}});var result=await response.json();if(response.ok&&result.ok)ok++;else failed++;}catch(err){failed++;}
+    }
+    progress.textContent='上传完成：成功 '+ok+' 个，失败 '+failed+' 个。';
+    if(button)button.disabled=false;
+    if(ok>0&&failed===0)setTimeout(function(){location.reload();},500);
+  });
+})();
+</script>"""
         self.out(layout(U(r"\u4f01\u4e1a\u7f51\u76d8"), body, user=user, wide=True))
 
     def object_engine_page(self, user):
@@ -10416,6 +10571,73 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "Decision Engine",
         )
         self.out(layout(U(r"\u5bf9\u8c61\u8be6\u60c5"), body, user=user, wide=True))
+
+    def object_detail_page(self, user, object_id):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            row = conn.execute("select * from enterprise_objects where id=? and archived_at is null", (object_id,)).fetchone()
+            if not row:
+                return self.redir("/enterprise")
+            docs = conn.execute("select * from documents where deleted_at is null and related_object_type=? and related_object_id=? order by created_at desc limit 20", (row["object_type"], row["id"])).fetchall()
+            decisions = conn.execute("select * from decision_insights where entity_type=? and entity_id=? order by updated_at desc limit 10", (row["object_type"], row["id"])).fetchall()
+            memories = conn.execute("select * from enterprise_memories where archived_at is null and related_object_type=? and related_object_id=? order by updated_at desc limit 10", (row["object_type"], row["id"])).fetchall()
+            timeline_rows = self.timeline_rows_for_entity(conn, row["object_type"], row["id"], 20)
+            insight = None
+            if row["object_type"] == "brand":
+                insight = conn.execute("select * from brand_intelligence_snapshots where brand_name like ? order by created_at desc limit 1", ("%" + row["name"] + "%",)).fetchone()
+            elif row["object_type"] == "store":
+                insight = conn.execute("select * from store_intelligence_snapshots where store_name like ? order by created_at desc limit 1", ("%" + row["name"] + "%",)).fetchone()
+            elif row["object_type"] == "product":
+                insight = conn.execute("select * from inventory_product_analysis where product_name like ? or product_code=? order by created_at desc limit 1", ("%" + row["name"] + "%", row["code"] or "")).fetchone()
+        obj = self.enterprise_object_to_json(row, len(docs))
+        metrics = []
+        if insight:
+            keys = insight.keys()
+            for key, label, formatter in [
+                ("sales_amount", U(r"\u9500\u552e\u989d"), money), ("gross_profit", U(r"\u6bdb\u5229"), money),
+                ("gross_margin", U(r"\u6bdb\u5229\u7387"), lambda v: "{:.1%}".format(float(v or 0))),
+                ("inventory_amount", U(r"\u5e93\u5b58\u91d1\u989d"), money), ("inventory_quantity", U(r"\u5e93\u5b58\u6570\u91cf"), lambda v: str(int(float(v or 0)))),
+                ("overall_score", U(r"\u7efc\u5408\u5065\u5eb7"), lambda v: "{:.1f}/100".format(float(v or 0))),
+            ]:
+                if key in keys:
+                    metrics.append(self.metric(label, formatter(insight[key]), U(r"\u6700\u8fd1\u53ef\u7528\u6570\u636e")))
+        if not metrics:
+            metrics.append(self.metric(U(r"\u6838\u5fc3\u6570\u5b57"), U(r"\u5f85\u8865\u9f50"), U(r"\u5c1a\u672a\u5339\u914d\u5230\u53ef\u9760\u7ecf\u8425\u6570\u636e")))
+        summary = obj.get("ai_summary") or obj.get("description") or U(r"\u5f53\u524d\u8fd8\u6ca1\u6709\u8db3\u591f\u6570\u636e\u751f\u6210\u53ef\u9760\u6458\u8981\u3002")
+        risks = []
+        for item in decisions[:5]:
+            risks.append(self.friendly_business_text(item["title"], U(r"\u7ecf\u8425\u98ce\u9669\u5f85\u590d\u6838")))
+        risk_html = self.bullets(risks) if risks else self.guided_empty_state(
+            U(r"\u5c1a\u672a\u627e\u5230\u8bc1\u636e\u5145\u8db3\u7684\u98ce\u9669\u6216\u673a\u4f1a\u3002"), U(r"\u9700\u8981\u8fde\u7eed\u9500\u552e\u3001\u5e93\u5b58\u548c\u8d44\u6599\u6570\u636e"),
+            "/copilot?q=" + quote(U(r"\u8bf7\u5206\u6790") + row["name"] + U(r"\u7684\u98ce\u9669\u3001\u673a\u4f1a\u548c\u5efa\u8bae")), U(r"\u8bf7 AI \u57fa\u4e8e\u4f9d\u636e\u68c0\u67e5"),
+        )
+        doc_html = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p></div><a class='btn' href='/drive/files/{}'>{}</a></div>".format(
+                esc(self.document_to_json(doc)["original_filename"]), esc(self.document_to_json(doc)["ai_summary"] or self.drive_status_label(self.document_to_json(doc)["processing_status"])), doc["id"], U(r"\u6253\u5f00\u8d44\u6599")
+            ) for doc in docs
+        ) or self.guided_empty_state(U(r"\u8fd8\u6ca1\u6709\u5173\u8054\u8d44\u6599\u3002"), U(r"\u5408\u540c\u3001\u56fe\u7247\u3001\u4ea7\u54c1\u8d44\u6599\u6216\u8d39\u7528\u6587\u4ef6"), "/drive", U(r"\u53bb\u4f01\u4e1a\u8d44\u6599\u4e2d\u5fc3\u5173\u8054"))
+        timeline_html = self.bullets([
+            "{} / {}".format(dt(item["occurred_at"] or item["created_at"]), self.friendly_business_text(item["description"] or item["title"])) for item in timeline_rows
+        ] or [U(r"\u6682\u65e0\u7ecf\u8425\u65f6\u95f4\u8bb0\u5f55\uff0c\u540e\u7eed\u8d44\u6599\u3001\u51b3\u7b56\u548c\u884c\u52a8\u4f1a\u81ea\u52a8\u6c89\u6dc0\u3002")])
+        memory_html = self.bullets([self.friendly_business_text(item["title"]) for item in memories] or [U(r"\u6682\u65e0\u76f8\u5173\u4f01\u4e1a\u8bb0\u5fc6\u3002")])
+        context_q = quote(U(r"\u8bf7\u57fa\u4e8e\u4f01\u4e1a\u4f9d\u636e\u5206\u6790") + row["name"])
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">{type_label}</span><h1>{name}</h1><p>{status}</p><p class="lead">{summary}</p>
+<div class="inline"><a class="btn" href="/copilot?q={q}&amp;ctx_type={type}&amp;ctx_id={id}&amp;ctx_name={name}&amp;ctx_page=/object-center?id={id}">{ask}</a><a class="btn gray" href="/enterprise">{back}</a></div></div>
+<div class="panel"><h2>{metric_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="split"><div class="panel"><h2>{risk_title}</h2>{risks}</div><div class="panel"><h2>{memory_title}</h2>{memories}</div></div>
+<div class="panel"><h2>{doc_title}</h2><div class="grid">{docs}</div></div>
+<div class="panel"><h2>{timeline_title}</h2>{timeline}</div>
+""".format(
+            type_label=esc(self.object_type_label(row["object_type"])), name=esc(row["name"]), status=esc(self.status_label(row["status"])), summary=esc(summary),
+            q=context_q, type=esc(row["object_type"]), id=row["id"], ask=U(r"\u95ee\u5f53\u524d\u6863\u6848"), back=U(r"\u8fd4\u56de\u4f01\u4e1a"),
+            metric_title=U(r"\u6838\u5fc3\u6570\u5b57"), metrics="".join(metrics), risk_title=U(r"\u98ce\u9669\u3001\u673a\u4f1a\u4e0e\u5efa\u8bae"), risks=risk_html,
+            memory_title=U(r"\u76f8\u5173\u51b3\u7b56\u4e0e\u4f01\u4e1a\u8bb0\u5fc6"), memories=memory_html,
+            doc_title=U(r"\u76f8\u5173\u8d44\u6599"), docs=doc_html, timeline_title=U(r"\u7ecf\u8425\u65f6\u95f4\u8bb0\u5f55"), timeline=timeline_html,
+        )
+        self.out(layout(row["name"], body, user=user, wide=True))
 
     def knowledge_pipeline_page(self, user):
         user = self.require_login(user)
@@ -10880,19 +11102,50 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             result = self.process_document_to_knowledge(user, m_reprocess.group(1), force=True)
             self.log_action(user, "drive_file_reprocess", "document", m_reprocess.group(1), result.get("processing_status", "failed"))
             return self.json_out(result, code=200 if result.get("ok") else 422)
-        m_action = re.match(r"^/api/drive/files/(\d+)/(rename|move|star|unstar|restore|delete)$", path)
+        m_action = re.match(r"^/api/drive/files/(\d+)/(copy|rename|move|star|unstar|restore|delete)$", path)
         if m_action:
             file_id = int(m_action.group(1))
             action = m_action.group(2)
             form = self.form()
             now = ts()
+            result_file_id = file_id
             with db() as conn:
                 row = conn.execute("select * from documents where id=?", (file_id,)).fetchone()
                 if not row:
                     return self.json_out({"ok": False, "message": "not found"}, code=404)
                 if not self.drive_can_access_file(user, row):
                     return self.json_out({"ok": False, "message": "no file permission"}, code=403)
-                if action == "rename":
+                if action == "copy":
+                    source_path = row["storage_path"] or row["file_path"] or ""
+                    if not source_path or not os.path.exists(source_path):
+                        return self.json_out({"ok": False, "message": U(r"\u539f\u6587\u4ef6\u4e0d\u5b58\u5728，\u65e0\u6cd5\u590d\u5236。")}, code=404)
+                    extension = (row["extension"] or Path(source_path).suffix.lstrip(".")).lower()
+                    saved_name = uuid.uuid4().hex + ("." + extension if extension else "")
+                    target_path = Path(UPLOAD_DIR) / "drive" / saved_name
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    target_path.write_bytes(Path(source_path).read_bytes())
+                    copy_name = U(r"\u526f\u672c - ") + (row["original_filename"] or row["title"] or U(r"\u672a\u547d\u540d\u6587\u4ef6"))
+                    values = {key: row[key] for key in row.keys() if key != "id"}
+                    values.update({
+                        "title": copy_name, "file_name": saved_name, "filename": saved_name,
+                        "original_filename": copy_name, "file_path": str(target_path), "storage_path": str(target_path),
+                        "uploaded_by": user["id"], "created_by": user["id"], "created_at": now, "updated_at": now,
+                        "version": 1, "current_version_id": None, "deleted_at": None, "archived_at": None,
+                        "starred_at": None, "duplicate_of_document_id": file_id,
+                    })
+                    columns = list(values.keys())
+                    cur_copy = conn.execute(
+                        "insert into documents(" + ",".join(columns) + ") values(" + ",".join("?" for _ in columns) + ")",
+                        [values[column] for column in columns],
+                    )
+                    result_file_id = cur_copy.lastrowid
+                    version = conn.execute(
+                        "insert into drive_file_versions(file_id,version_number,storage_key,file_path,content_hash,size_bytes,uploaded_by,created_at,change_note) values(?,?,?,?,?,?,?,?,?)",
+                        (result_file_id, 1, str(target_path), str(target_path), row["content_hash"], row["size_bytes"], user["id"], now, U(r"\u7531\u539f\u6587\u4ef6\u590d\u5236")),
+                    )
+                    conn.execute("update documents set current_version_id=? where id=?", (version.lastrowid, result_file_id))
+                    detail = U(r"\u5df2\u751f\u6210\u72ec\u7acb\u526f\u672c")
+                elif action == "rename":
                     new_name = (form.get("name", "") or "").strip()
                     if not new_name:
                         return self.json_out({"ok": False, "message": "new name required"}, code=400)
@@ -10920,11 +11173,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                     conn.execute("update documents set deleted_at=?, processing_status='archived', updated_at=? where id=?", (now, now, file_id))
                     conn.execute("insert into drive_trash_records(file_id,original_folder_id,deleted_by,deleted_at) values(?,?,?,?)", (file_id, original_folder_id, user["id"], now))
                     detail = "soft_deleted"
-                conn.execute("insert into drive_file_events(file_id,event_type,detail,actor_id,created_at) values(?,?,?,?,?)", (file_id, "file_" + action, detail, user["id"], now))
-            self.log_action(user, "drive_file_" + action, "document", file_id, detail)
+                conn.execute("insert into drive_file_events(file_id,event_type,detail,actor_id,created_at) values(?,?,?,?,?)", (result_file_id, "file_" + action, detail, user["id"], now))
+            if action == "copy":
+                self.process_document_to_knowledge(user, result_file_id, force=False)
+            self.log_action(user, "drive_file_" + action, "document", result_file_id, detail)
             if "text/html" in (self.headers.get("Accept") or ""):
-                return self.redir("/drive/files/{}".format(file_id) if action != "delete" else "/drive/trash")
-            return self.json_out({"ok": True, "id": file_id, "action": action, "detail": detail})
+                return self.redir("/drive/files/{}".format(result_file_id) if action != "delete" else "/drive/trash")
+            return self.json_out({"ok": True, "id": result_file_id, "action": action, "detail": detail})
         m_update = re.match(r"^/api/drive/files/(\d+)$", path)
         if m_update:
             form = self.form()
@@ -13572,10 +13827,11 @@ where ki.deleted_at is null"""
             "action": U(r"\u6253\u5f00\u65e5\u62a5"),
         }]
         focus_html = "<div class='focus-list'>" + "".join(
-            "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
+            "<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p class='small'>{} {} / {} {}</p><p><a class='btn' href='{}'>{}</a></p></div>".format(
                 esc(self.status_label(item.get("priority"))),
                 esc(self.friendly_business_text(item.get("title"), U(r"\u7ecf\u8425\u5173\u6ce8\u4e8b\u9879"))),
                 esc(self.friendly_business_text(item.get("reason"), U(r"\u8bf7\u6253\u5f00\u8be6\u60c5\u67e5\u770b\u539f\u56e0\u548c\u4f9d\u636e\u3002"))),
+                U(r"\u4f9d\u636e"), int(item.get("evidence_count") or 0), U(r"\u6570\u636e\u65f6\u95f4"), esc(data_time),
                 esc(item.get("url") or "/daily-intelligence"),
                 esc(self.friendly_business_text(item.get("action"), U(r"\u6253\u5f00\u8be6\u60c5"))),
             )
@@ -13615,9 +13871,12 @@ where ki.deleted_at is null"""
             for r in payload["decision_metrics"].get("top_risks", [])[:5]
         ] or [U(r"\u6682\u65e0\u9700\u8981\u5904\u7406\u7684\u7ecf\u8425\u63d0\u9192\u3002")])
         if compact_home:
+            today_text = time.strftime("%Y-%m-%d")
             light_metrics = "".join([
                 "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(self.status_label(summary["business_health_status"]))),
                 self.metric(U(r"\u9500\u552e\u989d"), money(summary["sales_amount"]), U(r"2026-01-01 \u81f3 2026-07-10")),
+                self.metric(U(r"\u6bdb\u5229"), money(summary.get("gross_profit", 0)), U(r"2026 \u5e74\u7ecf\u8425\u53e3\u5f84")),
+                self.metric(U(r"\u8d39\u7528"), money(summary.get("fee_amount", 0)), U(r"2026 \u5e74\u7ecf\u8425\u53e3\u5f84")),
                 self.metric(U(r"\u5229\u6da6"), money(summary.get("profit_amount", 0)), U(r"\u542b\u54c1\u724c\u8fd4\u70b9")),
                 self.metric(U(r"\u6570\u636e\u65b0\u9c9c\u5ea6"), self.status_label(summary["enterprise_sync_status"]), data_time),
             ])
@@ -13641,18 +13900,18 @@ where ki.deleted_at is null"""
             ] or [U(r"\u5c1a\u672a\u751f\u6210\u4eca\u65e5\u7ecf\u8425\u7b80\u62a5\uff0c\u53ef\u8fdb\u5165\u65e5\u62a5\u9875\u67e5\u770b\u539f\u56e0\u3002")])
             body = """
 <div class="ceo-hero compact">
-  <span class="status-tag">\u8001\u677f\u7ecf\u8425\u5de5\u4f5c\u53f0</span>
-  <h1>FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
+  <span class="status-tag">{today}</span>
+  <h1>{welcome}</h1>
   <p class="lead">{lead}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
     <button>{ask_button}</button>
   </form>
 </div>
-<div class="panel compact-panel"><h2>{metrics_title}</h2><div class="metrics">{metrics}</div></div>
+<div class="panel compact-panel"><h2>{metrics_title}</h2><p class="small">{scope}</p><div class="metrics">{metrics}</div></div>
 <div class="split compact-split">
   <div class="panel compact-panel"><h2>{focus_title}</h2>{focus}</div>
-  <div class="panel compact-panel"><h2>{profit_title}</h2><div class="metrics">{profit_card}</div><div class="danger-note">{profit_warning}</div></div>
+  <div class="panel compact-panel"><h2>{profit_title}</h2><div class="metrics">{profit_card}</div><p>{rebate_detail}</p><div class="danger-note">{profit_warning}</div></div>
 </div>
 <div class="split compact-split">
   <div class="panel compact-panel"><h2>{risk_title}</h2>{risks}<p><a class="btn gray" href="/decision">{risk_action}</a></p></div>
@@ -13661,16 +13920,20 @@ where ki.deleted_at is null"""
 <div class="panel compact-panel"><h2>{daily_title}</h2>{daily}<div class="inline"><a class="btn" href="/daily-intelligence">{daily_action}</a><a class="btn gray" href="/action-center">{action_center}</a></div></div>
 <div class="panel compact-panel"><h2>{quick_title}</h2><div class="inline">{primary_links}</div><div class="chipbar">{questions}</div></div>
 """.format(
-                lead=esc(U(r"\u5148\u770b\u72b6\u6001\uff0c\u518d\u95ee AI\uff1b\u9996\u9875\u53ea\u7559\u4eca\u5929\u5fc5\u770b\u548c\u5fc5\u5904\u7406\u3002")),
+                today=esc(today_text),
+                welcome=esc(U(r"\u60a8\u597d\uff0c") + (user["name"] or U(r"\u547c\u603b"))),
+                lead=esc(U(r"\u8fd9\u662f\u4eca\u5929\u7684\u4f01\u4e1a\u72b6\u6001\u3002\u5148\u770b\u6570\u5b57\u548c\u4e09\u4ef6\u8981\u4e8b\uff0c\u518d\u5904\u7406\u884c\u52a8\u3002")),
                 ask_label=U(r"AI \u95ee\u4f01\u4e1a"),
                 ask_placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"),
                 ask_button=U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
-                metrics_title=U(r"\u4eca\u65e5\u4e00\u773c\u770b\u61c2"),
+                metrics_title=U(r"\u5f53\u524d\u7ecf\u8425\u6570\u5b57"),
+                scope=U(r"\u7ecf\u8425\u53e3\u5f84\uff1a2026-01-01 \u81f3 2026-07-10\uff1b\u6570\u636e\u66f4\u65b0\u65f6\u95f4\uff1a") + esc(data_time),
                 metrics=light_metrics,
                 focus_title=U(r"\u4eca\u5929\u5148\u505a\u4ec0\u4e48"),
                 focus=focus_html,
                 profit_title=U(r"\u5229\u6da6\u8d28\u91cf\u63d0\u9192"),
                 profit_card=self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u4e0d\u91cd\u590d\u52a0\u7b97")),
+                rebate_detail=U(r"Osprey 2025 \u9500\u552e\u8fd4\u70b9 964,798.03 \u5143\uff0cKAILAS \u8fd4\u70b9 79,919.75 \u5143\uff0c\u5408\u8ba1 1,044,717.78 \u5143\uff0c\u5df2\u5305\u542b\u5728\u5229\u6da6 1,723,487.13 \u5143\u4e2d\uff0c\u4e0d\u5f97\u518d\u6b21\u76f8\u52a0\u3002"),
                 profit_warning=esc(profit["warning"]),
                 risk_title=U(r"\u4e09\u5927\u98ce\u9669"),
                 risks=home_risks,
@@ -18586,6 +18849,19 @@ where ki.deleted_at is null"""
         graph = context.get("sources", {}).get("knowledge_graph") or {}
         sync = context.get("sources", {}).get("sync_freshness") or {}
         reliable, missing = self.copilot_has_reliable_evidence(payload)
+        missing_labels = {
+            "evidence": "可追溯企业依据", "sync_freshness": "数据更新时间", "business_health": "企业健康评分",
+            "inventory_intelligence": "库存分析", "brand_intelligence": "品牌分析", "store_intelligence": "门店分析",
+            "decision_insight": "经营决策依据",
+        }
+        friendly_missing = []
+        for item in missing:
+            if item.startswith("brand_evidence:"):
+                friendly_missing.append("品牌依据：" + item.split(":", 1)[1])
+            elif item.startswith("store_evidence:"):
+                friendly_missing.append("门店依据：" + item.split(":", 1)[1])
+            else:
+                friendly_missing.append(missing_labels.get(item, "必要经营依据"))
         if not evidence:
             return {
                 "answer": U(r"\u7ed3\u8bba\uff1a\u5f53\u524d\u6570\u636e\u4e0d\u8db3\uff0c\u65e0\u6cd5\u5f62\u6210\u53ef\u9760\u7ed3\u8bba\u3002") + "\n\n" + U(r"\u539f\u56e0\uff1a\u672a\u627e\u5230\u53ef\u5f15\u7528\u7684 Enterprise OS evidence\u3002") + "\n\n" + U(r"\u5efa\u8bae\uff1a\u5148\u5b8c\u6210 SAP/Data Lake/Intelligence \u6570\u636e\u66f4\u65b0\u540e\u518d\u95ee\u3002"),
@@ -18630,6 +18906,58 @@ where ki.deleted_at is null"""
             U(r"\u7cfb\u7edf\u7ea6\u675f\uff1aBusiness Rule active rules {} \uff0cKnowledge Graph nodes {} \uff0cedges {}\u3002\u672c\u56de\u7b54\u4e0d\u4f7f\u7528 SAP \u5199\u6743\u9650\u3002").format(rules.get("business_rules_active", 0), graph.get("graph_nodes", 0), graph.get("graph_edges", 0)),
         ])
         confidence = "high" if len(evidence) >= 5 and (metrics.get("data_lake_records", 0) or decision.get("decision_evidence_total", 0)) else "medium"
+        return {"answer": answer, "confidence": confidence, "reliable": True, "missing": []}
+
+    def copilot_answer_from_context(self, question, payload):
+        evidence = payload.get("evidence", [])
+        context = payload.get("context", {})
+        sources = context.get("sources", {})
+        metrics = sources.get("data_lake", {})
+        sync = sources.get("sync_freshness") or {}
+        decision = sources.get("decision") or {}
+        daily = sources.get("daily_intelligence") or {}
+        reliable, missing = self.copilot_has_reliable_evidence(payload)
+        labels = {
+            "evidence": "可追溯企业依据", "sync_freshness": "数据更新时间", "business_health": "企业健康评分",
+            "inventory_intelligence": "库存分析", "brand_intelligence": "品牌分析", "store_intelligence": "门店分析",
+            "decision_insight": "经营决策依据",
+        }
+        missing_text = []
+        for item in missing:
+            if item.startswith("brand_evidence:"):
+                missing_text.append("品牌依据：" + item.split(":", 1)[1])
+            elif item.startswith("store_evidence:"):
+                missing_text.append("门店依据：" + item.split(":", 1)[1])
+            else:
+                missing_text.append(labels.get(item, "必要经营依据"))
+        updated = str(sync.get("last_success_text") or "-")
+        status = self.status_label(sync.get("status") or "unknown")
+        if not evidence or not reliable:
+            answer = "\n\n".join([
+                "结论：当前数据不足，无法形成可靠结论。",
+                "为什么：缺少{}。".format("、".join(missing_text) if missing_text else "可追溯企业依据"),
+                "关键数字：当前找到 {} 条资料，但不足以支撑该问题。".format(len(evidence)),
+                "风险与不确定性：不能用通用常识代替企业真实数据。",
+                "建议行动：先更新或重新计算相关经营数据，再重新提问。",
+                "依据与更新时间：下方资料仅供复核；数据更新时间 {}，状态 {}。".format(updated, status),
+            ])
+            return {"answer": answer, "confidence": "low", "reliable": False, "missing": missing}
+        risks = decision.get("top_risks", [])[:3]
+        risk_text = "；".join(self.friendly_business_text(r.get("title")) for r in risks if r.get("title")) or "当前依据中没有高优先级经营风险。"
+        daily_text = self.friendly_business_text(daily.get("summary")) or "暂时没有每日经营简报。"
+        stale = len([item for item in evidence if item.get("freshness") in ("stale", "outdated", "unknown")])
+        answer = "\n\n".join([
+            "结论：当前可确认销售额 {}，毛利 {}，库存金额 {}，库存数量 {}。".format(
+                money(metrics.get("sales_amount") or 0), money(metrics.get("gross_profit") or 0),
+                money(metrics.get("inventory_retail_amount") or 0), int(float(metrics.get("inventory_quantity") or 0)),
+            ),
+            "为什么：已结合企业经营数据、数字档案、企业关系、经营规则、决策记录、企业记忆和每日简报。",
+            "关键数字：本次使用 {} 条可追溯依据。".format(len(evidence)),
+            "风险与不确定性：{} {}".format(risk_text, "另有 {} 条依据可能陈旧，需要复核。".format(stale) if stale else "主要依据未触发陈旧提醒。"),
+            "建议行动：先打开下方依据卡复核原始来源，再生成行动或企业记忆草稿；高风险执行仍需人工审批。",
+            "依据与更新时间：下方展示来源、可信程度和更新时间；最近数据更新时间 {}，状态 {}。每日简报：{}".format(updated, status, daily_text),
+        ])
+        confidence = "high" if len(evidence) >= 5 else "medium"
         return {"answer": answer, "confidence": confidence, "reliable": True, "missing": []}
 
     def copilot_message_to_json(self, row):
