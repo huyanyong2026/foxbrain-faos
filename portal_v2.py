@@ -11018,8 +11018,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 (doc_id, "extract_summarize_index", "ready" if extracted else "waiting", 100 if extracted else 20, summary, now, now),
             )
             conn.execute(
-                "insert into drive_file_extractions(file_id,version_id,extraction_type,status,content_text,metadata_json,created_at) values(?,?,?,?,?,?,?)",
-                (doc_id, cur_v.lastrowid, "text", "ready" if extracted else "blocked", extracted, json.dumps({"filename": original, "mime_type": mime_type}, ensure_ascii=False), now),
+                "insert into drive_file_extractions(file_id,version_id,extraction_type,status,text_content,metadata_json,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                (doc_id, cur_v.lastrowid, "text", "ready" if extracted else "blocked", extracted, json.dumps({"filename": original, "mime_type": mime_type}, ensure_ascii=False), now, now),
             )
             conn.execute(
                 "insert into drive_file_ai_summaries(file_id,version_id,summary_type,summary,evidence_json,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
