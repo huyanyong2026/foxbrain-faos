@@ -2060,11 +2060,31 @@ create table if not exists decision_actions(
 )
 """
         )
+        ensure_column(conn, "decision_actions", "task_id", "task_id integer")
+        ensure_column(conn, "decision_actions", "approved_by", "approved_by integer")
+        ensure_column(conn, "decision_actions", "approved_at", "approved_at integer")
+        conn.execute(
+            """
+create table if not exists decision_outcomes(
+ id integer primary key autoincrement,
+ insight_id integer not null,
+ action_id integer,
+ outcome_status text not null default 'pending_review',
+ result_summary text,
+ actual_impact text,
+ evidence_json text not null default '[]',
+ recorded_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
         for idx in [
             "create index if not exists idx_decision_insights_type_status on decision_insights(insight_type, status, severity)",
             "create index if not exists idx_decision_insights_entity on decision_insights(entity_type, entity_id)",
             "create index if not exists idx_decision_evidence_insight on decision_evidence(insight_id, source_type)",
             "create index if not exists idx_decision_actions_insight on decision_actions(insight_id, status)",
+            "create index if not exists idx_decision_outcomes_insight on decision_outcomes(insight_id, outcome_status)",
         ]:
             conn.execute(idx)
         conn.execute(
@@ -5450,6 +5470,8 @@ create table if not exists proactive_signals(
 )
 """
         )
+        ensure_column(conn, "proactive_signals", "quality_score", "quality_score real not null default 0")
+        ensure_column(conn, "proactive_signals", "quality_reason", "quality_reason text")
         conn.execute("create index if not exists idx_proactive_signals_status on proactive_signals(status,severity,updated_at)")
         vault_root = conn.execute("select id from drive_folders where name=? and deleted_at is null order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
         if not vault_root:
@@ -5816,7 +5838,7 @@ class App(BaseHTTPRequestHandler):
         if path == "/ceo-home":
             return self.ceo_home_v11_page(user)
         if path == "/ceo-workbench":
-            return self.dashboard(user) if user else self.login()
+            return self.ceo_operating_workbench_page(user)
         if path == "/owner/knowledge":
             return self.owner_os_center_page(user, path)
         if path.startswith("/owner/"):
@@ -9175,6 +9197,39 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             )
         return "<div class='focus-list'>" + "".join(cards) + "</div>"
 
+    def ceo_operating_workbench_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance"):
+            return self.dashboard(user)
+        payload = self.ceo_dashboard_payload(user)
+        summary = payload["summary"]
+        with db() as conn:
+            status_counts = {r["status"]: int(r["c"] or 0) for r in conn.execute("select status,count(*) c from decision_insights group by status").fetchall()}
+            pending_actions = int(conn.execute("select count(*) c from decision_actions where status in ('draft','pending_review','approved','in_progress')").fetchone()["c"] or 0)
+            outcome_count = int(conn.execute("select count(*) c from decision_outcomes where outcome_status in ('completed','effective','ineffective')").fetchone()["c"] or 0)
+            signals = conn.execute("select * from proactive_signals where status='active' and quality_score>=65 order by quality_score desc,case severity when 'critical' then 0 when 'high' then 1 else 2 end,updated_at desc limit 6").fetchall()
+            actions = self.ceo_action_center_payload(conn, payload)[:5]
+        signal_cards = "".join("<div class='focus-item'><span class='status-tag'>{}</span><strong>{}</strong><p>{}</p><p class='small'>{} {:.0f}/100 · {} {}</p><a class='btn' href='/proactive-intelligence'>{}</a></div>".format(
+            esc(self.status_label(r["severity"])), esc(r["title"]), esc(r["summary"] or r["recommended_action"] or ""), U(r"\u8d28\u91cf\u5206"), float(r["quality_score"] or 0), U(r"\u4f9d\u636e"), len(safe_json(r["evidence_json"], [])), U(r"\u67e5\u770b\u4f9d\u636e")) for r in signals)
+        if not signal_cards:
+            signal_cards = self.guided_empty_state(U(r"\u5c1a\u65e0\u9ad8\u8d28\u91cf\u4e3b\u52a8\u63d0\u9192\u3002"), U(r"\u9700\u8981\u65b0\u9c9c\u6570\u636e\u3001\u660e\u786e\u4f9d\u636e\u548c\u53ef\u6267\u884c\u5efa\u8bae\u3002"), "/proactive-intelligence", U(r"\u624b\u52a8\u91cd\u65b0\u8bc4\u4f30"))
+        metrics = "".join([
+            self.metric(U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(float(summary.get("business_health_score") or 0)), self.status_label(summary.get("business_health_status"))),
+            self.metric(U(r"\u5f85\u590d\u6838\u51b3\u7b56"), status_counts.get("new", 0) + status_counts.get("reviewing", 0), U(r"\u6709\u4f9d\u636e\u624d\u53ef\u5904\u7406")),
+            self.metric(U(r"\u5f85\u63a8\u8fdb\u884c\u52a8"), pending_actions, U(r"\u9700\u4eba\u5de5\u786e\u8ba4")),
+            self.metric(U(r"\u5df2\u6c89\u6dc0\u7ed3\u679c"), outcome_count, U(r"\u53ef\u590d\u76d8\u5b66\u4e60")),
+            self.metric(U(r"\u6570\u636e\u72b6\u6001"), self.status_label(summary.get("enterprise_sync_status")), summary.get("enterprise_data_updated_at") or U(r"\u5f85\u66f4\u65b0")),
+        ])
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">{tag}</span><h1>{title}</h1><p class="lead">{lead}</p><form class="ceo-ask" method="get" action="/copilot"><input type="hidden" name="ctx_page" value="/ceo-workbench"><input type="hidden" name="ctx_title" value="CEO经营工作台"><div><label>{ask}</label><input name="q" placeholder="{placeholder}"></div><button>{answer}</button></form></div>
+<div class="panel compact-panel"><h2>{state}</h2><div class="metrics">{metrics}</div></div>
+<div class="split compact-split"><div class="panel"><h2>{priority}</h2>{actions}</div><div class="panel"><h2>{loop}</h2><div class="metrics">{loop_metrics}</div><p><a class="btn" href="/decision">{open_decision}</a> <a class="btn gray" href="/action-center">{open_action}</a></p></div></div>
+<div class="panel"><h2>{signals_title}</h2><div class="focus-list">{signals}</div></div>
+""".format(tag=U(r"\u8001\u677f\u6bcf\u65e5\u7ecf\u8425\u5165\u53e3"), title=U(r"CEO \u7ecf\u8425\u5de5\u4f5c\u53f0"), lead=U(r"\u5148\u770b\u72b6\u6001\uff0c\u518d\u5904\u7406\u51b3\u7b56\u548c\u884c\u52a8\uff0c\u6700\u540e\u8bb0\u5f55\u5b9e\u9645\u7ed3\u679c\u3002"), ask=U(r"AI \u95ee\u4eca\u5929\u7684\u4f01\u4e1a"), placeholder=U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u54ea\u4e09\u4ef6\u4e8b\u6700\u9700\u8981\u6211\u51b3\u7b56\uff1f"), answer=U(r"\u57fa\u4e8e\u4f9d\u636e\u56de\u7b54"), state=U(r"\u5f53\u524d\u7ecf\u8425\u72b6\u6001"), metrics=metrics, priority=U(r"\u4eca\u5929\u5148\u63a8\u8fdb"), actions=self.ceo_action_center_html(actions), loop=U(r"\u51b3\u7b56\u95ed\u73af"), loop_metrics="".join([self.metric(U(r"\u5f85\u590d\u6838"), status_counts.get("new", 0) + status_counts.get("reviewing", 0), U(r"\u95ee\u9898\u4e0e\u5efa\u8bae")), self.metric(U(r"\u5df2\u63a5\u53d7"), status_counts.get("accepted", 0), U(r"\u5f85\u8f6c\u884c\u52a8")), self.metric(U(r"\u5df2\u5b8c\u6210"), status_counts.get("resolved", 0), U(r"\u5f85\u8bb0\u5f55\u7ed3\u679c"))]), open_decision=U(r"\u8fdb\u5165\u51b3\u7b56\u4e2d\u5fc3"), open_action=U(r"\u8fdb\u5165\u884c\u52a8\u4e2d\u5fc3"), signals_title=U(r"\u9ad8\u8d28\u91cf\u4e3b\u52a8\u63d0\u9192"), signals=signal_cards)
+        self.out(layout(U(r"CEO \u7ecf\u8425\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
+
     def action_center_page(self, user):
         user = self.require_login(user)
         if not user:
@@ -9364,7 +9419,8 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
                 except (TypeError, ValueError):
                     evidence = []
                 if evidence:
-                    candidates.append(("risk", r["severity"], r["title"], r["summary"], r["suggestion"], r["entity_type"], str(r["entity_id"] or ""), "decision", str(r["id"]), json.dumps(evidence, ensure_ascii=False)))
+                    score = min(100, 68 + min(len(evidence), 4) * 6 + (8 if (r["suggestion"] or "").strip() else 0))
+                    candidates.append(("risk", r["severity"], r["title"], r["summary"], r["suggestion"], r["entity_type"], str(r["entity_id"] or ""), "decision", str(r["id"]), json.dumps(evidence, ensure_ascii=False), score, U(r"\u6709\u53ef\u8ffd\u6eaf\u4f9d\u636e\u548c\u660e\u786e\u5efa\u8bae")))
             report = conn.execute("select id from daily_intelligence_reports order by created_at desc limit 1").fetchone()
             if report:
                 for r in conn.execute("select * from daily_intelligence_items where report_id=? order by id desc limit 100", (report["id"],)).fetchall():
@@ -9374,10 +9430,17 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
                         evidence = []
                     if evidence:
                         signal_type = "opportunity" if r["item_type"] == "opportunity" else "risk"
-                        candidates.append((signal_type, r["severity"], r["title"], r["description"], r["recommended_action"], r["entity_type"], str(r["entity_id"] or ""), "daily_intelligence", str(r["id"]), json.dumps(evidence, ensure_ascii=False)))
+                        score = min(100, 66 + min(len(evidence), 4) * 6 + (8 if (r["recommended_action"] or "").strip() else 0))
+                        candidates.append((signal_type, r["severity"], r["title"], r["description"], r["recommended_action"], r["entity_type"], str(r["entity_id"] or ""), "daily_intelligence", str(r["id"]), json.dumps(evidence, ensure_ascii=False), score, U(r"\u6765\u81ea\u6700\u65b0\u7ecf\u8425\u7b80\u62a5\u4e14\u6709\u53ef\u6267\u884c\u5efa\u8bae")))
+            best = {}
             for item in candidates:
-                conn.execute("""insert into proactive_signals(signal_type,severity,title,summary,recommended_action,entity_type,entity_id,source_type,source_id,evidence_json,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?, 'active',?,?) on conflict(source_type,source_id,signal_type) do update set severity=excluded.severity,title=excluded.title,summary=excluded.summary,recommended_action=excluded.recommended_action,evidence_json=excluded.evidence_json,status='active',updated_at=excluded.updated_at""", item + (now, now))
-        return {"ok": True, "created": len(candidates), "message": U(r"\u5df2\u57fa\u4e8e\u73b0\u6709\u4f9d\u636e\u91cd\u5efa\u7ecf\u8425\u63d0\u9192\u3002")}
+                key = (item[0], " ".join((item[2] or "").lower().split()))
+                if key not in best or item[10] > best[key][10]:
+                    best[key] = item
+            conn.execute("update proactive_signals set status='superseded',updated_at=? where status='active'", (now,))
+            for item in best.values():
+                conn.execute("""insert into proactive_signals(signal_type,severity,title,summary,recommended_action,entity_type,entity_id,source_type,source_id,evidence_json,quality_score,quality_reason,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?, 'active',?,?) on conflict(source_type,source_id,signal_type) do update set severity=excluded.severity,title=excluded.title,summary=excluded.summary,recommended_action=excluded.recommended_action,evidence_json=excluded.evidence_json,quality_score=excluded.quality_score,quality_reason=excluded.quality_reason,status='active',updated_at=excluded.updated_at""", item + (now, now))
+        return {"ok": True, "created": len(best), "filtered": len(candidates) - len(best), "message": U(r"\u5df2\u57fa\u4e8e\u73b0\u6709\u4f9d\u636e\u91cd\u5efa\u5e76\u53bb\u91cd\u7ecf\u8425\u63d0\u9192\u3002")}
 
     def proactive_intelligence_rebuild_post(self):
         user = self.current_user()
@@ -9391,7 +9454,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
         if not user:
             return
         with db() as conn:
-            rows = conn.execute("select * from proactive_signals where status='active' order by case severity when 'critical' then 0 when 'high' then 1 else 2 end,updated_at desc limit 60").fetchall()
+            rows = conn.execute("select * from proactive_signals where status='active' and quality_score>=65 order by quality_score desc,case severity when 'critical' then 0 when 'high' then 1 else 2 end,updated_at desc limit 30").fetchall()
         cards = []
         for r in rows:
             try:
@@ -9399,7 +9462,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             except (TypeError, ValueError):
                 evidence = []
             source_url = "/decision" if r["source_type"] == "decision" else "/daily-intelligence"
-            cards.append("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} {} · {}</p></div><a class='btn' href='{}'>{}</a></div>".format(self.status_label(r["severity"]), esc(r["title"]), esc(r["summary"] or r["recommended_action"] or ""), U(r"\u4f9d\u636e"), len(evidence), U(r"\u9700\u4eba\u5de5\u590d\u6838"), source_url, U(r"\u67e5\u770b\u6765\u6e90")))
+            cards.append("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} {:.0f}/100 · {} {} · {}</p></div><a class='btn' href='{}'>{}</a></div>".format(self.status_label(r["severity"]), esc(r["title"]), esc(r["summary"] or r["recommended_action"] or ""), U(r"\u8d28\u91cf\u5206"), float(r["quality_score"] or 0), U(r"\u4f9d\u636e"), len(evidence), U(r"\u9700\u4eba\u5de5\u590d\u6838"), source_url, U(r"\u67e5\u770b\u6765\u6e90")))
         signals = "".join(cards) or self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210\u4e3b\u52a8\u7ecf\u8425\u63d0\u9192\u3002"), U(r"\u53ef\u4ee5\u7531\u8001\u677f\u6216\u7ba1\u7406\u5458\u624b\u52a8\u91cd\u5efa\u3002\u53ea\u6709\u5e26\u4f9d\u636e\u7684\u98ce\u9669\u548c\u673a\u4f1a\u624d\u4f1a\u8fdb\u5165\u6b64\u5904\u3002"), "/decision", U(r"\u5148\u67e5\u770b\u7ecf\u8425\u51b3\u7b56"))
         rebuild = "<form method='post' action='/api/proactive-intelligence/rebuild'><button>{}</button></form>".format(U(r"\u624b\u52a8\u91cd\u5efa\u63d0\u9192")) if user["role"] in ("boss", "admin") else ""
         body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u81ea\u52a8\u8c03\u5ea6\u5df2\u5173\u95ed"), U(r"\u4e3b\u52a8\u7ecf\u8425\u667a\u80fd"), U(r"\u4ece\u73b0\u6709\u51b3\u7b56\u548c\u6bcf\u65e5\u7b80\u62a5\u4e2d\u63d0\u53d6\u6709\u4f9d\u636e\u7684\u98ce\u9669\u4e0e\u673a\u4f1a\u3002\u7cfb\u7edf\u4e0d\u4f1a\u81ea\u52a8\u6267\u884c\u884c\u52a8\u3002"), rebuild, U(r"\u5f85\u4eba\u5de5\u590d\u6838"), signals)
@@ -10820,11 +10883,16 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
         ] or [U(r"\u6682\u65e0\u7ecf\u8425\u65f6\u95f4\u8bb0\u5f55\uff0c\u540e\u7eed\u8d44\u6599\u3001\u51b3\u7b56\u548c\u884c\u52a8\u4f1a\u81ea\u52a8\u6c89\u6dc0\u3002")])
         memory_html = self.bullets([self.friendly_business_text(item["title"]) for item in memories] or [U(r"\u6682\u65e0\u76f8\u5173\u4f01\u4e1a\u8bb0\u5fc6\u3002")])
         context_q = quote(U(r"\u8bf7\u57fa\u4e8e\u4f01\u4e1a\u4f9d\u636e\u5206\u6790") + row["name"])
+        decision_html = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} {}</p></div><a class='btn' href='/decision/insights?id={}'>{}</a></div>".format(
+            esc(self.status_label(item["severity"])), esc(self.friendly_business_text(item["title"])), esc(self.friendly_business_text(item["summary"] or item["suggestion"] or "")), U(r"\u4f9d\u636e"), len(safe_json(item["evidence"], [])), item["id"], U(r"\u6253\u5f00\u51b3\u7b56")) for item in decisions)
+        if not decision_html:
+            decision_html = self.guided_empty_state(U(r"\u8fd8\u6ca1\u6709\u4e0e\u8be5\u6863\u6848\u76f8\u5173\u7684\u51b3\u7b56\u3002"), U(r"\u9700\u8981\u9500\u552e\u3001\u5e93\u5b58\u6216\u7ecf\u8425\u8d44\u6599\u4f5c\u4e3a\u4f9d\u636e\u3002"), "/copilot?q=" + context_q, U(r"\u8bf7 AI \u57fa\u4e8e\u4f9d\u636e\u68c0\u67e5"))
         body = """
 <div class="ceo-hero compact"><span class="status-tag">{type_label}</span><h1>{name}</h1><p>{status}</p><p class="lead">{summary}</p>
 <div class="inline"><a class="btn" href="/copilot?q={q}&amp;ctx_type={type}&amp;ctx_id={id}&amp;ctx_name={name}&amp;ctx_page=/object-center?id={id}">{ask}</a><a class="btn gray" href="/enterprise">{back}</a></div></div>
 <div class="panel"><h2>{metric_title}</h2><div class="metrics">{metrics}</div></div>
 <div class="split"><div class="panel"><h2>{risk_title}</h2>{risks}</div><div class="panel"><h2>{memory_title}</h2>{memories}</div></div>
+<div class="panel"><h2>{decision_title}</h2><div class="grid">{decisions}</div></div>
 <div class="panel"><h2>{doc_title}</h2><div class="grid">{docs}</div></div>
 <div class="panel"><h2>{timeline_title}</h2>{timeline}</div>
 """.format(
@@ -10832,9 +10900,44 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             q=context_q, type=esc(row["object_type"]), id=row["id"], ask=U(r"\u95ee\u5f53\u524d\u6863\u6848"), back=U(r"\u8fd4\u56de\u4f01\u4e1a"),
             metric_title=U(r"\u6838\u5fc3\u6570\u5b57"), metrics="".join(metrics), risk_title=U(r"\u98ce\u9669\u3001\u673a\u4f1a\u4e0e\u5efa\u8bae"), risks=risk_html,
             memory_title=U(r"\u76f8\u5173\u51b3\u7b56\u4e0e\u4f01\u4e1a\u8bb0\u5fc6"), memories=memory_html,
+            decision_title=U(r"\u76f8\u5173\u51b3\u7b56\u4e0e\u884c\u52a8"), decisions=decision_html,
             doc_title=U(r"\u76f8\u5173\u8d44\u6599"), docs=doc_html, timeline_title=U(r"\u7ecf\u8425\u65f6\u95f4\u8bb0\u5f55"), timeline=timeline_html,
         )
         self.out(layout(row["name"], body, user=user, wide=True))
+
+    def object_engine_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
+            return self.dashboard(user)
+        query = parse_qs(urlparse(self.path).query)
+        detail_id = (query.get("id", [""])[0] or "").strip()
+        if detail_id:
+            return self.object_detail_page(user, detail_id)
+        object_type = module_key(query.get("type", [""])[0] or "")
+        q = (query.get("q", [""])[0] or "").strip()
+        where, params = ["archived_at is null"], []
+        if object_type:
+            where.append("object_type=?")
+            params.append(object_type)
+        if q:
+            where.append("(name like ? or coalesce(code,'') like ? or coalesce(tags,'') like ?)")
+            params.extend(["%" + q + "%"] * 3)
+        with db() as conn:
+            counts = {r["object_type"]: int(r["c"] or 0) for r in conn.execute("select object_type,count(*) c from enterprise_objects where archived_at is null group by object_type").fetchall()}
+            rows = conn.execute("select * from enterprise_objects where " + " and ".join(where) + " order by updated_at desc limit 120", params).fetchall()
+        type_links = "".join("<a class='pill' href='/object-center?type={}'>{} {}</a>".format(esc(item["key"]), esc(item["label"]), counts.get(item["key"], 0)) for item in self.object_types())
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div><a class='btn' href='/object-center?id={}'>{}</a></div>".format(
+            esc(self.object_type_label(row["object_type"])), esc(row["name"]), esc(row["description"] or U(r"\u6682\u65e0\u6863\u6848\u6458\u8981")), esc(dt(row["updated_at"])), row["id"], U(r"\u6253\u5f00\u7ecf\u8425\u6863\u6848")) for row in rows)
+        if not cards:
+            cards = self.guided_empty_state(U(r"\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u4f01\u4e1a\u6863\u6848\u3002"), U(r"\u53ef\u80fd\u5c1a\u672a\u5b8c\u6210\u6570\u636e\u6821\u51c6\uff0c\u6216\u641c\u7d22\u6761\u4ef6\u8fc7\u7a84\u3002"), "/business-calibration", U(r"\u68c0\u67e5\u6570\u636e\u6821\u51c6"))
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">{tag}</span><h1>{title}</h1><p class="lead">{lead}</p><form class="ceo-ask" method="get" action="/object-center"><div><label>{search}</label><input name="q" value="{q}" placeholder="{placeholder}"></div><button>{find}</button></form></div>
+<div class="panel"><h2>{types}</h2><div class="chipbar">{type_links}</div></div>
+<div class="panel"><h2>{files}</h2><div class="grid">{cards}</div></div>
+""".format(tag=U(r"\u4f01\u4e1a\u6570\u5b57\u6863\u6848"), title=U(r"\u4f01\u4e1a\u5bf9\u8c61\u5de5\u4f5c\u53f0"), lead=U(r"\u6309\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u5458\u5de5\u3001\u5ba2\u6237\u548c\u4f9b\u5e94\u5546\u67e5\u770b\u6570\u5b57\u3001\u8d44\u6599\u3001\u98ce\u9669\u3001\u51b3\u7b56\u548c\u884c\u52a8\u3002"), search=U(r"\u641c\u7d22\u4f01\u4e1a\u6863\u6848"), q=esc(q), placeholder=U(r"\u8f93\u5165\u95e8\u5e97\u3001\u54c1\u724c\u6216\u4ea7\u54c1\u540d\u79f0"), find=U(r"\u67e5\u627e"), types=U(r"\u6863\u6848\u5206\u7c7b"), type_links=type_links, files=U(r"\u7ecf\u8425\u6863\u6848"), cards=cards)
+        self.out(layout(U(r"\u4f01\u4e1a\u5bf9\u8c61\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
 
     def knowledge_pipeline_page(self, user):
         user = self.require_login(user)
@@ -19770,9 +19873,10 @@ limit 6
                 return {"ok": False, "message": "not found"}
             evidence = conn.execute("select * from decision_evidence where insight_id=? order by id", (row["id"],)).fetchall()
             actions = conn.execute("select * from decision_actions where insight_id=? order by id", (row["id"],)).fetchall()
+            outcomes = conn.execute("select * from decision_outcomes where insight_id=? order by updated_at desc", (row["id"],)).fetchall()
             graph_nodes = conn.execute("select * from knowledge_graph_nodes where source_type='decision_insights' and source_id=? order by updated_at desc limit 20", (str(row["id"]),)).fetchall()
             memories = conn.execute("select * from enterprise_memories where archived_at is null and related_object_type=? and related_object_id=? order by updated_at desc limit 20", (row["entity_type"] or "", row["entity_id"] or -1)).fetchall() if row["entity_type"] and row["entity_id"] else []
-        return {"ok": True, "insight": self.decision_insight_to_json(row, evidence, actions), "knowledge_graph_nodes": [row_dict(r) for r in graph_nodes], "related_memories": [self.enterprise_memory_to_json(r) for r in memories], "evidence_rule": "all_decision_insights_must_have_evidence"}
+        return {"ok": True, "insight": self.decision_insight_to_json(row, evidence, actions), "outcomes": [row_dict(r) for r in outcomes], "knowledge_graph_nodes": [row_dict(r) for r in graph_nodes], "related_memories": [self.enterprise_memory_to_json(r) for r in memories], "evidence_rule": "all_decision_insights_must_have_evidence"}
 
     def update_decision_insight_status(self, user, insight_id, status, note=""):
         if status not in ("new", "reviewing", "accepted", "rejected", "resolved", "archived"):
@@ -19818,6 +19922,7 @@ limit 6
             insight = context["insight"]
             evidence_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{:.0%}</td></tr>".format(esc(e.get("source_type")), esc(e.get("source_id")), esc(e.get("evidence_summary")), float(e.get("confidence") or 0)) for e in insight.get("evidence_rows", []))
             action_rows = "".join("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(esc(a.get("action_title")), esc(a.get("action_type")), esc(a.get("status")), esc(a.get("owner"))) for a in insight.get("actions", []))
+            outcome_rows = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div></div>".format(esc(self.status_label(o.get("outcome_status"))), esc(o.get("result_summary") or U(r"\u6267\u884c\u7ed3\u679c")), esc(o.get("actual_impact") or U(r"\u5f85\u8865\u5145\u5b9e\u9645\u5f71\u54cd")), esc(dt(o.get("updated_at")))) for o in context.get("outcomes", []))
             graph_items = ["{} / {}".format(self.object_type_label(n.get("node_type")), n.get("name") or n.get("label")) for n in context.get("knowledge_graph_nodes", [])] or [U(r"\u6682\u65e0\u76f8\u5173\u4f01\u4e1a\u5173\u7cfb\u3002")]
             memory_items = [m.get("title", "") + " / " + self.status_label(m.get("status")) for m in context.get("related_memories", [])] or [U(r"\u51b3\u7b56\u63a5\u53d7\u6216\u5b8c\u6210\u540e\uff0c\u53ef\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f\u3002")]
             body = """
@@ -19845,6 +19950,11 @@ limit 6
 </div>""".format(
                 esc(insight["title"]), esc(insight["insight_type"]), esc(self.status_label(insight["severity"])), esc(self.status_label(insight["status"])), esc(dt(insight["updated_at"])), esc(insight["summary"] or ""), U(r"\u8fd4\u56de"), evidence_rows or "<tr><td colspan='4'>\u6682\u65e0\u53ef\u7528\u4f9d\u636e</td></tr>", esc(insight.get("suggestion") or ""), action_rows or "<tr><td>\u6682\u65e0\u5efa\u8bae\u884c\u52a8</td></tr>", self.bullets(graph_items), self.bullets(memory_items), insight["id"]
             )
+            body += """
+<div class="split"><div class="panel form"><h2>{action_title}</h2><p class="small">{action_rule}</p><form method="post" action="/api/decision/insights/{id}/actions"><label>{name}</label><input name="action_title" required value="{suggestion}"><label>{owner}</label><input name="owner" value="{owner_value}"><label>{description}</label><textarea name="action_description"></textarea><button>{create}</button></form></div>
+<div class="panel form"><h2>{result_title}</h2><p class="small">{result_rule}</p><form method="post" action="/api/decision/insights/{id}/outcomes"><label>{status}</label><select name="outcome_status"><option value="completed">{completed}</option><option value="effective">{effective}</option><option value="ineffective">{ineffective}</option></select><label>{summary}</label><input name="result_summary" required><label>{impact}</label><textarea name="actual_impact"></textarea><label>{evidence}</label><textarea name="evidence_note" required></textarea><button>{save}</button></form></div></div>
+<div class="panel"><h2>{history}</h2><div class="grid">{outcomes}</div></div>
+""".format(action_title=U(r"\u8f6c\u4e3a\u5f85\u5ba1\u6279\u884c\u52a8"), action_rule=U(r"\u884c\u52a8\u53ea\u4f1a\u5efa\u7acb\u8349\u7a3f\u4efb\u52a1\uff0c\u4e0d\u4f1a\u81ea\u52a8\u6267\u884c\u3002"), id=insight["id"], name=U(r"\u884c\u52a8\u540d\u79f0"), suggestion=esc(insight.get("suggestion") or insight["title"]), owner=U(r"\u8d1f\u8d23\u4eba"), owner_value=esc(user["name"] or ""), description=U(r"\u6267\u884c\u8bf4\u660e"), create=U(r"\u521b\u5efa\u5f85\u5ba1\u6279\u884c\u52a8"), result_title=U(r"\u8bb0\u5f55\u5b9e\u9645\u7ed3\u679c"), result_rule=U(r"\u5b8c\u6210\u540e\u8bb0\u5f55\u7ed3\u679c\u548c\u4f9d\u636e\uff0c\u7528\u4e8e\u4f01\u4e1a\u590d\u76d8\u548c\u8bb0\u5fc6\u3002"), status=U(r"\u7ed3\u679c\u72b6\u6001"), completed=U(r"\u5df2\u5b8c\u6210\u5f85\u8bc4\u4f30"), effective=U(r"\u5df2\u9a8c\u8bc1\u6709\u6548"), ineffective=U(r"\u5df2\u9a8c\u8bc1\u65e0\u6548"), summary=U(r"\u7ed3\u679c\u6458\u8981"), impact=U(r"\u5b9e\u9645\u5f71\u54cd"), evidence=U(r"\u7ed3\u679c\u4f9d\u636e"), save=U(r"\u4fdd\u5b58\u7ed3\u679c"), history=U(r"\u7ed3\u679c\u4e0e\u590d\u76d8"), outcomes=outcome_rows or self.empty_state(U(r"\u5c1a\u672a\u8bb0\u5f55\u5b9e\u9645\u7ed3\u679c\u3002")))
             return self.out(layout(U(r"\u7ecf\u8425\u51b3\u7b56\u8be6\u60c5"), body, user=user, wide=True))
         summary = self.decision_engine_summary()
         with db() as conn:
@@ -19940,7 +20050,32 @@ limit 6
                     "insert into decision_actions(insight_id,action_title,action_description,action_type,status,owner,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
                     (m_action.group(1), form.get("action_title", "Manual review"), form.get("action_description", ""), form.get("action_type", "manual_review"), "pending_review", form.get("owner", user["name"]), now, now),
                 )
-            return self.json_out({"ok": True, "action_id": cur.lastrowid, "status": "pending_review"})
+                action_id = cur.lastrowid
+                task = conn.execute("insert into tasks(task_id,title,description,owner,priority,status,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)", ("DECISION-ACTION-{}".format(action_id), form.get("action_title", U(r"\u51b3\u7b56\u884c\u52a8")), form.get("action_description", ""), form.get("owner", user["name"]), "high", "draft", "decision_action", str(action_id), user["id"], now, now))
+                conn.execute("update decision_actions set task_id=? where id=?", (task.lastrowid, action_id))
+                self.add_timeline_event(conn, "decision", int(m_action.group(1)), "decision_action_drafted", form.get("action_title", U(r"\u51b3\u7b56\u884c\u52a8")), U(r"\u5df2\u5efa\u7acb\u5f85\u5ba1\u6279\u4efb\u52a1\uff0c\u672a\u81ea\u52a8\u6267\u884c\u3002"), "decision_actions", action_id, {"task_id": task.lastrowid, "status": "draft"}, user["id"], now)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/decision/insights?id=" + m_action.group(1))
+            return self.json_out({"ok": True, "action_id": action_id, "task_id": task.lastrowid, "status": "pending_review"})
+        m_outcome = re.match(r"^/api/decision/insights/(\d+)/outcomes$", path)
+        if m_outcome:
+            form = self.api_object_payload()
+            if form.get("outcome_status") not in ("completed", "effective", "ineffective"):
+                return self.json_out({"ok": False, "message": "invalid outcome status"}, code=400)
+            if not (form.get("evidence_note") or "").strip():
+                return self.json_out({"ok": False, "message": "result evidence is required"}, code=400)
+            now = ts()
+            with db() as conn:
+                insight = conn.execute("select * from decision_insights where id=?", (m_outcome.group(1),)).fetchone()
+                if not insight:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                evidence = [{"source_type": "manual_result", "summary": form.get("evidence_note"), "recorded_by": user["id"]}]
+                cur = conn.execute("insert into decision_outcomes(insight_id,action_id,outcome_status,result_summary,actual_impact,evidence_json,recorded_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)", (int(m_outcome.group(1)), int(form.get("action_id")) if str(form.get("action_id", "")).isdigit() else None, form.get("outcome_status"), form.get("result_summary", ""), form.get("actual_impact", ""), json.dumps(evidence, ensure_ascii=False), user["id"], now, now))
+                conn.execute("update decision_insights set status='resolved',resolved_at=?,updated_at=? where id=?", (now, now, m_outcome.group(1)))
+                self.add_timeline_event(conn, "decision", int(m_outcome.group(1)), "decision_outcome_recorded", form.get("result_summary", U(r"\u51b3\u7b56\u7ed3\u679c")), form.get("actual_impact", ""), "decision_outcomes", cur.lastrowid, {"outcome_status": form.get("outcome_status")}, user["id"], now)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/decision/insights?id=" + m_outcome.group(1))
+            return self.json_out({"ok": True, "outcome_id": cur.lastrowid, "status": form.get("outcome_status")})
         return self.json_out({"ok": False, "message": "unknown decision write api"}, code=404)
 
     def business_rule_to_json(self, row):
