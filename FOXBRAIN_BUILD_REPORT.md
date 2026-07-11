@@ -40,15 +40,21 @@
 
 ## 生产部署
 
-- 部署状态：待执行生产备份、上线和逐页验证。
-- 目标运行目录：`/opt/firefox-portal`
-- 目标服务：`firefox-portal.service`
-- 部署时间：待上线后回填。
-- 备份位置：待上线后回填，必须包含代码、数据库和文件目录。
+- 部署状态：已完成。
+- 运行目录：`/opt/firefox-portal`
+- 服务：`firefox-portal.service`，状态 active。
+- 部署时间：2026-07-12 07:26-07:34（Asia/Shanghai）。
+- 备份位置：`/opt/backups/foxbrain-genesis-20260712-072637`。
+- 备份内容：部署前代码、数据库和全部上传文件，共 756 MB。
+- 生产统一索引：54 个对象、12 条关系，缺失 evidence 的关系为 0。
+- 线上验证：首页、企业中心、企业基础、企业 DNA、CEO Memory、企业数字资产中心、CEO Vault、对象工作台、企业知识网络、AI 智能体工作台均返回 200。
+- HTTPS 与服务日志检查：通过，部署窗口内无 Traceback、ERROR 或 Exception。
 
 ## 截图
 
-- 待生产部署后生成 CEO 首页、企业基础、企业数字资产中心截图并回填。
+- `docs/screenshots/genesis-ceo-home.png`
+- `docs/screenshots/genesis-enterprise-foundation.png`
+- `docs/screenshots/genesis-enterprise-drive.png`
 
 ## 下一阶段建议
 

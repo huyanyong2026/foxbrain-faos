@@ -7186,6 +7186,12 @@ class App(BaseHTTPRequestHandler):
 
     def object_type_label(self, object_type):
         labels = {item["key"]: item["label"] for item in self.object_types()}
+        labels.update({
+            "document": U(r"\u4f01\u4e1a\u8d44\u6599"),
+            "decision": U(r"\u7ecf\u8425\u51b3\u7b56"),
+            "memory": U(r"\u4f01\u4e1a\u8bb0\u5fc6"),
+            "knowledge": U(r"\u4f01\u4e1a\u77e5\u8bc6"),
+        })
         return labels.get(object_type or "", object_type or "")
 
     def object_metadata_from_form(self, form, object_type):
@@ -9475,7 +9481,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             missing_evidence = int(conn.execute("select count(*) c from enterprise_relationships where status='active' and (evidence_json is null or evidence_json='' or evidence_json='[]')").fetchone()["c"] or 0)
             rows = conn.execute("select r.*,s.canonical_name source_name,t.canonical_name target_name from enterprise_relationships r join enterprise_entity_registry s on s.global_id=r.source_global_id join enterprise_entity_registry t on t.global_id=r.target_global_id where r.status='active' order by r.updated_at desc limit 30").fetchall()
         metrics = "".join(self.metric(self.object_type_label(r["entity_type"]), r["c"], U(r"\u7edf\u4e00\u5bf9\u8c61 ID")) for r in counts)
-        relations = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{} → {}</h2><p>{}</p><p class='small'>{} {} · {} {}</p></div></div>".format(U(r"\u53ef\u8ffd\u6eaf"), esc(r["source_name"]), esc(r["target_name"]), esc(self.status_label(r["relation_type"])), U(r"\u4f9d\u636e"), len(safe_json(r["evidence_json"], [])), U(r"\u6765\u6e90"), esc(r["source_type"])) for r in rows)
+        relations = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{} → {}</h2><p>{}</p><p class='small'>{} {} · {} {}</p></div></div>".format(U(r"\u53ef\u8ffd\u6eaf"), esc(r["source_name"]), esc(r["target_name"]), esc(self.status_label(r["relation_type"])), U(r"\u4f9d\u636e"), len(safe_json(r["evidence_json"], [])), U(r"\u6765\u6e90"), esc(self.status_label(r["source_type"]))) for r in rows)
         rebuild = "<form method='post' action='/api/enterprise-foundation/rebuild'><button>{}</button></form>".format(U(r"\u91cd\u5efa\u7edf\u4e00\u4f01\u4e1a\u7d22\u5f15")) if user["role"] in ("boss", "admin") else ""
         body = "<div class='ceo-hero compact'><span class='status-tag'>Genesis</span><h1>{}</h1><p class='lead'>{}</p>{}</div><div class='metrics'>{}{}{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u4f01\u4e1a\u57fa\u7840"), U(r"\u7528\u7edf\u4e00\u5bf9\u8c61 ID \u548c\u5e26\u6765\u6e90\u4f9d\u636e\u7684\u5173\u7cfb，\u8fde\u63a5\u6574\u4e2a\u4f01\u4e1a\u6570\u5b57\u4e16\u754c\u3002"), rebuild, metrics, self.metric(U(r"\u4f01\u4e1a\u5173\u7cfb"), relationship_count, U(r"\u5df2\u8fde\u63a5")), self.metric(U(r"\u7f3a\u5c11\u4f9d\u636e\u5173\u7cfb"), missing_evidence, U(r"\u5fc5\u987b\u4e3a 0")), U(r"\u6700\u8fd1\u4f01\u4e1a\u5173\u7cfb"), relations or self.guided_empty_state(U(r"\u5c1a\u672a\u5efa\u7acb\u7edf\u4e00\u4f01\u4e1a\u5173\u7cfb\u3002"), U(r"\u9700\u8981\u8001\u677f\u6216\u7ba1\u7406\u5458\u624b\u52a8\u91cd\u5efa\u7d22\u5f15\u3002"), "/enterprise", U(r"\u8fd4\u56de\u4f01\u4e1a\u4e2d\u5fc3")))
         self.out(layout(U(r"\u4f01\u4e1a\u57fa\u7840"), body, user=user, wide=True))
@@ -13968,7 +13974,19 @@ where ki.deleted_at is null"""
             "high": U(r"\u9ad8\u98ce\u9669"), "medium": U(r"\u4e2d\u7b49"), "low": U(r"\u8f83\u4f4e"),
             "opportunity": U(r"\u6709\u673a\u4f1a"), "missing": U(r"\u7f3a\u5c11\u6570\u636e"), "unknown": U(r"\u5f85\u786e\u8ba4"),
             "no_published_sync": U(r"\u6682\u65e0\u5df2\u53d1\u5e03\u7684\u540c\u6b65\u6570\u636e"), "never_run": U(r"\u5c1a\u672a\u8fd0\u884c"),
+            "stale": U(r"\u6570\u636e\u5df2\u9648\u65e7"),
             "slow_stock": U(r"\u6ede\u9500"), "dead_stock": U(r"\u957f\u671f\u6ede\u9500"),
+            "document_about": U(r"\u8d44\u6599\u5173\u4e8e\u5bf9\u8c61"),
+            "decision_about": U(r"\u51b3\u7b56\u5173\u4e8e\u5bf9\u8c61"),
+            "memory_about": U(r"\u8bb0\u5fc6\u5173\u4e8e\u5bf9\u8c61"),
+            "memory_cites_document": U(r"\u8bb0\u5fc6\u5f15\u7528\u8d44\u6599"),
+            "knowledge_derived_from": U(r"\u77e5\u8bc6\u6765\u81ea\u8d44\u6599"),
+            "knowledge_about": U(r"\u77e5\u8bc6\u5173\u4e8e\u5bf9\u8c61"),
+            "knowledge": U(r"\u4f01\u4e1a\u77e5\u8bc6"),
+            "document": U(r"\u4f01\u4e1a\u8d44\u6599"),
+            "decision": U(r"\u7ecf\u8425\u51b3\u7b56"),
+            "memory": U(r"\u4f01\u4e1a\u8bb0\u5fc6"),
+            "object_relation": U(r"\u5bf9\u8c61\u5173\u7cfb"),
         }
         return labels.get(key, value or U(r"\u5f85\u786e\u8ba4"))
 
@@ -13992,6 +14010,14 @@ where ki.deleted_at is null"""
         }
         if text in replacements:
             return replacements[text]
+        for old, new in {
+            "Inventory intelligence: dead_stock /": U(r"\u957f\u671f\u6ede\u9500\u5e93\u5b58\uff1a"),
+            "Inventory intelligence: slow_stock /": U(r"\u6ede\u9500\u5e93\u5b58\uff1a"),
+            "Inventory intelligence:": U(r"\u5e93\u5b58\u98ce\u9669\uff1a"),
+            "dead_stock": U(r"\u957f\u671f\u6ede\u9500"),
+            "slow_stock": U(r"\u6ede\u9500"),
+        }.items():
+            text = text.replace(old, new)
         if re.search(r"[\u4e00-\u9fff]", text):
             return text.replace("evidence", U(r"\u4f9d\u636e"))
         return fallback or U(r"\u8be5\u5386\u53f2\u5185\u5bb9\u4e3a\u65e7\u7248\u8bb0\u5f55\uff0c\u8bf7\u91cd\u65b0\u751f\u6210\u4e2d\u6587\u5206\u6790\u3002")
