@@ -1121,8 +1121,269 @@ create table if not exists documents(
             ("version", "version integer not null default 1"),
             ("created_by", "created_by integer"),
             ("deleted_at", "deleted_at integer"),
+            ("drive_folder_id", "drive_folder_id integer"),
+            ("content_hash", "content_hash text"),
+            ("ai_status", "ai_status text not null default 'waiting'"),
+            ("starred_at", "starred_at integer"),
+            ("archived_at", "archived_at integer"),
+            ("current_version_id", "current_version_id integer"),
+            ("duplicate_of_document_id", "duplicate_of_document_id integer"),
+            ("drive_visibility", "drive_visibility text not null default 'team'"),
         ]:
             ensure_column(conn, "documents", col, ddl)
+        conn.execute(
+            """
+create table if not exists drive_folders(
+ id integer primary key autoincrement,
+ parent_id integer,
+ name text not null,
+ path text,
+ owner_id integer,
+ visibility text not null default 'team',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null,
+ archived_at integer,
+ deleted_at integer
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_versions(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ version_number integer not null,
+ storage_key text,
+ file_path text,
+ content_hash text,
+ size_bytes integer not null default 0,
+ uploaded_by integer,
+ created_at integer not null,
+ change_note text
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_tags(
+ id integer primary key autoincrement,
+ name text not null unique,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_tag_links(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ tag_id integer not null,
+ created_at integer not null,
+ unique(file_id, tag_id)
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_permissions(
+ id integer primary key autoincrement,
+ file_id integer,
+ folder_id integer,
+ subject_type text not null,
+ subject_id text,
+ permission text not null,
+ created_by integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_processing_jobs(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ job_type text not null,
+ status text not null,
+ progress integer not null default 0,
+ message text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_extractions(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ version_id integer,
+ extraction_type text not null,
+ status text not null,
+ text_content text,
+ metadata_json text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_chunks(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ version_id integer,
+ chunk_index integer not null,
+ location_label text,
+ content text,
+ summary text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_object_links(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ object_type text not null,
+ object_id integer,
+ relation_type text not null default 'related_to',
+ evidence_json text,
+ status text not null default 'confirmed',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_link_suggestions(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ object_type text not null,
+ object_name text,
+ object_id integer,
+ confidence real not null default 0,
+ evidence_json text,
+ status text not null default 'pending',
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_ai_summaries(
+ id integer primary key autoincrement,
+ file_id integer not null,
+ version_id integer,
+ one_sentence text,
+ executive_summary text,
+ key_facts text,
+ important_dates text,
+ important_amounts text,
+ named_entities text,
+ risks text,
+ status text not null default 'draft',
+ evidence_json text,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_events(
+ id integer primary key autoincrement,
+ file_id integer,
+ folder_id integer,
+ event_type text not null,
+ detail text,
+ actor_id integer,
+ created_at integer not null
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_file_shares(
+ id integer primary key autoincrement,
+ file_id integer,
+ folder_id integer,
+ share_token text unique,
+ permission text not null default 'read',
+ expires_at integer,
+ created_by integer,
+ created_at integer not null,
+ revoked_at integer
+)
+"""
+        )
+        conn.execute(
+            """
+create table if not exists drive_trash_records(
+ id integer primary key autoincrement,
+ file_id integer,
+ folder_id integer,
+ original_folder_id integer,
+ deleted_by integer,
+ deleted_at integer not null,
+ restored_at integer
+)
+"""
+        )
+        ensure_column(conn, "drive_file_chunks", "metadata_json", "metadata_json text")
+        ensure_column(conn, "drive_file_object_links", "link_type", "link_type text not null default 'related_to'")
+        ensure_column(conn, "drive_file_object_links", "confidence", "confidence real not null default 1")
+        ensure_column(conn, "drive_file_object_links", "source", "source text")
+        ensure_column(conn, "drive_file_ai_summaries", "summary_type", "summary_type text")
+        ensure_column(conn, "drive_file_ai_summaries", "summary", "summary text")
+        ensure_column(conn, "drive_file_ai_summaries", "created_by", "created_by integer")
+        now_drive = int(time.time())
+        root = conn.execute("select id from drive_folders where parent_id is null and name=?", (U(r"\u4f01\u4e1a\u7f51\u76d8"),)).fetchone()
+        if not root:
+            cur_root = conn.execute(
+                "insert into drive_folders(parent_id,name,path,owner_id,visibility,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                (None, U(r"\u4f01\u4e1a\u7f51\u76d8"), "/", None, "team", None, now_drive, now_drive),
+            )
+            root_id = cur_root.lastrowid
+        else:
+            root_id = root["id"]
+        conn.execute("update documents set drive_folder_id=coalesce(drive_folder_id, ?), ai_status=case when processing_status in ('indexed','processed','ready') then 'ready' when processing_status='failed' then 'failed' else coalesce(ai_status,'waiting') end where deleted_at is null", (root_id,))
+        for d in conn.execute("select id,storage_path,file_path,size_bytes,content_hash,version,current_version_id,uploaded_by,created_by,created_at from documents where deleted_at is null").fetchall():
+            file_path = d["storage_path"] or d["file_path"] or ""
+            content_hash = d["content_hash"] or ""
+            size_bytes = d["size_bytes"] or 0
+            if file_path and os.path.exists(file_path):
+                try:
+                    data = Path(file_path).read_bytes()
+                    content_hash = content_hash or hashlib.sha256(data).hexdigest()
+                    size_bytes = size_bytes or len(data)
+                except Exception:
+                    pass
+            if content_hash and not d["content_hash"]:
+                conn.execute("update documents set content_hash=?, size_bytes=case when size_bytes=0 then ? else size_bytes end where id=?", (content_hash, size_bytes, d["id"]))
+            v = conn.execute("select id from drive_file_versions where file_id=? and version_number=?", (d["id"], d["version"] or 1)).fetchone()
+            if not v:
+                cur_v = conn.execute(
+                    "insert into drive_file_versions(file_id,version_number,storage_key,file_path,content_hash,size_bytes,uploaded_by,created_at,change_note) values(?,?,?,?,?,?,?,?,?)",
+                    (d["id"], d["version"] or 1, file_path, file_path, content_hash, size_bytes or 0, d["uploaded_by"] or d["created_by"], d["created_at"] or now_drive, "migrated_existing_document"),
+                )
+                if not d["current_version_id"]:
+                    conn.execute("update documents set current_version_id=? where id=?", (cur_v.lastrowid, d["id"]))
+        for idx in [
+            "create index if not exists idx_drive_folders_parent on drive_folders(parent_id, deleted_at)",
+            "create index if not exists idx_drive_files_folder on documents(drive_folder_id, deleted_at)",
+            "create index if not exists idx_drive_files_hash on documents(content_hash, deleted_at)",
+            "create index if not exists idx_drive_versions_file on drive_file_versions(file_id, version_number)",
+            "create index if not exists idx_drive_chunks_file on drive_file_chunks(file_id, chunk_index)",
+            "create index if not exists idx_drive_links_file on drive_file_object_links(file_id, object_type)",
+            "create index if not exists idx_drive_jobs_file on drive_file_processing_jobs(file_id, status)",
+        ]:
+            conn.execute(idx)
         conn.execute(
             """
 create table if not exists ai_query_logs(
@@ -5370,8 +5631,11 @@ class App(BaseHTTPRequestHandler):
             return self.owner_enterprise_plan(user)
         if path == "/second-brain":
             return self.enterprise_second_brain_page(user)
-        if path == "/drive":
+        if path == "/drive" or path in ("/drive/recent", "/drive/starred", "/drive/shared", "/drive/trash", "/drive/search") or re.match(r"^/drive/folders/\d+$", path):
             return self.drive_2_page(user)
+        m_drive_file_page = re.match(r"^/drive/files/(\d+)$", path)
+        if m_drive_file_page:
+            return self.drive_file_detail_page(user, int(m_drive_file_page.group(1)))
         if path in ("/object-center", "/objects"):
             return self.object_engine_page(user)
         if path == "/knowledge-pipeline":
@@ -6381,9 +6645,12 @@ class App(BaseHTTPRequestHandler):
             )
             chunks = self.knowledge_pipeline_chunks(extracted)
             conn.execute("delete from document_chunks where document_id=?", (document_id,))
+            conn.execute("delete from drive_file_chunks where file_id=?", (document_id,))
             conn.execute("delete from knowledge_items where document_id=? and source_type='document_pipeline'", (document_id,))
             conn.execute("delete from knowledge_chunks where document_id=?", (document_id,))
             created_items = []
+            version_row = conn.execute("select current_version_id from documents where id=?", (document_id,)).fetchone()
+            version_id = version_row["current_version_id"] if version_row else None
             conn.execute("update documents set processing_status='summarizing', updated_at=? where id=?", (ts(), document_id))
             for idx, part in enumerate(chunks):
                 chunk_summary = summarize_text(part, 420)
@@ -6397,6 +6664,10 @@ class App(BaseHTTPRequestHandler):
                 conn.execute(
                     "insert into document_chunks(document_id,chunk_index,content,token_count,summary,embedding_status,metadata,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
                     (document_id, idx, part, max(1, len(part)), chunk_summary, "pending", json.dumps(metadata, ensure_ascii=False), now, now),
+                )
+                conn.execute(
+                    "insert into drive_file_chunks(file_id,version_id,chunk_index,location_label,content,summary,metadata_json,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                    (document_id, version_id, idx, U(r"\u6bb5\u843d ") + str(idx + 1), part, chunk_summary, json.dumps(metadata, ensure_ascii=False), now, now),
                 )
                 title = "{} #{}".format(filename, idx + 1)
                 cur = conn.execute(
@@ -6443,6 +6714,14 @@ class App(BaseHTTPRequestHandler):
                 if item.get("related_object_type") and item.get("related_object_id"):
                     self.add_timeline_event(conn, item.get("related_object_type"), item.get("related_object_id"), "knowledge_created", U(r"\u6587\u6863\u751f\u6210\u77e5\u8bc6"), title, "knowledge_item", kid, {"document_id": int(document_id), "knowledge_id": kid, "chunk_index": idx}, user["id"] if user else item.get("created_by"), now)
             conn.execute("update documents set processing_status='indexed', vector_status='pending', processing_error=null, updated_at=? where id=?", (ts(), document_id))
+            conn.execute(
+                "insert into drive_file_ai_summaries(file_id,version_id,summary_type,summary,evidence_json,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                (document_id, version_id, "knowledge_pipeline", summary, json.dumps([{"chunk_index": i, "location": U(r"\u6bb5\u843d ") + str(i + 1)} for i in range(min(5, len(chunks)))], ensure_ascii=False), user["id"] if user else item.get("created_by"), now, ts()),
+            )
+            conn.execute(
+                "insert into drive_file_processing_jobs(file_id,job_type,status,progress,message,created_at,updated_at) values(?,?,?,?,?,?,?)",
+                (document_id, "knowledge_pipeline", "ready", 100, "chunks={}".format(len(chunks)), now, ts()),
+            )
             metrics = self.document_knowledge_metrics(conn, document_id)
         self.log_action(user, "knowledge_pipeline_process_document", "document", document_id, "chunks={}; items={}".format(metrics["chunk_count"], metrics["knowledge_item_count"]))
         return {"ok": True, "document_id": int(document_id), "processing_status": "indexed", "knowledge_item_ids": created_items, **metrics}
@@ -6549,6 +6828,13 @@ class App(BaseHTTPRequestHandler):
             "extracted_text_path": data.get("extracted_text_path"),
             "processing_error": data.get("processing_error"),
             "version": data.get("version") or 1,
+            "drive_folder_id": data.get("drive_folder_id"),
+            "content_hash": data.get("content_hash"),
+            "ai_status": data.get("ai_status"),
+            "starred_at": data.get("starred_at"),
+            "current_version_id": data.get("current_version_id"),
+            "duplicate_of_document_id": data.get("duplicate_of_document_id"),
+            "drive_visibility": data.get("drive_visibility") or "team",
             "created_at": data.get("created_at"),
             "updated_at": data.get("updated_at"),
             "deleted_at": data.get("deleted_at"),
@@ -9375,6 +9661,139 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return self.json_out({"ok": True, "firefox_landing_route": contract.get("firefox_landing_route", {})})
         return self.json_out({"ok": False, "message": "unknown second brain api"}, code=404)
 
+    def drive_status_label(self, status):
+        labels = {
+            "pending": U(r"\u7b49\u5f85\u5904\u7406"),
+            "uploaded": U(r"\u7b49\u5f85\u5904\u7406"),
+            "extracting": U(r"\u6b63\u5728\u9605\u8bfb"),
+            "chunking": U(r"\u6b63\u5728\u7406\u89e3"),
+            "summarizing": U(r"\u6b63\u5728\u6458\u8981"),
+            "indexed": U(r"\u53ef\u7528\u4e8e AI"),
+            "ready": U(r"\u53ef\u7528\u4e8e AI"),
+            "failed": U(r"\u9700\u8981\u590d\u6838"),
+            "archived": U(r"\u5df2\u5f52\u6863"),
+        }
+        return labels.get(status or "", status or U(r"\u7b49\u5f85\u5904\u7406"))
+
+    def drive_folder_options(self, conn, selected=None):
+        rows = conn.execute("select * from drive_folders where deleted_at is null order by coalesce(path,''), name limit 500").fetchall()
+        if not rows:
+            return ""
+        return "".join(
+            '<option value="{}"{}>{}</option>'.format(
+                r["id"],
+                " selected" if str(selected or "") == str(r["id"]) else "",
+                esc(((r["path"] or "/").rstrip("/") + "/" + r["name"]).replace("//", "/")),
+            )
+            for r in rows
+        )
+
+    def drive_breadcrumb(self, conn, folder_id):
+        if not folder_id:
+            return '<a class="pill" href="/drive">{}</a>'.format(U(r"\u4f01\u4e1a\u7f51\u76d8"))
+        chain = []
+        seen = set()
+        cur = conn.execute("select * from drive_folders where id=? and deleted_at is null", (folder_id,)).fetchone()
+        while cur and cur["id"] not in seen:
+            seen.add(cur["id"])
+            chain.append(cur)
+            cur = conn.execute("select * from drive_folders where id=? and deleted_at is null", (cur["parent_id"],)).fetchone() if cur["parent_id"] else None
+        chain.reverse()
+        links = ['<a class="pill" href="/drive">{}</a>'.format(U(r"\u4f01\u4e1a\u7f51\u76d8"))]
+        links += ['<a class="pill" href="/drive/folders/{}">{}</a>'.format(r["id"], esc(r["name"])) for r in chain if r["parent_id"]]
+        return "<div class='chipbar'>" + "".join(links) + "</div>"
+
+    def drive_can_access_file(self, user, row):
+        if not user or not row:
+            return False
+        if user["role"] in ("boss", "admin", "finance", "purchasing", "store_manager"):
+            return True
+        return int(row["uploaded_by"] or row["created_by"] or 0) == int(user["id"])
+
+    def drive_file_preview_html(self, item):
+        path = item.get("file_path") or item.get("storage_path") or ""
+        ext = (item.get("extension") or "").lower()
+        file_id = item.get("id")
+        if not path or not os.path.exists(path):
+            return self.empty_state(U(r"\u539f\u59cb\u6587\u4ef6\u8def\u5f84\u4e0d\u53ef\u7528\uff0c\u4e0b\u8f7d\u6216\u9884\u89c8\u9700\u8981\u68c0\u67e5\u670d\u52a1\u5668\u6587\u4ef6\u3002"))
+        if ext in ("jpg", "jpeg", "png", "gif", "webp"):
+            return "<img src='/api/drive/files/{}/download' alt='preview' style='max-height:520px;border-radius:8px;border:1px solid #ddd7cc'>".format(file_id)
+        if ext == "pdf":
+            return "<iframe src='/api/drive/files/{}/download' style='width:100%;height:620px;border:1px solid #ddd7cc;border-radius:8px'></iframe>".format(file_id)
+        if ext in ("txt", "md", "csv", "tsv", "json", "log"):
+            try:
+                text = Path(path).read_text(encoding="utf-8", errors="ignore")[:12000]
+            except Exception:
+                text = item.get("extracted_text") or ""
+            return "<pre style='max-height:620px;overflow:auto;background:#fbfaf7;border:1px solid #ddd7cc;border-radius:8px;padding:12px'>{}</pre>".format(esc(text or U(r"\u6587\u672c\u9884\u89c8\u6682\u65e0\u5185\u5bb9\u3002")))
+        if ext in ("xls", "xlsx", "doc", "docx", "ppt", "pptx"):
+            return self.empty_state(U(r"\u8be5 Office \u6587\u4ef6\u5df2\u4fdd\u5b58\u539f\u4ef6\u548c AI \u6458\u8981\uff0c\u5b8c\u6574\u5728\u7ebf\u9884\u89c8\u9700\u8981\u540e\u7eed\u63a5\u5165\u6587\u6863\u6e32\u67d3\u670d\u52a1\u3002\u76ee\u524d\u53ef\u5148\u4e0b\u8f7d\u6216\u95ee\u8fd9\u4e2a\u6587\u4ef6\u3002"))
+        return self.empty_state(U(r"\u8be5\u7c7b\u578b\u6682\u4e0d\u652f\u6301\u76f4\u63a5\u9884\u89c8\uff0c\u4f46\u539f\u59cb\u6587\u4ef6\u5df2\u5b89\u5168\u4fdd\u7559\uff0c\u53ef\u4e0b\u8f7d\u6216\u7b49 AI \u5904\u7406\u540e\u63d0\u95ee\u3002"))
+
+    def drive_file_detail_page(self, user, file_id):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            row = conn.execute("select * from documents where id=? and deleted_at is null", (file_id,)).fetchone()
+            if not row or not self.drive_can_access_file(user, row):
+                return self.out(layout(U(r"\u6587\u4ef6\u4e0d\u53ef\u8bbf\u95ee"), self.empty_state(U(r"\u6587\u4ef6\u4e0d\u5b58\u5728\uff0c\u6216\u4f60\u6ca1\u6709\u6743\u9650\u8bbf\u95ee\u3002")), user=user), code=404)
+            item = self.document_to_json(row)
+            versions = conn.execute("select * from drive_file_versions where file_id=? order by version_number desc, created_at desc", (file_id,)).fetchall()
+            chunks = conn.execute("select * from document_chunks where document_id=? order by chunk_index limit 8", (file_id,)).fetchall()
+            links = conn.execute("select * from drive_file_object_links where file_id=? order by created_at desc limit 20", (file_id,)).fetchall()
+            suggestions = conn.execute("select * from drive_file_link_suggestions where file_id=? order by confidence desc, created_at desc limit 12", (file_id,)).fetchall()
+        ask_file = U(r"\u53ea\u57fa\u4e8e\u6587\u4ef6\u300a") + (item.get("original_filename") or item.get("title") or "") + U(r"\u300b\u56de\u7b54\uff1a\u8fd9\u4e2a\u6587\u4ef6\u6700\u91cd\u8981\u7684\u4fe1\u606f\u662f\u4ec0\u4e48\uff1f")
+        meta = "".join([
+            self.metric(U(r"\u6587\u4ef6\u7c7b\u578b"), item.get("extension") or "-", item.get("mime_type") or ""),
+            self.metric(U(r"\u5927\u5c0f"), str(item.get("size_bytes") or 0), "bytes"),
+            self.metric(U(r"AI \u72b6\u6001"), self.drive_status_label(item.get("processing_status")), item.get("processing_error") or ""),
+            self.metric(U(r"\u7248\u672c"), "v" + str(item.get("version") or 1), item.get("content_hash") or ""),
+        ])
+        version_rows = self.bullets(["v{} / {} / {}".format(v["version_number"], v["size_bytes"], dt(v["created_at"])) for v in versions] or [U(r"\u6682\u65e0\u7248\u672c\u8bb0\u5f55\u3002")])
+        chunk_cards = self.evidence_cards([
+            {"title": U(r"\u6bb5\u843d ") + str(c["chunk_index"] + 1), "source_type": "drive_file_chunks", "source_id": c["id"], "summary": c["summary"] or c["content"], "date_range": "chunk " + str(c["chunk_index"] + 1), "url": "/drive/files/{}".format(file_id)}
+            for c in chunks
+        ], limit=8)
+        link_items = self.bullets(["{} #{} / {}".format(l["object_type"], l["object_id"], l["link_type"]) for l in links] or [U(r"\u6682\u65e0\u5df2\u786e\u8ba4\u5173\u8054\u5bf9\u8c61\u3002")])
+        suggestion_items = self.bullets(["{} / {} / {:.0%}".format(s["object_type"], s["object_name"] or s["object_id"] or "-", float(s["confidence"] or 0)) for s in suggestions] or [U(r"\u6682\u65e0\u5f85\u786e\u8ba4\u5173\u8054\u5efa\u8bae\u3002")])
+        body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">{status}</span>
+  <h1>{name}</h1>
+  <p class="lead">{summary}</p>
+  <div class="inline"><a class="btn" href="/api/drive/files/{id}/download">{download}</a><a class="btn gray" href="/copilot?q={ask_q}">{ask_file}</a><form method="post" action="/api/drive/files/{id}/star" style="display:inline"><button>{star}</button></form><form method="post" action="/api/drive/files/{id}/delete" style="display:inline"><button>{delete}</button></form><a class="btn gray" href="/drive">{back}</a></div>
+</div>
+<div class="panel"><h2>{meta_title}</h2><div class="metrics">{meta}</div></div>
+<div class="panel"><h2>{preview_title}</h2>{preview}</div>
+<div class="split"><div class="panel"><h2>{versions_title}</h2>{versions}</div><div class="panel"><h2>{links_title}</h2>{links}<h2>{suggestions_title}</h2>{suggestions}</div></div>
+<div class="panel"><h2>{ai_title}</h2>{chunks}</div>
+""".format(
+            status=self.drive_status_label(item.get("processing_status")),
+            name=esc(item.get("original_filename") or item.get("title") or U(r"\u672a\u547d\u540d\u6587\u4ef6")),
+            summary=esc(item.get("ai_summary") or item.get("summary") or U(r"\u6682\u65e0 AI \u6458\u8981\uff0c\u53ef\u70b9\u51fb\u91cd\u65b0\u5904\u7406\u3002")),
+            id=file_id,
+            download=U(r"\u4e0b\u8f7d"),
+            ask_q=quote(ask_file),
+            ask_file=U(r"\u95ee\u8fd9\u4e2a\u6587\u4ef6"),
+            star=U(r"\u661f\u6807"),
+            delete=U(r"\u79fb\u5165\u56de\u6536\u7ad9"),
+            back=U(r"\u8fd4\u56de\u7f51\u76d8"),
+            meta_title=U(r"\u6587\u4ef6\u4fe1\u606f"),
+            meta=meta,
+            preview_title=U(r"\u5728\u7ebf\u9884\u89c8"),
+            preview=self.drive_file_preview_html(item),
+            versions_title=U(r"\u7248\u672c\u5386\u53f2"),
+            versions=version_rows,
+            links_title=U(r"\u5df2\u5173\u8054\u5bf9\u8c61"),
+            links=link_items,
+            suggestions_title=U(r"\u5f85\u786e\u8ba4\u5efa\u8bae"),
+            suggestions=suggestion_items,
+            ai_title=U(r"AI \u8bc1\u636e\u6bb5\u843d"),
+            chunks=chunk_cards,
+        )
+        self.out(layout(U(r"\u6587\u4ef6\u9884\u89c8"), body, user=user, wide=True))
+
     def drive_2_page(self, user):
         user = self.require_login(user)
         if not user:
@@ -9382,12 +9801,25 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
             return self.dashboard(user)
         contract = build_drive_2_contract()
+        path = urlparse(self.path).path
         query = parse_qs(urlparse(self.path).query)
         q = (query.get("q", [""])[0] or "").strip()
         category_filter = (query.get("category", [""])[0] or "").strip()
         ext_filter = (query.get("type", [""])[0] or "").strip().lower()
+        view = (query.get("view", ["list"])[0] or "list").strip()
+        folder_id = None
+        m_folder = re.match(r"^/drive/folders/(\d+)$", path)
+        if m_folder:
+            folder_id = int(m_folder.group(1))
         where = ["deleted_at is null"]
         params = []
+        if path == "/drive/trash":
+            where = ["deleted_at is not null"]
+        if path == "/drive/starred":
+            where.append("starred_at is not null")
+        if folder_id:
+            where.append("drive_folder_id=?")
+            params.append(folder_id)
         if q:
             like = "%" + q + "%"
             where.append("(coalesce(original_filename,file_name,title) like ? or coalesce(tags,'') like ? or coalesce(ai_summary,summary,'') like ?)")
@@ -9399,14 +9831,22 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             where.append("extension=?")
             params.append(ext_filter)
         with db() as conn:
-            files = conn.execute("select * from documents where " + " and ".join(where) + " order by created_at desc limit 80", params).fetchall()
+            order = "created_at desc"
+            if path == "/drive/recent":
+                order = "coalesce(updated_at,created_at) desc"
+            files = conn.execute("select * from documents where " + " and ".join(where) + " order by " + order + " limit 100", params).fetchall()
             recent = conn.execute("select * from documents where deleted_at is null order by created_at desc limit 6").fetchall()
             queue = conn.execute("select * from documents where deleted_at is null and processing_status in ('pending','processing','failed') order by updated_at desc limit 12").fetchall()
             object_rows = conn.execute("select id,object_type,name from enterprise_objects where archived_at is null order by object_type,name limit 200").fetchall()
+            folders = conn.execute("select * from drive_folders where deleted_at is null order by coalesce(parent_id,0), name limit 500").fetchall()
+            child_folders = conn.execute("select * from drive_folders where deleted_at is null and {} order by name".format("parent_id=?" if folder_id else "parent_id is null"), (folder_id,) if folder_id else ()).fetchall()
+            folder_options = self.drive_folder_options(conn, folder_id)
+            breadcrumb = self.drive_breadcrumb(conn, folder_id)
         categories = self.drive_categories()
         category_options = "".join('<option value="{}"{}>{}</option>'.format(esc(c), " selected" if c == category_filter else "", esc(c)) for c in categories)
         type_options = "".join('<option value="{}"{}>{}</option>'.format(esc(ext), " selected" if ext == ext_filter else "", esc(ext)) for ext in sorted(self.drive_supported_extensions()))
         category_cards = "".join(self.card(c, "FoxBrain Drive category", "/drive?category=" + esc(c), "btn", True) for c in categories)
+        ask_folder_q = quote(U(r"\u53ea\u57fa\u4e8e\u5f53\u524d\u7f51\u76d8\u6587\u4ef6\u5939\u7684\u6587\u4ef6\u8bc1\u636e\u56de\u7b54\uff1a\u8fd9\u4e2a\u6587\u4ef6\u5939\u6709\u54ea\u4e9b\u91cd\u8981\u5185\u5bb9\u548c\u98ce\u9669\uff1f"))
         object_options = '<option value="">{}</option>'.format(U(r"\u4e0d\u5173\u8054"))
         object_options += "".join(
             '<option value="{}:{}">{} / {}</option>'.format(
@@ -9422,7 +9862,19 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             '<option value="{}">{} / {}</option>'.format(row["id"], esc(self.object_type_label(row["object_type"])), esc(row["name"]))
             for row in object_rows
         )
+        folder_tree = "".join(
+            "<a class='pill' href='/drive/folders/{}'>{}</a>".format(f["id"], esc(((f["path"] or "/").rstrip("/") + "/" + f["name"]).replace("//", "/")))
+            for f in folders
+        ) or self.empty_state(U(r"\u6682\u65e0\u6587\u4ef6\u5939\uff0c\u53ef\u5148\u65b0\u5efa\u4e00\u4e2a\u3002"))
+        child_folder_cards = "".join(
+            "<div class='card'><div><h2>{}</h2><p>{}</p></div><a class='btn full' href='/drive/folders/{}'>{}</a></div>".format(
+                esc(f["name"]), esc(f["path"] or "/"), f["id"], U(r"\u6253\u5f00")
+            )
+            for f in child_folders
+            if f["parent_id"]
+        )
         file_rows = ""
+        file_cards = ""
         for row in files:
             item = self.document_to_json(row)
             related_label = ""
@@ -9433,39 +9885,70 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 object_id_options,
                 U(r"\u5173\u8054\u5230\u5bf9\u8c61"),
             )
-            file_rows += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><a class='btn' href='/api/drive/files/{}'>API</a> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form> {}</td></tr>".format(
+            ask_q = quote(U(r"\u53ea\u57fa\u4e8e\u6587\u4ef6\u300a") + (item["original_filename"] or "") + U(r"\u300b\u56de\u7b54\uff1a\u8fd9\u4e2a\u6587\u4ef6\u8bf4\u4e86\u4ec0\u4e48\uff1f"))
+            trash_op = "<form method='post' action='/api/drive/files/{}/restore' style='display:inline'><button>{}</button></form>".format(item["id"], U(r"\u6062\u590d")) if row["deleted_at"] else "<form method='post' action='/api/drive/files/{}/delete' style='display:inline'><button>{}</button></form>".format(item["id"], U(r"\u56de\u6536\u7ad9"))
+            star_action = "unstar" if row["starred_at"] else "star"
+            star_label = U(r"\u53d6\u6d88\u661f\u6807") if row["starred_at"] else U(r"\u661f\u6807")
+            ops = "<a class='btn' href='/drive/files/{}'>{}</a> <a class='btn gray' href='/api/drive/files/{}/download'>{}</a> <a class='btn gray' href='/copilot?q={}'>{}</a> <form method='post' action='/api/drive/files/{}/{}' style='display:inline'><button>{}</button></form> <form method='post' action='/api/drive/files/{}/reprocess' style='display:inline'><button>{}</button></form> {} {}".format(
+                item["id"], U(r"\u6253\u5f00"), item["id"], U(r"\u4e0b\u8f7d"), ask_q, U(r"\u95ee\u6587\u4ef6"), item["id"], star_action, star_label, item["id"], U(r"\u91cd\u5904\u7406"), trash_op, link_form
+            )
+            file_rows += "<tr><td><a href='/drive/files/{}'>{}</a></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+                item["id"],
                 esc(item["original_filename"]),
                 esc(item["category"]),
                 esc(item["extension"]),
                 esc(str(item["size_bytes"])),
-                esc(item["processing_status"]),
+                esc(self.drive_status_label(item["processing_status"])),
                 esc(item["ai_summary"] or ""),
                 esc(related_label),
-                item["id"],
-                item["id"],
-                U(r"\u91cd\u5904\u7406"),
-                link_form,
+                ops,
+            )
+            file_cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} / {} / {}</p></div><div class='inline'>{}</div></div>".format(
+                esc(item["original_filename"]),
+                esc(item["ai_summary"] or self.drive_status_label(item["processing_status"])),
+                esc(item["extension"] or ""),
+                esc(str(item["size_bytes"])),
+                esc(related_label or U(r"\u672a\u5173\u8054")),
+                ops,
             )
         if not file_rows:
-            file_rows = "<tr><td colspan='8' class='small'>{}</td></tr>".format(U(r"\u6682\u65e0\u6587\u4ef6\uff0c\u53ef\u4ee5\u5148\u4e0a\u4f20 PDF\u3001Excel\u3001Word \u6216\u56fe\u7247\u3002"))
+            empty = self.empty_state(U(r"\u8fd9\u4e2a\u4f4d\u7f6e\u8fd8\u6ca1\u6709\u6587\u4ef6\u3002\u53ef\u4ee5\u65b0\u5efa\u6587\u4ef6\u5939\uff0c\u6216\u4e0a\u4f20 PDF\u3001Excel\u3001Word\u3001\u56fe\u7247\u7b49\u6587\u4ef6\u3002"))
+            file_rows = "<tr><td colspan='8'>{}</td></tr>".format(empty)
+            file_cards = empty
         recent_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["category"] for row in recent] or [U(r"\u6682\u65e0\u6700\u8fd1\u6587\u4ef6")]
         queue_items = [self.document_to_json(row)["original_filename"] + " / " + self.document_to_json(row)["processing_status"] for row in queue] or [U(r"\u5f53\u524d\u65e0\u5f85\u5904\u7406\u961f\u5217")]
         body = """
 <div class="panel">
-  <h2>FoxBrain Drive 2.0</h2>
-  <p class="small">Enterprise Knowledge Drive</p>
-  <p><a class="btn dark" href="/search">{}</a></p>
+  <h2>{}</h2>
+  <p class="small">{}</p>
+  {breadcrumb}
+  <div class="inline"><a class="btn dark" href="/drive">{}</a><a class="btn gray" href="/drive/recent">{}</a><a class="btn gray" href="/drive/starred">{}</a><a class="btn gray" href="/drive/shared">{}</a><a class="btn gray" href="/drive/trash">{}</a><a class="btn gray" href="/drive?view=grid">{}</a><a class="btn gray" href="/copilot?q={ask_folder_q}">{}</a></div>
+</div>
+<div class="split">
+ <div class="panel">
+  <h2>{}</h2>
+  {folder_tree}
+  <form method="post" action="/api/drive/folders">
+    <label>{}</label><input name="name" required>
+    <label>{}</label><select name="parent_id"><option value="">{}</option>{folder_options}</select>
+    <p><button>{}</button></p>
+  </form>
+ </div>
+ <div class="panel">
+  <h2>{}</h2>
   <form method="post" action="/api/drive/upload" enctype="multipart/form-data">
     <label>{}</label>
     <input name="file" type="file" required>
+    <label>{}</label><select name="folder_id"><option value="">{}</option>{folder_options}</select>
     <label>{}</label>
     <select name="category"><option value="">{}</option>{}</select>
     <label>{}</label><input name="tags">
     <label>{}</label><select name="related_object_ref">{}</select>
     <label>{}</label><input name="related_object_type" placeholder="brand / store / product">
     <label>{}</label><input name="related_object_id" placeholder="optional id">
-    <p><button>{}</button> <a class="btn" href="/api/drive/v2">API</a> <a class="btn" href="/knowledge-pipeline">{}</a> <a class="btn" href="/object-center">{}</a></p>
+    <p><button>{}</button></p>
   </form>
+ </div>
 </div>
 <div class="panel">
   <form method="get" action="/drive">
@@ -9480,9 +9963,25 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
   <div class="panel"><h2>{}</h2>{}</div>
 </div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
-<div class="panel"><h2>{}</h2><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>""".format(
-            U(r"\u5168\u5c40\u641c\u7d22"),
+<div class="panel"><h2>{}</h2>{file_area}</div>""".format(
+            U(r"\u4f01\u4e1a AI \u7f51\u76d8"),
+            U(r"\u50cf\u7f51\u76d8\u4e00\u6837\u7ba1\u7406\u6587\u4ef6\uff0c\u540c\u65f6\u8ba9 AI \u80fd\u591f\u641c\u7d22\u3001\u6458\u8981\u3001\u5f15\u7528 evidence\u3002"),
+            U(r"\u5168\u90e8"),
+            U(r"\u6700\u8fd1"),
+            U(r"\u661f\u6807"),
+            U(r"\u5171\u4eab"),
+            U(r"\u56de\u6536\u7ad9"),
+            U(r"\u7f51\u683c"),
+            U(r"\u95ee\u8fd9\u4e2a\u6587\u4ef6\u5939"),
+            U(r"\u6587\u4ef6\u5939"),
+            U(r"\u65b0\u5efa\u6587\u4ef6\u5939"),
+            U(r"\u4e0a\u7ea7\u6587\u4ef6\u5939"),
+            U(r"\u6839\u76ee\u5f55"),
+            U(r"\u521b\u5efa"),
             U(r"\u4e0a\u4f20\u6587\u4ef6"),
+            U(r"\u4e0a\u4f20\u6587\u4ef6"),
+            U(r"\u4e0a\u4f20\u5230"),
+            U(r"\u5f53\u524d\u6216\u6839\u76ee\u5f55"),
             U(r"\u5206\u7c7b"),
             U(r"\u81ea\u52a8\u5206\u7c7b"),
             category_options,
@@ -9492,8 +9991,6 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             U(r"\u5173\u8054\u5bf9\u8c61\u7c7b\u578b"),
             U(r"\u5173\u8054\u5bf9\u8c61 ID"),
             U(r"\u4e0a\u4f20\u5230 Drive"),
-            U(r"\u77e5\u8bc6\u6d41\u6c34\u7ebf"),
-            U(r"\u5bf9\u8c61\u4e2d\u5fc3"),
             U(r"\u641c\u7d22"),
             esc(q),
             U(r"\u5206\u7c7b"),
@@ -9507,18 +10004,14 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             self.bullets(recent_items),
             U(r"\u5904\u7406\u961f\u5217"),
             self.bullets(queue_items),
-            U(r"\u5206\u7c7b"),
-            category_cards,
+            U(r"\u5b50\u6587\u4ef6\u5939"),
+            child_folder_cards or self.empty_state(U(r"\u5f53\u524d\u76ee\u5f55\u6ca1\u6709\u5b50\u6587\u4ef6\u5939\u3002")),
             U(r"\u6587\u4ef6"),
-            U(r"\u6587\u4ef6"),
-            U(r"\u5206\u7c7b"),
-            U(r"\u7c7b\u578b"),
-            U(r"\u5927\u5c0f"),
-            U(r"\u72b6\u6001"),
-            U(r"AI \u6458\u8981"),
-            U(r"\u5173\u8054\u5bf9\u8c61"),
-            U(r"\u64cd\u4f5c"),
-            file_rows,
+            breadcrumb=breadcrumb,
+            ask_folder_q=ask_folder_q,
+            folder_tree=folder_tree,
+            folder_options=folder_options,
+            file_area=("<div class='grid'>" + file_cards + "</div>") if view == "grid" else "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table>".format(U(r"\u6587\u4ef6"), U(r"\u5206\u7c7b"), U(r"\u7c7b\u578b"), U(r"\u5927\u5c0f"), U(r"\u72b6\u6001"), U(r"AI \u6458\u8981"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u64cd\u4f5c"), file_rows),
         )
         self.out(layout("FoxBrain Drive 2.0", body, user=user, wide=True))
 
@@ -10155,6 +10648,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 row = conn.execute("select * from documents where id=? and deleted_at is null", (m_download.group(1),)).fetchone()
             if not row:
                 return self.json_out({"ok": False, "message": "not found"}, code=404)
+            if not self.drive_can_access_file(user, row):
+                return self.json_out({"ok": False, "message": "no file permission"}, code=403)
             item = self.document_to_json(row)
             file_path = item.get("file_path") or ""
             if not file_path or not os.path.exists(file_path):
@@ -10172,12 +10667,20 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         if m_detail:
             with db() as conn:
                 row = conn.execute("select * from documents where id=? and deleted_at is null", (m_detail.group(1),)).fetchone()
+                versions = conn.execute("select * from drive_file_versions where file_id=? order by version_number desc", (m_detail.group(1),)).fetchall()
+                chunks = conn.execute("select chunk_index,location_label,summary,substr(content,1,600) content from drive_file_chunks where file_id=? order by chunk_index limit 20", (m_detail.group(1),)).fetchall()
+                links = conn.execute("select * from drive_file_object_links where file_id=? order by created_at desc limit 20", (m_detail.group(1),)).fetchall()
             if not row:
                 return self.json_out({"ok": False, "message": "not found"}, code=404)
+            if not self.drive_can_access_file(user, row):
+                return self.json_out({"ok": False, "message": "no file permission"}, code=403)
             item = self.document_to_json(row)
             item["download_url"] = "/api/drive/files/{}/download".format(item["id"])
             with db() as conn:
                 item["knowledge_processing"] = self.document_knowledge_metrics(conn, item["id"])
+            item["versions"] = [row_dict(v) for v in versions]
+            item["evidence_chunks"] = [row_dict(c) for c in chunks]
+            item["object_links"] = [row_dict(l) for l in links]
             return self.json_out({"ok": True, "file": item})
         if path == "/api/drive/files":
             query = parse_qs(urlparse(self.path).query)
@@ -10185,6 +10688,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             category = (query.get("category", [""])[0] or "").strip()
             ext = (query.get("type", [""])[0] or "").strip().lower()
             status = (query.get("status", [""])[0] or "").strip()
+            folder_id = (query.get("folder_id", [""])[0] or "").strip()
             where = ["deleted_at is null"]
             params = []
             if q:
@@ -10200,6 +10704,9 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             if status:
                 where.append("processing_status=?")
                 params.append(status)
+            if folder_id.isdigit():
+                where.append("drive_folder_id=?")
+                params.append(int(folder_id))
             with db() as conn:
                 rows = conn.execute("select * from documents where " + " and ".join(where) + " order by created_at desc limit 200", params).fetchall()
                 counts = conn.execute("select processing_status, count(*) c from documents where deleted_at is null group by processing_status").fetchall()
@@ -10216,6 +10723,34 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         if not self.can_open(user, ("boss", "admin", "finance", "store_manager", "purchasing")):
             return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        if path == "/api/drive/folders":
+            form = self.form()
+            name = (form.get("name", "") or "").strip().replace("/", "-").replace("\\", "-")
+            if not name:
+                return self.json_out({"ok": False, "message": "folder name required"}, code=400)
+            now = ts()
+            with db() as conn:
+                root = conn.execute("select id,path,name from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
+                parent_raw = (form.get("parent_id", "") or "").strip()
+                parent = conn.execute("select * from drive_folders where id=? and deleted_at is null", (parent_raw,)).fetchone() if parent_raw.isdigit() else root
+                parent_id = parent["id"] if parent else None
+                exists = conn.execute("select id from drive_folders where coalesce(parent_id,0)=coalesce(?,0) and name=? and deleted_at is null", (parent_id, name)).fetchone()
+                if exists:
+                    if "text/html" in (self.headers.get("Accept") or ""):
+                        return self.redir("/drive/folders/{}".format(parent_id) if parent_id else "/drive")
+                    return self.json_out({"ok": False, "message": "folder already exists", "folder_id": exists["id"]}, code=409)
+                base_path = (parent["path"] if parent else "/") or "/"
+                path_value = (base_path.rstrip("/") + "/" + name).replace("//", "/")
+                cur = conn.execute(
+                    "insert into drive_folders(parent_id,name,path,owner_id,visibility,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                    (parent_id, name, path_value, user["id"], "team", user["id"], now, now),
+                )
+                folder_id = cur.lastrowid
+                conn.execute("insert into drive_file_events(folder_id,event_type,detail,actor_id,created_at) values(?,?,?,?,?)", (folder_id, "folder_created", name, user["id"], now))
+            self.log_action(user, "drive_folder_create", "drive_folder", folder_id, name)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/drive/folders/{}".format(folder_id))
+            return self.json_out({"ok": True, "folder_id": folder_id, "name": name, "path": path_value})
         if path == "/api/drive/upload":
             return self.api_drive_upload(user)
         m_reprocess = re.match(r"^/api/drive/files/(\d+)/reprocess$", path)
@@ -10223,6 +10758,51 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             result = self.process_document_to_knowledge(user, m_reprocess.group(1), force=True)
             self.log_action(user, "drive_file_reprocess", "document", m_reprocess.group(1), result.get("processing_status", "failed"))
             return self.json_out(result, code=200 if result.get("ok") else 422)
+        m_action = re.match(r"^/api/drive/files/(\d+)/(rename|move|star|unstar|restore|delete)$", path)
+        if m_action:
+            file_id = int(m_action.group(1))
+            action = m_action.group(2)
+            form = self.form()
+            now = ts()
+            with db() as conn:
+                row = conn.execute("select * from documents where id=?", (file_id,)).fetchone()
+                if not row:
+                    return self.json_out({"ok": False, "message": "not found"}, code=404)
+                if not self.drive_can_access_file(user, row):
+                    return self.json_out({"ok": False, "message": "no file permission"}, code=403)
+                if action == "rename":
+                    new_name = (form.get("name", "") or "").strip()
+                    if not new_name:
+                        return self.json_out({"ok": False, "message": "new name required"}, code=400)
+                    conn.execute("update documents set original_filename=?, title=?, updated_at=? where id=?", (new_name, new_name, now, file_id))
+                    detail = new_name
+                elif action == "move":
+                    folder_raw = (form.get("folder_id", "") or "").strip()
+                    target = conn.execute("select id from drive_folders where id=? and deleted_at is null", (folder_raw,)).fetchone() if folder_raw.isdigit() else None
+                    if not target:
+                        return self.json_out({"ok": False, "message": "target folder not found"}, code=404)
+                    conn.execute("update documents set drive_folder_id=?, updated_at=? where id=?", (target["id"], now, file_id))
+                    detail = str(target["id"])
+                elif action == "star":
+                    conn.execute("update documents set starred_at=?, updated_at=? where id=?", (now, now, file_id))
+                    detail = "starred"
+                elif action == "unstar":
+                    conn.execute("update documents set starred_at=null, updated_at=? where id=?", (now, file_id))
+                    detail = "unstarred"
+                elif action == "restore":
+                    conn.execute("update documents set deleted_at=null, processing_status=case when processing_status='archived' then 'indexed' else processing_status end, updated_at=? where id=?", (now, file_id))
+                    conn.execute("update drive_trash_records set restored_at=? where file_id=? and restored_at is null", (now, file_id))
+                    detail = "restored"
+                else:
+                    original_folder_id = row["drive_folder_id"] if "drive_folder_id" in row.keys() else None
+                    conn.execute("update documents set deleted_at=?, processing_status='archived', updated_at=? where id=?", (now, now, file_id))
+                    conn.execute("insert into drive_trash_records(file_id,original_folder_id,deleted_by,deleted_at) values(?,?,?,?)", (file_id, original_folder_id, user["id"], now))
+                    detail = "soft_deleted"
+                conn.execute("insert into drive_file_events(file_id,event_type,detail,actor_id,created_at) values(?,?,?,?,?)", (file_id, "file_" + action, detail, user["id"], now))
+            self.log_action(user, "drive_file_" + action, "document", file_id, detail)
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/drive/files/{}".format(file_id) if action != "delete" else "/drive/trash")
+            return self.json_out({"ok": True, "id": file_id, "action": action, "detail": detail})
         m_update = re.match(r"^/api/drive/files/(\d+)$", path)
         if m_update:
             form = self.form()
@@ -10271,11 +10851,13 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ref_type, ref_id = related_object_ref.split(":", 1)
             related_object_type = module_key(ref_type)
             related_object_id_raw = ref_id.strip()
+        folder_id_raw = (form.getfirst("folder_id", "") or "").strip()
         folder = Path(UPLOAD_DIR) / "drive"
         folder.mkdir(parents=True, exist_ok=True)
         saved = uuid.uuid4().hex + ("." + extension if extension else "")
         file_path = folder / saved
         data = item.file.read()
+        content_hash = hashlib.sha256(data).hexdigest()
         file_path.write_bytes(data)
         mime_type = mimetypes.guess_type(original)[0] or getattr(item, "type", None) or "application/octet-stream"
         extracted = self.drive_extract_text(str(file_path), original)
@@ -10296,12 +10878,16 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             extracted_path = str(extracted_file)
         now = ts()
         with db() as conn:
+            root = conn.execute("select id from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
+            folder_row = conn.execute("select id from drive_folders where id=? and deleted_at is null", (folder_id_raw,)).fetchone() if folder_id_raw.isdigit() else root
+            drive_folder_id = folder_row["id"] if folder_row else None
+            duplicate = conn.execute("select id, original_filename from documents where content_hash=? and deleted_at is null order by id limit 1", (content_hash,)).fetchone()
             cur = conn.execute(
                 """insert into documents(
  title,file_name,file_type,file_path,related_type,related_id,tags,summary,vector_status,uploaded_by,created_at,updated_at,
  filename,original_filename,storage_path,mime_type,extension,size_bytes,category,processing_status,ai_summary,extracted_text,
- extracted_text_path,related_object_type,related_object_id,version,created_by,deleted_at
-) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+ extracted_text_path,related_object_type,related_object_id,version,created_by,deleted_at,drive_folder_id,content_hash,ai_status,duplicate_of_document_id,drive_visibility
+) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     original,
                     saved,
@@ -10331,14 +10917,52 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                     1,
                     user["id"],
                     None,
+                    drive_folder_id,
+                    content_hash,
+                    "ready" if processing_status in ("completed", "indexed") else "waiting",
+                    duplicate["id"] if duplicate else None,
+                    "team",
                 ),
             )
             doc_id = cur.lastrowid
+            cur_v = conn.execute(
+                "insert into drive_file_versions(file_id,version_number,storage_key,file_path,content_hash,size_bytes,uploaded_by,created_at,change_note) values(?,?,?,?,?,?,?,?,?)",
+                (doc_id, 1, str(file_path), str(file_path), content_hash, len(data), user["id"], now, "uploaded_to_enterprise_drive"),
+            )
+            conn.execute("update documents set current_version_id=? where id=?", (cur_v.lastrowid, doc_id))
+            conn.execute(
+                "insert into drive_file_processing_jobs(file_id,job_type,status,progress,message,created_at,updated_at) values(?,?,?,?,?,?,?)",
+                (doc_id, "extract_summarize_index", "ready" if extracted else "waiting", 100 if extracted else 20, summary, now, now),
+            )
+            conn.execute(
+                "insert into drive_file_extractions(file_id,version_id,extraction_type,status,content_text,metadata_json,created_at) values(?,?,?,?,?,?,?)",
+                (doc_id, cur_v.lastrowid, "text", "ready" if extracted else "blocked", extracted, json.dumps({"filename": original, "mime_type": mime_type}, ensure_ascii=False), now),
+            )
+            conn.execute(
+                "insert into drive_file_ai_summaries(file_id,version_id,summary_type,summary,evidence_json,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?)",
+                (doc_id, cur_v.lastrowid, "auto", summary, json.dumps([{"source": original, "content_hash": content_hash}], ensure_ascii=False), user["id"], now, now),
+            )
+            if related_object_type and related_object_id_raw.isdigit():
+                conn.execute(
+                    "insert into drive_file_object_links(file_id,object_type,object_id,link_type,confidence,status,source,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
+                    (doc_id, related_object_type, int(related_object_id_raw), "manual", 1.0, "confirmed", "upload_form", user["id"], now, now),
+                )
+            haystack = (original + "\n" + extracted[:5000]).lower()
+            for obj in conn.execute("select id,object_type,name from enterprise_objects where archived_at is null order by updated_at desc limit 300").fetchall():
+                obj_name = (obj["name"] or "").strip()
+                if len(obj_name) >= 2 and obj_name.lower() in haystack:
+                    conn.execute(
+                        "insert into drive_file_link_suggestions(file_id,object_type,object_name,object_id,confidence,evidence_json,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                        (doc_id, obj["object_type"], obj_name, obj["id"], 0.72, json.dumps([{"source": "filename_or_text_match", "matched": obj_name}], ensure_ascii=False), "pending", now, now),
+                    )
+            conn.execute("insert into drive_file_events(file_id,event_type,detail,actor_id,created_at) values(?,?,?,?,?)", (doc_id, "file_uploaded", original, user["id"], now))
+            if duplicate:
+                conn.execute("insert into drive_file_events(file_id,event_type,detail,actor_id,created_at) values(?,?,?,?,?)", (doc_id, "duplicate_hash_warning", "duplicate_of={}:{}".format(duplicate["id"], duplicate["original_filename"] or ""), user["id"], now))
         self.log_action(user, "drive_file_upload", "document", doc_id, original)
         pipeline_result = self.process_document_to_knowledge(user, doc_id, force=False)
         if "text/html" in (self.headers.get("Accept") or ""):
-            return self.redir("/drive")
-        return self.json_out({"ok": True, "file": self.document_to_json({"id": doc_id, "title": original, "file_name": saved, "file_type": extension, "file_path": str(file_path), "tags": tags, "summary": summary, "created_at": now, "updated_at": now, "filename": saved, "original_filename": original, "storage_path": str(file_path), "mime_type": mime_type, "extension": extension, "size_bytes": len(data), "category": category, "processing_status": pipeline_result.get("processing_status", processing_status), "ai_summary": summary, "extracted_text": extracted, "extracted_text_path": extracted_path, "related_object_type": related_object_type, "related_object_id": int(related_object_id_raw) if related_object_id_raw.isdigit() else None, "processing_error": pipeline_result.get("message") if not pipeline_result.get("ok") else "", "version": 1, "created_by": user["id"], "deleted_at": None}), "knowledge_pipeline": pipeline_result})
+            return self.redir("/drive/files/{}".format(doc_id))
+        return self.json_out({"ok": True, "duplicate_warning": bool(duplicate), "duplicate_of": row_dict(duplicate) if duplicate else None, "file": self.document_to_json({"id": doc_id, "title": original, "file_name": saved, "file_type": extension, "file_path": str(file_path), "tags": tags, "summary": summary, "created_at": now, "updated_at": now, "filename": saved, "original_filename": original, "storage_path": str(file_path), "mime_type": mime_type, "extension": extension, "size_bytes": len(data), "category": category, "processing_status": pipeline_result.get("processing_status", processing_status), "ai_summary": summary, "extracted_text": extracted, "extracted_text_path": extracted_path, "related_object_type": related_object_type, "related_object_id": int(related_object_id_raw) if related_object_id_raw.isdigit() else None, "processing_error": pipeline_result.get("message") if not pipeline_result.get("ok") else "", "version": 1, "created_by": user["id"], "deleted_at": None, "drive_folder_id": drive_folder_id, "content_hash": content_hash, "duplicate_of_document_id": duplicate["id"] if duplicate else None}), "knowledge_pipeline": pipeline_result})
 
     def api_drive_delete(self, user, path):
         if not user:
