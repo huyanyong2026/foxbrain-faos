@@ -248,7 +248,9 @@ SESSION_CLOCK_SKEW_SECONDS = 5 * 60
 
 
 def U(s):
-    return s.encode("ascii").decode("unicode_escape")
+    if not isinstance(s, str):
+        return s
+    return re.sub(r"\\u([0-9a-fA-F]{4})", lambda match: chr(int(match.group(1), 16)), s)
 
 
 def load_env_file():
@@ -2617,7 +2619,52 @@ create table if not exists ai_agent_runs(
 )
 """
         )
+        ensure_column(conn, "ai_agent_runs", "analysis_json", "analysis_json text")
+        ensure_column(conn, "ai_agent_runs", "evidence_json", "evidence_json text not null default '[]'")
+        ensure_column(conn, "ai_agent_runs", "human_review_status", "human_review_status text not null default 'pending'")
+        ensure_column(conn, "ai_agent_runs", "related_object_type", "related_object_type text")
+        ensure_column(conn, "ai_agent_runs", "related_object_id", "related_object_id integer")
         conn.execute("create index if not exists idx_ai_agent_runs_agent on ai_agent_runs(agent_id, started_at)")
+        conn.execute("create index if not exists idx_ai_agent_runs_review on ai_agent_runs(human_review_status, started_at)")
+        conn.execute(
+            """
+create table if not exists agent_learning_feedback(
+ id integer primary key autoincrement,
+ run_id integer not null,
+ feedback_type text not null,
+ boss_decision text,
+ correction text,
+ actual_result text,
+ evidence_json text not null default '[]',
+ learning_status text not null default 'pending_review',
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_agent_learning_feedback_run on agent_learning_feedback(run_id, learning_status)")
+        conn.execute(
+            """
+create table if not exists enterprise_training_samples(
+ id integer primary key autoincrement,
+ sample_type text not null,
+ category text not null,
+ title text not null,
+ content text,
+ source_type text not null,
+ source_id text,
+ evidence_json text not null default '[]',
+ approval_status text not null default 'pending_review',
+ approved_by integer,
+ approved_at integer,
+ created_by integer,
+ created_at integer not null,
+ updated_at integer not null
+)
+"""
+        )
+        conn.execute("create index if not exists idx_enterprise_training_status on enterprise_training_samples(category, approval_status)")
         conn.execute(
             """
 create table if not exists ai_tasks(
@@ -2979,6 +3026,9 @@ create table if not exists observability_metrics(
             ("Content Agent", "content_agent", U(r"\u5185\u5bb9\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u591a\u5e73\u53f0\u5185\u5bb9\u8349\u7a3f\u3002"), "content,knowledge,products"),
             ("Knowledge Agent", "knowledge_agent", U(r"\u77e5\u8bc6\u5e93\u667a\u80fd\u4f53\uff0c\u8d1f\u8d23\u77e5\u8bc6\u68c0\u7d22\u548c\u5f52\u6863\u5efa\u8bae\u3002"), "knowledge,documents,rag"),
             ("Search Agent", "search_agent", U(r"\u5916\u90e8\u641c\u7d22\u667a\u80fd\u4f53\uff0c\u53ea\u80fd\u4fdd\u5b58\u7ecf\u5ba1\u6838\u7684\u6458\u8981\u3002"), "web_search,approval,knowledge"),
+            (U(r"\u7ecf\u8425\u5206\u6790 Agent"), "business_analysis_agent", U(r"\u57fa\u4e8e\u9500\u552e\u3001\u6bdb\u5229\u3001\u54c1\u724c\u3001\u95e8\u5e97\u548c\u5386\u53f2\u51b3\u7b56\u751f\u6210\u5f85\u5ba1\u6838\u5efa\u8bae\u3002"), "dashboard,decision,knowledge,memory"),
+            (U(r"\u54c1\u724c\u8fd0\u8425 Agent"), "brand_operations_agent", U(r"\u57fa\u4e8e\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u5408\u540c\u548c\u8fd4\u70b9\u8d44\u6599\u751f\u6210\u54c1\u724c\u62a5\u544a\u3002"), "brands,inventory,documents,decision"),
+            (U(r"\u4f01\u4e1a\u8d44\u6599 Agent"), "enterprise_documents_agent", U(r"\u8f85\u52a9\u8d44\u6599\u5206\u7c7b\u3001\u6458\u8981\u3001\u6807\u7b7e\u548c\u4f01\u4e1a\u5bf9\u8c61\u5173\u8054\uff0c\u6240\u6709\u5173\u8054\u9700\u4eba\u5de5\u786e\u8ba4\u3002"), "documents,knowledge,objects,approval"),
         ]
         now_seed = ts()
         for name, code, description, tools in default_agents:
@@ -5719,6 +5769,8 @@ class App(BaseHTTPRequestHandler):
             return self.system_center_page(user)
         if path == "/agents":
             return self.agents(user)
+        if path == "/knowledge-training":
+            return self.knowledge_training_center_page(user)
         if path in ("/agents/v1.2", "/agents/orchestration"):
             return self.agent_orchestration_center(user)
         if path in ("/agents/v1.6", "/agents/multi-agent"):
@@ -6099,6 +6151,8 @@ class App(BaseHTTPRequestHandler):
             return self.jarvis_action_post()
         if path == "/copilot/ask":
             return self.copilot_ask_post()
+        if path.startswith("/api/knowledge-training/"):
+            return self.api_knowledge_training_post(self.current_user(), path)
         if path == "/api/proactive-intelligence/rebuild":
             return self.proactive_intelligence_rebuild_post()
         if path == "/reports/save":
@@ -14203,6 +14257,8 @@ where ki.deleted_at is null"""
                 '<a class="btn gray" href="/action-center">{}</a>'.format(U(r"\u884c\u52a8\u4e2d\u5fc3")),
                 '<a class="btn gray" href="/proactive-intelligence">{}</a>'.format(U(r"\u4e3b\u52a8\u7ecf\u8425\u63d0\u9192")),
                 '<a class="btn gray" href="/ceo-vault">{}</a>'.format(U(r"\u8001\u677f\u4fdd\u9669\u5e93")) if user["role"] in ("boss", "admin") else "",
+                '<a class="btn gray" href="/agents">{}</a>'.format(U(r"AI \u667a\u80fd\u4f53\u5de5\u4f5c\u53f0")),
+                '<a class="btn gray" href="/knowledge-training">{}</a>'.format(U(r"\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3")) if user["role"] in ("boss", "admin", "finance") else "",
             ])
             home_risks = self.bullets([
                 self.friendly_business_text(r.get("title"), U(r"\u7ecf\u8425\u98ce\u9669\u5f85\u590d\u6838"))
@@ -22060,6 +22116,77 @@ group by coalesce(store_name,'')
             "agent": agent_name,
         }
 
+    def v28_agent_analysis(self, user, agent_code, question):
+        question = (question or "").strip()
+        names = {
+            "business_analysis_agent": U(r"\u7ecf\u8425\u5206\u6790 Agent"),
+            "ceo_agent": U(r"\u7ecf\u8425\u5206\u6790 Agent"),
+            "inventory_agent": U(r"\u5e93\u5b58\u52a9\u624b Agent"),
+            "brand_operations_agent": U(r"\u54c1\u724c\u8fd0\u8425 Agent"),
+            "content_agent": U(r"\u5185\u5bb9\u52a9\u624b Agent"),
+            "enterprise_documents_agent": U(r"\u4f01\u4e1a\u8d44\u6599 Agent"),
+            "knowledge_agent": U(r"\u4f01\u4e1a\u8d44\u6599 Agent"),
+        }
+        agent_name = names.get(agent_code, U(r"AI \u667a\u80fd\u4f53"))
+        evidence, facts = [], []
+        risk = U(r"\u5206\u6790\u7ed3\u679c\u4ec5\u7528\u4e8e\u4eba\u5de5\u51b3\u7b56\uff0c\u4e0d\u4f1a\u81ea\u52a8\u6267\u884c\u3002")
+        recommendation = U(r"\u8bf7\u4eba\u5de5\u590d\u6838\u4f9d\u636e\u540e\u518d\u51b3\u5b9a\u4e0b\u4e00\u6b65\u3002")
+        with db() as conn:
+            if agent_code in ("business_analysis_agent", "ceo_agent"):
+                summary = self.ceo_dashboard_payload(user)["summary"]
+                facts = [U(r"\u9500\u552e\u989d：") + money(summary.get("sales_amount")), U(r"\u6bdb\u5229：") + money(summary.get("gross_profit")), U(r"\u5229\u6da6：") + money(summary.get("profit_amount")), U(r"\u4f01\u4e1a\u5065\u5eb7：") + "{:.1f}/100".format(float(summary.get("business_health_score") or 0))]
+                evidence.append({"source_type": "ceo_dashboard", "source_id": "current_summary", "title": U(r"\u5f53\u524d\u7ecf\u8425\u6307\u6807"), "summary": " | ".join(facts), "url": "/"})
+                decisions = conn.execute("select id,title,severity,evidence from decision_insights where status in ('new','reviewing') order by case severity when 'critical' then 0 when 'high' then 1 else 2 end,updated_at desc limit 3").fetchall()
+                for row in decisions:
+                    if safe_json(row["evidence"], []):
+                        evidence.append({"source_type": "decision", "source_id": str(row["id"]), "title": self.friendly_business_text(row["title"]), "summary": U(r"\u98ce\u9669\u7ea7\u522b：") + self.status_label(row["severity"]), "url": "/decision/insights?id=" + str(row["id"])})
+                recommendation = U(r"\u5148\u590d\u6838\u9ad8\u4f18\u5148\u7ea7\u51b3\u7b56\uff0c\u518d\u5efa\u7acb\u5f85\u5ba1\u6279\u884c\u52a8\u3002")
+            elif agent_code == "inventory_agent":
+                rows = conn.execute("select * from inventory_product_analysis order by case risk_level when 'critical' then 0 when 'high' then 1 else 2 end,inventory_amount desc limit 5").fetchall()
+                for row in rows:
+                    item_evidence = safe_json(row["evidence_json"], [])
+                    if item_evidence:
+                        fact = "{} / {} {} / {} {} / {}".format(row["product_name"] or row["product_code"], U(r"\u5e93\u5b58"), int(float(row["inventory_quantity"] or 0)), U(r"\u91d1\u989d"), money(row["inventory_amount"]), self.status_label(row["risk_level"]))
+                        facts.append(fact)
+                        evidence.append({"source_type": "inventory_intelligence", "source_id": str(row["id"]), "title": row["product_name"] or row["product_code"] or U(r"\u5e93\u5b58\u5546\u54c1"), "summary": fact, "url": "/inventory-intelligence"})
+                recommendation = U(r"\u5148\u6838\u5bf9\u9ad8\u98ce\u9669\u5546\u54c1\u7684\u5e93\u9f84\u3001\u9500\u901f\u548c\u6620\u5c04\uff0c\u5904\u7406\u65b9\u6848\u9700\u4eba\u5de5\u6279\u51c6\u3002")
+            elif agent_code == "brand_operations_agent":
+                brand = next((b for b in ("KAILAS", "Kailas", "Osprey", "Deuter", "Mammut") if b.lower() in question.lower()), "")
+                sql = "select * from brand_intelligence_snapshots"
+                params = []
+                if brand:
+                    sql += " where lower(brand_name) like ?"
+                    params.append("%" + brand.lower() + "%")
+                sql += " order by created_at desc,overall_score desc limit 5"
+                for row in conn.execute(sql, params).fetchall():
+                    item_evidence = safe_json(row["evidence_json"], [])
+                    if item_evidence:
+                        fact = "{} / {} {} / {} {} / {} {:.1f}/100".format(row["brand_name"], U(r"\u9500\u552e"), money(row["sales_amount"]), U(r"\u5e93\u5b58"), money(row["inventory_amount"]), U(r"\u5065\u5eb7"), float(row["overall_score"] or 0))
+                        facts.append(fact)
+                        evidence.append({"source_type": "brand_intelligence", "source_id": str(row["id"]), "title": row["brand_name"], "summary": fact, "url": "/brand-intelligence"})
+                docs = conn.execute("select id,original_filename,category from documents where deleted_at is null and lower(coalesce(original_filename,'')) like ? order by updated_at desc limit 3", ("%" + brand.lower() + "%",)).fetchall() if brand else []
+                for row in docs:
+                    evidence.append({"source_type": "document", "source_id": str(row["id"]), "title": row["original_filename"], "summary": row["category"] or U(r"\u54c1\u724c\u8d44\u6599"), "url": "/drive/files/" + str(row["id"])})
+                recommendation = U(r"\u54c1\u724c\u51b3\u7b56\u9700\u540c\u65f6\u590d\u6838\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u5408\u540c\u548c\u8fd4\u70b9\u8d44\u6599\u3002")
+            elif agent_code == "content_agent":
+                knowledge = conn.execute("select id,title,summary from knowledge_items where status in ('ready','parsed') order by updated_at desc limit 5").fetchall()
+                for row in knowledge:
+                    evidence.append({"source_type": "knowledge", "source_id": str(row["id"]), "title": row["title"], "summary": summarize_text(row["summary"] or "", 120), "url": "/knowledge/view?id=" + str(row["id"])})
+                facts = [U(r"\u53ef\u5f15\u7528\u4f01\u4e1a\u77e5\u8bc6：") + str(len(knowledge)) + U(r"\u6761")]
+                recommendation = U(r"\u53ea\u751f\u6210\u5185\u5bb9\u8349\u7a3f\uff0c\u54c1\u724c\u4e8b\u5b9e\u5fc5\u987b\u5f15\u7528\u5df2\u5ba1\u6838\u8d44\u6599，\u53d1\u5e03\u524d\u4eba\u5de5\u786e\u8ba4\u3002")
+            elif agent_code in ("enterprise_documents_agent", "knowledge_agent"):
+                stats = conn.execute("select count(*) total,sum(case when processing_status in ('indexed','ready') then 1 else 0 end) ready,sum(case when processing_status in ('failed','error') then 1 else 0 end) failed from documents where deleted_at is null").fetchone()
+                pending = conn.execute("select count(*) c from drive_file_link_suggestions where status='pending'").fetchone()["c"]
+                facts = [U(r"\u8d44\u6599\u603b\u6570：") + str(stats["total"] or 0), U(r"\u5df2\u5c31\u7eea：") + str(stats["ready"] or 0), U(r"\u5904\u7406\u5931\u8d25：") + str(stats["failed"] or 0), U(r"\u5f85\u786e\u8ba4\u5173\u8054：") + str(pending or 0)]
+                evidence.append({"source_type": "enterprise_drive", "source_id": "document_summary", "title": U(r"\u4f01\u4e1a\u8d44\u6599\u5904\u7406\u72b6\u6001"), "summary": " | ".join(facts), "url": "/drive"})
+                recommendation = U(r"\u5148\u5904\u7406\u5931\u8d25\u6587\u4ef6\uff0c\u518d\u4eba\u5de5\u786e\u8ba4\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4ea7\u54c1\u548c\u4f9b\u5e94\u5546\u5173\u8054\u3002")
+        reliable = bool(evidence)
+        finding = U(r"\u5df2\u627e\u5230 {} \u6761\u53ef\u8ffd\u6eaf\u4f9d\u636e\u3002").format(len(evidence)) if reliable else U(r"\u5f53\u524d\u6570\u636e\u4e0d\u8db3，\u65e0\u6cd5\u5f62\u6210\u53ef\u9760\u7ed3\u8bba\u3002")
+        return {"agent": agent_name, "question": question, "finding": finding, "reason": "\n".join(facts) if facts else U(r"\u7f3a\u5c11\u53ef\u9a8c\u8bc1\u7ecf\u8425\u6570\u636e\u6216\u5df2\u5ba1\u6838\u8d44\u6599\u3002"), "evidence": evidence, "risk": risk, "recommendation": recommendation if reliable else U(r"\u8bf7\u5148\u8865\u5145\u771f\u5b9e\u6570\u636e\u6216\u5173\u8054\u8d44\u6599\u3002"), "next_step": U(r"\u4eba\u5de5\u590d\u6838\u540e\u53ef\u8f6c\u4e3a\u5f85\u5ba1\u6279\u4efb\u52a1\u3002"), "reliable": reliable, "human_confirmation_required": True, "sap_access": "read_only_foxbrain_copy"}
+
+    def format_v28_agent_output(self, payload):
+        return "\n\n".join([U(r"\u53d1\u73b0：") + payload["finding"], U(r"\u539f\u56e0：") + payload["reason"], U(r"\u4f9d\u636e：") + (U(r"\u89c1\u4f9d\u636e\u5361\u7247，\u5171 {} \u6761\u3002").format(len(payload["evidence"])) if payload["evidence"] else U(r"\u6682\u65e0\u53ef\u9760\u4f9d\u636e\u3002")), U(r"\u98ce\u9669：") + payload["risk"], U(r"\u5efa\u8bae：") + payload["recommendation"], U(r"\u4e0b\u4e00\u6b65：") + payload["next_step"]])
+
     def v62_role_permissions(self):
         return {
             "boss": [U(r"\u5168\u5c40\u9a7e\u9a76\u8231"), U(r"AI \u603b\u7ecf\u7406"), U(r"\u5ba1\u6279\u4e2d\u5fc3"), U(r"\u7cfb\u7edf\u65e5\u5fd7"), U(r"\u6743\u9650\u7ba1\u7406")],
@@ -22134,6 +22261,111 @@ group by coalesce(store_name,'')
 <div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u76ee\u5f55')}</h2><div class="grid">{agent_cards}</div></div>
 <div class="split"><div class="panel"><h2>{U(r'\u6700\u8fd1 AI \u4efb\u52a1')}</h2>{self.bullets(task_items)}</div><div class="panel"><h2>{U(r'\u6700\u8fd1\u8fd0\u884c')}</h2>{self.bullets(run_items)}</div></div>"""
         self.out(layout(U(r"AI \u667a\u80fd\u4f53\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def agents(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if not self.can_view_agents(user):
+            return self.redir("/")
+        allowed_codes = ("business_analysis_agent", "inventory_agent", "brand_operations_agent", "content_agent", "enterprise_documents_agent")
+        query = parse_qs(urlparse(self.path).query)
+        run_id = (query.get("run", [""])[0] or "").strip()
+        with db() as conn:
+            placeholders = ",".join("?" for _ in allowed_codes)
+            agents = conn.execute("select * from ai_agents where code in (" + placeholders + ") order by case code when 'business_analysis_agent' then 0 when 'inventory_agent' then 1 when 'brand_operations_agent' then 2 when 'content_agent' then 3 else 4 end", allowed_codes).fetchall()
+            runs = conn.execute("select r.*,a.name agent_name from ai_agent_runs r left join ai_agents a on a.id=r.agent_id order by r.started_at desc limit 12").fetchall()
+            selected = conn.execute("select r.*,a.name agent_name from ai_agent_runs r left join ai_agents a on a.id=r.agent_id where r.id=?", (run_id,)).fetchone() if run_id.isdigit() else None
+        agent_cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div></div>".format(U(r"\u53ea\u8bfb\u5206\u6790"), esc(a["name"]), esc(a["description"]), U(r"\u6709\u4f9d\u636e · \u4eba\u5de5\u786e\u8ba4 · \u53ef\u8ffd\u6eaf")) for a in agents)
+        result_html = ""
+        if selected:
+            analysis = safe_json(selected["analysis_json"], {})
+            evidence = safe_json(selected["evidence_json"], [])
+            evidence_html = "".join("<div class='evidence-card'><strong>{}</strong><p>{}</p><a href='{}'>{}</a></div>".format(esc(e.get("title") or U(r"\u7ecf\u8425\u4f9d\u636e")), esc(e.get("summary") or ""), esc(e.get("url") or "#"), U(r"\u67e5\u770b\u6765\u6e90")) for e in evidence)
+            result_html = """
+<div class="panel"><h2>{title}</h2><p class="small">{agent} · {review}</p><div class="answer">{output}</div><h2>{evidence_title}</h2><div class="evidence-grid">{evidence}</div></div>
+<div class="panel form"><h2>{feedback_title}</h2><p class="small">{feedback_rule}</p><form method="post" action="/api/agents/runs/{run_id}/feedback"><label>{type_label}</label><select name="feedback_type"><option value="useful">{useful}</option><option value="modified">{modified}</option><option value="not_useful">{not_useful}</option><option value="effective">{effective}</option><option value="ineffective">{ineffective}</option></select><label>{decision}</label><textarea name="boss_decision"></textarea><label>{correction}</label><textarea name="correction"></textarea><label>{actual}</label><textarea name="actual_result"></textarea><button>{submit}</button></form></div>
+""".format(title=U(r"\u5206\u6790\u7ed3\u679c"), agent=esc(selected["agent_name"] or "Agent"), review=U(r"\u5f85\u4eba\u5de5\u590d\u6838"), output=esc(selected["output"] or "").replace("\n", "<br>"), evidence_title=U(r"\u4f9d\u636e\u5361\u7247"), evidence=evidence_html or self.empty_state(U(r"\u5f53\u524d\u6ca1\u6709\u53ef\u9760\u4f9d\u636e\uff0c\u4e0d\u5f97\u4f5c\u51fa\u7ecf\u8425\u7ed3\u8bba\u3002")), feedback_title=U(r"\u544a\u8bc9 FoxBrain \u8fd9\u6761\u5efa\u8bae\u600e\u4e48\u6837"), feedback_rule=U(r"\u53cd\u9988\u53ea\u8fdb\u5165\u5f85\u5ba1\u6838\u8bad\u7ec3\u6837\u672c，\u4e0d\u4f1a\u81ea\u52a8\u6539\u89c4\u5219\u3002"), run_id=selected["id"], type_label=U(r"\u53cd\u9988\u7c7b\u578b"), useful=U(r"\u6709\u7528"), modified=U(r"\u4fee\u6539\u540e\u91c7\u7eb3"), not_useful=U(r"\u4e0d\u91c7\u7eb3"), effective=U(r"\u6267\u884c\u540e\u6709\u6548"), ineffective=U(r"\u6267\u884c\u540e\u65e0\u6548"), decision=U(r"CEO \u6700\u7ec8\u51b3\u5b9a"), correction=U(r"\u9700\u8981\u4fee\u6b63\u7684\u5730\u65b9"), actual=U(r"\u5b9e\u9645\u7ed3\u679c"), submit=U(r"\u63d0\u4ea4\u5f85\u5ba1\u6838\u53cd\u9988"))
+        recent = "".join("<a class='card' href='/agents?run={}'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} · {} {}</p></div></a>".format(r["id"], esc(self.status_label(r["human_review_status"])), esc(r["agent_name"] or U(r"AI \u667a\u80fd\u4f53")), esc(summarize_text(r["input"] or "", 80)), esc(dt(r["started_at"])), U(r"\u4f9d\u636e"), len(safe_json(r["evidence_json"], []))) for r in runs)
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">V2.8</span><h1>{title}</h1><p class="lead">{lead}</p><form class="ceo-ask" method="post" action="/api/agents/run"><div><label>{choose}</label><select name="agent_code">{options}</select><label>{question}</label><textarea name="question" required placeholder="{placeholder}"></textarea></div><button>{analyze}</button></form></div>
+<div class="panel"><h2>{team}</h2><div class="grid">{agents}</div></div>{result}
+<div class="panel"><h2>{recent_title}</h2><div class="grid">{recent}</div></div>
+<div class="panel"><a class="btn" href="/knowledge-training">{training}</a></div>
+""".format(title=U(r"AI \u667a\u80fd\u4f53\u5de5\u4f5c\u53f0"), lead=U(r"\u4e94\u7c7b\u4f01\u4e1a\u52a9\u624b\u5171\u7528 FoxBrain \u6570\u636e\u3001\u8d44\u6599\u3001\u89c4\u5219\u548c\u8bb0\u5fc6\uff1b\u53ea\u5206\u6790\u548c\u5efa\u8bae，\u4e0d\u81ea\u52a8\u6267\u884c\u3002"), choose=U(r"\u9009\u62e9\u52a9\u624b"), options="".join("<option value='{}'>{}</option>".format(esc(a["code"]), esc(a["name"])) for a in agents), question=U(r"\u8981\u5206\u6790\u7684\u95ee\u9898"), placeholder=U(r"\u4f8b\u5982：Osprey \u5e93\u5b58\u548c\u54c1\u724c\u7ecf\u8425\u6709\u54ea\u4e9b\u98ce\u9669？"), analyze=U(r"\u57fa\u4e8e\u4f9d\u636e\u751f\u6210\u5efa\u8bae"), team=U(r"\u4f01\u4e1a AI \u52a9\u624b\u56e2\u961f"), agents=agent_cards, result=result_html, recent_title=U(r"\u6700\u8fd1\u5206\u6790"), recent=recent or self.empty_state(U(r"\u8fd8\u6ca1\u6709 Agent \u5206\u6790\u8bb0\u5f55\u3002")), training=U(r"\u8fdb\u5165\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3"))
+        self.out(layout(U(r"AI \u667a\u80fd\u4f53\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
+
+    def knowledge_training_center_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin", "finance"):
+            return self.redir("/")
+        with db() as conn:
+            rules = conn.execute("select * from business_rules where archived_at is null order by case status when 'active' then 0 else 1 end,priority desc,updated_at desc limit 40").fetchall()
+            memories = conn.execute("select * from enterprise_memories where archived_at is null and memory_type='decision' order by updated_at desc limit 20").fetchall()
+            samples = conn.execute("select * from enterprise_training_samples order by case approval_status when 'pending_review' then 0 else 1 end,updated_at desc limit 40").fetchall()
+            feedback_count = int(conn.execute("select count(*) c from agent_learning_feedback").fetchone()["c"] or 0)
+        rule_cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} · {}</p></div><a class='btn' href='/business-rules/{}'>{}</a></div>".format(esc(self.status_label(r["status"])), esc(r["rule_name"]), esc(r["description"] or ""), esc(self.status_label(r["rule_type"])), esc(r["source"] or U(r"\u4f01\u4e1a\u89c4\u5219")), r["id"], U(r"\u67e5\u770b\u89c4\u5219")) for r in rules)
+        memory_cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div><a class='btn' href='/memory'>{}</a></div>".format(esc(self.status_label(m["status"])), esc(m["title"]), esc(m["decision"] or m["summary"] or ""), esc(dt(m["updated_at"])), U(r"\u6253\u5f00\u4f01\u4e1a\u8bb0\u5fc6")) for m in memories)
+        sample_cards = []
+        for s in samples:
+            actions = ""
+            if s["approval_status"] == "pending_review" and user["role"] in ("boss", "admin"):
+                actions = "<form method='post' action='/api/knowledge-training/samples/{}/approve' style='display:inline'><button>{}</button></form> <form method='post' action='/api/knowledge-training/samples/{}/reject' style='display:inline'><button class='gray'>{}</button></form>".format(s["id"], U(r"\u6279\u51c6\u8bad\u7ec3\u6837\u672c"), s["id"], U(r"\u62d2\u7edd"))
+            sample_cards.append("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} {} · {}</p></div><div>{}</div></div>".format(esc(self.status_label(s["approval_status"])), esc(s["title"]), esc(summarize_text(s["content"] or "", 160)), U(r"\u4f9d\u636e"), len(safe_json(s["evidence_json"], [])), esc(self.status_label(s["category"])), actions))
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">V2.9</span><h1>{title}</h1><p class="lead">{lead}</p></div>
+<div class="metrics">{metrics}</div>
+<div class="split"><div class="panel form"><h2>{memory_title}</h2><p class="small">{memory_rule}</p><form method="post" action="/api/knowledge-training/ceo-memory"><label>{matter}</label><input name="title" required><label>{background}</label><textarea name="background" required></textarea><label>{factors}</label><textarea name="factors"></textarea><label>{evidence}</label><textarea name="evidence_note" required></textarea><label>{decision}</label><textarea name="decision" required></textarea><label>{result}</label><textarea name="actual_result"></textarea><label>{future}</label><textarea name="future_reference"></textarea><button>{save}</button></form></div>
+<div class="panel form"><h2>{rule_title}</h2><p class="small">{rule_rule}</p><form method="post" action="/api/knowledge-training/rules/draft"><label>{category}</label><select name="rule_type"><option value="business">{business}</option><option value="inventory">{inventory}</option><option value="brand">{brand}</option><option value="store">{store}</option></select><label>{rule_name}</label><input name="rule_name" required><label>{description}</label><textarea name="description" required></textarea><label>{rule_evidence}</label><textarea name="evidence_note" required></textarea><button>{save_rule}</button></form></div></div>
+<div class="panel"><h2>{rules_title}</h2><div class="grid">{rules}</div></div>
+<div class="panel"><h2>{memories_title}</h2><div class="grid">{memories}</div></div>
+<div class="panel"><h2>{samples_title}</h2><p class="small">{sample_rule}</p><div class="grid">{samples}</div></div>
+""".format(title=U(r"\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3"), lead=U(r"\u628a\u706b\u72d0\u72f8\u7684\u7ecf\u8425\u89c4\u5219\u3001CEO \u51b3\u7b56\u548c Agent \u5b9e\u9645\u6548\u679c\u6c89\u6dc0\u4e3a\u53ef\u5ba1\u6838\u7684\u4f01\u4e1a\u7ecf\u9a8c\u3002"), metrics="".join([self.metric(U(r"\u4f01\u4e1a\u89c4\u5219"), len(rules), U(r"\u7ecf\u8425 · \u5e93\u5b58 · \u54c1\u724c · \u95e8\u5e97")), self.metric(U(r"CEO \u51b3\u7b56\u8bb0\u5fc6"), len(memories), U(r"\u5386\u53f2\u5224\u65ad")), self.metric(U(r"AI \u53cd\u9988"), feedback_count, U(r"\u7528\u4e8e\u5f85\u5ba1\u6838\u5b66\u4e60")), self.metric(U(r"\u5f85\u5ba1\u6838\u6837\u672c"), len([s for s in samples if s["approval_status"] == "pending_review"]), U(r"\u672a\u6279\u51c6\u4e0d\u751f\u6548"))]), memory_title=U(r"\u8bb0\u5f55 CEO \u51b3\u7b56"), memory_rule=U(r"\u65b0\u8bb0\u5fc6\u4ee5\u8349\u7a3f\u4fdd\u5b58\uff0c\u4f9d\u636e\u4e0d\u80fd\u7559\u7a7a\u3002"), matter=U(r"\u51b3\u7b56\u4e8b\u9879"), background=U(r"\u80cc\u666f"), factors=U(r"\u8003\u8651\u56e0\u7d20"), evidence=U(r"\u6570\u636e\u4e0e\u8d44\u6599\u4f9d\u636e"), decision=U(r"\u6700\u7ec8\u51b3\u5b9a"), result=U(r"\u6267\u884c\u7ed3\u679c"), future=U(r"\u672a\u6765\u53c2\u8003"), save=U(r"\u4fdd\u5b58\u5f85\u5ba1\u6838\u8bb0\u5fc6"), rule_title=U(r"\u63d0\u4ea4\u4f01\u4e1a\u89c4\u5219\u8349\u7a3f"), rule_rule=U(r"\u89c4\u5219\u4e0d\u4f1a\u76f4\u63a5\u542f\u7528\uff0c\u5fc5\u987b\u5728\u89c4\u5219\u4e2d\u5fc3\u4eba\u5de5\u5ba1\u6838\u3002"), category=U(r"\u89c4\u5219\u7c7b\u522b"), business=U(r"\u7ecf\u8425\u89c4\u5219"), inventory=U(r"\u5e93\u5b58\u89c4\u5219"), brand=U(r"\u54c1\u724c\u89c4\u5219"), store=U(r"\u95e8\u5e97\u89c4\u5219"), rule_name=U(r"\u89c4\u5219\u540d\u79f0"), description=U(r"\u9002\u7528\u6761\u4ef6\u4e0e\u539f\u5219"), rule_evidence=U(r"\u89c4\u5219\u4f9d\u636e"), save_rule=U(r"\u4fdd\u5b58\u89c4\u5219\u8349\u7a3f"), rules_title=U(r"\u4f01\u4e1a\u89c4\u5219\u5e93"), rules=rule_cards or self.empty_state(U(r"\u5c1a\u65e0\u4f01\u4e1a\u89c4\u5219\u3002")), memories_title=U(r"CEO \u51b3\u7b56\u8bb0\u5fc6"), memories=memory_cards or self.empty_state(U(r"\u5c1a\u65e0 CEO \u51b3\u7b56\u8bb0\u5fc6\u3002")), samples_title=U(r"AI \u53cd\u9988\u5b66\u4e60"), sample_rule=U(r"\u53ea\u6709\u8001\u677f\u6216\u7ba1\u7406\u5458\u6279\u51c6\u540e\u624d\u6210\u4e3a\u6709\u6548\u8bad\u7ec3\u6837\u672c，\u4e14\u4e0d\u4f1a\u81ea\u52a8\u6539\u53d8\u7ecf\u8425\u89c4\u5219\u3002"), samples="".join(sample_cards) or self.empty_state(U(r"\u5c1a\u65e0 AI \u53cd\u9988\u8bad\u7ec3\u6837\u672c\u3002")))
+        self.out(layout(U(r"\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3"), body, user=user, wide=True))
+
+    def api_knowledge_training_post(self, user, path):
+        if not user or user["role"] not in ("boss", "admin", "finance"):
+            return self.json_out({"ok": False, "message": "no permission"}, code=403)
+        form = self.form()
+        now = ts()
+        if path == "/api/knowledge-training/ceo-memory":
+            if not (form.get("title") and form.get("background") and form.get("decision") and form.get("evidence_note")):
+                return self.json_out({"ok": False, "message": "decision memory requires background, decision and evidence"}, code=400)
+            evidence = [{"source_type": "ceo_manual_evidence", "summary": form.get("evidence_note"), "recorded_by": user["id"]}]
+            with db() as conn:
+                cur = conn.execute("insert into enterprise_memories(title,memory_type,summary,content,reason,decision,impact,risk_level,status,tags,created_by,occurred_at,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (form.get("title"), "decision", form.get("background"), form.get("factors", ""), form.get("background"), form.get("decision"), form.get("actual_result", "") + "\n" + form.get("future_reference", ""), "medium", "draft", json.dumps(["ceo-decision", "training"], ensure_ascii=False), user["id"], now, now, now, None))
+                sample = conn.execute("insert into enterprise_training_samples(sample_type,category,title,content,source_type,source_id,evidence_json,approval_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)", ("ceo_decision", "decision_memory", form.get("title"), json.dumps(dict(form), ensure_ascii=False), "enterprise_memory", str(cur.lastrowid), json.dumps(evidence, ensure_ascii=False), "pending_review", user["id"], now, now))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/knowledge-training")
+            return self.json_out({"ok": True, "memory_id": cur.lastrowid, "training_sample_id": sample.lastrowid, "status": "draft"})
+        if path == "/api/knowledge-training/rules/draft":
+            if not (form.get("rule_name") and form.get("description") and form.get("evidence_note")):
+                return self.json_out({"ok": False, "message": "rule draft requires description and evidence"}, code=400)
+            rule_type = form.get("rule_type", "business")
+            if rule_type not in ("business", "inventory", "brand", "store"):
+                rule_type = "business"
+            key = "TRAIN-{}-{}".format(rule_type.upper(), uuid.uuid4().hex[:10])
+            with db() as conn:
+                cur = conn.execute("insert into business_rules(rule_key,rule_name,rule_type,description,condition_json,action_json,severity,priority,status,version,source,created_by,created_at,updated_at,archived_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (key, form.get("rule_name"), rule_type, form.get("description"), json.dumps({"manual_review_required": True}, ensure_ascii=False), json.dumps({"mode": "suggest_only"}, ensure_ascii=False), "medium", 50, "draft", 1, U(r"\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3：") + form.get("evidence_note"), user["id"], now, now, None))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/knowledge-training")
+            return self.json_out({"ok": True, "rule_id": cur.lastrowid, "status": "draft"})
+        m = re.match(r"^/api/knowledge-training/samples/(\d+)/(approve|reject)$", path)
+        if m:
+            if user["role"] not in ("boss", "admin"):
+                return self.json_out({"ok": False, "message": "boss or admin approval required"}, code=403)
+            status = "approved" if m.group(2) == "approve" else "rejected"
+            with db() as conn:
+                row = conn.execute("select * from enterprise_training_samples where id=?", (m.group(1),)).fetchone()
+                if not row or not safe_json(row["evidence_json"], []):
+                    return self.json_out({"ok": False, "message": "sample missing or has no evidence"}, code=400)
+                conn.execute("update enterprise_training_samples set approval_status=?,approved_by=?,approved_at=?,updated_at=? where id=?", (status, user["id"], now, now, row["id"]))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/knowledge-training")
+            return self.json_out({"ok": True, "sample_id": int(m.group(1)), "approval_status": status, "policy": "approved_sample_does_not_auto_change_business_rules"})
+        return self.json_out({"ok": False, "message": "unknown knowledge training action"}, code=404)
 
     def ai_task_center(self, user):
         user = self.require_login(user)
@@ -22755,17 +22987,39 @@ group by coalesce(store_name,'')
                 agent = conn.execute("select * from ai_agents where code=?", (agent_code,)).fetchone()
                 if not agent:
                     return self.json_out({"ok": False, "message": "agent not found"}, code=404)
-                output = self.v62_agent_response(agent["code"], question)
+                analysis = self.v28_agent_analysis(user, agent["code"], question)
+                output = self.format_v28_agent_output(analysis)
                 cur = conn.execute(
-                    "insert into ai_agent_runs(agent_id,user_id,input,output,status,error_message,tokens_used,cost_estimate,started_at,finished_at) values(?,?,?,?,?,?,?,?,?,?)",
-                    (agent["id"], user["id"], question, output, "completed", "", 0, 0, now, now),
+                    "insert into ai_agent_runs(agent_id,user_id,input,output,status,error_message,tokens_used,cost_estimate,started_at,finished_at,analysis_json,evidence_json,human_review_status) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (agent["id"], user["id"], question, output, "completed", "", 0, 0, now, now, json.dumps(analysis, ensure_ascii=False), json.dumps(analysis["evidence"], ensure_ascii=False), "pending"),
                 )
                 conn.execute(
                     "insert into ai_tasks(title,description,task_type,assigned_agent,priority,status,result,created_by,created_at,updated_at,finished_at) values(?,?,?,?,?,?,?,?,?,?,?)",
                     (U(r"AI \u5206\u6790\uff1a") + summarize_text(question or agent["name"], 40), question, "analysis", agent["code"], "normal", "completed", output, user["id"], now, now, now),
                 )
             self.log_action(user, "ai_agent_run", "ai_agent", agent["id"], agent["code"])
-            return self.json_out({"ok": True, "run_id": cur.lastrowid, "agent": row_dict(agent), "output": output})
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/agents?run=" + str(cur.lastrowid))
+            return self.json_out({"ok": True, "run_id": cur.lastrowid, "agent": row_dict(agent), "output": output, "analysis": analysis, "evidence": analysis["evidence"], "human_confirmation_required": True})
+        m_feedback = re.match(r"^/api/agents/runs/(\d+)/feedback$", path)
+        if m_feedback:
+            run_id = int(m_feedback.group(1))
+            with db() as conn:
+                run = conn.execute("select * from ai_agent_runs where id=?", (run_id,)).fetchone()
+                if not run or (run["user_id"] != user["id"] and user["role"] not in ("boss", "admin")):
+                    return self.json_out({"ok": False, "message": "not found or no permission"}, code=404)
+                evidence = safe_json(run["evidence_json"], [])
+                if not evidence:
+                    return self.json_out({"ok": False, "message": "feedback learning blocked because run has no evidence"}, code=400)
+                feedback_type = form.get("feedback_type", "useful")
+                if feedback_type not in ("useful", "modified", "not_useful", "effective", "ineffective"):
+                    feedback_type = "modified"
+                cur = conn.execute("insert into agent_learning_feedback(run_id,feedback_type,boss_decision,correction,actual_result,evidence_json,learning_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)", (run_id, feedback_type, form.get("boss_decision", ""), form.get("correction", ""), form.get("actual_result", ""), json.dumps(evidence, ensure_ascii=False), "pending_review", user["id"], now, now))
+                sample = conn.execute("insert into enterprise_training_samples(sample_type,category,title,content,source_type,source_id,evidence_json,approval_status,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?)", ("agent_feedback", "ai_feedback", U(r"Agent \u53cd\u9988：") + summarize_text(run["input"] or "", 50), json.dumps({"feedback_type": feedback_type, "boss_decision": form.get("boss_decision", ""), "correction": form.get("correction", ""), "actual_result": form.get("actual_result", "")}, ensure_ascii=False), "agent_run", str(run_id), json.dumps(evidence, ensure_ascii=False), "pending_review", user["id"], now, now))
+                conn.execute("update ai_agent_runs set human_review_status='feedback_received' where id=?", (run_id,))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/agents?run=" + str(run_id))
+            return self.json_out({"ok": True, "feedback_id": cur.lastrowid, "training_sample_id": sample.lastrowid, "learning_status": "pending_review"})
         if path == "/api/agents/ai-tasks":
             title = form.get("title", "").strip() or U(r"\u672a\u547d\u540d AI \u4efb\u52a1")
             with db() as conn:

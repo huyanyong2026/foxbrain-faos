@@ -39,6 +39,9 @@ class NaturalExperienceTests(unittest.TestCase):
             conn.execute("delete from copilot_messages")
             conn.execute("delete from copilot_sessions")
             conn.execute("delete from decision_outcomes")
+            conn.execute("delete from agent_learning_feedback")
+            conn.execute("delete from enterprise_training_samples")
+            conn.execute("delete from ai_agent_runs")
             self.user = conn.execute("select * from users where email=?", ("natural@example.test",)).fetchone()
 
     def test_page_context_is_clean_and_bounded(self):
@@ -290,6 +293,59 @@ class NaturalExperienceTests(unittest.TestCase):
         self.assertIn(portal.U(r"\u4f01\u4e1a\u5bf9\u8c61\u5de5\u4f5c\u53f0"), combined)
         self.assertNotIn("Everything is an Object", combined)
         self.assertNotIn("V1.1 Contract", combined)
+
+    def test_v28_agent_run_is_evidence_first_and_review_gated(self):
+        self.app.headers = {"Accept": "application/json"}
+        self.app.form = lambda: {"agent_code": "business_analysis_agent", "question": "current business risks"}
+        self.app.json_out = lambda data, code=200: (data, code)
+        self.app.log_action = lambda *args, **kwargs: None
+        payload, code = self.app.api_agents_post(self.user, "/api/agents/run")
+        self.assertEqual(code, 200)
+        self.assertTrue(payload["evidence"])
+        self.assertTrue(payload["human_confirmation_required"])
+        with portal.db() as conn:
+            run = conn.execute("select * from ai_agent_runs where id=?", (payload["run_id"],)).fetchone()
+        self.assertEqual(run["human_review_status"], "pending")
+        self.assertTrue(json.loads(run["evidence_json"]))
+
+    def test_agent_feedback_creates_pending_training_sample(self):
+        now = int(time.time())
+        with portal.db() as conn:
+            agent = conn.execute("select id from ai_agents where code='business_analysis_agent'").fetchone()
+            cur = conn.execute("insert into ai_agent_runs(agent_id,user_id,input,output,status,started_at,finished_at,evidence_json,human_review_status) values(?,?,?,?,?,?,?,?,?)", (agent["id"], self.user["id"], "test", "draft", "completed", now, now, json.dumps([{"source_type": "test", "source_id": "1"}]), "pending"))
+            run_id = cur.lastrowid
+        self.app.headers = {"Accept": "application/json"}
+        self.app.form = lambda: {"feedback_type": "modified", "boss_decision": "revise", "correction": "use margin", "actual_result": "pending"}
+        self.app.json_out = lambda data, code=200: (data, code)
+        payload, code = self.app.api_agents_post(self.user, "/api/agents/runs/{}/feedback".format(run_id))
+        self.assertEqual(code, 200)
+        self.assertEqual(payload["learning_status"], "pending_review")
+        with portal.db() as conn:
+            sample = conn.execute("select * from enterprise_training_samples where id=?", (payload["training_sample_id"],)).fetchone()
+        self.assertEqual(sample["approval_status"], "pending_review")
+
+    def test_ceo_memory_training_requires_evidence(self):
+        self.app.headers = {"Accept": "application/json"}
+        self.app.json_out = lambda data, code=200: (data, code)
+        self.app.form = lambda: {"title": "decision", "background": "context", "decision": "approved", "evidence_note": ""}
+        blocked, blocked_code = self.app.api_knowledge_training_post(self.user, "/api/knowledge-training/ceo-memory")
+        self.assertEqual(blocked_code, 400)
+        self.app.form = lambda: {"title": "decision", "background": "context", "factors": "inventory", "decision": "approved", "evidence_note": "report 1", "actual_result": "", "future_reference": "review"}
+        created, created_code = self.app.api_knowledge_training_post(self.user, "/api/knowledge-training/ceo-memory")
+        self.assertEqual(created_code, 200)
+        self.assertEqual(created["status"], "draft")
+        with portal.db() as conn:
+            sample = conn.execute("select * from enterprise_training_samples where id=?", (created["training_sample_id"],)).fetchone()
+        self.assertEqual(sample["approval_status"], "pending_review")
+
+    def test_v29_training_center_is_chinese_and_hides_technical_contracts(self):
+        rendered = []
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.knowledge_training_center_page(self.user)
+        page = rendered[0]
+        self.assertIn(portal.U(r"\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3"), page)
+        self.assertIn(portal.U(r"CEO \u51b3\u7b56\u8bb0\u5fc6"), page)
+        self.assertNotIn("/api/", page.replace("action=\"/api/", "action=\""))
 
 
 def tearDownModule():
