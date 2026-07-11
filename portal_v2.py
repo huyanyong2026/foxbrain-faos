@@ -243,6 +243,8 @@ PORT = int(os.environ.get("PORT", "8088"))
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
 LOCK_LIMIT = 5
 LOCK_SECONDS = 15 * 60
+SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(12 * 60 * 60)))
+SESSION_CLOCK_SKEW_SECONDS = 5 * 60
 
 
 def U(s):
@@ -773,6 +775,25 @@ def unsign(value):
     raw, digest = value.rsplit("|", 1)
     good = hmac.new(SECRET, raw.encode(), hashlib.sha256).hexdigest()
     return raw if hmac.compare_digest(digest, good) else None
+
+
+def issue_session(user_id, issued_at=None):
+    issued_at = int(issued_at if issued_at is not None else time.time())
+    return sign("{}:{}".format(int(user_id), issued_at))
+
+
+def session_user_id(value, now=None):
+    raw = unsign(value)
+    if not raw or ":" not in raw:
+        return None
+    uid, issued_at = raw.split(":", 1)
+    if not uid.isdigit() or not issued_at.isdigit():
+        return None
+    current = int(now if now is not None else time.time())
+    age = current - int(issued_at)
+    if age < -SESSION_CLOCK_SKEW_SECONDS or age > SESSION_TTL_SECONDS:
+        return None
+    return uid
 
 
 def ensure_column(conn, table, column, ddl):
@@ -5446,6 +5467,7 @@ class App(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
         self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'")
 
     def out(self, html_text, code=200):
@@ -5492,11 +5514,34 @@ class App(BaseHTTPRequestHandler):
     def current_user(self):
         jar = cookies.SimpleCookie(self.headers.get("Cookie", ""))
         token = jar.get("fp_session")
-        uid = unsign(token.value) if token else None
+        uid = session_user_id(token.value) if token else None
         if not uid:
             return None
         with db() as conn:
             return conn.execute("select * from users where id=? and status='approved'", (uid,)).fetchone()
+
+    def write_request_is_same_origin(self):
+        host = (self.headers.get("X-Forwarded-Host") or self.headers.get("Host") or "").split(",", 1)[0].strip().lower()
+        if not host:
+            return False
+        source = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        if not source:
+            return False
+        parsed = urlparse(source)
+        if parsed.scheme not in ("http", "https") or parsed.netloc.lower() != host:
+            return False
+        forwarded_proto = (self.headers.get("X-Forwarded-Proto") or "").split(",", 1)[0].strip().lower()
+        return not forwarded_proto or parsed.scheme == forwarded_proto
+
+    def require_safe_write_origin(self, path):
+        if self.write_request_is_same_origin():
+            return True
+        message = U(r"\u8bf7\u6c42\u6765\u6e90\u65e0\u6cd5\u9a8c\u8bc1\uff0c\u8bf7\u5237\u65b0\u9875\u9762\u540e\u91cd\u8bd5\u3002")
+        if path.startswith("/api/"):
+            self.json_out({"ok": False, "message": message}, code=403)
+        else:
+            self.out(layout(U(r"\u5b89\u5168\u9a8c\u8bc1"), '<div class="alert">{}</div>'.format(esc(message)), user=self.current_user()), code=403)
+        return False
 
     def require_admin(self):
         user = self.current_user()
@@ -5893,6 +5938,8 @@ class App(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if not self.require_safe_write_origin(path):
+            return
         if path == "/tasks/save":
             return self.task_save()
         if path == "/tasks/complete":
@@ -6103,6 +6150,8 @@ class App(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         path = urlparse(self.path).path
+        if not self.require_safe_write_origin(path):
+            return
         if path.startswith("/api/drive"):
             return self.api_drive_post(self.current_user(), path)
         if path.startswith("/api/objects"):
@@ -6131,6 +6180,8 @@ class App(BaseHTTPRequestHandler):
 
     def do_PATCH(self):
         path = urlparse(self.path).path
+        if not self.require_safe_write_origin(path):
+            return
         if path.startswith("/api/drive"):
             return self.api_drive_post(self.current_user(), path)
         if path.startswith("/api/objects"):
@@ -6147,6 +6198,8 @@ class App(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         path = urlparse(self.path).path
+        if not self.require_safe_write_origin(path):
+            return
         if path.startswith("/api/drive"):
             return self.api_drive_delete(self.current_user(), path)
         if path.startswith("/api/objects"):
@@ -6333,7 +6386,12 @@ class App(BaseHTTPRequestHandler):
                     "update users set password_hash=?, failed_attempts=0, locked_until=0, last_login=?, updated_at=? where id=?",
                     (new_hash, now, now, user["id"]),
                 )
-                return self.redir("/", "fp_session={}; Path=/; HttpOnly; Secure; SameSite=Lax".format(sign(str(user["id"]))))
+                return self.redir(
+                    "/",
+                    "fp_session={}; Path=/; Max-Age={}; HttpOnly; Secure; SameSite=Lax".format(
+                        issue_session(user["id"]), SESSION_TTL_SECONDS
+                    ),
+                )
             if user:
                 attempts = int(user["failed_attempts"] or 0) + 1
                 locked_until = now + LOCK_SECONDS if attempts >= LOCK_LIMIT else 0
