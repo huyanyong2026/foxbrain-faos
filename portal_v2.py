@@ -5403,7 +5403,7 @@ def layout(title, body, user=None, msg="", wide=False):
         primary_nav = "".join('<a href="{}">{}</a>'.format(esc(href), esc(label)) for label, href in nav_items)
         context_question = U(r"\u8bf7\u7ed3\u5408\u5f53\u524d\u9875\u9762\u89e3\u91ca\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\uff0c\u5e76\u5217\u51fa\u4f9d\u636e\u3002")
         copilot_launcher = (
-            '<a class="global-copilot" href="/copilot?q={}" title="{}">'
+            '<a id="global-copilot" class="global-copilot" href="/copilot?q={}" title="{}">'
             '<strong>AI</strong><span>{}</span></a>'
         ).format(quote(context_question), U(r"\u5e26\u5f53\u524d\u9875\u9762\u4e0a\u4e0b\u6587\u63d0\u95ee"), U(r"\u95ee\u5f53\u524d\u9875"))
         admin_link = '<a href="/sync-center">{}</a>'.format(U(r"\u7cfb\u7edf\u7ba1\u7406")) if user["role"] == "admin" else ""
@@ -5431,7 +5431,7 @@ a,button,.btn,input,select,textarea{{touch-action:manipulation}}img,video,canvas
 .panel,.card,.metric,td,th,p,li,h1,h2,h3,strong,span,label,.btn,button{{min-width:0;overflow-wrap:anywhere;word-break:break-word}}
 .topbar{{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:12px 14px;margin-bottom:18px}}
 .topbar>div{{min-width:0}}.topbar small{{display:block;color:#666;margin-top:3px}}.topbar a{{margin-left:12px;color:#1849a9;text-decoration:none;font-weight:700}}.os-topbar{{position:sticky;top:10px;z-index:10}}.primary-nav{{display:flex;gap:6px;align-items:center;flex-wrap:wrap}}.primary-nav a{{margin:0;padding:8px 10px;border-radius:8px;background:#f6f3ed;color:#333}}.global-search{{flex:1;min-width:180px;max-width:360px}}.global-search input{{height:42px;padding:10px 13px;border-radius:999px}}.top-actions{{white-space:nowrap}}
-.bottom-nav{{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 10px 26px rgba(0,0,0,.12);grid-template-columns:repeat(5,1fr);overflow:hidden}}.bottom-nav a{{padding:12px 4px;text-align:center;text-decoration:none;color:#1849a9;font-weight:800;font-size:13px}}
+.bottom-nav{{display:none;position:fixed;left:10px;right:10px;bottom:10px;z-index:20;background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 10px 26px rgba(0,0,0,.12);grid-template-columns:repeat(5,1fr);overflow:hidden}}.bottom-nav a{{padding:12px 4px;text-align:center;text-decoration:none;color:#1849a9;font-weight:800;font-size:13px}}.primary-nav a.active,.bottom-nav a.active{{background:#1849a9;color:#fff}}#page-progress{{position:fixed;left:0;top:0;height:3px;width:0;background:#1849a9;z-index:100;transition:width .2s ease,opacity .2s ease;opacity:0}}body.page-leaving #page-progress{{width:72%;opacity:1}}body.page-ready #page-progress{{width:100%;opacity:0}}
 .panel,.card{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.panel{{padding:18px;margin:14px 0}}.form{{max-width:520px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}}.card{{padding:18px;min-height:154px;display:flex;flex-direction:column;justify-content:space-between}}
 .metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}}.metric{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;min-height:92px}}.metric strong{{display:block;font-size:22px;margin-top:7px;line-height:1.15}}.metric span{{font-size:13px;color:#666}}.metric.good{{border-color:#b9dfc8;background:#f4fbf6}}.metric.warn{{border-color:#efd19a;background:#fff9ed}}.metric.risk{{border-color:#edb0aa;background:#fff5f4}}
@@ -5445,14 +5445,24 @@ button,.btn{{display:inline-block;max-width:100%;border:0;border-radius:8px;back
 .btn.full{{width:100%}}.red{{background:#ad1f15}}.green{{background:#18704c}}.dark{{background:#222}}.gray{{background:#777}}.orange{{background:#b45f06}}
 .alert{{padding:12px;background:#fff7d6;border:1px solid #ecd27a;border-radius:8px;margin:12px 0}}table{{width:100%;border-collapse:collapse;table-layout:auto}}th,td{{border-bottom:1px solid #eee;padding:10px;text-align:left;vertical-align:top}}th{{white-space:nowrap}}.inline{{display:flex;gap:8px;align-items:center;flex-wrap:wrap}}.inline form{{display:inline}}.small{{font-size:13px;color:#666}}
 @media(max-width:820px){{main{{width:calc(100% - 16px);padding:10px 0 92px;overflow:hidden}}section{{padding:0 2px}}h1{{font-size:24px;line-height:1.22}}h2{{font-size:18px}}.lead{{font-size:14px;line-height:1.55}}.grid,.metrics,.split,.chat-shell,.ceo-ask{{grid-template-columns:1fr;gap:12px}}.panel,.ceo-hero{{padding:14px;margin:10px 0;border-radius:8px;overflow:hidden}}.ceo-hero h1{{font-size:26px}}.card{{min-height:0;padding:14px}}.metric{{min-height:0;padding:12px}}.metric strong{{font-size:20px}}.store-row{{grid-template-columns:1fr}}.btn,button{{width:100%;padding:15px;min-height:48px}}.chat-input{{position:static;background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;margin:10px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.chat-input p{{margin-bottom:0}}.chipbar{{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding:4px 0 0}}.chipbar button{{width:100%;min-height:44px;text-align:left;white-space:normal;line-height:1.35}}.topbar{{align-items:stretch;flex-direction:column;padding:12px;position:sticky;top:0;z-index:5}}.topbar a{{margin:0 8px 0 0;display:inline-block;padding:8px 0}}.primary-nav{{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}}.primary-nav a{{font-size:12px;text-align:center;padding:8px 3px}}.global-search{{max-width:none;width:100%}}.top-actions{{white-space:normal}}.bottom-nav{{display:grid}}.global-copilot{{right:12px;bottom:68px;padding:9px 11px}}.global-copilot span{{display:none}}table,tbody,tr,td,th{{display:block;width:100%}}thead{{display:none}}tr{{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px;background:#fff;overflow:hidden}}td{{border:0;padding:7px 4px}}td:empty{{display:none}}.inline{{display:grid;grid-template-columns:1fr;gap:8px}}.inline form{{display:block;margin-top:0}}.pill{{border-radius:8px}}}}
+@media(max-width:820px){{.chat-input{{position:sticky;bottom:72px;z-index:12}}}}
 @media(max-width:420px){{main{{width:calc(100% - 12px)}}h1{{font-size:22px}}.panel,.card{{padding:12px}}input,select,textarea{{padding:13px}}.metrics{{gap:8px}}}}
 </style><script>
 document.addEventListener('submit',function(e){{
   var b=e.target.querySelector('button[type="submit"],button:not([type])');
-  if(b && !b.disabled){{b.dataset.oldText=b.textContent;b.textContent='处理中...';b.disabled=true;}}
+  if(b && !b.disabled){{b.dataset.oldText=b.textContent;b.textContent='正在处理...';b.disabled=true;b.setAttribute('aria-busy','true');}}
 }});
-window.addEventListener('pageshow',function(){{document.querySelectorAll('button[disabled]').forEach(function(b){{b.disabled=false;if(b.dataset.oldText)b.textContent=b.dataset.oldText;}});}});
-</script></head><body><main>{nav}<section><h1>{esc(title)}</h1>{subtitle_html}</section>{alert}{body}</main>{copilot_launcher}{bottom_nav}</body></html>"""
+window.addEventListener('DOMContentLoaded',function(){{
+  document.body.classList.add('page-ready');
+  var path=window.location.pathname;
+  document.querySelectorAll('.primary-nav a,.bottom-nav a').forEach(function(a){{var href=a.getAttribute('href');if(href==='/'?path==='/':href&&path.indexOf(href)===0)a.classList.add('active');}});
+  var ai=document.getElementById('global-copilot');
+  if(ai){{var u=new URL(ai.href,window.location.origin);u.searchParams.set('ctx_page',path);u.searchParams.set('ctx_title',(document.querySelector('main h1')||document.querySelector('title')).textContent.trim());u.searchParams.set('ctx_url',path+window.location.search);ai.href=u.pathname+'?'+u.searchParams.toString();}}
+  var key='foxbrain-scroll:'+path+window.location.search;var saved=sessionStorage.getItem(key);if(saved&&Number(saved)>0)requestAnimationFrame(function(){{window.scrollTo(0,Number(saved));}});window.addEventListener('pagehide',function(){{sessionStorage.setItem(key,String(window.scrollY||0));}});
+}});
+document.addEventListener('click',function(e){{var a=e.target.closest&&e.target.closest('a[href]');if(a&&a.origin===window.location.origin&&!a.hasAttribute('download')&&!e.ctrlKey&&!e.metaKey)document.body.classList.add('page-leaving');}});
+window.addEventListener('pageshow',function(){{document.body.classList.remove('page-leaving');document.querySelectorAll('button[disabled]').forEach(function(b){{b.disabled=false;b.removeAttribute('aria-busy');if(b.dataset.oldText)b.textContent=b.dataset.oldText;}});}});
+</script></head><body><div id="page-progress" aria-hidden="true"></div><main>{nav}<section><h1>{esc(title)}</h1>{subtitle_html}</section>{alert}{body}</main>{copilot_launcher}{bottom_nav}</body></html>"""
 
 
 class App(BaseHTTPRequestHandler):
@@ -9053,6 +9063,18 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         payload = self.ceo_dashboard_payload(user)
         with db() as conn:
             actions = self.ceo_action_center_payload(conn, payload)
+            task_drafts = conn.execute("select * from tasks where status in ('draft','todo','in_progress') order by case status when 'draft' then 0 when 'todo' then 1 else 2 end, updated_at desc limit 20").fetchall()
+        for task in task_drafts:
+            actions.append({
+                "priority": task["priority"] or "normal",
+                "source": U(r"\u884c\u52a8\u4efb\u52a1"),
+                "title": task["title"],
+                "reason": task["description"] or U(r"\u7b49\u5f85\u8d1f\u8d23\u4eba\u786e\u8ba4\u4e0b\u4e00\u6b65\u3002"),
+                "evidence_count": 1 if task["source_id"] else 0,
+                "action": U(r"\u67e5\u770b\u4efb\u52a1"),
+                "status": U(r"\u5f85\u786e\u8ba4") if task["status"] == "draft" else self.status_label(task["status"]),
+                "url": "/tasks",
+            })
         decision_actions = [a for a in actions if a.get("status") == U(r"\u5f85\u5ba1\u6279")]
         data_actions = [a for a in actions if a.get("status") in (U(r"\u6570\u636e\u5f02\u5e38"), U(r"\u5f85\u91cd\u5efa"))]
         normal_actions = [a for a in actions if a not in decision_actions and a not in data_actions]
@@ -9822,7 +9844,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
   <span class="status-tag">{status}</span>
   <h1>{name}</h1>
   <p class="lead">{summary}</p>
-  <div class="inline"><a class="btn" href="/api/drive/files/{id}/download">{download}</a><a class="btn gray" href="/copilot?q={ask_q}">{ask_file}</a><form method="post" action="/api/drive/files/{id}/star" style="display:inline"><button>{star}</button></form><form method="post" action="/api/drive/files/{id}/delete" style="display:inline"><button>{delete}</button></form><a class="btn gray" href="/drive">{back}</a></div>
+  <div class="inline"><a class="btn" href="/api/drive/files/{id}/download">{download}</a><a class="btn gray" href="/copilot?q={ask_q}&amp;ctx_type=file&amp;ctx_id={id}&amp;ctx_name={context_name}&amp;ctx_page=/drive/files/{id}">{ask_file}</a><form method="post" action="/api/drive/files/{id}/star" style="display:inline"><button>{star}</button></form><form method="post" action="/api/drive/files/{id}/delete" style="display:inline"><button>{delete}</button></form><a class="btn gray" href="/drive">{back}</a></div>
 </div>
 <div class="panel"><h2>{meta_title}</h2><div class="metrics">{meta}</div></div>
 <div class="panel"><h2>{preview_title}</h2>{preview}</div>
@@ -9835,6 +9857,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             id=file_id,
             download=U(r"\u4e0b\u8f7d"),
             ask_q=quote(ask_file),
+            context_name=quote(item.get("original_filename") or item.get("title") or ""),
             ask_file=U(r"\u95ee\u8fd9\u4e2a\u6587\u4ef6"),
             star=U(r"\u661f\u6807"),
             delete=U(r"\u79fb\u5165\u56de\u6536\u7ad9"),
@@ -13196,7 +13219,7 @@ where ki.deleted_at is null"""
                     U(r"\u67e5\u770b\u539f\u59cb\u8bf4\u660e"), esc(str(value)), esc(url), U(r"\u6253\u5f00\u76f8\u5173\u9875")
                 )
             )
-        return "<div class='source-list'>" + "".join(cards) + "</div>" if cards else self.empty_state(U(r"\u5f53\u524d\u7ed3\u8bba\u6ca1\u6709\u8db3\u591f evidence\uff0c\u6682\u4e0d\u5efa\u8bae\u4f5c\u4e3a\u7ecf\u8425\u51b3\u7b56\u3002"))
+        return "<div class='source-list'>" + "".join(cards) + "</div>" if cards else self.empty_state(U(r"\u5f53\u524d\u7ed3\u8bba\u6ca1\u6709\u8db3\u591f\u4f9d\u636e\uff0c\u6682\u4e0d\u5efa\u8bae\u4f5c\u4e3a\u7ecf\u8425\u51b3\u7b56\u3002"))
 
     def cockpit_data(self):
         s = load_summary()
@@ -13565,6 +13588,18 @@ where ki.deleted_at is null"""
                 '<a class="btn gray" href="/daily-intelligence">{}</a>'.format(U(r"\u4eca\u65e5\u65e5\u62a5")),
                 '<a class="btn gray" href="/action-center">{}</a>'.format(U(r"\u884c\u52a8\u4e2d\u5fc3")),
             ])
+            home_risks = self.bullets([
+                self.friendly_business_text(r.get("title"), U(r"\u7ecf\u8425\u98ce\u9669\u5f85\u590d\u6838"))
+                for r in payload["decision_metrics"].get("top_risks", [])[:3]
+            ] or [U(r"\u5f53\u524d\u6ca1\u6709\u8bc1\u636e\u5145\u8db3\u7684\u9ad8\u98ce\u9669\u63d0\u9192\u3002")])
+            home_opportunities = self.bullets([
+                self.friendly_business_text(i.get("title"), U(r"\u7ecf\u8425\u673a\u4f1a\u5f85\u786e\u8ba4"))
+                for i in daily_items if i.get("item_type") == "opportunity"
+            ][:3] or [U(r"\u5c1a\u672a\u53d1\u73b0\u8bc1\u636e\u5145\u8db3\u7684\u65b0\u673a\u4f1a\uff0c\u5efa\u8bae\u67e5\u770b\u4eca\u65e5\u7b80\u62a5\u3002")])
+            home_daily = self.bullets([
+                self.friendly_business_text(i.get("title"), U(r"\u4eca\u65e5\u7ecf\u8425\u5173\u6ce8\u4e8b\u9879"))
+                for i in daily_items[:3]
+            ] or [U(r"\u5c1a\u672a\u751f\u6210\u4eca\u65e5\u7ecf\u8425\u7b80\u62a5\uff0c\u53ef\u8fdb\u5165\u65e5\u62a5\u9875\u67e5\u770b\u539f\u56e0\u3002")])
             body = """
 <div class="ceo-hero compact">
   <span class="status-tag">\u8001\u677f\u7ecf\u8425\u5de5\u4f5c\u53f0</span>
@@ -13580,6 +13615,11 @@ where ki.deleted_at is null"""
   <div class="panel compact-panel"><h2>{focus_title}</h2>{focus}</div>
   <div class="panel compact-panel"><h2>{profit_title}</h2><div class="metrics">{profit_card}</div><div class="danger-note">{profit_warning}</div></div>
 </div>
+<div class="split compact-split">
+  <div class="panel compact-panel"><h2>{risk_title}</h2>{risks}<p><a class="btn gray" href="/decision">{risk_action}</a></p></div>
+  <div class="panel compact-panel"><h2>{opportunity_title}</h2>{opportunities}<p><a class="btn gray" href="/daily-intelligence">{opportunity_action}</a></p></div>
+</div>
+<div class="panel compact-panel"><h2>{daily_title}</h2>{daily}<div class="inline"><a class="btn" href="/daily-intelligence">{daily_action}</a><a class="btn gray" href="/action-center">{action_center}</a></div></div>
 <div class="panel compact-panel"><h2>{quick_title}</h2><div class="inline">{primary_links}</div><div class="chipbar">{questions}</div></div>
 """.format(
                 lead=esc(U(r"\u5148\u770b\u72b6\u6001\uff0c\u518d\u95ee AI\uff1b\u9996\u9875\u53ea\u7559\u4eca\u5929\u5fc5\u770b\u548c\u5fc5\u5904\u7406\u3002")),
@@ -13593,6 +13633,16 @@ where ki.deleted_at is null"""
                 profit_title=U(r"\u5229\u6da6\u8d28\u91cf\u63d0\u9192"),
                 profit_card=self.metric(U(r"\u8fd4\u70b9\u5360\u6bd4"), "{:.1%}".format(profit["rebate_share"]), U(r"\u4e0d\u91cd\u590d\u52a0\u7b97")),
                 profit_warning=esc(profit["warning"]),
+                risk_title=U(r"\u4e09\u5927\u98ce\u9669"),
+                risks=home_risks,
+                risk_action=U(r"\u67e5\u770b\u98ce\u9669\u4f9d\u636e"),
+                opportunity_title=U(r"\u4e09\u5927\u673a\u4f1a"),
+                opportunities=home_opportunities,
+                opportunity_action=U(r"\u67e5\u770b\u673a\u4f1a\u6765\u6e90"),
+                daily_title=U(r"\u4eca\u65e5\u7ecf\u8425\u6458\u8981"),
+                daily=home_daily,
+                daily_action=U(r"\u6253\u5f00\u5b8c\u6574\u65e5\u62a5"),
+                action_center=U(r"\u8fdb\u5165\u884c\u52a8\u4e2d\u5fc3"),
                 quick_title=U(r"\u5feb\u901f\u5165\u53e3"),
                 primary_links=primary_links,
                 questions=question_chips,
@@ -18287,15 +18337,28 @@ where ki.deleted_at is null"""
                 missing.append("decision_insight")
         return not missing, missing
 
-    def copilot_context_engine(self, user, question):
-        intent = self.copilot_detect_intent(question)
+    def copilot_page_context(self, values):
+        values = values or {}
+        clean = {}
+        for key in ("ctx_page", "ctx_title", "ctx_url", "ctx_type", "ctx_id", "ctx_name"):
+            value = str(values.get(key) or "").strip()
+            if value:
+                clean[key[4:]] = value[:240]
+        return clean
+
+    def copilot_context_engine(self, user, question, page_context=None, conversation_context=None):
+        page_context = page_context or {}
+        conversation_context = conversation_context or {}
+        context_terms = [question, page_context.get("title"), page_context.get("name")]
+        effective_question = " ".join(str(x).strip() for x in context_terms if x)
+        intent = self.copilot_detect_intent(effective_question)
         evidence = []
         related_objects = []
         related_decisions = []
         related_memory = []
-        context = {"intent": intent, "question": question, "sources": {}}
-        q = (question or "").strip()
-        entity_filters = self.copilot_entity_filters(question)
+        context = {"intent": intent, "question": question, "page_context": page_context, "conversation_context": conversation_context, "sources": {}}
+        q = effective_question.strip()
+        entity_filters = self.copilot_entity_filters(effective_question)
         required_context = ["sync_freshness"]
         if intent == "business_question":
             required_context += ["business_health", "decision_insight"]
@@ -18523,7 +18586,7 @@ where ki.deleted_at is null"""
             U(r"\u98ce\u9669 / \u673a\u4f1a\uff1a") + risk_text,
             U(r"\u65e5\u62a5\u4e0a\u4e0b\u6587\uff1a") + daily_text,
             U(r"\u5efa\u8bae\uff1a\u5148\u6253\u5f00\u4e0b\u65b9 evidence \u590d\u6838\u539f\u59cb\u6765\u6e90\uff0c\u518d\u628a\u53ef\u7528\u7ed3\u8bba\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f\u3002\u9ad8\u98ce\u9669\u6267\u884c\u4ecd\u9700\u4eba\u5de5\u5ba1\u6279\u3002"),
-            U(r"\u8bc1\u636e\uff1a\u4e0b\u65b9 evidence \u5217\u8868\u5c55\u793a source type\u3001source id\u3001confidence\u3001updated_at \u548c freshness\u3002"),
+            U(r"\u4f9d\u636e\uff1a\u4e0b\u65b9\u4f9d\u636e\u5361\u5c55\u793a\u6570\u636e\u6765\u6e90\u3001\u53ef\u4fe1\u7a0b\u5ea6\u548c\u66f4\u65b0\u65f6\u95f4\u3002"),
             U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4\uff1a") + str(sync.get("last_success_text") or "-") + " / " + str(sync.get("status") or "unknown") + " / " + stale_text,
             U(r"\u7cfb\u7edf\u7ea6\u675f\uff1aBusiness Rule active rules {} \uff0cKnowledge Graph nodes {} \uff0cedges {}\u3002\u672c\u56de\u7b54\u4e0d\u4f7f\u7528 SAP \u5199\u6743\u9650\u3002").format(rules.get("business_rules_active", 0), graph.get("graph_nodes", 0), graph.get("graph_edges", 0)),
         ])
@@ -18536,12 +18599,25 @@ where ki.deleted_at is null"""
         data["context"] = safe_json(data.get("context_json"), {})
         return data
 
-    def create_copilot_answer(self, user, question, test_run_id=""):
+    def create_copilot_answer(self, user, question, test_run_id="", session_id="", page_context=None):
         question = (question or "").strip()
         if not question:
             return {"ok": False, "message": "question required"}, 400
         test_run_id = (test_run_id or "").strip()
-        payload = self.copilot_context_engine(user, question)
+        active_session_id = None
+        conversation_context = {}
+        with db() as conn:
+            if str(session_id).isdigit():
+                active = conn.execute("select * from copilot_sessions where id=? and user_id=?", (session_id, user["id"])).fetchone()
+                if active:
+                    active_session_id = int(active["id"])
+                    previous = conn.execute("select * from copilot_messages where session_id=? order by id desc limit 2", (active_session_id,)).fetchall()
+                    conversation_context = {
+                        "session_id": active_session_id,
+                        "original_question": active["question"],
+                        "recent_messages": [summarize_text(r["content"], 180) for r in reversed(previous)],
+                    }
+        payload = self.copilot_context_engine(user, question, page_context or {}, conversation_context)
         answer_payload = self.copilot_answer_from_context(question, payload)
         now = ts()
         payload["answer_quality"] = {
@@ -18551,14 +18627,18 @@ where ki.deleted_at is null"""
         }
         payload["test_run_id"] = test_run_id
         with db() as conn:
-            cur = conn.execute(
-                "insert into copilot_sessions(user_id,question,intent,status,test_run_id,created_at) values(?,?,?,?,?,?)",
-                (user["id"] if user else None, question, payload["intent"], "answered", test_run_id, now),
-            )
-            session_id = cur.lastrowid
+            if active_session_id:
+                session_id = active_session_id
+                conn.execute("update copilot_sessions set intent=?,status=? where id=?", (payload["intent"], "answered", session_id))
+            else:
+                cur = conn.execute(
+                    "insert into copilot_sessions(user_id,question,intent,status,test_run_id,created_at) values(?,?,?,?,?,?)",
+                    (user["id"] if user else None, question, payload["intent"], "answered", test_run_id, now),
+                )
+                session_id = cur.lastrowid
             conn.execute(
                 "insert into copilot_messages(session_id,role,content,evidence_json,context_json,test_run_id,created_at) values(?,?,?,?,?,?,?)",
-                (session_id, "user", question, "[]", json.dumps({"intent": payload["intent"], "test_run_id": test_run_id}, ensure_ascii=False), test_run_id, now),
+                (session_id, "user", question, "[]", json.dumps({"intent": payload["intent"], "test_run_id": test_run_id, "page_context": page_context or {}, "conversation_context": conversation_context}, ensure_ascii=False), test_run_id, now),
             )
             assistant = conn.execute(
                 "insert into copilot_messages(session_id,role,content,evidence_json,context_json,test_run_id,created_at) values(?,?,?,?,?,?,?)",
@@ -18625,6 +18705,27 @@ where ki.deleted_at is null"""
         self.log_action(user, "copilot_memory_draft_created", "enterprise_memory", cur.lastrowid, str(message_id))
         return {"ok": True, "memory_id": cur.lastrowid, "status": "draft"}, 200
 
+    def copilot_action_draft(self, user, message_id):
+        with db() as conn:
+            msg = conn.execute("select m.*,s.question from copilot_messages m join copilot_sessions s on s.id=m.session_id where m.id=? and m.role='assistant' and s.user_id=?", (message_id, user["id"])).fetchone()
+            if not msg:
+                return {"ok": False, "message": U(r"\u6ca1\u6709\u627e\u5230\u53ef\u751f\u6210\u884c\u52a8\u7684AI\u56de\u7b54\u3002")}, 404
+            evidence = safe_json(msg["evidence_json"], [])
+            if not evidence:
+                return {"ok": False, "message": U(r"\u56de\u7b54\u6ca1\u6709\u4f9d\u636e\uff0c\u5df2\u963b\u6b62\u751f\u6210\u884c\u52a8\u3002")}, 400
+            existing = conn.execute("select id from tasks where source_type='copilot_message' and source_id=? and status in ('draft','todo') order by id desc limit 1", (str(message_id),)).fetchone()
+            if existing:
+                return {"ok": True, "task_id": existing["id"], "status": "already_exists"}, 200
+            now = ts()
+            title = summarize_text(msg["question"] or msg["content"], 80)
+            cur = conn.execute(
+                "insert into tasks(task_id,title,description,owner,related_object_type,related_object_id,priority,status,due_date,source_type,source_id,created_by,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ("TASK-" + uuid.uuid4().hex[:10], title, summarize_text(msg["content"], 500), user["name"], "copilot_message", message_id, "normal", "draft", "", "copilot_message", str(message_id), user["id"], now, now),
+            )
+            self.add_timeline_event(conn, "task", cur.lastrowid, "copilot_action_draft_created", title, U(r"\u7531AI\u56de\u7b54\u751f\u6210\uff0c\u7b49\u5f85\u4eba\u5de5\u786e\u8ba4\u3002"), "copilot_messages", message_id, {"evidence_count": len(evidence), "status": "draft"}, user["id"], now)
+        self.log_action(user, "copilot_action_draft_created", "task", cur.lastrowid, str(message_id))
+        return {"ok": True, "task_id": cur.lastrowid, "status": "draft"}, 200
+
     def cleanup_copilot_test_data(self, user, test_run_id):
         test_run_id = (test_run_id or "").strip()
         if not test_run_id.startswith("SPRINT0185_TEST"):
@@ -18668,6 +18769,7 @@ where ki.deleted_at is null"""
         query = parse_qs(urlparse(self.path).query)
         session_id = query.get("session_id", [""])[0]
         initial_question = query.get("q", [""])[0]
+        page_context = self.copilot_page_context({k: query.get(k, [""])[0] for k in ("ctx_page", "ctx_title", "ctx_url", "ctx_type", "ctx_id", "ctx_name")})
         with db() as conn:
             sessions = conn.execute("select * from copilot_sessions where user_id=? order by created_at desc limit 15", (user["id"],)).fetchall()
             current = conn.execute("select * from copilot_sessions where id=? and user_id=?", (session_id, user["id"])).fetchone() if str(session_id).isdigit() else None
@@ -18695,26 +18797,36 @@ where ki.deleted_at is null"""
   <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><button name="feedback_type" value="useful">{}</button></form>
   <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><button class="gray" name="feedback_type" value="not_useful">{}</button></form>
   <form method="post" action="/api/copilot/feedback"><input type="hidden" name="message_id" value="{}"><input type="hidden" name="test_run_id" value="{}"><input name="comment" placeholder="{}"><button class="orange" name="feedback_type" value="missing_evidence">{}</button></form>
-</div>""".format(item["id"], esc(test_run_id), U(r"\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u6ca1\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u8865\u5145\u7f3a\u5931\u8bc1\u636e\u8bf4\u660e"), U(r"\u7f3a evidence"))
+</div>""".format(item["id"], esc(test_run_id), U(r"\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u6ca1\u6709\u7528"), item["id"], esc(test_run_id), U(r"\u8865\u5145\u7f3a\u5931\u4f9d\u636e\u8bf4\u660e"), U(r"\u7f3a\u5c11\u4f9d\u636e"))
                 evidence_html = "<p class='small'><span class='confidence'>{}: {}</span> <span class='confidence'>{}: {}</span></p>".format(U(r"\u7ed3\u8bba\u53ef\u9760\u6027"), U(r"\u53ef\u9760") if quality.get("reliable") else U(r"\u9700\u590d\u6838"), U(r"\u4f9d\u636e\u5145\u8db3\u7a0b\u5ea6"), esc(quality.get("confidence") or U(r"\u5f85\u786e\u8ba4"))) + evidence_html
                 evidence_html += feedback
-                evidence_html += "<form method='post' action='/api/copilot/messages/{}/memory-draft' onsubmit=\"return confirm('{}')\"><button>{}</button></form>".format(item["id"], U(r"\u786e\u8ba4\u4ec5\u751f\u6210\u8349\u7a3f\uff0c\u4e0d\u4f1a\u81ea\u52a8\u6210\u4e3a\u6b63\u5f0f\u8bb0\u5fc6\uff1f"), U(r"\u751f\u6210\u4f01\u4e1a\u8bb0\u5fc6\u8349\u7a3f"))
+                evidence_html += "<div class='inline'><form method='post' action='/api/copilot/messages/{}/action-draft'><button>{}</button></form><form method='post' action='/api/copilot/messages/{}/memory-draft' onsubmit=\"return confirm('{}')\"><button class='gray'>{}</button></form></div>".format(item["id"], U(r"\u751f\u6210\u884c\u52a8\u8349\u7a3f"), item["id"], U(r"\u786e\u8ba4\u4ec5\u751f\u6210\u8349\u7a3f\uff0c\u4e0d\u4f1a\u81ea\u52a8\u6210\u4e3a\u6b63\u5f0f\u8bb0\u5fc6\uff1f"), U(r"\u6c89\u6dc0\u4e3a\u4f01\u4e1a\u8bb0\u5fc6"))
             role_label = U(r"AI\u52a9\u624b") if item["role"] == "assistant" else U(r"\u6211")
             message_html += "<div class='chat-message {}'><strong>{}</strong><p>{}</p>{}</div>".format(esc(item["role"]), esc(role_label), esc(item["content"]).replace("\n", "<br>"), evidence_html)
         if not message_html:
             message_html = "<div class='chat-message assistant'><strong>{}</strong><p>{}</p></div>".format(U(r"AI\u52a9\u624b"), U(r"\u6211\u4f1a\u7ed3\u5408\u4f01\u4e1a\u6570\u636e\u3001\u6863\u6848\u3001\u5173\u7cfb\u3001\u7ecf\u8425\u89c4\u5219\u3001\u51b3\u7b56\u8bb0\u5f55\u3001\u4f01\u4e1a\u8bb0\u5fc6\u548c\u6bcf\u65e5\u7b80\u62a5\u56de\u7b54\u3002\u6bcf\u4e2a\u53ef\u9760\u7ed3\u8bba\u90fd\u4f1a\u5c55\u793a\u4f9d\u636e\uff1b\u6570\u636e\u4e0d\u8db3\u65f6\u4f1a\u660e\u786e\u8bf4\u660e\u3002"))
         links = "".join("<a class='pill' href='/copilot?session_id={}'>{}</a>".format(s["id"], esc(s["question"])) for s in sessions) or self.guided_empty_state(U(r"\u8fd8\u6ca1\u6709AI\u52a9\u624b\u5bf9\u8bdd\u8bb0\u5f55\u3002"), U(r"\u4e00\u4e2a\u60f3\u4e86\u89e3\u7684\u7ecf\u8425\u95ee\u9898"), "/copilot", U(r"\u5f00\u59cb\u7b2c\u4e00\u6b21\u63d0\u95ee"))
+        context_banner = ""
+        if page_context:
+            context_banner = "<div class='alert'><strong>{}</strong><p class='small'>{}</p></div>".format(
+                U(r"\u5df2\u5e26\u5165\u5f53\u524d\u9875\u9762\u4e0a\u4e0b\u6587"),
+                esc(page_context.get("title") or page_context.get("name") or page_context.get("page") or ""),
+            )
+        hidden_context = "<input type='hidden' name='session_id' value='{}'>".format(current["id"] if current else "")
+        hidden_context += "".join("<input type='hidden' name='ctx_{}' value='{}'>".format(esc(k), esc(v)) for k, v in page_context.items())
         body = """
 <div class="chat-shell">
   <div>
     <div class="panel">
       <h2>AI助手</h2>
       <p class="small">只基于企业数据和依据回答；依据不足时会明确说明不能下结论。</p>
+      {}
       <div class="chipbar">{}</div>
     </div>
     <div class="panel">{}</div>
     <div class="chat-input">
       <form method="post" action="/copilot/ask">
+        {}
         <label>{}</label>
         <textarea id="copilot-question" name="question" placeholder="{}" required>{}</textarea>
         <p><button>{}</button></p>
@@ -18728,8 +18840,10 @@ where ki.deleted_at is null"""
   </div>
 </div>
 """.format(
+            context_banner,
             chips,
             message_html,
+            hidden_context,
             U(r"\u95ee\u4f01\u4e1a"),
             U(r"\u4f8b\uff1a\u68c0\u67e5\u706b\u72d0\u72f8\u76ee\u524d\u6700\u5927\u7ecf\u8425\u98ce\u9669"),
             esc(initial_question),
@@ -18747,7 +18861,7 @@ where ki.deleted_at is null"""
         if not user:
             return self.redir("/login")
         form = self.form()
-        payload, code = self.create_copilot_answer(user, form.get("question", ""), form.get("test_run_id", ""))
+        payload, code = self.create_copilot_answer(user, form.get("question", ""), form.get("test_run_id", ""), form.get("session_id", ""), self.copilot_page_context(form))
         if not payload.get("ok"):
             return self.redir("/copilot")
         return self.redir("/copilot?session_id={}".format(payload["session_id"]))
@@ -18770,7 +18884,8 @@ where ki.deleted_at is null"""
         if path == "/api/copilot/context":
             query = parse_qs(urlparse(self.path).query)
             question = query.get("q", [""])[0]
-            return self.json_out({"ok": True, "context": self.copilot_context_engine(user, question)})
+            page_context = self.copilot_page_context({k: query.get(k, [""])[0] for k in ("ctx_page", "ctx_title", "ctx_url", "ctx_type", "ctx_id", "ctx_name")})
+            return self.json_out({"ok": True, "context": self.copilot_context_engine(user, question, page_context)})
         return self.json_out({"ok": False, "message": "unknown copilot api"}, code=404)
 
     def api_copilot_post(self, user, path):
@@ -18778,7 +18893,7 @@ where ki.deleted_at is null"""
             return self.json_out({"ok": False, "message": "login required"}, code=401)
         form = self.form()
         if path == "/api/copilot/ask":
-            payload, code = self.create_copilot_answer(user, form.get("question", ""), form.get("test_run_id", ""))
+            payload, code = self.create_copilot_answer(user, form.get("question", ""), form.get("test_run_id", ""), form.get("session_id", ""), self.copilot_page_context(form))
             return self.json_out(payload, code=code)
         if path == "/api/copilot/feedback":
             message_id = form.get("message_id", "")
@@ -18803,6 +18918,12 @@ where ki.deleted_at is null"""
             payload, code = self.copilot_memory_draft(user, int(m.group(1)))
             if "text/html" in (self.headers.get("Accept") or ""):
                 return self.redir("/copilot")
+            return self.json_out(payload, code=code)
+        m = re.match(r"^/api/copilot/messages/(\d+)/action-draft$", path)
+        if m:
+            payload, code = self.copilot_action_draft(user, int(m.group(1)))
+            if "text/html" in (self.headers.get("Accept") or ""):
+                return self.redir("/action-center")
             return self.json_out(payload, code=code)
         return self.json_out({"ok": False, "message": "unknown copilot write api"}, code=404)
 
@@ -19951,10 +20072,10 @@ group by coalesce(store_name,''), coalesce(product_code,'')
         brand_items = self.bullets(["{} / {} {} / {}".format(esc(r.get("brand_name") or ""), U(r"\u98ce\u9669\u9879"), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["brand_pressure"]] or [U(r"\u6682\u65e0\u54c1\u724c\u5e93\u5b58\u538b\u529b\u6570\u636e\uff0c\u8bf7\u5148\u5b8c\u6210\u5e93\u5b58\u5206\u6790\u3002")])
         store_items = self.bullets(["{} / {} {} / {}".format(esc(r.get("store_name") or ""), U(r"\u98ce\u9669\u9879"), int(r.get("risk_count") or 0), money(r.get("inventory_amount") or 0)) for r in summary["store_pressure"]] or [U(r"\u6682\u65e0\u95e8\u5e97\u5e93\u5b58\u538b\u529b\u6570\u636e\uff0c\u8bf7\u5148\u5b8c\u6210\u95e8\u5e97\u5f52\u4e00\u3002")])
         body = """
-<div class="panel"><h2>库存分析</h2><p>根据库存、销售速度和库龄识别积压风险与补货机会，所有建议均保留依据。</p><form method="post" action="/api/inventory-intelligence/recalculate" style="display:inline"><button>重新分析</button></form><div class="metrics">{}</div><p class="small">{}</p></div>
+<div class="panel"><h2>库存分析</h2><p>根据库存、销售速度和库龄识别积压风险与补货机会，所有建议均保留依据。</p><div class="inline"><form method="post" action="/api/inventory-intelligence/recalculate"><button>重新分析</button></form><a class="btn gray" href="/copilot?q={}">询问当前库存</a></div><div class="metrics">{}</div><p class="small">{}</p></div>
 <div class="split"><div class="panel"><h2>品牌库存压力</h2>{}</div><div class="panel"><h2>门店库存压力</h2>{}</div></div>
 <div class="panel"><h2>风险排序</h2><div class="grid">{}</div></div>
-<div class="panel"><h2>补货机会</h2><div class="grid">{}</div></div>""".format(metrics, self.updated_at_text(snapshot.get("created_at") if snapshot else None), brand_items, store_items, risk_cards, opportunity_cards)
+<div class="panel"><h2>补货机会</h2><div class="grid">{}</div></div>""".format(quote(U(r"\u54ea\u4e9b\u5e93\u5b58\u6700\u5371\u9669\uff1f\u8bf7\u7ed9\u51fa\u539f\u56e0\u3001\u4f9d\u636e\u548c\u884c\u52a8\u5efa\u8bae\u3002")), metrics, self.updated_at_text(snapshot.get("created_at") if snapshot else None), brand_items, store_items, risk_cards, opportunity_cards)
         self.out(layout(U(r"\u5e93\u5b58\u5206\u6790"), body, user=user, wide=True))
 
     def api_inventory_intelligence_get(self, user, path):
@@ -20164,10 +20285,10 @@ group by coalesce(brand_name,'')
         opportunity_items = self.bullets(["{} / {} {:.1f}".format(esc(r.get("brand_name") or ""), U(r"\u5065\u5eb7\u5ea6"), float(r.get("overall_score") or 0)) for r in summary["opportunity_brands"]] or [U(r"\u6682\u672a\u53d1\u73b0\u8bc1\u636e\u5145\u8db3\u7684\u54c1\u724c\u673a\u4f1a\u3002")])
         pressure_items = self.bullets(["{} / {} {:.1%} / {}".format(esc(r.get("brand_name") or ""), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_brands"]] or [U(r"\u6682\u65e0\u54c1\u724c\u5e93\u5b58\u538b\u529b\u6570\u636e\u3002")])
         body = """
-<div class="panel"><h2>品牌分析</h2><p>综合品牌销售、毛利和库存压力，帮助判断风险、机会与资源投入方向。</p><form method="post" action="/api/brand-intelligence/recalculate" style="display:inline"><button>重新分析</button></form><div class="metrics">{}</div><p class="small">{}</p></div>
+<div class="panel"><h2>品牌分析</h2><p>综合品牌销售、毛利和库存压力，帮助判断风险、机会与资源投入方向。</p><div class="inline"><form method="post" action="/api/brand-intelligence/recalculate"><button>重新分析</button></form><a class="btn gray" href="/copilot?q={}">询问当前品牌</a></div><div class="metrics">{}</div><p class="small">{}</p></div>
 <div class="split"><div class="panel"><h2>品牌风险</h2>{}</div><div class="panel"><h2>品牌机会</h2>{}</div></div>
 <div class="panel"><h2>库存压力</h2>{}</div>
-<div class="panel"><h2>品牌排行</h2><div class="grid">{}</div></div>""".format(metrics, self.updated_at_text(summary.get("brand_snapshot_at")), risk_items, opportunity_items, pressure_items, rank_cards)
+<div class="panel"><h2>品牌排行</h2><div class="grid">{}</div></div>""".format(quote(U(r"\u54ea\u4e2a\u54c1\u724c\u6700\u9700\u8981\u5173\u6ce8\uff1f\u8bf7\u7ed9\u51fa\u4f9d\u636e\u548c\u4e0b\u4e00\u6b65\u3002")), metrics, self.updated_at_text(summary.get("brand_snapshot_at")), risk_items, opportunity_items, pressure_items, rank_cards)
         self.out(layout(U(r"\u54c1\u724c\u5206\u6790"), body, user=user, wide=True))
 
     def api_brand_intelligence_get(self, user, path):
@@ -20386,10 +20507,10 @@ group by coalesce(store_name,'')
         opportunity_items = self.bullets(["{} / {} {:.1f}".format(esc(r.get("store_name") or ""), U(r"\u5065\u5eb7\u5ea6"), float(r.get("overall_score") or 0)) for r in summary["opportunity_stores"]] or [U(r"\u6682\u672a\u53d1\u73b0\u8bc1\u636e\u5145\u8db3\u7684\u95e8\u5e97\u673a\u4f1a\u3002")])
         pressure_items = self.bullets(["{} / {} {:.1%} / {}".format(esc(r.get("store_name") or ""), U(r"\u5e93\u5b58\u5360\u6bd4"), float(r.get("inventory_pressure") or 0), money(r.get("inventory_amount") or 0)) for r in summary["inventory_pressure_stores"]] or [U(r"\u6682\u65e0\u95e8\u5e97\u5e93\u5b58\u538b\u529b\u6570\u636e\u3002")])
         body = """
-<div class="panel"><h2>门店分析</h2><p>综合门店销售、毛利、库存压力和经营效率，帮助老板找到需要调整与值得投入的门店。</p><form method="post" action="/api/store-intelligence/recalculate" style="display:inline"><button>重新分析</button></form><div class="metrics">{}</div><p class="small">{}</p></div>
+<div class="panel"><h2>门店分析</h2><p>综合门店销售、毛利、库存压力和经营效率，帮助老板找到需要调整与值得投入的门店。</p><div class="inline"><form method="post" action="/api/store-intelligence/recalculate"><button>重新分析</button></form><a class="btn gray" href="/copilot?q={}">询问当前门店</a></div><div class="metrics">{}</div><p class="small">{}</p></div>
 <div class="split"><div class="panel"><h2>门店风险</h2>{}</div><div class="panel"><h2>门店机会</h2>{}</div></div>
 <div class="panel"><h2>库存压力</h2>{}</div>
-<div class="panel"><h2>门店排行</h2><div class="grid">{}</div></div>""".format(metrics, self.updated_at_text(summary.get("store_snapshot_at")), risk_items, opportunity_items, pressure_items, rank_cards)
+<div class="panel"><h2>门店排行</h2><div class="grid">{}</div></div>""".format(quote(U(r"\u54ea\u5bb6\u95e8\u5e97\u73b0\u5728\u6700\u9700\u8981\u5904\u7406\u95ee\u9898\uff1f\u8bf7\u7ed9\u51fa\u4f9d\u636e\u548c\u884c\u52a8\u3002")), metrics, self.updated_at_text(summary.get("store_snapshot_at")), risk_items, opportunity_items, pressure_items, rank_cards)
         self.out(layout(U(r"\u95e8\u5e97\u5206\u6790"), body, user=user, wide=True))
 
     def api_store_intelligence_get(self, user, path):
