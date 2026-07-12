@@ -47,6 +47,7 @@ try:
     from foxbrain_os.owner_os_foundation import build_master_blueprint_contract, build_owner_home_contract, build_owner_os_foundation_contract
     from foxbrain_os.enterprise_second_brain import build_enterprise_second_brain_contract
     from foxbrain_os.enterprise_second_brain_v11 import build_ceo_home_v11_contract, build_drive_2_contract, build_enterprise_second_brain_v11_contract, build_knowledge_pipeline_contract, build_object_engine_contract
+    from foxbrain_os.brand_life_engine import brand_life_payload, ensure_brand_life_schema, extract_brand_document, register_brand_document, seed_kailas
 except Exception:
     def enterprise_v1_architecture_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
@@ -146,6 +147,16 @@ except Exception:
         return {"ok": False}
     def build_business_map_payload():
         return {"ok": False, "mobile_ready": True}
+    def ensure_brand_life_schema(conn):
+        return None
+    def seed_kailas(conn):
+        return None
+    def brand_life_payload(conn, brand_code="KAILAS", role="employee"):
+        return {"ok": False, "message": "brand life unavailable"}
+    def register_brand_document(*args, **kwargs):
+        return {"ok": False, "message": "brand life unavailable"}
+    def extract_brand_document(source_path):
+        return {"text": "", "status": "unavailable", "error": "brand life unavailable"}
     def build_digital_twin_simulation_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V2.1"}
     def build_company_twin_model(metrics=None):
@@ -5581,6 +5592,8 @@ create table if not exists manual_business_report_publications(
         conn.execute("create index if not exists idx_entity_registry_source on enterprise_entity_registry(source_type,source_id)")
         conn.execute("create index if not exists idx_enterprise_relationships_source on enterprise_relationships(source_global_id,status)")
         conn.execute("create index if not exists idx_enterprise_relationships_target on enterprise_relationships(target_global_id,status)")
+        ensure_brand_life_schema(conn)
+        seed_kailas(conn)
         vault_root = conn.execute("select id from drive_folders where name=? and deleted_at is null order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
         if not vault_root:
             root = conn.execute("select id from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
@@ -5815,6 +5828,10 @@ class App(BaseHTTPRequestHandler):
             return self.action_center_page(user)
         if path == "/enterprise":
             return self.enterprise_center_page(user)
+        if path in ("/brand-life", "/brand-life/kailas"):
+            return self.brand_life_page(user, "KAILAS")
+        if path == "/api/brand-life/kailas":
+            return self.api_brand_life_get(user, "KAILAS")
         if path == "/enterprise-foundation":
             return self.enterprise_foundation_page(user)
         if path == "/enterprise-dna":
@@ -6221,6 +6238,8 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_foundation_rebuild_post()
         if path == "/api/proactive-intelligence/rebuild":
             return self.proactive_intelligence_rebuild_post()
+        if path == "/api/brand-life/documents/import":
+            return self.api_brand_life_import(self.current_user())
         if path == "/reports/save":
             return self.report_save()
         if path == "/content/save":
@@ -9579,6 +9598,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             entry_title=U(r"\u5206\u7c7b\u67e5\u770b"), entries="".join([
                 self.card(U(r"\u95e8\u5e97"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u5458\u5de5\u548c\u98ce\u9669\u3002"), "/object-center?type=store", "btn", True),
                 self.card(U(r"\u54c1\u724c"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8fd4\u70b9\u548c\u5386\u53f2\u51b3\u7b56\u3002"), "/object-center?type=brand", "btn", True),
+                self.card(U(r"\u54c1\u724c\u751f\u547d"), U(r"\u54c1\u724c\u6545\u4e8b\u3001\u4eba\u624d\u3001\u95e8\u5e97\u3001\u57f9\u8bad\u4e0e\u77e5\u8bc6\u8d44\u4ea7\u3002"), "/brand-life/kailas", "btn", True),
                 self.card(U(r"\u4ea7\u54c1"), U(r"\u9500\u552e\u3001\u5e93\u5b58\u3001\u8d44\u6599\u548c\u5173\u8054\u54c1\u724c\u3002"), "/object-center?type=product", "btn", True),
                 self.card(U(r"\u5458\u5de5\u4e0e\u5ba2\u6237"), U(r"\u5c97\u4f4d\u3001\u9500\u552e\u3001\u670d\u52a1\u4e0e\u5173\u7cfb\u8bb0\u5f55\u3002"), "/object-center", "btn", True),
                 self.card(U(r"\u5bf9\u8c61\u5173\u8054"), U(r"\u4eba\u5de5\u786e\u8ba4\u8d44\u6599\u4e0e\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4ea7\u54c1\u7684\u5173\u7cfb\u3002"), "/enterprise-links", "btn", True),
@@ -9743,7 +9763,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
     def ceo_navigation_groups_html(self):
         groups = [
             (U(r"\u7ecf\u8425"), [(U(r"\u7ecf\u8425\u603b\u89c8"), "/business-overview"), (U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5"), "/daily-intelligence"), (U(r"\u4f01\u4e1a\u5065\u5eb7"), "/business-health"), (U(r"\u7ecf\u8425\u51b3\u7b56"), "/decision"), (U(r"\u5e93\u5b58\u5206\u6790"), "/inventory-intelligence"), (U(r"\u54c1\u724c\u5206\u6790"), "/brand-intelligence"), (U(r"\u95e8\u5e97\u5206\u6790"), "/store-intelligence"), (U(r"\u5229\u6da6\u8d28\u91cf"), "/finance")]),
-            (U(r"\u4f01\u4e1a\u6863\u6848"), [(U(r"\u4f01\u4e1a\u7f51\u76d8"), "/drive"), (U(r"\u4f01\u4e1a\u5bf9\u8c61"), "/object-center"), (U(r"\u4f01\u4e1a\u77e5\u8bc6"), "/knowledge"), (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "/memory"), (U(r"\u4f01\u4e1a\u5173\u7cfb"), "/knowledge-graph"), (U(r"\u7ecf\u8425\u65f6\u95f4\u7ebf"), "/timeline")]),
+            (U(r"\u4f01\u4e1a\u6863\u6848"), [(U(r"\u4f01\u4e1a\u7f51\u76d8"), "/drive"), (U(r"\u54c1\u724c\u751f\u547d"), "/brand-life/kailas"), (U(r"\u4f01\u4e1a\u5bf9\u8c61"), "/object-center"), (U(r"\u4f01\u4e1a\u77e5\u8bc6"), "/knowledge"), (U(r"\u4f01\u4e1a\u8bb0\u5fc6"), "/memory"), (U(r"\u4f01\u4e1a\u5173\u7cfb"), "/knowledge-graph"), (U(r"\u7ecf\u8425\u65f6\u95f4\u7ebf"), "/timeline")]),
             (U(r"AI\u52a9\u624b"), [(U(r"\u95ee\u4f01\u4e1a"), "/copilot"), (U(r"\u8001\u677f\u5de5\u4f5c\u53f0"), "/ceo-workbench")]),
         ]
         html_parts = []
@@ -27101,6 +27121,113 @@ group by coalesce(store_name,'')
             conn.execute("update jarvis_action_confirmations set status=?, decided_by=?, decided_at=? where action_id=? and status='pending'", (status, user["id"], ts(), action_id))
         self.log_action(user, "jarvis_action_" + status, "jarvis_action", None, action_id)
         return self.redir("/jarvis")
+
+    def brand_life_page(self, user, brand_code="KAILAS"):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            payload = brand_life_payload(conn, brand_code, user["role"])
+            candidate_documents = conn.execute(
+                "select id,coalesce(original_filename,file_name,title) name from documents where deleted_at is null order by created_at desc limit 100"
+            ).fetchall()
+        if not payload.get("ok"):
+            return self.out(layout(U(r"\u54c1\u724c\u751f\u547d"), self.guided_empty_state(
+                U(r"\u8be5\u54c1\u724c\u5c1a\u672a\u5efa\u7acb\u751f\u547d\u6863\u6848\u3002"),
+                U(r"\u54c1\u724c\u8eab\u4efd\u548c\u6388\u6743\u8d44\u6599"), "/drive", U(r"\u6253\u5f00\u4f01\u4e1a\u8d44\u6599")), user=user))
+        brand = payload["brand"]
+        dimension_labels = {
+            "brand_identity": U(r"\u54c1\u724c\u8eab\u4efd"), "brand_story": U(r"\u54c1\u724c\u6545\u4e8b"),
+            "brand_philosophy": U(r"\u54c1\u724c\u7406\u5ff5"), "product_system": U(r"\u4ea7\u54c1\u4f53\u7cfb"),
+            "store_system": U(r"\u95e8\u5e97\u4f53\u7cfb"), "people_system": U(r"\u4eba\u624d\u4f53\u7cfb"),
+            "training_system": U(r"\u57f9\u8bad\u4f53\u7cfb"), "customer_system": U(r"\u7528\u6237\u4f53\u7cfb"),
+            "operating_rules": U(r"\u7ecf\u8425\u89c4\u5219"), "future_plan": U(r"\u672a\u6765\u89c4\u5212"),
+        }
+        dimensions = "".join(
+            self.card(dimension_labels[key], brand.get(key) or U(r"\u5f85\u4ece\u54c1\u724c\u6388\u6743\u8d44\u6599\u4e2d\u8865\u5145\u3002"), "/copilot?q=" + quote(U(r"\u8bf7\u57fa\u4e8eKAILAS\u54c1\u724c\u8d44\u6599\u8bf4\u660e") + dimension_labels[key]), "btn", True)
+            for key in payload["dimensions"]
+        )
+        vault_rows = self.bullets([
+            "{} / {} / {}".format(item["title"], U(r"\u5546\u4e1a\u654f\u611f") if item["confidentiality"] == "sensitive" else U(r"\u5458\u5de5\u53ef\u89c1"), item["processing_status"])
+            for item in payload["vault_items"]
+        ] or [U(r"\u6682\u65e0\u53ef\u89c1\u54c1\u724c\u8d44\u6599\uff0c\u8bf7\u5148\u5728\u4f01\u4e1a\u7f51\u76d8\u4e0a\u4f20\u3002")])
+        cards = self.evidence_cards([
+            {"title": card["title"], "source_type": U(r"\u54c1\u724c\u77e5\u8bc6\u5e93"), "source_id": card["vault_item_id"], "summary": card["content"], "date_range": card["evidence_location"], "url": "/brand-life/kailas"}
+            for card in payload["knowledge_cards"]
+        ], limit=12)
+        document_options = "".join('<option value="{}">{}</option>'.format(row["id"], esc(row["name"])) for row in candidate_documents)
+        import_form = ""
+        if user["role"] in ("boss", "admin"):
+            import_form = """<form method="post" action="/api/brand-life/documents/import" class="stack">
+            <label>{select_label}</label><select name="document_id" required>{options}</select>
+            <label>{scope_label}</label><select name="confidentiality"><option value="sensitive">{sensitive}</option><option value="public">{public}</option></select>
+            <button>{import_button}</button></form>""".format(
+                select_label=U(r"\u9009\u62e9\u4f01\u4e1a\u7f51\u76d8\u6587\u4ef6"), options=document_options,
+                scope_label=U(r"\u8d44\u6599\u6743\u9650"), sensitive=U(r"\u5546\u4e1a\u654f\u611f\uff08\u4ec5\u8001\u677f/\u7ba1\u7406\u5458\uff09"),
+                public=U(r"\u516c\u5f00\u54c1\u724c\u77e5\u8bc6\uff08\u5458\u5de5\u53ef\u67e5\u770b\uff09"), import_button=U(r"\u5bfc\u5165\u54c1\u724c\u77e5\u8bc6\u5e93"))
+        body = """<div class="ceo-hero compact"><span class="status-tag">Brand Life V1.0</span><h1>{name}</h1><p class="lead">{identity}</p><div class="inline"><a class="btn" href="/copilot?q={ask}">{ask_label}</a><a class="btn gray" href="/drive">{drive}</a></div></div>
+        <div class="panel"><h2>{dimensions_title}</h2><div class="card-grid">{dimensions}</div></div>
+        <div class="split"><div class="panel"><h2>{vault_title}</h2>{vault}</div><div class="panel"><h2>{import_title}</h2>{import_form}</div></div>
+        <div class="panel"><h2>{cards_title}</h2>{cards}</div>""".format(
+            name=esc(brand["brand_name"]), identity=esc(brand.get("brand_identity") or ""), ask=quote(U(r"\u8bf7\u57fa\u4e8eKAILAS\u54c1\u724c\u77e5\u8bc6\u5e93\u56de\u7b54\uff0c\u5e76\u5c55\u793a\u6587\u4ef6\u4f9d\u636e\u3002")),
+            ask_label=U(r"\u95eeKAILAS\u54c1\u724c"), drive=U(r"\u6253\u5f00\u4f01\u4e1a\u8d44\u6599"), dimensions_title=U(r"\u54c1\u724c\u751f\u547d\u6a21\u578b"), dimensions=dimensions,
+            vault_title=U(r"\u54c1\u724c\u77e5\u8bc6\u5e93"), vault=vault_rows, import_title=U(r"\u5bfc\u5165\u54c1\u724c\u8d44\u6599"), import_form=import_form or U(r"\u5f53\u524d\u8d26\u53f7\u53ef\u67e5\u770b\u516c\u5f00\u54c1\u724c\u77e5\u8bc6\uff0c\u4e0d\u80fd\u5bfc\u5165\u5546\u4e1a\u654f\u611f\u8d44\u6599\u3002"),
+            cards_title=U(r"\u54c1\u724c\u77e5\u8bc6\u5361\u7247"), cards=cards)
+        self.out(layout(U(r"\u54c1\u724c\u751f\u547d"), body, user=user, wide=True))
+
+    def api_brand_life_get(self, user, brand_code="KAILAS"):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            payload = brand_life_payload(conn, brand_code, user["role"])
+        return self.json_out(payload, code=200 if payload.get("ok") else 404)
+
+    def api_brand_life_import(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.json_out({"ok": False, "message": U(r"\u6ca1\u6709\u5bfc\u5165\u54c1\u724c\u654f\u611f\u8d44\u6599\u7684\u6743\u9650\u3002")}, code=403)
+        form = self.form()
+        try:
+            document_id = int(form.get("document_id", "0") or 0)
+        except ValueError:
+            document_id = 0
+        confidentiality = form.get("confidentiality", "sensitive")
+        if confidentiality not in ("public", "sensitive"):
+            confidentiality = "sensitive"
+        with db() as conn:
+            document = conn.execute("select * from documents where id=? and deleted_at is null", (document_id,)).fetchone()
+            if not document or not self.drive_can_access_file(user, document):
+                return self.json_out({"ok": False, "message": U(r"\u6587\u4ef6\u4e0d\u5b58\u5728\u6216\u65e0\u6743\u8bbf\u95ee\u3002")}, code=404)
+            brand_id = seed_kailas(conn)
+            filename = document["original_filename"] or document["file_name"] or document["title"]
+            source_path = document["storage_path"] or document["file_path"] or ""
+            extraction = extract_brand_document(source_path) if source_path else {"text": "", "error": U(r"\u539f\u6587\u4ef6\u8def\u5f84\u4e0d\u53ef\u7528")}
+            extracted = document["extracted_text"] or extraction.get("text", "")
+            result = register_brand_document(conn, brand_id, filename, source_path, extracted, document_id, user["id"], confidentiality, extraction.get("error", ""))
+            brand_object = conn.execute(
+                "select id,name from enterprise_objects where object_type='brand' and archived_at is null and (upper(name) like '%KAILAS%' or name like ?) order by id limit 1",
+                ("%" + U(r"\u51ef\u4e50\u77f3") + "%",),
+            ).fetchone()
+            pending_link = conn.execute(
+                "select id from drive_file_link_suggestions where file_id=? and object_type='brand' and status='pending' limit 1",
+                (document_id,),
+            ).fetchone()
+            if not pending_link:
+                now = ts()
+                conn.execute(
+                    "insert into drive_file_link_suggestions(file_id,object_type,object_name,object_id,confidence,evidence_json,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                    (document_id, "brand", "KAILAS", brand_object["id"] if brand_object else None, 0.98,
+                     json.dumps([{"source": "filename_and_brand_life_classification", "value": filename}], ensure_ascii=False),
+                     "pending", now, now),
+                )
+            result["object_link_status"] = "pending_human_confirmation"
+        self.log_action(user, "brand_life_document_imported", "document", document_id, filename)
+        if "application/json" in (self.headers.get("Accept") or ""):
+            return self.json_out(result)
+        return self.redir("/brand-life/kailas")
 
     def api_jarvis_get(self, user, path):
         if not user:
