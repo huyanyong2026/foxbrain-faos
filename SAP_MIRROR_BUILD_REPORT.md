@@ -9,24 +9,23 @@
 - 验证 `INSERT`、`UPDATE`、`DELETE`、`ALTER` 权限均为 0。
 - 密钥仅保存在生产服务器 `/opt/foxbrain-sap-mirror/mirror.env`，权限为 `600 root:root`，未进入 GitHub。
 - 新增 SQL Server 2019 Mirror Docker 编排，只绑定 `127.0.0.1:11433`，不公开暴露。
+- 已通过本机断点下载生成 505 MB OCI 离线包，SHA-256 校验后上传服务器并成功导入。
+- SQL Server 2019 Mirror 容器已启动，生产端口仅为 `127.0.0.1:11433`。
 - 保留现有 PostgreSQL `sap-sync-db` 作为分析层；不将其冒充 SAP 原始镜像。
 - 现有 SAP 只读同步定时器保持 active，生产门户保持 active。
 
 ## 未完成及阻塞
 
-- Microsoft SQL Server 2019/2022 官方容器镜像在生产服务器连续下载超时。
-- 国内 Docker 镜像代理对 Microsoft SQL Server 路径返回 403。
-- 因目标 SQL Server 镜像尚未取得，首次 BACPAC 导出、导入和全库对账尚未执行。
+- 最新 SqlPackage 无法与 SQL Server 2008 R2 完成 BACPAC 登录；隔离启用兼容 TLS 后仍在 post-login 阶段超时，未生成数据包。
+- Linux SQL Server 2019 不提供 Linked Server 所需 OLE DB Provider，无法使用服务器内原生跨库复制。
+- 首次 2120 表逻辑复制和全库对账尚未执行。
 - 当前不能宣称完整 SAP Mirror 已建成，也不能让 CEO 首页自动改读该镜像。
 
 ## 下一步所需
 
 提供以下任意一种条件即可继续：
 
-1. 将 `mcr.microsoft.com/mssql/server:2019-latest` 离线镜像包上传到 FoxBrain 服务器；或
-2. 提供服务器可访问的 Microsoft SQL Server 2019 Docker 镜像仓库。
-
-镜像可用后继续执行：启动 Mirror、BACPAC 全量复制、2120 表行数与校验对账、只读应用账号、定时增量刷新、人工批准首次发布。
+建设基于 `pytds` 的只读逻辑复制器：读取源表结构与数据，按批次写入 Mirror，记录每表行数、校验值、断点和错误；完成 2120 表后再执行全库对账、只读应用账号、定时增量刷新和首次人工批准。
 
 ## 安全边界
 
