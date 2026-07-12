@@ -1,35 +1,57 @@
-# FoxBrain SAP Mirror 施工报告
+# SAP Mirror Engine Phase 2 施工报告
 
-## 已完成
+## 已复制表
 
-- 审计 SAP B1 公司数据库：SQL Server 2008 R2 Enterprise、约 5.4 GB、2120 张业务表。
-- 确认 FoxBrain 服务器剩余空间约 155 GB，具备完整镜像容量。
-- 在 SAP 中创建 `foxbrain_mirror_reader` 专用账号。
-- 验证专用账号可以读取 2120 张表。
-- 验证 `INSERT`、`UPDATE`、`DELETE`、`ALTER` 权限均为 0。
-- 密钥仅保存在生产服务器 `/opt/foxbrain-sap-mirror/mirror.env`，权限为 `600 root:root`，未进入 GitHub。
-- 新增 SQL Server 2019 Mirror Docker 编排，只绑定 `127.0.0.1:11433`，不公开暴露。
-- 已通过本机断点下载生成 505 MB OCI 离线包，SHA-256 校验后上传服务器并成功导入。
-- SQL Server 2019 Mirror 容器已启动，生产端口仅为 `127.0.0.1:11433`。
-- 保留现有 PostgreSQL `sap-sync-db` 作为分析层；不将其冒充 SAP 原始镜像。
-- 现有 SAP 只读同步定时器保持 active，生产门户保持 active。
+截至 2026-07-12 19:20，以下表已完成源端与 Mirror 行数一致校验：
 
-## 未完成及阻塞
+- OWHS：12 / 12
+- OSLP：59 / 59
+- OHEM：0 / 0
+- OCRD：143 / 143
+- OITM：96,004 / 96,004
+- OINV：10,292 / 10,292
+- INV1：24,053 / 24,053
+- ORIN：904 / 904
+- RIN1：1,372 / 1,372
+- OPOR：3 / 3
+- POR1：44 / 44
+- OPCH：1,178 / 1,178
+- PCH1：15,544 / 15,544
 
-- 最新 SqlPackage 无法与 SQL Server 2008 R2 完成 BACPAC 登录；隔离启用兼容 TLS 后仍在 post-login 阶段超时，未生成数据包。
-- Linux SQL Server 2019 不提供 Linked Server 所需 OLE DB Provider，无法使用服务器内原生跨库复制。
-- 首次 2120 表逻辑复制和全库对账尚未执行。
-- 当前不能宣称完整 SAP Mirror 已建成，也不能让 CEO 首页自动改读该镜像。
+## 正在复制
 
-## 下一步所需
+- OITW：源端 1,152,048 行，已进入断点复制；报告生成时尚未完成，不能计为成功。
 
-提供以下任意一种条件即可继续：
+## 未复制表
 
-建设基于 `pytds` 的只读逻辑复制器：读取源表结构与数据，按批次写入 Mirror，记录每表行数、校验值、断点和错误；完成 2120 表后再执行全库对账、只读应用账号、定时增量刷新和首次人工批准。
+- 除上述 14 张首批核心表外，其余 SAP 公司库业务表尚未加入复制清单。
+- 不能宣称 2120 张表已经完成。
 
-## 安全边界
+## 同步机制
 
-- 未安装任何程序到 SAP 服务器。
-- 未修改 SAP 业务数据和数据库结构。
-- 仅新增专用只读安全主体。
-- FoxBrain AI 不写 SAP，不自动执行经营动作。
+- 使用 `foxbrain_mirror_reader` 专用只读账号。
+- SELECT 可用，INSERT、UPDATE、DELETE、ALTER 权限均为 0。
+- 状态库：`/opt/foxbrain-core/sync/mirror-state.db`
+- 结构化日志：`/opt/foxbrain-core/logs/sap-mirror.jsonl`
+- 服务：`foxbrain-sap-mirror.service`
+- 复制批次为每次 1000 行，完成批次后持久化断点。
+
+## 校验结果
+
+- 已完成的 13 张非库存明细表，源端与 Mirror 行数全部一致。
+- SQL Server Mirror 仅监听 `127.0.0.1:11433`。
+- SAP-PROD 未被修改，未增加任何写权限。
+
+## 错误日志
+
+- 首次运行使用 `OFFSET/FETCH`，SQL Server 2008 R2 不支持，错误已完整记录。
+- 已改为兼容 SQL Server 2008 R2 的 `ROW_NUMBER()` 分页并成功重跑。
+- 当前无未解释的已完成表行数差异。
+
+## 下一阶段计划
+
+1. 完成 OITW 1,152,048 行复制与行数校验。
+2. 为大表升级复合主键 keyset 断点，提升增量同步性能。
+3. 增加销售金额、库存数量、采购金额、客户和供应商指标校验。
+4. 建设 SAP Mirror Dashboard。
+5. 首批对账通过后，再人工批准定时增量同步。
