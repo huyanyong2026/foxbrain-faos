@@ -1,0 +1,21 @@
+services:
+  sap-mirror-sql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: foxbrain-sap-mirror-sql
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Standard"
+      MSSQL_SA_PASSWORD: "${MIRROR_SA_PASSWORD}"
+    ports:
+      - "127.0.0.1:11433:1433"
+    volumes:
+      - sap_mirror_data:/var/opt/mssql
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+
+volumes:
+  sap_mirror_data:
+    name: foxbrain_sap_mirror_data
