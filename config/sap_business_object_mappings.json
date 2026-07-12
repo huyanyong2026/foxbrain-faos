@@ -1,0 +1,164 @@
+{
+  "version": "sap-lab-phase-2-v1",
+  "source_dictionary": "sap-lab-output/sap_business_dictionary.json",
+  "source_database": "2019",
+  "source_mode": "read_only_lab",
+  "confirmed_at": "2026-07-12",
+  "confirmation_basis": "FoxBrain SAP Lab Phase 2 human approval",
+  "safety": {
+    "sap_writes_allowed": false,
+    "auto_create_objects": false,
+    "human_confirmation_required_for_publish": true
+  },
+  "objects": {
+    "product": {
+      "label": "产品对象",
+      "business_meaning": "企业经营中的可销售、可采购或可库存商品，保留SAP商品编码作为源身份。",
+      "source_key": ["OITM.ItemCode"],
+      "sources": ["OITM", "ITM1", "OITW"],
+      "filters": ["OITM.Canceled = 'N'"],
+      "field_mapping": {
+        "source_id": "OITM.ItemCode",
+        "name": "OITM.ItemName",
+        "foreign_name": "OITM.FrgnName",
+        "barcode": "OITM.CodeBars",
+        "item_group_code": "OITM.ItmsGrpCod",
+        "brand_source_id": "OITM.FirmCode",
+        "preferred_supplier_id": "OITM.CardCode",
+        "supplier_catalog_number": "OITM.SuppCatNum",
+        "default_store_id": "OITM.DfltWH",
+        "is_sales_item": "OITM.SellItem",
+        "is_purchase_item": "OITM.PrchseItem",
+        "is_inventory_item": "OITM.InvntItem",
+        "last_purchase_price": "OITM.LastPurPrc",
+        "last_purchase_date": "OITM.LastPurDat",
+        "price": "ITM1.Price",
+        "price_currency": "ITM1.Currency",
+        "store_id": "OITW.WhsCode",
+        "on_hand": "OITW.OnHand",
+        "committed": "OITW.IsCommited",
+        "on_order": "OITW.OnOrder",
+        "average_cost": "OITW.AvgPrice"
+      },
+      "relationships": [
+        {"to": "brand", "from": "OITM.FirmCode", "to_key": "OMRC.FirmCode", "type": "belongs_to"},
+        {"to": "supplier", "from": "OITM.CardCode", "to_key": "OCRD.CardCode", "type": "preferred_supplier"},
+        {"to": "store", "from": "OITW.WhsCode", "to_key": "OWHS.WhsCode", "type": "stocked_at"}
+      ],
+      "ai_query_fields": ["source_id", "name", "foreign_name", "barcode", "item_group_code", "brand_source_id", "preferred_supplier_id", "store_id", "on_hand", "committed", "on_order", "average_cost", "price", "last_purchase_price", "last_purchase_date"]
+    },
+    "brand": {
+      "label": "品牌对象",
+      "business_meaning": "SAP制造商主数据形成的品牌候选，需要与FoxBrain现有品牌档案人工归一。",
+      "source_key": ["OMRC.FirmCode"],
+      "sources": ["OMRC", "OITM"],
+      "filters": [],
+      "field_mapping": {
+        "source_id": "OMRC.FirmCode",
+        "name": "OMRC.FirmName",
+        "data_source": "OMRC.DataSource",
+        "product_id": "OITM.ItemCode"
+      },
+      "relationships": [
+        {"to": "product", "from": "OMRC.FirmCode", "to_key": "OITM.FirmCode", "type": "has_product"}
+      ],
+      "ai_query_fields": ["source_id", "name", "product_id"]
+    },
+    "store": {
+      "label": "门店对象",
+      "business_meaning": "由SAP仓库主数据形成的门店候选；配送仓、退货仓和虚拟仓不能自动认定为零售门店。",
+      "source_key": ["OWHS.WhsCode"],
+      "sources": ["OWHS", "OITW", "INV1"],
+      "filters": ["人工确认仓库是否属于零售门店"],
+      "field_mapping": {
+        "source_id": "OWHS.WhsCode",
+        "name": "OWHS.WhsName",
+        "is_locked": "OWHS.Locked",
+        "street": "OWHS.Street",
+        "city": "OWHS.City",
+        "county": "OWHS.County",
+        "country": "OWHS.Country",
+        "location_code": "OWHS.Location",
+        "product_id": "OITW.ItemCode",
+        "on_hand": "OITW.OnHand",
+        "sales_document_id": "INV1.DocEntry",
+        "sales_line_number": "INV1.LineNum"
+      },
+      "relationships": [
+        {"to": "product", "from": "OITW.ItemCode", "to_key": "OITM.ItemCode", "type": "stocks"},
+        {"to": "sales", "from": "OWHS.WhsCode", "to_key": "INV1.WhsCode", "type": "fulfills_sale"}
+      ],
+      "ai_query_fields": ["source_id", "name", "is_locked", "city", "county", "product_id", "on_hand", "sales_document_id"]
+    },
+    "customer": {
+      "label": "客户对象",
+      "business_meaning": "SAP业务伙伴中客户类型的记录，用于销售、会员和客户经营分析。",
+      "source_key": ["OCRD.CardCode"],
+      "sources": ["OCRD", "OINV"],
+      "filters": ["OCRD.CardType = 'C'"],
+      "field_mapping": {
+        "source_id": "OCRD.CardCode",
+        "name": "OCRD.CardName",
+        "group_code": "OCRD.GroupCode",
+        "currency": "OCRD.Currency",
+        "balance": "OCRD.Balance",
+        "credit_limit": "OCRD.CreditLine",
+        "discount_rate": "OCRD.Discount",
+        "sales_employee_id": "OCRD.SlpCode",
+        "city": "OCRD.City",
+        "country": "OCRD.Country",
+        "is_valid": "OCRD.validFor",
+        "sales_document_id": "OINV.DocEntry"
+      },
+      "relationships": [
+        {"to": "sales", "from": "OCRD.CardCode", "to_key": "OINV.CardCode", "type": "places_order"},
+        {"to": "employee", "from": "OCRD.SlpCode", "to_key": "OSLP.SlpCode", "type": "served_by"}
+      ],
+      "ai_query_fields": ["source_id", "name", "group_code", "currency", "balance", "credit_limit", "discount_rate", "sales_employee_id", "city", "country", "is_valid"],
+      "restricted_fields": ["Phone1", "Phone2", "Cellular", "E_Mail", "Address", "LicTradNum", "DflAccount"]
+    },
+    "supplier": {
+      "label": "供应商对象",
+      "business_meaning": "SAP业务伙伴中供应商类型的记录，用于采购、合同和供应关系分析。",
+      "source_key": ["OCRD.CardCode"],
+      "sources": ["OCRD", "OPOR", "OPCH"],
+      "filters": ["OCRD.CardType = 'S'"],
+      "field_mapping": {
+        "source_id": "OCRD.CardCode",
+        "name": "OCRD.CardName",
+        "group_code": "OCRD.GroupCode",
+        "currency": "OCRD.Currency",
+        "balance": "OCRD.Balance",
+        "credit_limit": "OCRD.CreditLine",
+        "discount_rate": "OCRD.Discount",
+        "city": "OCRD.City",
+        "country": "OCRD.Country",
+        "is_valid": "OCRD.validFor",
+        "purchase_order_id": "OPOR.DocEntry",
+        "purchase_invoice_id": "OPCH.DocEntry"
+      },
+      "relationships": [
+        {"to": "purchase", "from": "OCRD.CardCode", "to_key": "OPOR.CardCode", "type": "receives_purchase_order"},
+        {"to": "purchase", "from": "OCRD.CardCode", "to_key": "OPCH.CardCode", "type": "issues_purchase_invoice"},
+        {"to": "product", "from": "OCRD.CardCode", "to_key": "OITM.CardCode", "type": "preferred_for_product"}
+      ],
+      "ai_query_fields": ["source_id", "name", "group_code", "currency", "balance", "credit_limit", "discount_rate", "city", "country", "is_valid", "purchase_order_id", "purchase_invoice_id"],
+      "restricted_fields": ["Phone1", "Phone2", "Cellular", "E_Mail", "Address", "LicTradNum", "DflAccount"]
+    }
+  },
+  "confirmed_mappings": [
+    ["INV1", "sales", "A/R invoice rows"], ["ITM1", "product", "product price list"],
+    ["JDT1", "finance", "journal entry rows"], ["OADM", "company", "company profile"],
+    ["OAT1", "contract", "agreement rows"], ["OCRD", "supplier", "supplier filter"],
+    ["OCRD", "customer", "customer filter"], ["OHEM", "employee", "employee master"],
+    ["OILM", "inventory", "inventory log message"], ["OINV", "sales", "A/R invoice header"],
+    ["OITM", "product", "product master"], ["OITW", "product", "product inventory by warehouse"],
+    ["OITW", "inventory", "inventory by warehouse"], ["OIVL", "inventory", "inventory valuation log"],
+    ["OJDT", "finance", "journal entry header"], ["OMRC", "brand", "manufacturer/brand master"],
+    ["OOAT", "contract", "blanket agreement header"], ["OPCH", "purchase", "A/P invoice header"],
+    ["OPOR", "purchase", "purchase order header"], ["ORIN", "sales", "A/R credit memo header"],
+    ["OSLP", "employee", "sales employee master"], ["OWHS", "store", "warehouse/store candidate"],
+    ["PCH1", "purchase", "A/P invoice rows"], ["POR1", "purchase", "purchase order rows"],
+    ["RIN1", "sales", "A/R credit memo rows"]
+  ]
+}
