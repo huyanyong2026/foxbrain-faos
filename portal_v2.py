@@ -5561,6 +5561,22 @@ create table if not exists enterprise_relationships(
 )
 """
         )
+        conn.execute(
+            """
+create table if not exists manual_business_report_publications(
+ id integer primary key autoincrement,
+ report_period_start text not null,
+ report_period_end text not null,
+ source_kind text not null,
+ source_reference text not null,
+ previous_snapshot_json text not null,
+ published_snapshot_json text not null,
+ reconciliation_json text not null,
+ approved_by integer,
+ published_at integer not null
+)
+"""
+        )
         conn.execute("create index if not exists idx_entity_registry_type on enterprise_entity_registry(entity_type,status)")
         conn.execute("create index if not exists idx_entity_registry_source on enterprise_entity_registry(source_type,source_id)")
         conn.execute("create index if not exists idx_enterprise_relationships_source on enterprise_relationships(source_global_id,status)")
@@ -13975,6 +13991,7 @@ where ki.deleted_at is null"""
             "opportunity": U(r"\u6709\u673a\u4f1a"), "missing": U(r"\u7f3a\u5c11\u6570\u636e"), "unknown": U(r"\u5f85\u786e\u8ba4"),
             "no_published_sync": U(r"\u6682\u65e0\u5df2\u53d1\u5e03\u7684\u540c\u6b65\u6570\u636e"), "never_run": U(r"\u5c1a\u672a\u8fd0\u884c"),
             "stale": U(r"\u6570\u636e\u5df2\u9648\u65e7"),
+            "manual_verified": U(r"\u4eba\u5de5\u6838\u5bf9\u5df2\u66f4\u65b0"),
             "slow_stock": U(r"\u6ede\u9500"), "dead_stock": U(r"\u957f\u671f\u6ede\u9500"),
             "document_about": U(r"\u8d44\u6599\u5173\u4e8e\u5bf9\u8c61"),
             "decision_about": U(r"\u51b3\u7b56\u5173\u4e8e\u5bf9\u8c61"),
@@ -16026,9 +16043,12 @@ where ki.deleted_at is null"""
             except Exception:
                 pass
             last = conn.execute("select * from sync_runs where status='published' order by finished_at desc, id desc limit 1").fetchone()
+            manual = conn.execute("select * from manual_business_report_publications order by published_at desc,id desc limit 1").fetchone()
             pending = conn.execute("select count(*) c from sync_runs where status in ('staged','warning')").fetchone()["c"]
             failed = conn.execute("select count(*) c from sync_runs where status='failed'").fetchone()["c"]
             enabled = conn.execute("select count(*) c from sync_jobs where is_enabled=1").fetchone()["c"]
+            if manual and (not last or int(manual["published_at"] or 0) > int(last["finished_at"] or last["started_at"] or 0)):
+                return {"status": "manual_verified", "last_success_at": manual["published_at"], "last_success_text": dt(manual["published_at"]), "pending_runs": int(pending or 0), "failed_runs": int(failed or 0), "enabled_schedules": int(enabled or 0), "message": U(r"\u5f53\u524d\u6570\u636e\u6765\u81ea SAP \u62a5\u8868\u622a\u56fe\u4eba\u5de5\u6838\u5bf9\u53d1\u5e03\uff0c\u4e0d\u662f\u6570\u636e\u5e93\u81ea\u52a8\u540c\u6b65\u3002")}
             if not last:
                 return {"status": "no_published_sync", "last_success_at": None, "last_success_text": "-", "pending_runs": int(pending or 0), "failed_runs": int(failed or 0), "enabled_schedules": int(enabled or 0), "message": "No approved Enterprise Sync publish yet."}
             age = ts() - int(last["finished_at"] or last["started_at"] or 0)
