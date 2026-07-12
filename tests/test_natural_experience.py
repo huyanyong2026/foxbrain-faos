@@ -44,6 +44,7 @@ class NaturalExperienceTests(unittest.TestCase):
             conn.execute("delete from ai_agent_runs")
             conn.execute("delete from enterprise_relationships")
             conn.execute("delete from enterprise_entity_registry")
+            conn.execute("delete from manual_business_report_publications")
             self.user = conn.execute("select * from users where email=?", ("natural@example.test",)).fetchone()
 
     def test_page_context_is_clean_and_bounded(self):
@@ -161,6 +162,19 @@ class NaturalExperienceTests(unittest.TestCase):
         self.assertAlmostEqual(profit["rebate_total"], 1044717.78, places=2)
         self.assertAlmostEqual(profit["non_rebate_profit"], 678769.35, places=2)
         self.assertAlmostEqual(profit["osprey_rebate"] + profit["kailas_rebate"], profit["rebate_total"], places=2)
+
+    def test_manual_report_publication_controls_freshness_without_claiming_auto_sync(self):
+        now = int(time.time())
+        with portal.db() as conn:
+            conn.execute("delete from manual_business_report_publications")
+            conn.execute(
+                "insert into manual_business_report_publications(report_period_start,report_period_end,source_kind,source_reference,previous_snapshot_json,published_snapshot_json,reconciliation_json,approved_by,published_at) values(?,?,?,?,?,?,?,?,?)",
+                ("2026-01-01", "2026-07-12", "sap_report_screenshot", "7.12.jpg", "[]", "{}", "{}", self.user["id"], now),
+            )
+        freshness = self.app.enterprise_sync_freshness_summary()
+        self.assertEqual(freshness["status"], "manual_verified")
+        self.assertIn("人工核对", freshness["message"])
+        self.assertEqual(self.app.status_label(freshness["status"]), "人工核对已更新")
 
     def test_enterprise_and_system_pages_are_friendly(self):
         rendered = []
