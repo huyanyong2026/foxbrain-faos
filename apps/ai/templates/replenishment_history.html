@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}补货历史｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">AI补货中心</p><h1>历史记录</h1><p>每个批次保留数据来源、规则版本和生成结果，不因后续数据变化而覆盖。</p></section>
+<section class="list">{% for batch in batches %}<a class="row" href="/replenishment/history/{{ batch.batch_id }}"><div><strong>{{ batch.business_date }} · {{ batch.source_name }}</strong><p>{{ batch.batch_id }} · {{ batch.rule_version }} · {{ batch.result_rows }} 个门店SKU</p></div><span class="status {{ 'connected' if batch.status.startswith('completed') else 'unavailable' }}">{{ batch.status }}</span></a>{% else %}<div class="empty"><h3>还没有历史批次</h3></div>{% endfor %}</section>
+{% endblock %}

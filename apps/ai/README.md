@@ -10,6 +10,16 @@
 - 知识中心
 - 任务中心
 - AI反馈学习
+- AI补货中心（南山店、航苑店、振兴店）
+
+## AI replenishment V1
+
+- Deterministic `replenishment-v1.0` rules: 15-day trigger, 30-day target, 7-day urgent threshold.
+- Sixty days without sales always produces a do-not-replenish result.
+- Data comes from `GET https://core.vafox.com/api/v1/replenishment/input` or a manager-uploaded real SAP CSV/XLSX export.
+- Every result is stored as an immutable batch snapshot with source, business date, rule version and audit log.
+- Purchasers can see all stores; store managers can only see their assigned `auth_users.store_code`.
+- Excel exports contain the calculation facts and a generation metadata sheet.
 
 ## Data boundary
 

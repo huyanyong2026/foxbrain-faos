@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}AI补货中心｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">员工 AI 工作平台</p><h1>AI补货中心</h1><p>事实来自 Data Core 或管理员上传的真实 SAP 导出文件，规则结果可追溯、可下载。</p></section>
+<div class="toolbar"><a class="secondary primary" href="/replenishment/history">历史记录</a>{% if can_import %}<a class="primary" href="/admin/data-import">导入真实数据</a>{% endif %}</div>
+{% if batch %}
+<section class="batch-meta">
+  <div><span>业务日期</span><strong>{{ batch.business_date }}</strong></div><div><span>数据来源</span><strong>{{ 'core.vafox.com' if batch.source_type == 'core_api' else '管理员上传' }}</strong></div>
+  <div><span>数据批次</span><strong>{{ batch.batch_id }}</strong></div><div><span>规则版本</span><strong>{{ batch.rule_version }}</strong></div>
+  <div><span>生成状态</span><strong>{{ '完成（有数据提示）' if batch.status == 'completed_with_warnings' else '补货建议完成' }}</strong></div>
+</section>
+<section class="store-cards large">
+{% for item in summaries %}<article><p>{{ item.store_name }}</p><strong>{{ item.suggested_skus }} 个SKU</strong><span>{{ item.urgent_skus }} 个紧急 · 共建议 {{ item.suggested_units or 0 }} 件</span><div class="actions"><a class="primary" href="/replenishment/stores/{{ item.store_code }}">在线查看</a><a class="secondary primary" href="/ops-api/replenishment/export/{{ batch.batch_id }}/{{ item.store_code }}.xlsx">下载Excel</a></div></article>{% endfor %}
+</section>
+{% else %}<div class="empty"><h3>尚未生成补货建议</h3><p>系统不会用模拟数据冒充真实结果。请导入真实数据，或等待 core.vafox.com 接口就绪。</p>{% if can_import %}<a class="primary" href="/admin/data-import">开始导入</a>{% endif %}</div>{% endif %}
+<section class="section-head"><div><p class="eyebrow">未来入口</p><h2>后续能力</h2></div></section>
+<section class="future-grid"><article>商品分析<span>规划中</span></article><article>库存分析<span>规划中</span></article><article>销售分析<span>规划中</span></article><article>AI问答<span>规划中</span></article></section>
+{% endblock %}
