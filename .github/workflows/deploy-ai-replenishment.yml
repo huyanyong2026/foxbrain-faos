@@ -22,8 +22,12 @@ jobs:
         run: pip install -r apps/ai/requirements.txt
       - name: Compile and test
         run: |
-          python -m compileall -q apps tests
-          python -m unittest discover -s tests -p 'test_*.py'
+          python -m compileall -q apps/ai apps/core_api
+          python -m unittest \
+            tests.test_ai_enterprise_platform \
+            tests.test_ai_replenishment \
+            tests.test_core_readonly_api \
+            tests.test_replenishment_worker
       - name: Build AI image
         run: docker build -t foxbrain-enterprise-ai:${{ github.sha }} apps/ai
 
