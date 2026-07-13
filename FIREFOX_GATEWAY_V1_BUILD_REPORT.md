@@ -42,7 +42,7 @@
 - 当前版本：`/var/www/firefox-gateway/current`
 - 备份目录：`/var/backups/firefox-gateway/20260713-165718`
 - Nginx：配置检查通过，服务保持 `active`，使用平滑重载。
-- HTTPS：Let's Encrypt 独立证书已签发，2026-10-11 到期，自动续期任务已建立。
+- HTTPS：Let's Encrypt 独立证书已签发，2026-10-11 到期，自动续期任务已建立，续期模拟测试通过。
 - 隔离结果：没有修改 `ai.vafox.com`、现有容器或 `/var/www/foxbrain`。
 
 ## 线上验收
