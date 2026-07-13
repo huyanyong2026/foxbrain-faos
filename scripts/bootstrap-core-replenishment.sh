@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ENV_FILE=/opt/foxbrain-core/api/core-api.env
+API_APP=/opt/foxbrain-core/api/app.py
 PYTHON=/opt/foxbrain-core/sync/venv/bin/python
 TOKEN_HANDOFF=/opt/foxbrain-core/api/ai-replenishment.token
 
@@ -15,6 +16,7 @@ if [[ ! -f "$ENV_FILE" || ! -x "$PYTHON" ]]; then
 fi
 
 cp -a "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+cp -a "$API_APP" "${API_APP}.bak.$(date +%Y%m%d%H%M%S)"
 
 "$PYTHON" - "$ENV_FILE" "$TOKEN_HANDOFF" <<'PY'
 import json
@@ -98,6 +100,13 @@ handoff_path.chmod(0o600)
 print("WAREHOUSE_MAPPING=" + json.dumps(mapping, ensure_ascii=False, separators=(",", ":")))
 print("TOKEN_STATUS=ready")
 PY
+
+curl -fsSL \
+  https://raw.githubusercontent.com/huyanyong2026/foxbrain-faos/main/apps/core_api/app.py \
+  -o "${API_APP}.new"
+"$PYTHON" -m py_compile "${API_APP}.new"
+install -m 0644 "${API_APP}.new" "$API_APP"
+rm -f "${API_APP}.new"
 
 systemctl restart foxbrain-core-api.service
 
