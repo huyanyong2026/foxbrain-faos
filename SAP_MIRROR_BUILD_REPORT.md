@@ -65,6 +65,8 @@
 ## 备份
 
 - 首次施工前备份：`/opt/foxbrain-core/backup/mirror-20260713-085731/`
+- 全量完成后数据库备份：`/opt/foxbrain-core/backup/SAP_MIRROR_FULL_20260713-1605.bak`（185MB）。
+- 数据库备份已通过 `RESTORE VERIFYONLY WITH CHECKSUM`，SHA-256 校验文件与备份同目录保存。
 - 多阶段状态备份：`/opt/foxbrain-core/backup/mirror-state-before-*.db`
 - 最终状态整理前备份：`/opt/foxbrain-core/backup/mirror-state-before-run-cleanup-20260713.db`
 - 每次同步引擎升级前均保存上一版本脚本到 `/opt/foxbrain-core/backup/`。
