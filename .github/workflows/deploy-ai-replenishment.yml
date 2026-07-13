@@ -1,0 +1,148 @@
+name: Deploy AI Replenishment Center
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/ai/**"
+      - "apps/core_api/**"
+      - "deploy/nginx/ai.vafox.com-enterprise-ai.conf.example"
+      - ".github/workflows/deploy-ai-replenishment.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install AI dependencies
+        run: pip install -r apps/ai/requirements.txt
+      - name: Compile and test
+        run: |
+          python -m compileall -q apps tests
+          python -m unittest discover -s tests -p 'test_*.py'
+      - name: Build AI image
+        run: docker build -t foxbrain-enterprise-ai:${{ github.sha }} apps/ai
+
+  deploy-core-api:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CORE_SERVER_HOST: ${{ secrets.CORE_SERVER_HOST }}
+      CORE_SERVER_USER: ${{ secrets.CORE_SERVER_USER }}
+      CORE_SERVER_SSH_KEY: ${{ secrets.CORE_SERVER_SSH_KEY }}
+      CORE_STORE_MAP_JSON: ${{ secrets.CORE_STORE_MAP_JSON }}
+    steps:
+      - name: Require Core deployment secrets
+        run: |
+          missing=0
+          for name in CORE_SERVER_HOST CORE_SERVER_USER CORE_SERVER_SSH_KEY CORE_STORE_MAP_JSON; do
+            if [ -z "${!name}" ]; then echo "Missing required GitHub Secret: $name"; missing=1; fi
+          done
+          exit "$missing"
+      - name: Deploy read-only Core endpoint
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          CORE_STORE_MAP_JSON: ${{ secrets.CORE_STORE_MAP_JSON }}
+        with:
+          host: ${{ secrets.CORE_SERVER_HOST }}
+          username: ${{ secrets.CORE_SERVER_USER }}
+          key: ${{ secrets.CORE_SERVER_SSH_KEY }}
+          port: ${{ secrets.CORE_SERVER_PORT || 22 }}
+          envs: CORE_STORE_MAP_JSON
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -eu
+            SOURCE_DIR=/opt/foxbrain-core/source
+            API_DIR=/opt/foxbrain-core/api
+            if [ ! -d "$SOURCE_DIR/.git" ]; then
+              sudo mkdir -p "$SOURCE_DIR"
+              sudo git clone https://github.com/${{ github.repository }}.git "$SOURCE_DIR"
+            fi
+            cd "$SOURCE_DIR"
+            sudo git fetch origin main
+            sudo git checkout -f main
+            sudo git reset --hard origin/main
+            sudo install -d -m 0750 "$API_DIR"
+            sudo install -m 0644 apps/core_api/app.py "$API_DIR/app.py"
+            sudo install -m 0644 apps/core_api/__init__.py "$API_DIR/__init__.py"
+            test -f "$API_DIR/core-api.env"
+            sudo env CORE_STORE_MAP_JSON="$CORE_STORE_MAP_JSON" python3 - <<'PY'
+            import os
+            from pathlib import Path
+            path = Path('/opt/foxbrain-core/api/core-api.env')
+            lines = path.read_text().splitlines()
+            values = {'CORE_STORE_MAP_JSON': os.environ['CORE_STORE_MAP_JSON'], 'CORE_TIMEZONE': 'Asia/Shanghai'}
+            kept = [line for line in lines if line.split('=', 1)[0] not in values]
+            path.write_text('\n'.join(kept + [f'{key}={value}' for key, value in values.items()]) + '\n')
+            PY
+            sudo systemctl restart foxbrain-core-api.service
+            sleep 3
+            curl -fsS http://127.0.0.1:8090/healthz
+
+  deploy-ai:
+    needs: [test, deploy-core-api]
+    runs-on: ubuntu-latest
+    env:
+      AI_SERVER_HOST: ${{ secrets.AI_SERVER_HOST }}
+      AI_SERVER_USER: ${{ secrets.AI_SERVER_USER }}
+      AI_SERVER_SSH_KEY: ${{ secrets.AI_SERVER_SSH_KEY }}
+      CORE_API_TOKEN: ${{ secrets.CORE_API_TOKEN }}
+    steps:
+      - name: Require AI deployment secrets
+        run: |
+          missing=0
+          for name in AI_SERVER_HOST AI_SERVER_USER AI_SERVER_SSH_KEY CORE_API_TOKEN; do
+            if [ -z "${!name}" ]; then echo "Missing required GitHub Secret: $name"; missing=1; fi
+          done
+          exit "$missing"
+      - name: Deploy ai.vafox.com
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          CORE_API_TOKEN: ${{ secrets.CORE_API_TOKEN }}
+        with:
+          host: ${{ secrets.AI_SERVER_HOST }}
+          username: ${{ secrets.AI_SERVER_USER }}
+          key: ${{ secrets.AI_SERVER_SSH_KEY }}
+          port: ${{ secrets.AI_SERVER_PORT || 22 }}
+          envs: CORE_API_TOKEN
+          script_stop: true
+          command_timeout: 15m
+          script: |
+            set -eu
+            APP_DIR=/opt/ai-vafox/foxbrain-enterprise-ai
+            SHARED_ENV=/opt/ai-vafox/.env
+            if [ ! -d "$APP_DIR/.git" ]; then
+              sudo mkdir -p "$APP_DIR"
+              sudo git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
+            fi
+            cd "$APP_DIR"
+            sudo git fetch origin main
+            sudo git checkout -f main
+            sudo git reset --hard origin/main
+            test -f "$SHARED_ENV"
+            sudo env CORE_API_TOKEN="$CORE_API_TOKEN" python3 - <<'PY'
+            import os
+            from pathlib import Path
+            path = Path('/opt/ai-vafox/.env')
+            lines = path.read_text().splitlines()
+            values = {
+                'CORE_BASE_URL': 'https://core.vafox.com',
+                'CORE_API_TOKEN': os.environ['CORE_API_TOKEN'],
+                'REPLENISHMENT_TIMEZONE': 'Asia/Shanghai',
+                'REPLENISHMENT_RUN_TIME': '22:30',
+                'AI_INTERNAL_REPLENISHMENT_URL': 'http://enterprise-ai:5010/ops-api/internal/replenishment/run',
+            }
+            kept = [line for line in lines if line.split('=', 1)[0] not in values]
+            path.write_text('\n'.join(kept + [f'{key}={value}' for key, value in values.items()]) + '\n')
+            PY
+            sudo ln -sfn "$SHARED_ENV" apps/ai/.env
+            sudo docker compose -f apps/ai/docker-compose.example.yml build
+            sudo docker compose -f apps/ai/docker-compose.example.yml up -d
+            sleep 8
+            curl -fsS http://127.0.0.1:5010/ops-api/health
+            sudo docker compose -f apps/ai/docker-compose.example.yml ps

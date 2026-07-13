@@ -9,6 +9,17 @@ services:
       - "127.0.0.1:5010:5010"
     networks:
       - vafox-platform
+  replenishment-worker:
+    build: .
+    container_name: foxbrain-replenishment-worker
+    restart: always
+    env_file:
+      - .env
+    command: ["python", "replenishment_worker.py"]
+    depends_on:
+      - enterprise-ai
+    networks:
+      - vafox-platform
 
 networks:
   vafox-platform:
