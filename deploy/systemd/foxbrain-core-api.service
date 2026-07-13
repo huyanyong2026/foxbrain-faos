@@ -1,0 +1,21 @@
+[Unit]
+Description=FoxBrain Enterprise Data Core read-only API
+After=network-online.target docker.service
+
+[Service]
+Type=simple
+User=foxcore
+Group=foxcore
+WorkingDirectory=/opt/foxbrain-core/api
+EnvironmentFile=/opt/foxbrain-core/api/core-api.env
+ExecStart=/opt/foxbrain-core/sync/venv/bin/python /opt/foxbrain-core/api/app.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/foxbrain-core/sync/mirror-state.db
+
+[Install]
+WantedBy=multi-user.target
