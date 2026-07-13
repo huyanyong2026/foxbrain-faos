@@ -49,6 +49,7 @@ try:
     from foxbrain_os.enterprise_second_brain_v11 import build_ceo_home_v11_contract, build_drive_2_contract, build_enterprise_second_brain_v11_contract, build_knowledge_pipeline_contract, build_object_engine_contract
     from foxbrain_os.brand_life_engine import brand_life_payload, ensure_brand_life_schema, extract_brand_document, register_brand_document, seed_kailas
     from foxbrain_os.living_enterprise import LIFE_DIMENSIONS as LIVING_DIMENSIONS, LIFE_OBJECT_TYPES, ensure_living_enterprise_schema, living_enterprise_summary, living_object_payload, sync_life_objects_from_confirmed_sources
+    from foxbrain_os.enterprise_brain import activate_constitution, confirm_founder_memory, create_constitution_draft, create_founder_memory, ensure_enterprise_brain_schema, enterprise_asset_map, enterprise_brain_summary, enterprise_timeline
 except Exception:
     def enterprise_v1_architecture_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
@@ -168,6 +169,22 @@ except Exception:
         return {"ok": False, "object_counts": {}, "total_objects": 0, "source_records": 0, "objects_without_source": 0, "dimensions": list(LIVING_DIMENSIONS), "recent_objects": []}
     def living_object_payload(conn, life_id):
         return {"ok": False, "message": "living enterprise unavailable"}
+    def ensure_enterprise_brain_schema(conn):
+        return None
+    def enterprise_brain_summary(conn):
+        return {"ok": False, "facts": {"assets": [], "sync": {}}, "ai_analysis": {}, "founder_memories": [], "constitution_versions": []}
+    def enterprise_asset_map(conn):
+        return {"ok": False, "assets": []}
+    def enterprise_timeline(conn, limit=60):
+        return {"ok": False, "events": []}
+    def create_constitution_draft(*args, **kwargs):
+        raise ValueError("enterprise brain unavailable")
+    def activate_constitution(*args, **kwargs):
+        raise ValueError("enterprise brain unavailable")
+    def create_founder_memory(*args, **kwargs):
+        raise ValueError("enterprise brain unavailable")
+    def confirm_founder_memory(*args, **kwargs):
+        raise ValueError("enterprise brain unavailable")
     def build_digital_twin_simulation_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V2.1"}
     def build_company_twin_model(metrics=None):
@@ -5607,6 +5624,7 @@ create table if not exists manual_business_report_publications(
         seed_kailas(conn)
         ensure_living_enterprise_schema(conn)
         sync_life_objects_from_confirmed_sources(conn)
+        ensure_enterprise_brain_schema(conn)
         vault_root = conn.execute("select id from drive_folders where name=? and deleted_at is null order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
         if not vault_root:
             root = conn.execute("select id from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
@@ -5839,6 +5857,24 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_copilot_page(user)
         if path == "/action-center":
             return self.action_center_page(user)
+        if path == "/enterprise-brain":
+            return self.enterprise_brain_page(user)
+        if path == "/enterprise-constitution":
+            return self.enterprise_constitution_page(user)
+        if path == "/founder-memory":
+            return self.founder_memory_page(user)
+        if path == "/enterprise-timeline":
+            return self.enterprise_brain_timeline_page(user)
+        if path == "/enterprise-asset-map":
+            return self.enterprise_asset_map_page(user)
+        if path == "/ceo-decision-center":
+            return self.ceo_brain_decision_page(user)
+        if path == "/api/enterprise-brain":
+            return self.api_enterprise_brain_get(user)
+        if path == "/api/enterprise-brain/timeline":
+            return self.api_enterprise_brain_timeline_get(user)
+        if path == "/api/enterprise-brain/assets":
+            return self.api_enterprise_brain_assets_get(user)
         if path == "/enterprise":
             return self.enterprise_center_page(user)
         if path == "/living-enterprise":
@@ -6255,6 +6291,8 @@ class App(BaseHTTPRequestHandler):
             return self.jarvis_action_post()
         if path == "/copilot/ask":
             return self.copilot_ask_post()
+        if path.startswith("/api/enterprise-brain/"):
+            return self.api_enterprise_brain_post(self.current_user(), path)
         if path.startswith("/api/knowledge-training/"):
             return self.api_knowledge_training_post(self.current_user(), path)
         if path == "/api/enterprise-foundation/rebuild":
@@ -9621,6 +9659,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             ]),
             recent_title=U(r"\u6700\u8fd1\u6570\u5b57\u6863\u6848"), objects=object_html,
             entry_title=U(r"\u5206\u7c7b\u67e5\u770b"), entries="".join([
+                self.card(U(r"CEO \u4f01\u4e1a\u5927\u8111"), U(r"\u4f01\u4e1a\u5baa\u7ae0\u3001Founder \u8bb0\u5fc6\u3001\u8d44\u4ea7\u5730\u56fe\u3001\u65f6\u95f4\u8f74\u4e0e CEO \u51b3\u7b56\u3002"), "/enterprise-brain", "btn", True) if user["role"] in ("boss", "admin") else "",
                 self.card(U(r"\u95e8\u5e97"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u5458\u5de5\u548c\u98ce\u9669\u3002"), "/object-center?type=store", "btn", True),
                 self.card(U(r"\u54c1\u724c"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8fd4\u70b9\u548c\u5386\u53f2\u51b3\u7b56\u3002"), "/object-center?type=brand", "btn", True),
                 self.card(U(r"\u54c1\u724c\u751f\u547d"), U(r"\u54c1\u724c\u6545\u4e8b\u3001\u4eba\u624d\u3001\u95e8\u5e97\u3001\u57f9\u8bad\u4e0e\u77e5\u8bc6\u8d44\u4ea7\u3002"), "/brand-life/kailas", "btn", True),
@@ -9654,7 +9693,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
 """).fetchall()
         categories = [U(r"\u8425\u4e1a\u6267\u7167"), U(r"\u5546\u6807"), U(r"\u80a1\u6743"), U(r"\u94f6\u884c"), U(r"\u6218\u7565"), U(r"\u6295\u8d44"), U(r"\u5408\u540c"), U(r"\u79df\u8d41"), U(r"\u6cd5\u5f8b"), U(r"\u8463\u4e8b\u4f1a"), U(r"\u5176\u4ed6\u91cd\u8981\u8d44\u6599")]
         files = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{} · {}</p></div><a class='btn' href='/drive/files/{}'>{}</a></div>".format(
-            esc(r["vault_category"]), esc(r["original_filename"] or r["title"]), esc(self.status_label(r["ai_status"])), esc(fmt_time(r["document_updated_at"])), r["document_id"], U(r"\u5b89\u5168\u6253\u5f00")) for r in rows)
+            esc(r["vault_category"]), esc(r["original_filename"] or r["title"]), esc(self.status_label(r["ai_status"])), esc(dt(r["document_updated_at"])), r["document_id"], U(r"\u5b89\u5168\u6253\u5f00")) for r in rows)
         if not files:
             files = self.guided_empty_state(U(r"\u4fdd\u9669\u5e93\u8fd8\u6ca1\u6709\u6587\u4ef6\u3002"), U(r"\u8bf7\u5148\u9009\u62e9\u8d44\u6599\u7c7b\u522b\uff0c\u518d\u4e0a\u4f20\u539f\u59cb\u6587\u4ef6\u3002\u7cfb\u7edf\u4f1a\u4fdd\u7559\u539f\u6587\u4ef6\u548c\u7248\u672c\u3002"), "/drive", U(r"\u6253\u5f00\u4f01\u4e1a\u7f51\u76d8"))
         options = "".join("<option value='{}'>{}</option>".format(esc(x), esc(x)) for x in categories)
@@ -14538,13 +14577,14 @@ where ki.deleted_at is null"""
             genesis_vault = "<p>{}</p><a class='btn' href='/ceo-vault'>{}</a>".format(U(r"\u80a1\u6743\u3001\u94f6\u884c\u3001\u6218\u7565\u3001\u6295\u8d44\u3001\u5408\u540c\u3001\u79df\u8d41\u3001\u6cd5\u5f8b\u548c\u8463\u4e8b\u4f1a\u8d44\u6599\u3002"), U(r"\u5b89\u5168\u6253\u5f00 CEO Vault")) if user["role"] in ("boss", "admin") else self.empty_state(U(r"\u5f53\u524d\u8d26\u53f7\u65e0 CEO Vault \u6743\u9650\u3002"))
             genesis_body = """
 <div class="ceo-hero compact"><span class="status-tag">{today}</span><h1>{welcome}</h1><p class="lead">{lead}</p></div>
+{brain_entry}
 <div class="panel compact-panel"><h2>{health_title}</h2>{health}<p><a class="btn gray" href="/business-health">{health_action}</a></p></div>
 <div class="panel compact-panel"><h2>{business_title}</h2><div class="metrics">{business}</div><p><a class="btn gray" href="/daily-intelligence">{business_action}</a></p></div>
 <div class="split compact-split"><div class="panel compact-panel"><h2>{risk_title}</h2>{risks}<p><a class="btn gray" href="/decision">{risk_action}</a></p></div><div class="panel compact-panel"><h2>{opportunity_title}</h2>{opportunities}<p><a class="btn gray" href="/daily-intelligence">{opportunity_action}</a></p></div></div>
 <div class="panel compact-panel"><h2>{advice_title}</h2>{advice}<p><a class="btn gray" href="/agents">{advice_action}</a></p></div>
 <div class="panel compact-panel"><h2>{action_title}</h2>{actions}<p><a class="btn" href="/action-center">{action_open}</a></p></div>
 <div class="panel compact-panel"><h2>CEO Vault</h2>{vault}</div>
-""".format(today=esc(today_text), welcome=esc(U(r"\u60a8\u597d，") + (user["name"] or U(r"\u547c\u603b"))), lead=U(r"\u8fd9\u91cc\u53ea\u663e\u793a\u4eca\u5929\u7684\u4f01\u4e1a，\u4e0d\u663e\u793a\u7cfb\u7edf\u3002"), health_title=U(r"\u4f01\u4e1a\u5065\u5eb7"), health=genesis_health, health_action=U(r"\u67e5\u770b\u5065\u5eb7\u4f9d\u636e"), business_title=U(r"\u4eca\u65e5\u7ecf\u8425"), business=genesis_today, business_action=U(r"\u6253\u5f00\u4eca\u65e5\u7ecf\u8425\u62a5\u544a"), risk_title=U(r"\u4eca\u65e5\u98ce\u9669"), risks=home_risks, risk_action=U(r"\u67e5\u770b\u98ce\u9669\u4f9d\u636e"), opportunity_title=U(r"\u4eca\u65e5\u673a\u4f1a"), opportunities=home_opportunities, opportunity_action=U(r"\u67e5\u770b\u673a\u4f1a\u6765\u6e90"), advice_title=U(r"\u4eca\u65e5\u5efa\u8bae"), advice=home_daily, advice_action=U(r"\u8bf7 AI Agent \u6df1\u5165\u5206\u6790"), action_title=U(r"\u4eca\u65e5\u884c\u52a8"), actions=focus_html, action_open=U(r"\u8fdb\u5165\u884c\u52a8\u4e2d\u5fc3"), vault=genesis_vault)
+""".format(today=esc(today_text), welcome=esc(U(r"\u60a8\u597d，") + (user["name"] or U(r"\u547c\u603b"))), lead=U(r"\u8fd9\u91cc\u53ea\u663e\u793a\u4eca\u5929\u7684\u4f01\u4e1a，\u4e0d\u663e\u793a\u7cfb\u7edf\u3002"), brain_entry=("<div class='panel compact-panel'><h2>{}</h2><p>{}</p><a class='btn' href='/enterprise-brain'>{}</a></div>".format(U(r"CEO \u4f01\u4e1a\u5927\u8111"), U(r"\u4ece\u4f01\u4e1a\u5baa\u7ae0\u3001Founder \u8bb0\u5fc6\u3001\u8d44\u4ea7\u3001\u65f6\u95f4\u8f74\u548c\u51b3\u7b56\u770b\u61c2\u4f01\u4e1a\u3002"), U(r"\u6253\u5f00\u4f01\u4e1a\u5927\u8111")) if user["role"] in ("boss", "admin") else ""), health_title=U(r"\u4f01\u4e1a\u5065\u5eb7"), health=genesis_health, health_action=U(r"\u67e5\u770b\u5065\u5eb7\u4f9d\u636e"), business_title=U(r"\u4eca\u65e5\u7ecf\u8425"), business=genesis_today, business_action=U(r"\u6253\u5f00\u4eca\u65e5\u7ecf\u8425\u62a5\u544a"), risk_title=U(r"\u4eca\u65e5\u98ce\u9669"), risks=home_risks, risk_action=U(r"\u67e5\u770b\u98ce\u9669\u4f9d\u636e"), opportunity_title=U(r"\u4eca\u65e5\u673a\u4f1a"), opportunities=home_opportunities, opportunity_action=U(r"\u67e5\u770b\u673a\u4f1a\u6765\u6e90"), advice_title=U(r"\u4eca\u65e5\u5efa\u8bae"), advice=home_daily, advice_action=U(r"\u8bf7 AI Agent \u6df1\u5165\u5206\u6790"), action_title=U(r"\u4eca\u65e5\u884c\u52a8"), actions=focus_html, action_open=U(r"\u8fdb\u5165\u884c\u52a8\u4e2d\u5fc3"), vault=genesis_vault)
             return self.out(layout(U(r"FoxBrain \u4f01\u4e1a\u6570\u5b57\u603b\u90e8"), genesis_body, user=user, wide=False))
             body = """
 <div class="ceo-hero compact">
@@ -27148,6 +27188,187 @@ group by coalesce(store_name,'')
         self.log_action(user, "jarvis_action_" + status, "jarvis_action", None, action_id)
         return self.redir("/jarvis")
 
+    def require_ceo_brain_user(self, user):
+        user = self.require_login(user)
+        if not user:
+            return None
+        if user["role"] not in ("boss", "admin"):
+            self.out(layout(U(r"\u4f01\u4e1a\u5927\u8111"), self.guided_empty_state(
+                U(r"\u8fd9\u91cc\u662f CEO \u4f01\u4e1a\u5927\u8111\u3002"),
+                U(r"\u5f53\u524d\u8d26\u53f7\u6ca1\u6709\u8bbf\u95ee\u4f01\u4e1a\u5baa\u7ae0\u3001\u521b\u59cb\u4eba\u8bb0\u5fc6\u548c\u4fdd\u9669\u5e93\u7684\u6743\u9650\u3002"),
+                "/", U(r"\u8fd4\u56de\u9996\u9875")), user=user), code=403)
+            return None
+        return user
+
+    def enterprise_brain_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            payload = enterprise_brain_summary(conn)
+            timeline = enterprise_timeline(conn, 8).get("events", [])
+        constitution = payload.get("constitution")
+        constitution_html = self.guided_empty_state(
+            U(r"\u5c1a\u672a\u6279\u51c6\u4f01\u4e1a\u5baa\u7ae0\u3002"),
+            U(r"\u9700\u8981\u7531 Founder \u586b\u5199\u4f7f\u547d\u3001\u613f\u666f\u4e0e\u6838\u5fc3\u539f\u5219\uff0c\u4eba\u5de5\u6279\u51c6\u540e\u624d\u6210\u4e3a\u73b0\u884c\u5baa\u7ae0\u3002"),
+            "/enterprise-constitution", U(r"\u5efa\u7acb\u4f01\u4e1a\u5baa\u7ae0"))
+        if constitution:
+            constitution_html = "<span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} V{} · {}</p>".format(
+                U(r"\u5df2\u6279\u51c6"), esc(constitution["title"]), esc(constitution["mission"]),
+                U(r"\u5baa\u7ae0\u7248\u672c"), constitution["version"], dt(constitution["approved_at"]))
+        fact_assets = payload.get("facts", {}).get("assets", [])
+        facts_html = "".join(self.metric(item["name"], str(item["count"]), item["source"]) for item in fact_assets[:4])
+        sync = payload.get("facts", {}).get("sync", {})
+        founder_rows = payload.get("founder_memories", [])
+        founder_html = self.bullets(["{} · {}".format(row["title"], self.status_label(row["status"])) for row in founder_rows[:5]] or [U(r"\u5c1a\u65e0\u521b\u59cb\u4eba\u8bb0\u5fc6\uff0c\u7cfb\u7edf\u4e0d\u4f1a\u81ea\u52a8\u4f2a\u9020 Founder \u5224\u65ad\u3002")])
+        ai = payload.get("ai_analysis", {})
+        ai_html = self.bullets([
+            U(r"\u6709\u4f9d\u636e\u7684 AI \u5206\u6790\uff1a") + str(ai.get("with_evidence", 0)),
+            U(r"\u5f53\u524d\u5f85\u590d\u6838\u5efa\u8bae\uff1a") + str(ai.get("total", 0)),
+            U(r"AI \u53ea\u63d0\u4f9b\u8f85\u52a9\u5206\u6790\uff0c\u4e0d\u4ee3\u66ff CEO \u51b3\u7b56\u3002"),
+        ])
+        timeline_html = self.bullets(["{} · {}".format(dt(row.get("occurred_at")), row.get("title") or "") for row in timeline] or [U(r"\u5c1a\u65e0\u6709\u6765\u6e90\u7684\u4f01\u4e1a\u65f6\u95f4\u8bb0\u5f55\u3002")])
+        entries = "".join([
+            self.card(U(r"\u4f01\u4e1a\u5baa\u7ae0"), U(r"\u5b9a\u4e49\u4f7f\u547d\u3001\u613f\u666f\u3001\u4ef7\u503c\u89c2\u548c\u957f\u671f\u539f\u5219\u3002"), "/enterprise-constitution", "btn", True),
+            self.card(U(r"\u521b\u59cb\u4eba\u8bb0\u5fc6"), U(r"\u4fdd\u7559\u547c\u603b\u5f53\u65f6\u7684\u5224\u65ad\u3001\u7ecf\u9a8c\u548c\u672a\u6765\u6307\u5f15\u3002"), "/founder-memory", "btn", True),
+            self.card(U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), U(r"\u5c06\u4e8b\u5b9e\u3001Founder \u8bb0\u5fc6\u548c\u6709\u4f9d\u636e\u7684 AI \u5efa\u8bae\u6309\u65f6\u95f4\u6392\u5217\u3002"), "/enterprise-timeline", "btn", True),
+            self.card(U(r"\u4f01\u4e1a\u8d44\u4ea7\u5730\u56fe"), U(r"\u770b\u6e05\u4f01\u4e1a\u5bf9\u8c61\u3001\u8d44\u6599\u3001\u77e5\u8bc6\u3001\u8bb0\u5fc6\u4e0e\u5173\u7cfb\u3002"), "/enterprise-asset-map", "btn", True),
+            self.card(U(r"CEO \u51b3\u7b56\u4e2d\u5fc3"), U(r"AI \u63d0\u4f9b\u4f9d\u636e\u548c\u9009\u9879\uff0cCEO \u5ba1\u6838\u3001\u786e\u8ba4\u5e76\u8bb0\u5f55\u7ed3\u679c\u3002"), "/ceo-decision-center", "btn", True),
+            self.card("CEO Vault", U(r"\u4ec5\u8001\u677f\u4e0e\u7ba1\u7406\u5458\u53ef\u89c1\u7684\u80a1\u6743\u3001\u94f6\u884c\u3001\u6218\u7565\u4e0e\u91cd\u8981\u5408\u540c\u3002"), "/ceo-vault", "btn", True),
+        ])
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">Enterprise Brain V2.0</span><h1>{title}</h1><p class="lead">{principle}</p><form class="ceo-ask" method="get" action="/copilot"><input type="hidden" name="ctx_page" value="/enterprise-brain"><input type="hidden" name="ctx_title" value="CEO企业大脑"><div><label>{ask}</label><input name="q" placeholder="{placeholder}"></div><button>{answer}</button></form></div>
+<div class="panel"><h2>{constitution_title}</h2>{constitution}</div>
+<div class="panel"><h2>{facts_title}</h2><p class="small">{freshness}</p><div class="metrics">{facts}</div></div>
+<div class="split"><div class="panel"><h2>{founder_title}</h2>{founder}</div><div class="panel"><h2>{ai_title}</h2>{ai}</div></div>
+<div class="panel"><h2>{timeline_title}</h2>{timeline}<p><a class="btn gray" href="/enterprise-timeline">{timeline_open}</a></p></div>
+<div class="panel"><h2>{modules}</h2><div class="grid">{entries}</div></div>
+""".format(
+            title=U(r"FoxBrain CEO \u4f01\u4e1a\u5927\u8111"), principle=esc(payload.get("principle") or ""),
+            ask=U(r"AI \u95ee\u4f01\u4e1a"), placeholder=U(r"\u4f8b\u5982\uff1a\u7ed3\u5408\u4f01\u4e1a\u5baa\u7ae0\u548c Founder \u7ecf\u9a8c\uff0c\u4eca\u5929\u5e94\u8be5\u5982\u4f55\u51b3\u7b56\uff1f"), answer=U(r"\u57fa\u4e8e\u4f9d\u636e\u56de\u7b54"),
+            constitution_title=U(r"\u73b0\u884c\u4f01\u4e1a\u5baa\u7ae0"), constitution=constitution_html,
+            facts_title=U(r"\u4f01\u4e1a\u4e8b\u5b9e"), freshness=U(r"\u6765\u6e90\uff1aData Core \u526f\u672c\u94fe\u8def\uff1b\u6700\u540e\u6210\u529f\u8bb0\u5f55\uff1a") + esc(dt(sync.get("updated_at")) if sync.get("updated_at") else U(r"\u6682\u65e0\u6210\u529f\u540c\u6b65\u8bb0\u5f55")), facts=facts_html,
+            founder_title=U(r"Founder \u667a\u6167"), founder=founder_html, ai_title=U(r"AI \u8f85\u52a9\u5206\u6790"), ai=ai_html,
+            timeline_title=U(r"\u6700\u8fd1\u4f01\u4e1a\u65f6\u95f4\u8f74"), timeline=timeline_html, timeline_open=U(r"\u6253\u5f00\u5b8c\u6574\u65f6\u95f4\u8f74"), modules=U(r"CEO \u4f01\u4e1a\u5927\u8111\u516d\u4e2a\u6a21\u5757"), entries=entries)
+        self.out(layout(U(r"CEO \u4f01\u4e1a\u5927\u8111"), body, user=user, wide=True))
+
+    def enterprise_constitution_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            payload = enterprise_brain_summary(conn)
+        rows = payload.get("constitution_versions", [])
+        cards = "".join(
+            "<div class='card'><div><span class='status-tag'>{}</span><h2>V{} · {}</h2><p>{}</p><p class='small'>{}</p></div>{}</div>".format(
+                esc(self.status_label(row["status"])), row["version"], esc(row["title"]), esc(row["mission"]), U(r"\u6765\u6e90\uff1aFounder \u4eba\u5de5\u8f93\u5165"),
+                "<form method='post' action='/api/enterprise-brain/constitution/activate'><input type='hidden' name='constitution_id' value='{}'><button>{}</button></form>".format(esc(row["constitution_id"]), U(r"\u4eba\u5de5\u6279\u51c6\u4e3a\u73b0\u884c\u5baa\u7ae0")) if row["status"] == "draft" else "")
+            for row in rows)
+        form = """<form method="post" action="/api/enterprise-brain/constitution"><label>{title}</label><input name="title" required><label>{mission}</label><textarea name="mission" required></textarea><label>{vision}</label><textarea name="vision"></textarea><label>{values}</label><textarea name="values" placeholder="{one_per_line}"></textarea><label>{principles}</label><textarea name="principles" placeholder="{one_per_line}"></textarea><button>{save}</button></form>""".format(
+            title=U(r"\u5baa\u7ae0\u6807\u9898"), mission=U(r"\u4f01\u4e1a\u4f7f\u547d"), vision=U(r"\u957f\u671f\u613f\u666f"), values=U(r"\u6838\u5fc3\u4ef7\u503c\u89c2"), principles=U(r"\u957f\u671f\u539f\u5219"), one_per_line=U(r"\u6bcf\u884c\u4e00\u6761"), save=U(r"\u4fdd\u5b58\u4e3a\u5f85\u5ba1\u6838\u7248\u672c"))
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='split'><div class='panel'><h2>{}</h2>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div></div>".format(U(r"Founder \u4eba\u5de5\u5b9a\u4e49"), U(r"\u4f01\u4e1a\u5baa\u7ae0"), U(r"\u5baa\u7ae0\u7528\u4e8e\u7ea6\u675f\u957f\u671f\u51b3\u7b56\u3002\u65b0\u7248\u672c\u4fdd\u7559\u5386\u53f2\uff0c\u672a\u7ecf\u4eba\u5de5\u6279\u51c6\u4e0d\u751f\u6548\u3002"), U(r"\u65b0\u5efa\u5baa\u7ae0\u7248\u672c"), form, U(r"\u5386\u53f2\u7248\u672c"), cards or self.empty_state(U(r"\u5c1a\u65e0\u5baa\u7ae0\u7248\u672c\u3002")))
+        self.out(layout(U(r"\u4f01\u4e1a\u5baa\u7ae0"), body, user=user, wide=True))
+
+    def founder_memory_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from founder_memories order by updated_at desc limit 100").fetchall()
+        cards = "".join(
+            "<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p><strong>{}</strong> {}</p><p class='small'>{}</p></div>{}</div>".format(
+                esc(self.status_label(row["status"])), esc(row["title"]), esc(row["situation"]), U(r"Founder \u5224\u65ad\uff1a"), esc(row["judgment"]), U(r"\u6765\u6e90\uff1aFounder \u4eba\u5de5\u8f93\u5165"),
+                "<form method='post' action='/api/enterprise-brain/founder-memory/confirm'><input type='hidden' name='memory_id' value='{}'><button>{}</button></form>".format(esc(row["memory_id"]), U(r"\u4eba\u5de5\u786e\u8ba4")) if row["status"] == "draft" else "") for row in rows)
+        form = """<form method="post" action="/api/enterprise-brain/founder-memory"><label>{title}</label><input name="title" required><label>{situation}</label><textarea name="situation" required></textarea><label>{judgment}</label><textarea name="judgment" required></textarea><label>{lesson}</label><textarea name="lesson"></textarea><label>{future}</label><textarea name="future_guidance"></textarea><button>{save}</button></form>""".format(
+            title=U(r"\u8bb0\u5fc6\u6807\u9898"), situation=U(r"\u5f53\u65f6\u60c5\u51b5"), judgment=U(r"Founder \u5224\u65ad"), lesson=U(r"\u7ecf\u9a8c\u4e0e\u6559\u8bad"), future=U(r"\u672a\u6765\u53c2\u8003"), save=U(r"\u4fdd\u5b58\u4e3a\u5f85\u786e\u8ba4\u8bb0\u5fc6"))
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='split'><div class='panel'><h2>{}</h2>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div></div>".format(U(r"\u667a\u6167\u6765\u81ea Founder"), U(r"\u521b\u59cb\u4eba\u8bb0\u5fc6"), U(r"\u8bb0\u5f55\u5f53\u65f6\u7684\u60c5\u51b5\u3001\u5224\u65ad\u3001\u7ecf\u9a8c\u548c\u672a\u6765\u6307\u5f15\u3002AI \u4e0d\u80fd\u4ee3\u5199 Founder \u8bb0\u5fc6\u3002"), U(r"\u65b0\u589e\u8bb0\u5fc6"), form, U(r"\u8bb0\u5fc6\u8bb0\u5f55"), cards or self.empty_state(U(r"\u5c1a\u65e0\u521b\u59cb\u4eba\u8bb0\u5fc6\u3002")))
+        self.out(layout(U(r"\u521b\u59cb\u4eba\u8bb0\u5fc6"), body, user=user, wide=True))
+
+    def enterprise_brain_timeline_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            events = enterprise_timeline(conn, 100).get("events", [])
+        kind_labels = {"enterprise_event": U(r"\u4f01\u4e1a\u4e8b\u5b9e"), "founder_memory": U(r"Founder \u8bb0\u5fc6"), "ai_advice": U(r"AI \u8f85\u52a9\u5efa\u8bae")}
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} · {} #{}</p></div></div>".format(esc(kind_labels.get(row["kind"], U(r"\u4f01\u4e1a\u8bb0\u5f55"))), esc(row["title"]), esc(row.get("description") or ""), esc(dt(row.get("occurred_at"))), U(r"\u6765\u6e90\u8bb0\u5f55"), esc(row.get("source_id") or "")) for row in events)
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='panel'><div class='grid'>{}</div></div>".format(U(r"\u53ef\u8ffd\u6eaf\u65f6\u95f4\u673a"), U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), U(r"\u4e8b\u5b9e\u3001Founder \u8bb0\u5fc6\u548c AI \u5efa\u8bae\u5206\u7c7b\u5c55\u793a\uff0c\u4e0d\u6df7\u6dc6\u6765\u6e90\u3002"), cards or self.guided_empty_state(U(r"\u5c1a\u65e0\u65f6\u95f4\u8f74\u8bb0\u5f55\u3002"), U(r"\u7cfb\u7edf\u53ea\u5c55\u793a\u6709\u6765\u6e90\u7684\u4e8b\u5b9e\u3001\u8bb0\u5fc6\u548c\u5efa\u8bae\u3002"), "/founder-memory", U(r"\u8bb0\u5f55 Founder \u8bb0\u5fc6")))
+        self.out(layout(U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), body, user=user, wide=True))
+
+    def enterprise_asset_map_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            payload = enterprise_asset_map(conn)
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><strong>{}</strong><p>{}</p></div></div>".format(U(r"\u53ef\u8ffd\u6eaf"), esc(item["name"]), item["count"], esc(item["source"])) for item in payload.get("assets", []))
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='panel'><div class='grid'>{}</div></div>".format(U(r"\u4f01\u4e1a\u6570\u5b57\u8d44\u4ea7"), U(r"\u4f01\u4e1a\u8d44\u4ea7\u5730\u56fe"), esc(payload.get("source_policy") or ""), cards)
+        self.out(layout(U(r"\u4f01\u4e1a\u8d44\u4ea7\u5730\u56fe"), body, user=user, wide=True))
+
+    def ceo_brain_decision_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            decisions = conn.execute("select * from decision_insights where status in ('new','reviewing','active') and length(trim(coalesce(evidence,'')))>2 order by case severity when 'critical' then 0 when 'high' then 1 else 2 end,updated_at desc limit 20").fetchall()
+            founder = conn.execute("select * from founder_memories where status='confirmed' order by updated_at desc limit 10").fetchall()
+        decision_cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div><a class='btn' href='/decision/insights'>{}</a></div>".format(esc(self.status_label(row["severity"])), esc(row["title"]), esc(row["summary"] or ""), U(r"AI \u8f85\u52a9\u5efa\u8bae\uff0c\u9700 CEO \u590d\u6838"), U(r"\u67e5\u770b\u4f9d\u636e")) for row in decisions)
+        founder_html = self.bullets([row["title"] + U(r"\uff1a") + row["judgment"] for row in founder] or [U(r"\u5c1a\u65e0\u5df2\u786e\u8ba4 Founder \u8bb0\u5fc6\u53ef\u4f9b\u53c2\u8003\u3002")])
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='panel'><h2>{}</h2>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u4eba\u5de5\u51b3\u7b56\u8fb9\u754c"), U(r"CEO \u51b3\u7b56\u4e2d\u5fc3"), U(r"\u4f01\u4e1a\u4e8b\u5b9e\u662f\u4f9d\u636e\uff0cFounder \u8bb0\u5fc6\u662f\u667a\u6167\uff0cAI \u53ea\u63d0\u4f9b\u5907\u9009\u5206\u6790\u3002"), U(r"Founder \u5224\u65ad\u53c2\u8003"), founder_html, U(r"\u5f85 CEO \u590d\u6838\u7684 AI \u5efa\u8bae"), decision_cards or self.empty_state(U(r"\u5c1a\u65e0\u6709\u4f9d\u636e\u7684 AI \u5efa\u8bae\u3002")))
+        self.out(layout(U(r"CEO \u51b3\u7b56\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def api_enterprise_brain_get(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            self.json_out(enterprise_brain_summary(conn))
+
+    def api_enterprise_brain_timeline_get(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            self.json_out(enterprise_timeline(conn, 100))
+
+    def api_enterprise_brain_assets_get(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            self.json_out(enterprise_asset_map(conn))
+
+    def api_enterprise_brain_post(self, user, path):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        form = self.form()
+        source_id = "user-{}-{}".format(user["id"], ts())
+        try:
+            with db() as conn:
+                if path == "/api/enterprise-brain/constitution":
+                    result = create_constitution_draft(conn, form.get("title"), form.get("mission"), form.get("vision", ""), form.get("values", ""), form.get("principles", ""), user["id"], "founder_input", source_id, U(r"Founder \u4eba\u5de5\u8f93\u5165\uff1a\u4f01\u4e1a\u5baa\u7ae0"))
+                    target = "/enterprise-constitution"
+                elif path == "/api/enterprise-brain/constitution/activate":
+                    result = activate_constitution(conn, form.get("constitution_id", ""), user["id"])
+                    target = "/enterprise-constitution"
+                elif path == "/api/enterprise-brain/founder-memory":
+                    result = create_founder_memory(conn, form.get("title"), form.get("situation"), form.get("judgment"), form.get("lesson", ""), form.get("future_guidance", ""), created_by=user["id"], source_type="founder_input", source_id=source_id, source_ref=U(r"Founder \u4eba\u5de5\u8f93\u5165\uff1a\u521b\u59cb\u4eba\u8bb0\u5fc6"))
+                    target = "/founder-memory"
+                elif path == "/api/enterprise-brain/founder-memory/confirm":
+                    result = confirm_founder_memory(conn, form.get("memory_id", ""), user["id"])
+                    target = "/founder-memory"
+                else:
+                    return self.json_out({"ok": False, "message": U(r"\u8bf7\u6c42\u7684\u4f01\u4e1a\u5927\u8111\u529f\u80fd\u4e0d\u5b58\u5728\u3002")}, code=404)
+            self.log_action(user, "enterprise_brain_manual_update", "enterprise_brain", None, path)
+            if "application/json" in (self.headers.get("Accept") or ""):
+                return self.json_out(result)
+            return self.redir(target)
+        except ValueError as exc:
+            if "application/json" in (self.headers.get("Accept") or ""):
+                return self.json_out({"ok": False, "message": str(exc)}, code=400)
+            return self.out(layout(U(r"\u4f01\u4e1a\u5927\u8111"), '<div class="alert">{}</div><p><a class="btn" href="/enterprise-brain">{}</a></p>'.format(esc(str(exc)), U(r"\u8fd4\u56de\u4f01\u4e1a\u5927\u8111")), user=user), code=400)
+
     def living_enterprise_page(self, user):
         user = self.require_login(user)
         if not user:
@@ -27174,7 +27395,7 @@ group by coalesce(store_name,'')
         objects = "".join(
             "<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{} {} · {}</p></div><a class='btn' href='/living-enterprise/objects/{}'>{}</a></div>".format(
                 esc(type_labels.get(item["object_type"], item["object_type"])), esc(item["display_name"]),
-                U(r"\u7248\u672c"), int(item["version"] or 1), fmt_time(item["updated_at"]),
+                U(r"\u7248\u672c"), int(item["version"] or 1), dt(item["updated_at"]),
                 esc(item["life_id"]), U(r"\u6253\u5f00\u751f\u547d\u6863\u6848"))
             for item in summary.get("recent_objects", [])
         )

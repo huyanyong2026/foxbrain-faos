@@ -294,6 +294,22 @@ class NaturalExperienceTests(unittest.TestCase):
         self.assertIn(portal.U(r"\u8001\u677f\u4fdd\u9669\u5e93"), rendered[0])
         self.assertIn(portal.U(r"\u4f01\u4e1a\u77e5\u8bc6\u7f51\u7edc"), rendered[1])
 
+    def test_enterprise_brain_pages_render_in_chinese(self):
+        rendered = []
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.enterprise_brain_page(self.user)
+        self.app.enterprise_constitution_page(self.user)
+        self.app.founder_memory_page(self.user)
+        self.app.enterprise_brain_timeline_page(self.user)
+        self.app.enterprise_asset_map_page(self.user)
+        self.app.ceo_brain_decision_page(self.user)
+        self.assertEqual(len(rendered), 6)
+        combined = "\n".join(rendered)
+        for text in ("CEO 企业大脑", "企业宪章", "创始人记忆", "企业时间轴", "企业资产地图", "CEO 决策中心"):
+            self.assertIn(text, combined)
+        for technical in ("enterprise_constitutions", "founder_memories", "decision_insights", "sync_runs"):
+            self.assertNotIn(technical, combined)
+
     def test_proactive_signals_require_evidence(self):
         now = int(time.time())
         with portal.db() as conn:
