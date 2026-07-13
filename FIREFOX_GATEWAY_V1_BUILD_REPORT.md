@@ -33,21 +33,28 @@
 - 首页及 5 项静态资源 HTTP 烟测：通过。
 - 中文乱码扫描：通过。
 
-## 生产检查
+## 生产部署
 
-- `gateway.vafox.com` 当前解析到 `1.13.254.217`。
-- 当前线上仍为旧 FoxBrain 登录页，并非本次 Gateway 页面。
-- 当前 HTTPS 证书与 `gateway.vafox.com` 不匹配，需要重新签发。
-- 当前 Codex SSH 公钥尚未被该服务器接受，因此未执行生产文件替换和 Nginx 重载。
+- 域名：`https://gateway.vafox.com`
+- 服务器：`1.13.254.217`
+- 发布时间：2026-07-13 16:59 CST
+- 发布目录：`/var/www/firefox-gateway/releases/20260713-165718`
+- 当前版本：`/var/www/firefox-gateway/current`
+- 备份目录：`/var/backups/firefox-gateway/20260713-165718`
+- Nginx：配置检查通过，服务保持 `active`，使用平滑重载。
+- HTTPS：Let's Encrypt 独立证书已签发，2026-10-11 到期，自动续期任务已建立。
+- 隔离结果：没有修改 `ai.vafox.com`、现有容器或 `/var/www/foxbrain`。
 
-## 发布步骤
+## 线上验收
 
-1. 备份当前 Gateway 站点和 Nginx 配置。
-2. 将 `apps/gateway/` 发布到 `/var/www/firefox-gateway/current`。
-3. 启用 `deploy/nginx/gateway.vafox.com.conf.example` 对应配置。
-4. 为 `gateway.vafox.com` 签发 Let's Encrypt 证书。
-5. 检查 Nginx 配置并平滑重载。
-6. 验证首页、手机端、静态资源和 HTTPS 证书。
+- HTTP 自动跳转 HTTPS：通过。
+- HTTPS 证书主机名验证：通过。
+- 首页标题和 Hero 内容：通过。
+- CSS、JavaScript 和三张 WebP 图片：全部返回 200。
+- 桌面端 1440 x 900 线上截图：通过。
+- 手机端 390 x 844 布局、菜单与交互：通过。
+- 安全响应头和静态资源缓存：通过。
+- 旧 FoxBrain 登录页不再接管 Gateway 域名。
 
 ## 下一步
 
