@@ -48,6 +48,7 @@ try:
     from foxbrain_os.enterprise_second_brain import build_enterprise_second_brain_contract
     from foxbrain_os.enterprise_second_brain_v11 import build_ceo_home_v11_contract, build_drive_2_contract, build_enterprise_second_brain_v11_contract, build_knowledge_pipeline_contract, build_object_engine_contract
     from foxbrain_os.brand_life_engine import brand_life_payload, ensure_brand_life_schema, extract_brand_document, register_brand_document, seed_kailas
+    from foxbrain_os.living_enterprise import LIFE_DIMENSIONS as LIVING_DIMENSIONS, LIFE_OBJECT_TYPES, ensure_living_enterprise_schema, living_enterprise_summary, living_object_payload, sync_life_objects_from_confirmed_sources
 except Exception:
     def enterprise_v1_architecture_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
@@ -157,6 +158,16 @@ except Exception:
         return {"ok": False, "message": "brand life unavailable"}
     def extract_brand_document(source_path):
         return {"text": "", "status": "unavailable", "error": "brand life unavailable"}
+    LIVING_DIMENSIONS = ("identity", "origin", "timeline", "state", "relationship", "memory", "decision", "future")
+    LIFE_OBJECT_TYPES = {}
+    def ensure_living_enterprise_schema(conn):
+        return None
+    def sync_life_objects_from_confirmed_sources(conn):
+        return {"created": 0, "updated": 0, "unchanged": 0, "skipped": 0}
+    def living_enterprise_summary(conn):
+        return {"ok": False, "object_counts": {}, "total_objects": 0, "source_records": 0, "objects_without_source": 0, "dimensions": list(LIVING_DIMENSIONS), "recent_objects": []}
+    def living_object_payload(conn, life_id):
+        return {"ok": False, "message": "living enterprise unavailable"}
     def build_digital_twin_simulation_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V2.1"}
     def build_company_twin_model(metrics=None):
@@ -5594,6 +5605,8 @@ create table if not exists manual_business_report_publications(
         conn.execute("create index if not exists idx_enterprise_relationships_target on enterprise_relationships(target_global_id,status)")
         ensure_brand_life_schema(conn)
         seed_kailas(conn)
+        ensure_living_enterprise_schema(conn)
+        sync_life_objects_from_confirmed_sources(conn)
         vault_root = conn.execute("select id from drive_folders where name=? and deleted_at is null order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
         if not vault_root:
             root = conn.execute("select id from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
@@ -5828,6 +5841,16 @@ class App(BaseHTTPRequestHandler):
             return self.action_center_page(user)
         if path == "/enterprise":
             return self.enterprise_center_page(user)
+        if path == "/living-enterprise":
+            return self.living_enterprise_page(user)
+        m_living_page = re.match(r"^/living-enterprise/objects/([^/]+)$", path)
+        if m_living_page:
+            return self.living_object_page(user, m_living_page.group(1))
+        if path == "/api/living-enterprise":
+            return self.api_living_enterprise_get(user)
+        m_living_api = re.match(r"^/api/living-enterprise/objects/([^/]+)$", path)
+        if m_living_api:
+            return self.api_living_object_get(user, m_living_api.group(1))
         if path in ("/brand-life", "/brand-life/kailas"):
             return self.brand_life_page(user, "KAILAS")
         if path == "/api/brand-life/kailas":
@@ -6238,6 +6261,8 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_foundation_rebuild_post()
         if path == "/api/proactive-intelligence/rebuild":
             return self.proactive_intelligence_rebuild_post()
+        if path == "/api/living-enterprise/rebuild":
+            return self.api_living_enterprise_rebuild(self.current_user())
         if path == "/api/brand-life/documents/import":
             return self.api_brand_life_import(self.current_user())
         if path == "/reports/save":
@@ -9599,6 +9624,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 self.card(U(r"\u95e8\u5e97"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u5458\u5de5\u548c\u98ce\u9669\u3002"), "/object-center?type=store", "btn", True),
                 self.card(U(r"\u54c1\u724c"), U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8fd4\u70b9\u548c\u5386\u53f2\u51b3\u7b56\u3002"), "/object-center?type=brand", "btn", True),
                 self.card(U(r"\u54c1\u724c\u751f\u547d"), U(r"\u54c1\u724c\u6545\u4e8b\u3001\u4eba\u624d\u3001\u95e8\u5e97\u3001\u57f9\u8bad\u4e0e\u77e5\u8bc6\u8d44\u4ea7\u3002"), "/brand-life/kailas", "btn", True),
+                self.card(U(r"\u751f\u547d\u4f01\u4e1a"), U(r"\u4ece\u8eab\u4efd\u3001\u8d77\u6e90\u3001\u65f6\u95f4\u8f74\u3001\u5173\u7cfb\u548c\u8bb0\u5fc6\u7406\u89e3\u4f01\u4e1a\u5bf9\u8c61\u3002"), "/living-enterprise", "btn", True),
                 self.card(U(r"\u4ea7\u54c1"), U(r"\u9500\u552e\u3001\u5e93\u5b58\u3001\u8d44\u6599\u548c\u5173\u8054\u54c1\u724c\u3002"), "/object-center?type=product", "btn", True),
                 self.card(U(r"\u5458\u5de5\u4e0e\u5ba2\u6237"), U(r"\u5c97\u4f4d\u3001\u9500\u552e\u3001\u670d\u52a1\u4e0e\u5173\u7cfb\u8bb0\u5f55\u3002"), "/object-center", "btn", True),
                 self.card(U(r"\u5bf9\u8c61\u5173\u8054"), U(r"\u4eba\u5de5\u786e\u8ba4\u8d44\u6599\u4e0e\u54c1\u724c\u3001\u95e8\u5e97\u3001\u4ea7\u54c1\u7684\u5173\u7cfb\u3002"), "/enterprise-links", "btn", True),
@@ -27121,6 +27147,172 @@ group by coalesce(store_name,'')
             conn.execute("update jarvis_action_confirmations set status=?, decided_by=?, decided_at=? where action_id=? and status='pending'", (status, user["id"], ts(), action_id))
         self.log_action(user, "jarvis_action_" + status, "jarvis_action", None, action_id)
         return self.redir("/jarvis")
+
+    def living_enterprise_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            summary = living_enterprise_summary(conn)
+        type_labels = {
+            "store_life": U(r"\u95e8\u5e97\u751f\u547d"),
+            "people_life": U(r"\u4eba\u624d\u751f\u547d"),
+            "brand_life": U(r"\u54c1\u724c\u751f\u547d"),
+            "supplier_life": U(r"\u4f9b\u5e94\u5546\u751f\u547d"),
+            "explorer_life": U(r"\u63a2\u7d22\u8005\u751f\u547d"),
+        }
+        dimension_labels = {
+            "identity": (U(r"\u8eab\u4efd"), U(r"\u5b83\u662f\u8c01\uff0c\u4ee5\u4ec0\u4e48\u552f\u4e00\u6807\u8bc6\u5b58\u5728\u3002")),
+            "origin": (U(r"\u8d77\u6e90"), U(r"\u5b83\u4ece\u54ea\u91cc\u6765\uff0c\u7531\u54ea\u4e9b\u539f\u59cb\u8d44\u6599\u5efa\u7acb\u3002")),
+            "timeline": (U(r"\u65f6\u95f4\u8f74"), U(r"\u91cd\u8981\u4e8b\u4ef6\u6309\u53d1\u751f\u65f6\u95f4\u6301\u7eed\u79ef\u7d2f\u3002")),
+            "state": (U(r"\u72b6\u6001"), U(r"\u5f53\u524d\u7ecf\u8425\u548c\u8d44\u6599\u72b6\u6001\uff0c\u4fdd\u7559\u66f4\u65b0\u65f6\u95f4\u3002")),
+            "relationship": (U(r"\u5173\u7cfb"), U(r"\u4e0e\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4eba\u5458\u548c\u4f9b\u5e94\u5546\u7684\u53ef\u8ffd\u6eaf\u8fde\u63a5\u3002")),
+            "memory": (U(r"\u8bb0\u5fc6"), U(r"\u7ecf\u9a8c\u3001\u7ed3\u679c\u548c\u590d\u76d8\u4e0e\u5bf9\u8c61\u957f\u671f\u5173\u8054\u3002")),
+            "decision": (U(r"\u51b3\u7b56"), U(r"\u4eba\u5de5\u786e\u8ba4\u7684\u91cd\u8981\u5224\u65ad\u548c\u5f53\u65f6\u4f9d\u636e\u3002")),
+            "future": (U(r"\u672a\u6765"), U(r"\u5f85\u9a8c\u8bc1\u7684\u76ee\u6807\u548c\u65b9\u5411\uff0c\u9ed8\u8ba4\u9700\u8981\u4eba\u5de5\u6279\u51c6\u3002")),
+        }
+        objects = "".join(
+            "<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{} {} · {}</p></div><a class='btn' href='/living-enterprise/objects/{}'>{}</a></div>".format(
+                esc(type_labels.get(item["object_type"], item["object_type"])), esc(item["display_name"]),
+                U(r"\u7248\u672c"), int(item["version"] or 1), fmt_time(item["updated_at"]),
+                esc(item["life_id"]), U(r"\u6253\u5f00\u751f\u547d\u6863\u6848"))
+            for item in summary.get("recent_objects", [])
+        )
+        if not objects:
+            objects = self.guided_empty_state(
+                U(r"\u8fd8\u6ca1\u6709\u5efa\u7acb\u751f\u547d\u5bf9\u8c61\u3002"),
+                U(r"\u9700\u8981\u5df2\u786e\u8ba4\u7684\u4f01\u4e1a\u5bf9\u8c61\u6216\u54c1\u724c\u751f\u547d\u6863\u6848\uff0c\u7cfb\u7edf\u4e0d\u4f1a\u51ed\u7a7a\u521b\u5efa\u3002"),
+                "/object-center", U(r"\u6253\u5f00\u4f01\u4e1a\u6570\u5b57\u6863\u6848"))
+        dimensions = "".join(
+            self.card(dimension_labels[key][0], dimension_labels[key][1], "/copilot?q=" + quote(U(r"\u8bf7\u57fa\u4e8e\u6765\u6e90\u8bf4\u660e\u751f\u547d\u5bf9\u8c61\u7684") + dimension_labels[key][0]), "btn", True)
+            for key in LIVING_DIMENSIONS
+        )
+        rebuild = ""
+        if user["role"] in ("boss", "admin"):
+            rebuild = """<form method="post" action="/api/living-enterprise/rebuild"><button>{}</button></form>""".format(U(r"\u4ece\u5df2\u786e\u8ba4\u6765\u6e90\u66f4\u65b0"))
+        counts = summary.get("object_counts", {})
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">Living Enterprise V1.0</span><h1>{title}</h1><p class="lead">{lead}</p><div class="inline"><a class="btn" href="/copilot?q={ask}">{ask_label}</a>{rebuild}</div></div>
+<div class="metrics">{metrics}</div>
+<div class="panel"><h2>{types_title}</h2><div class="metrics">{type_metrics}</div></div>
+<div class="panel"><h2>{dimensions_title}</h2><div class="card-grid">{dimensions}</div></div>
+<div class="panel"><h2>{objects_title}</h2><div class="grid">{objects}</div></div>
+""".format(
+            title=U(r"\u751f\u547d\u4f01\u4e1a"),
+            lead=U(r"\u4f01\u4e1a\u4e0d\u53ea\u662f\u4e00\u7ec4\u6570\u636e\u3002\u6bcf\u4e2a\u95e8\u5e97\u3001\u4eba\u3001\u54c1\u724c\u3001\u4f9b\u5e94\u5546\u548c\u63a2\u7d22\u8005\u90fd\u6709\u8d77\u6e90\u3001\u5173\u7cfb\u3001\u8bb0\u5fc6\u4e0e\u672a\u6765\u3002"),
+            ask=quote(U(r"\u8bf7\u57fa\u4e8e\u751f\u547d\u5bf9\u8c61\u7684\u6765\u6e90\uff0c\u8bf4\u660e\u5f53\u524d\u4f01\u4e1a\u7684\u91cd\u8981\u5173\u7cfb\u548c\u53d8\u5316\u3002")),
+            ask_label=U(r"\u95ee\u751f\u547d\u4f01\u4e1a"), rebuild=rebuild,
+            metrics="".join([
+                self.metric(U(r"\u751f\u547d\u5bf9\u8c61"), summary.get("total_objects", 0), U(r"\u5df2\u5efa\u7acb")),
+                self.metric(U(r"\u6765\u6e90\u8bb0\u5f55"), summary.get("source_records", 0), U(r"\u53ef\u8ffd\u6eaf")),
+                self.metric(U(r"\u7f3a\u5c11\u6765\u6e90"), summary.get("objects_without_source", 0), U(r"\u5fc5\u987b\u4e3a 0")),
+            ]),
+            types_title=U(r"\u7b2c\u4e00\u6279\u751f\u547d\u5bf9\u8c61"),
+            type_metrics="".join(self.metric(label, counts.get(key, 0), U(r"\u5df2\u786e\u8ba4")) for key, label in type_labels.items()),
+            dimensions_title=U(r"\u7edf\u4e00\u751f\u547d\u7ef4\u5ea6"), dimensions=dimensions,
+            objects_title=U(r"\u6700\u8fd1\u751f\u547d\u6863\u6848"), objects=objects,
+        )
+        self.out(layout(U(r"\u751f\u547d\u4f01\u4e1a"), body, user=user, wide=True))
+
+    def living_object_page(self, user, life_id):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            payload = living_object_payload(conn, life_id)
+        if not payload.get("ok"):
+            return self.out(layout(U(r"\u751f\u547d\u6863\u6848"), self.guided_empty_state(
+                U(r"\u6ca1\u6709\u627e\u5230\u8be5\u751f\u547d\u5bf9\u8c61\u3002"),
+                U(r"\u8be5\u5bf9\u8c61\u53ef\u80fd\u5c1a\u672a\u4ece\u5df2\u786e\u8ba4\u6765\u6e90\u5efa\u7acb\u3002"),
+                "/living-enterprise", U(r"\u8fd4\u56de\u751f\u547d\u4f01\u4e1a")), user=user))
+        obj = payload["object"]
+        dimension_labels = {
+            "identity_json": U(r"\u8eab\u4efd"), "origin_json": U(r"\u8d77\u6e90"),
+            "state_json": U(r"\u5f53\u524d\u72b6\u6001"), "future_json": U(r"\u672a\u6765\u57fa\u7ebf"),
+        }
+        field_labels = {
+            "name": U(r"\u540d\u79f0"), "code": U(r"\u7f16\u7801"),
+            "enterprise_object_type": U(r"\u5bf9\u8c61\u7c7b\u578b"), "system": U(r"\u5efa\u7acb\u65b9\u5f0f"),
+            "status": U(r"\u72b6\u6001"), "metadata": U(r"\u7ed3\u6784\u5316\u8d44\u6599"),
+            "brand_code": U(r"\u54c1\u724c\u7f16\u7801"), "brand_name": U(r"\u54c1\u724c\u540d\u79f0"),
+            "identity": U(r"\u54c1\u724c\u8eab\u4efd"), "brand_story": U(r"\u54c1\u724c\u6545\u4e8b"),
+            "brand_philosophy": U(r"\u54c1\u724c\u7406\u5ff5"), "product_system": U(r"\u4ea7\u54c1\u4f53\u7cfb"),
+            "store_system": U(r"\u95e8\u5e97\u4f53\u7cfb"), "people_system": U(r"\u4eba\u624d\u4f53\u7cfb"),
+            "future_plan": U(r"\u672a\u6765\u89c4\u5212"),
+        }
+        source_labels = {
+            "enterprise_objects": U(r"\u4f01\u4e1a\u6570\u5b57\u6863\u6848"),
+            "brand_life_profiles": U(r"\u54c1\u724c\u751f\u547d\u6863\u6848"),
+            "enterprise_memories": U(r"\u4f01\u4e1a\u8bb0\u5fc6"),
+            "decision_insights": U(r"\u7ecf\u8425\u51b3\u7b56"),
+        }
+        def friendly_source(item):
+            source_type = str(item.get("source_type") or "")
+            return "{} #{}".format(source_labels.get(source_type, U(r"\u53ef\u8ffd\u6eaf\u6765\u6e90")), esc(item.get("source_id") or ""))
+        def friendly_values(value):
+            if not isinstance(value, dict) or not value:
+                return self.bullets([U(r"\u5f85\u4ece\u5df2\u786e\u8ba4\u6765\u6e90\u8865\u5145\u3002")])
+            return self.bullets(["{}：{}".format(esc(field_labels.get(key, U(r"\u6863\u6848\u4fe1\u606f"))), esc(item if not isinstance(item, (dict, list)) else U(r"\u5df2\u4fdd\u7559\u7ed3\u6784\u5316\u8d44\u6599"))) for key, item in value.items() if item not in (None, "", [], {})])
+        core = "".join("<div class='panel'><h2>{}</h2>{}</div>".format(label, friendly_values(obj[field])) for field, label in dimension_labels.items())
+        timeline = self.bullets(["{} · {} · {}".format(item["occurred_at"], item["title"], friendly_source(item)) for item in payload["timeline"]] or [U(r"\u6682\u65e0\u65f6\u95f4\u8f74\u4e8b\u4ef6\u3002")])
+        relationships = self.bullets(["{} · {}".format(item["relationship_type"], friendly_source(item)) for item in payload["relationships"]] or [U(r"\u6682\u65e0\u5df2\u786e\u8ba4\u5173\u7cfb\u3002")])
+        memories = self.bullets([item["summary"] or item["source_ref"] for item in payload["memories"]] or [U(r"\u6682\u65e0\u5df2\u5173\u8054\u4f01\u4e1a\u8bb0\u5fc6\u3002")])
+        decisions = self.bullets([item["summary"] or item["source_ref"] for item in payload["decisions"]] or [U(r"\u6682\u65e0\u5df2\u5173\u8054\u51b3\u7b56\u3002")])
+        future = self.bullets(["{} · {} · {}".format(item["title"], item["target_date"] or U(r"\u5f85\u5b9a"), U(r"\u9700\u4eba\u5de5\u6279\u51c6")) for item in payload["future"]] or [U(r"\u6682\u65e0\u6709\u4f9d\u636e\u7684\u672a\u6765\u4e8b\u9879\u3002")])
+        source_dimension_labels = {
+            "identity": U(r"\u8eab\u4efd"), "origin": U(r"\u8d77\u6e90"), "timeline": U(r"\u65f6\u95f4\u8f74"),
+            "state": U(r"\u72b6\u6001"), "relationship": U(r"\u5173\u7cfb"), "memory": U(r"\u8bb0\u5fc6"),
+            "decision": U(r"\u51b3\u7b56"), "future": U(r"\u672a\u6765"),
+        }
+        sources = self.bullets(["{} · {}".format(source_dimension_labels.get(item["dimension"], U(r"\u4f9d\u636e")), friendly_source(item)) for item in payload["sources"]])
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">{type_label}</span><h1>{name}</h1><p class="lead">{lead}</p><div class="inline"><a class="btn" href="/copilot?q={ask}">{ask_label}</a><a class="btn gray" href="/living-enterprise">{back}</a></div></div>
+<div class="split">{core}</div>
+<div class="split"><div class="panel"><h2>{timeline_title}</h2>{timeline}</div><div class="panel"><h2>{relationship_title}</h2>{relationships}</div></div>
+<div class="split"><div class="panel"><h2>{memory_title}</h2>{memories}</div><div class="panel"><h2>{decision_title}</h2>{decisions}</div></div>
+<div class="panel"><h2>{future_title}</h2>{future}</div>
+<div class="panel"><h2>{source_title}</h2>{sources}</div>
+""".format(
+            type_label=esc(LIFE_OBJECT_TYPES.get(obj["object_type"], obj["object_type"])), name=esc(obj["display_name"]),
+            lead=U(r"\u8fd9\u662f\u4e00\u4efd\u6301\u7eed\u751f\u957f\u7684\u4f01\u4e1a\u751f\u547d\u6863\u6848\uff0c\u6240\u6709\u5185\u5bb9\u90fd\u5fc5\u987b\u53ef\u8ffd\u6eaf\u3002"),
+            ask=quote(U(r"\u8bf7\u53ea\u57fa\u4e8e\u73b0\u6709\u6765\u6e90\u8bf4\u660e") + obj["display_name"] + U(r"\u7684\u8d77\u6e90\u3001\u72b6\u6001\u3001\u5173\u7cfb\u548c\u672a\u6765\u3002")),
+            ask_label=U(r"\u95ee\u8fd9\u4e2a\u5bf9\u8c61"), back=U(r"\u8fd4\u56de\u751f\u547d\u4f01\u4e1a"), core=core,
+            timeline_title=U(r"\u65f6\u95f4\u8f74"), timeline=timeline,
+            relationship_title=U(r"\u5173\u7cfb"), relationships=relationships,
+            memory_title=U(r"\u8bb0\u5fc6"), memories=memories,
+            decision_title=U(r"\u51b3\u7b56"), decisions=decisions,
+            future_title=U(r"\u672a\u6765"), future=future,
+            source_title=U(r"\u6765\u6e90\u4e0e\u4f9d\u636e"), sources=sources,
+        )
+        self.out(layout(esc(obj["display_name"]), body, user=user, wide=True))
+
+    def api_living_enterprise_get(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            return self.json_out(living_enterprise_summary(conn))
+
+    def api_living_object_get(self, user, life_id):
+        user = self.require_login(user)
+        if not user:
+            return
+        with db() as conn:
+            payload = living_object_payload(conn, life_id)
+        return self.json_out(payload, code=200 if payload.get("ok") else 404)
+
+    def api_living_enterprise_rebuild(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        if user["role"] not in ("boss", "admin"):
+            return self.json_out({"ok": False, "message": U(r"\u4ec5\u8001\u677f\u6216\u7ba1\u7406\u5458\u53ef\u4ee5\u66f4\u65b0\u751f\u547d\u5bf9\u8c61\u3002")}, code=403)
+        with db() as conn:
+            result = sync_life_objects_from_confirmed_sources(conn)
+        self.log_action(user, "living_enterprise_rebuilt", "living_enterprise", None, json.dumps(result, ensure_ascii=False))
+        if "application/json" in (self.headers.get("Accept") or ""):
+            return self.json_out({"ok": True, "result": result, "sap_write": False})
+        return self.redir("/living-enterprise")
 
     def brand_life_page(self, user, brand_code="KAILAS"):
         user = self.require_login(user)
