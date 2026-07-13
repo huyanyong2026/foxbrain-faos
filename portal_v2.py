@@ -50,6 +50,7 @@ try:
     from foxbrain_os.brand_life_engine import brand_life_payload, ensure_brand_life_schema, extract_brand_document, register_brand_document, seed_kailas
     from foxbrain_os.living_enterprise import LIFE_DIMENSIONS as LIVING_DIMENSIONS, LIFE_OBJECT_TYPES, ensure_living_enterprise_schema, living_enterprise_summary, living_object_payload, sync_life_objects_from_confirmed_sources
     from foxbrain_os.enterprise_brain import activate_constitution, confirm_founder_memory, create_constitution_draft, create_founder_memory, ensure_enterprise_brain_schema, enterprise_asset_map, enterprise_brain_summary, enterprise_timeline
+    from foxbrain_os.ceo_operating_loop import attach_ai_analysis, confirm_decision_memory, confirm_operating_review, create_decision_memory, create_enterprise_question, create_morning_brief, create_operating_review, ensure_ceo_operating_loop_schema, evidence_chain as operating_evidence_chain, operating_loop_summary, review_ai_analysis
 except Exception:
     def enterprise_v1_architecture_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
@@ -185,6 +186,28 @@ except Exception:
         raise ValueError("enterprise brain unavailable")
     def confirm_founder_memory(*args, **kwargs):
         raise ValueError("enterprise brain unavailable")
+    def ensure_ceo_operating_loop_schema(conn):
+        return None
+    def operating_loop_summary(conn):
+        return {"ok": False, "latest_brief": None, "briefs": 0, "questions_waiting_ai": 0, "questions_pending_review": 0, "decisions_confirmed": 0, "reviews_confirmed": 0, "evidence_links": 0, "guardrails": {}}
+    def operating_evidence_chain(conn, target_type="", target_id="", limit=200):
+        return {"ok": False, "evidence": []}
+    def create_morning_brief(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
+    def create_enterprise_question(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
+    def attach_ai_analysis(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
+    def review_ai_analysis(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
+    def create_decision_memory(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
+    def confirm_decision_memory(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
+    def create_operating_review(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
+    def confirm_operating_review(*args, **kwargs):
+        raise ValueError("CEO operating loop unavailable")
     def build_digital_twin_simulation_contract():
         return {"ok": False, "version": "FoxBrain OS Enterprise V2.1"}
     def build_company_twin_model(metrics=None):
@@ -5625,6 +5648,7 @@ create table if not exists manual_business_report_publications(
         ensure_living_enterprise_schema(conn)
         sync_life_objects_from_confirmed_sources(conn)
         ensure_enterprise_brain_schema(conn)
+        ensure_ceo_operating_loop_schema(conn)
         vault_root = conn.execute("select id from drive_folders where name=? and deleted_at is null order by id limit 1", (U(r"\u8001\u677f\u4fdd\u9669\u5e93"),)).fetchone()
         if not vault_root:
             root = conn.execute("select id from drive_folders where parent_id is null and deleted_at is null order by id limit 1").fetchone()
@@ -5859,6 +5883,22 @@ class App(BaseHTTPRequestHandler):
             return self.action_center_page(user)
         if path == "/enterprise-brain":
             return self.enterprise_brain_page(user)
+        if path == "/ceo-operating-loop":
+            return self.ceo_operating_loop_page(user)
+        if path == "/ceo-morning-brief":
+            return self.ceo_morning_brief_page(user)
+        if path == "/enterprise-question-center":
+            return self.enterprise_question_center_page(user)
+        if path == "/decision-memory":
+            return self.decision_memory_loop_page(user)
+        if path == "/evidence-chain":
+            return self.operating_evidence_chain_page(user)
+        if path == "/operating-review":
+            return self.operating_review_page(user)
+        if path == "/api/ceo-operating-loop":
+            return self.api_ceo_operating_loop_get(user, path)
+        if path.startswith("/api/ceo-operating-loop/"):
+            return self.api_ceo_operating_loop_get(user, path)
         if path == "/enterprise-constitution":
             return self.enterprise_constitution_page(user)
         if path == "/founder-memory":
@@ -6293,6 +6333,8 @@ class App(BaseHTTPRequestHandler):
             return self.copilot_ask_post()
         if path.startswith("/api/enterprise-brain/"):
             return self.api_enterprise_brain_post(self.current_user(), path)
+        if path.startswith("/api/ceo-operating-loop/"):
+            return self.api_ceo_operating_loop_post(self.current_user(), path)
         if path.startswith("/api/knowledge-training/"):
             return self.api_knowledge_training_post(self.current_user(), path)
         if path == "/api/enterprise-foundation/rebuild":
@@ -27229,6 +27271,7 @@ group by coalesce(store_name,'')
         ])
         timeline_html = self.bullets(["{} · {}".format(dt(row.get("occurred_at")), row.get("title") or "") for row in timeline] or [U(r"\u5c1a\u65e0\u6709\u6765\u6e90\u7684\u4f01\u4e1a\u65f6\u95f4\u8bb0\u5f55\u3002")])
         entries = "".join([
+            self.card(U(r"CEO \u7ecf\u8425\u95ed\u73af"), U(r"\u4ece\u65e9\u6668\u7b80\u62a5\u3001\u4f01\u4e1a\u95ee\u9898\u5230\u51b3\u7b56\u8bb0\u5fc6\u548c\u7ecf\u8425\u590d\u76d8\u3002"), "/ceo-operating-loop", "btn", True),
             self.card(U(r"\u4f01\u4e1a\u5baa\u7ae0"), U(r"\u5b9a\u4e49\u4f7f\u547d\u3001\u613f\u666f\u3001\u4ef7\u503c\u89c2\u548c\u957f\u671f\u539f\u5219\u3002"), "/enterprise-constitution", "btn", True),
             self.card(U(r"\u521b\u59cb\u4eba\u8bb0\u5fc6"), U(r"\u4fdd\u7559\u547c\u603b\u5f53\u65f6\u7684\u5224\u65ad\u3001\u7ecf\u9a8c\u548c\u672a\u6765\u6307\u5f15\u3002"), "/founder-memory", "btn", True),
             self.card(U(r"\u4f01\u4e1a\u65f6\u95f4\u8f74"), U(r"\u5c06\u4e8b\u5b9e\u3001Founder \u8bb0\u5fc6\u548c\u6709\u4f9d\u636e\u7684 AI \u5efa\u8bae\u6309\u65f6\u95f4\u6392\u5217\u3002"), "/enterprise-timeline", "btn", True),
@@ -27249,7 +27292,7 @@ group by coalesce(store_name,'')
             constitution_title=U(r"\u73b0\u884c\u4f01\u4e1a\u5baa\u7ae0"), constitution=constitution_html,
             facts_title=U(r"\u4f01\u4e1a\u4e8b\u5b9e"), freshness=U(r"\u6765\u6e90\uff1aData Core \u526f\u672c\u94fe\u8def\uff1b\u6700\u540e\u6210\u529f\u8bb0\u5f55\uff1a") + esc(dt(sync.get("updated_at")) if sync.get("updated_at") else U(r"\u6682\u65e0\u6210\u529f\u540c\u6b65\u8bb0\u5f55")), facts=facts_html,
             founder_title=U(r"Founder \u667a\u6167"), founder=founder_html, ai_title=U(r"AI \u8f85\u52a9\u5206\u6790"), ai=ai_html,
-            timeline_title=U(r"\u6700\u8fd1\u4f01\u4e1a\u65f6\u95f4\u8f74"), timeline=timeline_html, timeline_open=U(r"\u6253\u5f00\u5b8c\u6574\u65f6\u95f4\u8f74"), modules=U(r"CEO \u4f01\u4e1a\u5927\u8111\u516d\u4e2a\u6a21\u5757"), entries=entries)
+            timeline_title=U(r"\u6700\u8fd1\u4f01\u4e1a\u65f6\u95f4\u8f74"), timeline=timeline_html, timeline_open=U(r"\u6253\u5f00\u5b8c\u6574\u65f6\u95f4\u8f74"), modules=U(r"CEO \u4f01\u4e1a\u5927\u8111\u4e03\u4e2a\u6a21\u5757"), entries=entries)
         self.out(layout(U(r"CEO \u4f01\u4e1a\u5927\u8111"), body, user=user, wide=True))
 
     def enterprise_constitution_page(self, user):
@@ -27368,6 +27411,216 @@ group by coalesce(store_name,'')
             if "application/json" in (self.headers.get("Accept") or ""):
                 return self.json_out({"ok": False, "message": str(exc)}, code=400)
             return self.out(layout(U(r"\u4f01\u4e1a\u5927\u8111"), '<div class="alert">{}</div><p><a class="btn" href="/enterprise-brain">{}</a></p>'.format(esc(str(exc)), U(r"\u8fd4\u56de\u4f01\u4e1a\u5927\u8111")), user=user), code=400)
+
+    def ceo_loop_fact_context(self, user):
+        payload = self.ceo_dashboard_payload(user)
+        summary = payload.get("summary", {})
+        if not summary.get("enterprise_sync_last_success"):
+            raise ValueError(U(r"\u5f53\u524d\u6ca1\u6709\u53ef\u9a8c\u8bc1\u7684 Data Core \u6210\u529f\u540c\u6b65\u8bb0\u5f55\uff0c\u4e0d\u80fd\u751f\u6210\u53ef\u9760\u7684 CEO \u6668\u62a5\u6216\u4f01\u4e1a\u95ee\u9898\u5206\u6790\u3002"))
+        facts = {
+            "sales_amount": float(summary.get("sales_amount") or 0),
+            "gross_profit": float(summary.get("gross_profit") or 0),
+            "profit_amount": float(summary.get("profit_amount") or 0),
+            "business_health_score": float(summary.get("business_health_score") or 0),
+            "inventory_high_risk": int(summary.get("inventory_intelligence_high_risk") or 0),
+            "inventory_critical": int(summary.get("inventory_intelligence_critical") or 0),
+            "data_updated_at": summary.get("enterprise_sync_last_success") or "",
+        }
+        labels = {
+            "sales_amount": U(r"\u9500\u552e\u989d"), "gross_profit": U(r"\u6bdb\u5229"),
+            "profit_amount": U(r"\u5229\u6da6"), "business_health_score": U(r"\u4f01\u4e1a\u5065\u5eb7"),
+            "inventory_high_risk": U(r"\u9ad8\u98ce\u9669\u5e93\u5b58"), "inventory_critical": U(r"\u4e25\u91cd\u5e93\u5b58\u98ce\u9669"),
+            "data_updated_at": U(r"\u6570\u636e\u66f4\u65b0\u65f6\u95f4"),
+        }
+        evidence = [{
+            "source_type": "core.vafox.com",
+            "source_id": key,
+            "source_ref": "core.vafox.com/Data Core只读副本/{}".format(key),
+            "source_layer": "data_core",
+            "role": "business_fact",
+            "statement": "{}：{}".format(labels[key], value),
+        } for key, value in facts.items()]
+        return facts, evidence
+
+    def ceo_loop_ai_ready(self):
+        cfg = ai_provider_config()
+        host = (urlparse(cfg.get("base_url") or "").hostname or "").lower()
+        return bool(cfg.get("configured") and (host == "ai.vafox.com" or host.endswith(".ai.vafox.com"))), cfg
+
+    def ceo_loop_request_ai(self, target_type, target_id, question, facts, evidence):
+        ready, cfg = self.ceo_loop_ai_ready()
+        if not ready:
+            return {"ok": False, "status": "waiting_ai", "reason": "ai.vafox.com_not_configured"}
+        prompt = U(r"\u4f60\u662f FoxBrain CEO \u7ecf\u8425\u5206\u6790\u52a9\u624b\u3002\u53ea\u80fd\u6839\u636e\u4e0b\u5217 Data Core \u4e8b\u5b9e\u56de\u7b54\uff0c\u4e0d\u5f97\u8865\u9020\u6570\u636e\u3002\u8f93\u51fa\u53d1\u73b0\u3001\u539f\u56e0\u3001\u98ce\u9669\u3001\u5efa\u8bae\u548c\u5f85 CEO \u786e\u8ba4\u4e8b\u9879\u3002")
+        result = call_ai_chat([
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": question + "\nData Core facts:\n" + prompt_json(facts)},
+        ], temperature=0.1)
+        if not result.get("ok"):
+            return {"ok": False, "status": "waiting_ai", "reason": result.get("reason") or "ai_unavailable"}
+        source_ref = (cfg.get("base_url") or "https://ai.vafox.com").rstrip("/") + "/CEO-Operating-Loop/" + str(target_id)
+        with db() as conn:
+            attached = attach_ai_analysis(conn, target_type, target_id, result["content"], evidence, source_ref)
+        return attached
+
+    def ceo_operating_loop_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            summary = operating_loop_summary(conn)
+        ready, _cfg = self.ceo_loop_ai_ready()
+        latest = summary.get("latest_brief")
+        latest_html = self.guided_empty_state(U(r"\u5c1a\u672a\u751f\u6210 CEO \u6668\u62a5\u3002"), U(r"\u7cfb\u7edf\u9700\u8981\u5148\u9501\u5b9a Data Core \u4e8b\u5b9e\u5feb\u7167\uff0c\u518d\u7b49\u5f85 ai.vafox.com \u5206\u6790\u3002"), "/ceo-morning-brief", U(r"\u751f\u6210\u4eca\u65e5\u6668\u62a5"))
+        if latest:
+            latest_html = "<span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><a class='btn' href='/ceo-morning-brief'>{}</a>".format(esc(self.status_label(latest["status"])), esc(latest["title"]), esc(latest["ai_analysis"] or U(r"\u5df2\u9501\u5b9a\u4f01\u4e1a\u4e8b\u5b9e\uff0c\u6b63\u5728\u7b49\u5f85 ai.vafox.com \u5206\u6790\u3002")), U(r"\u6253\u5f00\u6668\u62a5"))
+        entries = "".join([
+            self.card(U(r"CEO \u65e9\u6668\u7b80\u62a5"), U(r"\u7528 Data Core \u4e8b\u5b9e\u548c AI \u8f85\u52a9\u5206\u6790\u51c6\u5907\u4eca\u65e5\u5173\u6ce8\u4e8b\u9879\u3002"), "/ceo-morning-brief", "btn", True),
+            self.card(U(r"\u4f01\u4e1a\u95ee\u9898\u4e2d\u5fc3"), U(r"\u5148\u9501\u5b9a\u4e8b\u5b9e\uff0c\u518d\u8bf7 ai.vafox.com \u5206\u6790\uff0c\u6700\u540e\u4eba\u5de5\u786e\u8ba4\u3002"), "/enterprise-question-center", "btn", True),
+            self.card(U(r"\u51b3\u7b56\u8bb0\u5fc6"), U(r"\u4fdd\u5b58 CEO \u6700\u7ec8\u51b3\u5b9a\u3001\u7406\u7531\u548c\u5f53\u65f6\u4f9d\u636e\u3002"), "/decision-memory", "btn", True),
+            self.card(U(r"\u4f9d\u636e\u94fe"), U(r"\u4ece Data Core \u4e8b\u5b9e\u5230 AI \u5206\u6790\u3001CEO \u51b3\u7b56\u4e0e\u590d\u76d8\u7684\u5b8c\u6574\u8def\u5f84\u3002"), "/evidence-chain", "btn", True),
+            self.card(U(r"\u7ecf\u8425\u590d\u76d8"), U(r"\u5bf9\u6bd4\u9884\u671f\u4e0e\u5b9e\u9645\u7ed3\u679c\uff0c\u5f62\u6210\u4e0b\u4e00\u6b21\u53ef\u7528\u7ecf\u9a8c\u3002"), "/operating-review", "btn", True),
+        ])
+        metrics = "".join([
+            self.metric(U(r"\u6668\u62a5"), str(summary["briefs"]), U(r"\u5df2\u4fdd\u7559\u5386\u53f2")),
+            self.metric(U(r"\u7b49\u5f85 AI"), str(summary["questions_waiting_ai"]), U(r"\u4e0d\u4f7f\u7528\u5176\u4ed6\u6765\u6e90\u5192\u5145")),
+            self.metric(U(r"\u5f85 CEO \u786e\u8ba4"), str(summary["questions_pending_review"]), U(r"AI \u4e0d\u80fd\u81ea\u52a8\u901a\u8fc7")),
+            self.metric(U(r"\u5df2\u786e\u8ba4\u51b3\u7b56"), str(summary["decisions_confirmed"]), U(r"\u6c89\u6dc0\u5728 huyan.vafox.com")),
+            self.metric(U(r"\u5df2\u5b8c\u6210\u590d\u76d8"), str(summary["reviews_confirmed"]), U(r"\u5f62\u6210\u7ecf\u9a8c\u95ed\u73af")),
+        ])
+        body = "<div class='ceo-hero compact'><span class='status-tag'>CEO Operating Loop</span><h1>{}</h1><p class='lead'>{}</p><p><span class='status-tag'>{}</span></p></div><div class='metrics'>{}</div><div class='panel'><h2>{}</h2>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"CEO \u7ecf\u8425\u95ed\u73af"), U(r"Data Core \u63d0\u4f9b\u4e8b\u5b9e\uff0cai.vafox.com \u63d0\u4f9b\u5206\u6790\uff0cCEO \u4eba\u5de5\u786e\u8ba4\uff0c\u51b3\u7b56\u548c\u590d\u76d8\u6c89\u6dc0\u5728\u4f01\u4e1a\u5927\u8111\u3002"), U(r"ai.vafox.com \u5df2\u8fde\u63a5") if ready else U(r"ai.vafox.com \u5c1a\u672a\u914d\u7f6e\uff0c\u5c06\u4fdd\u6301\u7b49\u5f85"), metrics, U(r"\u6700\u65b0 CEO \u6668\u62a5"), latest_html, U(r"\u4e94\u6b65\u7ecf\u8425\u95ed\u73af"), entries)
+        self.out(layout(U(r"CEO \u7ecf\u8425\u95ed\u73af"), body, user=user, wide=True))
+
+    def ceo_morning_brief_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from ceo_morning_briefs order by brief_date desc limit 60").fetchall()
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div>{}</div>".format(esc(self.status_label(row["status"])), esc(row["title"]), esc(row["ai_analysis"] or U(r"\u7b49\u5f85 ai.vafox.com \u5206\u6790\u3002")), U(r"\u4e8b\u5b9e\u6765\u6e90\uff1aData Core \u53ea\u8bfb\u526f\u672c"), ("<div class='inline'><form method='post' action='/api/ceo-operating-loop/brief/review'><input type='hidden' name='brief_id' value='{}'><input type='hidden' name='accepted' value='1'><button>{}</button></form><form method='post' action='/api/ceo-operating-loop/brief/review'><input type='hidden' name='brief_id' value='{}'><input type='hidden' name='accepted' value='0'><button class='gray'>{}</button></form></div>".format(esc(row["brief_id"]), U(r"\u786e\u8ba4\u6668\u62a5"), esc(row["brief_id"]), U(r"\u62d2\u7edd\u5efa\u8bae")) if row["status"] == "pending_review" else "")) for row in rows)
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p><form method='post' action='/api/ceo-operating-loop/brief/create'><button>{}</button></form></div><div class='panel'><div class='grid'>{}</div></div>".format(U(r"\u6bcf\u65e5\u4e8b\u5b9e\u5feb\u7167"), U(r"CEO \u65e9\u6668\u7b80\u62a5"), U(r"\u91cd\u590d\u751f\u6210\u540c\u4e00\u5929\u4e0d\u4f1a\u8986\u76d6\u5386\u53f2\uff1bAI \u5efa\u8bae\u5fc5\u987b\u4eba\u5de5\u786e\u8ba4\u3002"), U(r"\u751f\u6210\u4eca\u65e5\u6668\u62a5"), cards or self.empty_state(U(r"\u5c1a\u65e0\u6668\u62a5\u3002")))
+        self.out(layout(U(r"CEO \u65e9\u6668\u7b80\u62a5"), body, user=user, wide=True))
+
+    def enterprise_question_center_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from enterprise_questions order by updated_at desc limit 100").fetchall()
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div>{}</div>".format(esc(self.status_label(row["status"])), esc(row["question"]), esc(row["ai_analysis"] or U(r"\u7b49\u5f85 ai.vafox.com \u5206\u6790\u3002")), U(r"\u4e8b\u5b9e\u5df2\u9501\u5b9a\uff0cAI \u4e0d\u80fd\u66f4\u6539 Data Core \u6570\u636e"), ("<div class='inline'><form method='post' action='/api/ceo-operating-loop/question/review'><input type='hidden' name='question_id' value='{}'><input type='hidden' name='accepted' value='1'><button>{}</button></form><form method='post' action='/api/ceo-operating-loop/question/review'><input type='hidden' name='question_id' value='{}'><input type='hidden' name='accepted' value='0'><button class='gray'>{}</button></form></div>".format(esc(row["question_id"]), U(r"\u63a5\u53d7\u4e3a\u51b3\u7b56\u53c2\u8003"), esc(row["question_id"]), U(r"\u62d2\u7edd\u5efa\u8bae")) if row["status"] == "pending_review" else "")) for row in rows)
+        form = "<form method='post' action='/api/ceo-operating-loop/question/create'><label>{}</label><textarea name='question' required placeholder='{}'></textarea><button>{}</button></form>".format(U(r"\u60f3\u5f04\u6e05\u7684\u4f01\u4e1a\u95ee\u9898"), U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u5e93\u5b58\u548c\u73b0\u91d1\u6d41\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f"), U(r"\u9501\u5b9a\u4e8b\u5b9e\u5e76\u63d0\u4ea4\u5206\u6790"))
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='panel'>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div>".format(U(r"\u5148\u4e8b\u5b9e\uff0c\u540e\u5206\u6790"), U(r"\u4f01\u4e1a\u95ee\u9898\u4e2d\u5fc3"), U(r"\u6bcf\u4e2a\u95ee\u9898\u90fd\u4fdd\u7559 Data Core \u4e8b\u5b9e\u5feb\u7167\u3001AI \u5206\u6790\u6765\u6e90\u548c CEO \u590d\u6838\u7ed3\u679c\u3002"), form, U(r"\u5386\u53f2\u95ee\u9898"), cards or self.empty_state(U(r"\u5c1a\u65e0\u4f01\u4e1a\u95ee\u9898\u3002")))
+        self.out(layout(U(r"\u4f01\u4e1a\u95ee\u9898\u4e2d\u5fc3"), body, user=user, wide=True))
+
+    def decision_memory_loop_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from ceo_decision_memories order by updated_at desc limit 100").fetchall()
+            questions = conn.execute("select question_id,question from enterprise_questions where status='confirmed' order by reviewed_at desc limit 100").fetchall()
+        options = "<option value=''>{}</option>".format(U(r"\u4e0d\u5173\u8054 AI \u95ee\u9898\uff0c\u76f4\u63a5\u4eba\u5de5\u51b3\u7b56")) + "".join("<option value='{}'>{}</option>".format(esc(row["question_id"]), esc(row["question"])) for row in questions)
+        form = "<form method='post' action='/api/ceo-operating-loop/decision/create'><label>{}</label><input name='title' required><label>{}</label><select name='question_id'>{}</select><label>{}</label><textarea name='decision' required></textarea><label>{}</label><textarea name='rationale'></textarea><button>{}</button></form>".format(U(r"\u51b3\u7b56\u4e8b\u9879"), U(r"\u5173\u8054\u5df2\u786e\u8ba4\u5206\u6790"), options, U(r"CEO \u6700\u7ec8\u51b3\u5b9a"), U(r"\u51b3\u7b56\u7406\u7531"), U(r"\u4fdd\u5b58\u4e3a\u5f85\u786e\u8ba4\u51b3\u7b56"))
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{}</p></div>{}</div>".format(esc(self.status_label(row["status"])), esc(row["title"]), esc(row["decision"]), U(r"\u5b58\u50a8\u4f4d\u7f6e\uff1ahuyan.vafox.com"), ("<form method='post' action='/api/ceo-operating-loop/decision/confirm'><input type='hidden' name='decision_id' value='{}'><button>{}</button></form>".format(esc(row["decision_id"]), U(r"\u4eba\u5de5\u786e\u8ba4\u51b3\u7b56")) if row["status"] == "draft" else "")) for row in rows)
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='split'><div class='panel'><h2>{}</h2>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div></div>".format(U(r"CEO \u6700\u7ec8\u51b3\u5b9a"), U(r"\u51b3\u7b56\u8bb0\u5fc6"), U(r"AI \u5206\u6790\u53ea\u80fd\u4f5c\u4e3a\u53c2\u8003\uff1b\u771f\u6b63\u7684\u51b3\u7b56\u5fc5\u987b\u7531 CEO \u8f93\u5165\u5e76\u4eba\u5de5\u786e\u8ba4\u3002"), U(r"\u65b0\u589e\u51b3\u7b56"), form, U(r"\u51b3\u7b56\u8bb0\u5f55"), cards or self.empty_state(U(r"\u5c1a\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")))
+        self.out(layout(U(r"\u51b3\u7b56\u8bb0\u5fc6"), body, user=user, wide=True))
+
+    def operating_evidence_chain_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = operating_evidence_chain(conn, limit=300).get("evidence", [])
+        layer_labels = {"data_core": U(r"Data Core \u4e8b\u5b9e"), "ai_analysis": U(r"ai.vafox.com \u5206\u6790")}
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} #{} · {}</p></div></div>".format(esc(layer_labels.get(row["source_layer"], U(r"CEO \u4eba\u5de5\u8bb0\u5f55"))), esc(row["statement"] or U(r"\u6765\u6e90\u4f9d\u636e")), esc(row["target_type"]), U(r"\u6765\u6e90\u8bb0\u5f55"), esc(row["source_id"]), esc(dt(row["captured_at"]))) for row in rows)
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='panel'><div class='grid'>{}</div></div>".format(U(r"\u6bcf\u4e2a\u7ed3\u8bba\u90fd\u53ef\u56de\u6eaf"), U(r"\u4f9d\u636e\u94fe"), U(r"\u660e\u786e\u533a\u5206 Data Core \u4e8b\u5b9e\u3001ai.vafox.com \u5206\u6790\u548c CEO \u4eba\u5de5\u51b3\u7b56\u3002"), cards or self.empty_state(U(r"\u5c1a\u65e0\u4f9d\u636e\u94fe\u8bb0\u5f55\u3002")))
+        self.out(layout(U(r"\u4f9d\u636e\u94fe"), body, user=user, wide=True))
+
+    def operating_review_page(self, user):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            rows = conn.execute("select * from operating_reviews order by updated_at desc limit 100").fetchall()
+            decisions = conn.execute("select decision_id,title from ceo_decision_memories where status='confirmed' order by confirmed_at desc limit 100").fetchall()
+        options = "".join("<option value='{}'>{}</option>".format(esc(row["decision_id"]), esc(row["title"])) for row in decisions)
+        form = "<form method='post' action='/api/ceo-operating-loop/review/create'><label>{}</label><select name='decision_id' required>{}</select><label>{}</label><input name='expected_result'><label>{}</label><textarea name='actual_result' required></textarea><label>{}</label><textarea name='variance_analysis'></textarea><label>{}</label><textarea name='lessons'></textarea><label>{}</label><textarea name='next_action'></textarea><button>{}</button></form>".format(U(r"\u5173\u8054\u5df2\u786e\u8ba4\u51b3\u7b56"), options, U(r"\u9884\u671f\u7ed3\u679c"), U(r"\u5b9e\u9645\u7ed3\u679c"), U(r"\u5dee\u5f02\u5206\u6790"), U(r"\u7ecf\u9a8c\u6559\u8bad"), U(r"\u4e0b\u4e00\u6b65"), U(r"\u4fdd\u5b58\u4e3a\u5f85\u786e\u8ba4\u590d\u76d8")) if decisions else self.guided_empty_state(U(r"\u8fd8\u6ca1\u6709\u53ef\u590d\u76d8\u7684\u51b3\u7b56\u3002"), U(r"\u9700\u8981\u5148\u5728\u51b3\u7b56\u8bb0\u5fc6\u4e2d\u4eba\u5de5\u786e\u8ba4\u4e00\u9879 CEO \u51b3\u7b56\u3002"), "/decision-memory", U(r"\u53bb\u8bb0\u5f55\u51b3\u7b56"))
+        cards = "".join("<div class='card'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p>{}</p></div>{}</div>".format(esc(self.status_label(row["status"])), esc(row["decision_id"]), esc(row["actual_result"]), esc(row["lessons"] or ""), ("<form method='post' action='/api/ceo-operating-loop/review/confirm'><input type='hidden' name='review_id' value='{}'><button>{}</button></form>".format(esc(row["review_id"]), U(r"\u4eba\u5de5\u786e\u8ba4\u590d\u76d8")) if row["status"] == "draft" else "")) for row in rows)
+        body = "<div class='ceo-hero compact'><span class='status-tag'>{}</span><h1>{}</h1><p class='lead'>{}</p></div><div class='split'><div class='panel'><h2>{}</h2>{}</div><div class='panel'><h2>{}</h2><div class='grid'>{}</div></div></div>".format(U(r"\u9884\u671f\u4e0e\u5b9e\u9645\u5bf9\u6bd4"), U(r"\u7ecf\u8425\u590d\u76d8"), U(r"\u53ea\u80fd\u590d\u76d8\u5df2\u7ecf\u4eba\u5de5\u786e\u8ba4\u7684\u51b3\u7b56\uff0c\u590d\u76d8\u7ed3\u679c\u518d\u6b21\u4eba\u5de5\u786e\u8ba4\u540e\u8fdb\u5165\u4f01\u4e1a\u7ecf\u9a8c\u3002"), U(r"\u65b0\u589e\u590d\u76d8"), form, U(r"\u590d\u76d8\u8bb0\u5f55"), cards or self.empty_state(U(r"\u5c1a\u65e0\u7ecf\u8425\u590d\u76d8\u3002")))
+        self.out(layout(U(r"\u7ecf\u8425\u590d\u76d8"), body, user=user, wide=True))
+
+    def api_ceo_operating_loop_get(self, user, path):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        with db() as conn:
+            if path == "/api/ceo-operating-loop/evidence":
+                return self.json_out(operating_evidence_chain(conn, limit=300))
+            return self.json_out(operating_loop_summary(conn))
+
+    def api_ceo_operating_loop_post(self, user, path):
+        user = self.require_ceo_brain_user(user)
+        if not user:
+            return
+        form = self.form()
+        try:
+            if path == "/api/ceo-operating-loop/brief/create":
+                facts, evidence = self.ceo_loop_fact_context(user)
+                brief_date = time.strftime("%Y-%m-%d")
+                with db() as conn:
+                    result = create_morning_brief(conn, brief_date, facts, evidence, user["id"])
+                self.ceo_loop_request_ai("morning_brief", result["brief_id"], U(r"\u8bf7\u751f\u6210\u4eca\u65e5 CEO \u7ecf\u8425\u6668\u62a5\u3002"), facts, evidence)
+                target = "/ceo-morning-brief"
+            elif path == "/api/ceo-operating-loop/question/create":
+                facts, evidence = self.ceo_loop_fact_context(user)
+                with db() as conn:
+                    result = create_enterprise_question(conn, form.get("question"), facts, evidence, {"page": "enterprise-question-center"}, user["id"])
+                self.ceo_loop_request_ai("enterprise_question", result["question_id"], form.get("question", ""), facts, evidence)
+                target = "/enterprise-question-center"
+            elif path in ("/api/ceo-operating-loop/brief/review", "/api/ceo-operating-loop/question/review"):
+                target_type = "morning_brief" if "/brief/" in path else "enterprise_question"
+                target_id = form.get("brief_id") if target_type == "morning_brief" else form.get("question_id")
+                with db() as conn:
+                    result = review_ai_analysis(conn, target_type, target_id, form.get("accepted") == "1", user["id"])
+                target = "/ceo-morning-brief" if target_type == "morning_brief" else "/enterprise-question-center"
+            elif path == "/api/ceo-operating-loop/decision/create":
+                facts, evidence = self.ceo_loop_fact_context(user)
+                question_id = form.get("question_id", "")
+                if question_id:
+                    with db() as conn:
+                        q = conn.execute("select evidence_json,ai_analysis,ai_source_ref,status from enterprise_questions where question_id=?", (question_id,)).fetchone()
+                    if q:
+                        evidence = json.loads(q["evidence_json"] or "[]")
+                        if q["status"] == "confirmed" and q["ai_source_ref"]:
+                            evidence.append({"source_type": "ai.vafox.com", "source_id": question_id, "source_ref": q["ai_source_ref"], "source_layer": "ai_analysis", "role": "confirmed_analysis", "statement": q["ai_analysis"] or U(r"\u5df2\u4eba\u5de5\u786e\u8ba4\u7684 AI \u5206\u6790")})
+                with db() as conn:
+                    result = create_decision_memory(conn, form.get("title"), form.get("decision"), form.get("rationale", ""), evidence, user["id"], question_id)
+                target = "/decision-memory"
+            elif path == "/api/ceo-operating-loop/decision/confirm":
+                with db() as conn:
+                    result = confirm_decision_memory(conn, form.get("decision_id", ""), user["id"])
+                target = "/decision-memory"
+            elif path == "/api/ceo-operating-loop/review/create":
+                _facts, evidence = self.ceo_loop_fact_context(user)
+                decision_id = form.get("decision_id")
+                evidence.append({"source_type": "ceo_decision_memory", "source_id": decision_id, "source_ref": "huyan.vafox.com/decision-memory/{}".format(decision_id), "source_layer": "human_decision", "role": "reviewed_decision", "statement": U(r"\u672c\u590d\u76d8\u5173\u8054\u5df2\u786e\u8ba4 CEO \u51b3\u7b56")})
+                with db() as conn:
+                    result = create_operating_review(conn, decision_id, form.get("actual_result"), evidence, user["id"], form.get("period_start", ""), form.get("period_end", ""), form.get("expected_result", ""), form.get("variance_analysis", ""), form.get("lessons", ""), form.get("next_action", ""))
+                target = "/operating-review"
+            elif path == "/api/ceo-operating-loop/review/confirm":
+                with db() as conn:
+                    result = confirm_operating_review(conn, form.get("review_id", ""), user["id"])
+                target = "/operating-review"
+            else:
+                return self.json_out({"ok": False, "message": U(r"\u8bf7\u6c42\u7684 CEO \u7ecf\u8425\u95ed\u73af\u529f\u80fd\u4e0d\u5b58\u5728\u3002")}, code=404)
+            self.log_action(user, "ceo_operating_loop_manual_action", "ceo_operating_loop", None, path)
+            if "application/json" in (self.headers.get("Accept") or ""):
+                return self.json_out(result)
+            return self.redir(target)
+        except (ValueError, json.JSONDecodeError) as exc:
+            if "application/json" in (self.headers.get("Accept") or ""):
+                return self.json_out({"ok": False, "message": str(exc)}, code=400)
+            return self.out(layout(U(r"CEO \u7ecf\u8425\u95ed\u73af"), '<div class="alert">{}</div><p><a class="btn" href="/ceo-operating-loop">{}</a></p>'.format(esc(str(exc)), U(r"\u8fd4\u56de CEO \u7ecf\u8425\u95ed\u73af")), user=user), code=400)
 
     def living_enterprise_page(self, user):
         user = self.require_login(user)

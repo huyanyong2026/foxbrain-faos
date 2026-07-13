@@ -310,6 +310,22 @@ class NaturalExperienceTests(unittest.TestCase):
         for technical in ("enterprise_constitutions", "founder_memories", "decision_insights", "sync_runs"):
             self.assertNotIn(technical, combined)
 
+    def test_ceo_operating_loop_pages_render_in_chinese(self):
+        rendered = []
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.ceo_operating_loop_page(self.user)
+        self.app.ceo_morning_brief_page(self.user)
+        self.app.enterprise_question_center_page(self.user)
+        self.app.decision_memory_loop_page(self.user)
+        self.app.operating_evidence_chain_page(self.user)
+        self.app.operating_review_page(self.user)
+        self.assertEqual(len(rendered), 6)
+        combined = "\n".join(rendered)
+        for text in ("CEO 经营闭环", "CEO 早晨简报", "企业问题中心", "决策记忆", "依据链", "经营复盘"):
+            self.assertIn(text, combined)
+        for technical in ("ceo_morning_briefs", "enterprise_questions", "ceo_decision_memories", "operating_evidence_links"):
+            self.assertNotIn(technical, combined)
+
     def test_proactive_signals_require_evidence(self):
         now = int(time.time())
         with portal.db() as conn:
