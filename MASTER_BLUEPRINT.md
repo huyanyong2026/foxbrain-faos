@@ -1,8 +1,8 @@
 ﻿# FoxBrain Enterprise OS Master Blueprint
 
-Version: 2026-07-10
-Target: `huyan.vafox.com`
-Current product surface: FoxBrain CEO Brain
+Version: 2026-07-13
+Targets: `core.vafox.com`, `ai.vafox.com`, `huyan.vafox.com`
+Current product surfaces: Enterprise Data Core, Enterprise AI, FoxBrain CEO Brain
 
 ## 1. Positioning
 
@@ -12,13 +12,15 @@ It is not an ERP replacement, a normal website, a BI dashboard, or only an AI ch
 
 FoxBrain connects enterprise data, files, objects, knowledge, memory, graph relationships, rules, decisions, workflows and AI agents into one operating system.
 
-Current priority:
+Current operating boundary:
 
 ```text
-huyan.vafox.com = CEO Brain / owner-facing enterprise brain
+core.vafox.com  = enterprise facts and read-only replicas
+ai.vafox.com    = AI collaboration, agents, knowledge, tasks and feedback
+huyan.vafox.com = CEO decisions, private memory and enterprise governance
 ```
 
-Do not develop `ai.vafox.com` until CEO Brain is stable.
+AI suggestions must carry evidence and receive human confirmation before they become tasks, knowledge or CEO decision inputs.
 
 ## 2. Core Boundary
 
@@ -405,7 +407,8 @@ Before declaring deployment complete, verify:
 - Do not create decision recommendations without evidence.
 - Do not hide business rules only in code.
 - Do not delete existing capabilities during upgrade.
-- Do not develop `ai.vafox.com` before CEO Brain is stable.
+- Keep `ai.vafox.com` separate from the CEO private vault and from Data Core.
+- Do not allow AI suggestions to bypass human approval.
 
 ## 13. Next Architecture Direction
 

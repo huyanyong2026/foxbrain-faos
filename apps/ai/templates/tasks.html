@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}任务中心｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">任务中心</p><h1>从建议走向行动</h1><p>所有 AI 任务先成为待审批草稿，负责人确认后才进入执行。</p></section>
+<section class="split">
+  <form class="panel" method="post" action="/ops-api/tasks">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>创建任务草稿</h2><label>任务名称<input name="title" required></label><label>任务说明<textarea name="description"></textarea></label>
+    <div class="two"><label>负责人<input name="owner_name"></label><label>优先级<select name="priority"><option value="normal">普通</option><option value="high">重要</option><option value="urgent">紧急</option></select></label></div>
+    <label>依据的已确认分析<select name="source_id" required>{% for run in approved_runs %}<option value="{{ run.run_id }}">{{ run.question }}</option>{% endfor %}</select></label>
+    {% if approved_runs %}<button>提交审批</button>{% else %}<div class="empty"><p>当前没有已人工确认的 AI 分析，暂时不能创建任务。</p><a class="primary" href="/workbench">先完成分析确认</a></div>{% endif %}
+  </form>
+  <section class="panel"><h2>任务列表</h2><div class="list compact">{% for task in tasks %}<article class="run"><span class="status">{{ {'pending':'待审批','approved':'已批准','rejected':'已拒绝'}.get(task.approval_status,task.approval_status) }}</span><h3>{{ task.title }}</h3><p>{{ task.description or '暂无补充说明' }}</p>{% if task.approval_status == 'pending' and user.role in ['admin','manager','boss'] %}<div class="actions"><form method="post" action="/ops-api/tasks/{{ task.task_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve"><button>批准任务</button></form><form method="post" action="/ops-api/tasks/{{ task.task_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject"><button class="secondary">拒绝</button></form></div>{% endif %}</article>{% else %}<div class="empty"><h3>暂无任务</h3><p>AI建议经人工确认后，可在这里形成行动草稿。</p></div>{% endfor %}</div></section>
+</section>
+{% endblock %}

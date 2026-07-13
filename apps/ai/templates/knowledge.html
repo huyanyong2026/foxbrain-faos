@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}知识中心｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">知识中心</p><h1>有来源的企业知识</h1><p>知识必须关联来源和企业对象；AI摘要在人工确认前不会成为正式知识。</p></section>
+<section class="split">
+  <form class="panel" method="post" action="/ops-api/knowledge">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="source_layer" value="enterprise_knowledge">
+    <h2>新增知识草稿</h2><label>标题<input name="title" required></label><label>摘要<textarea name="summary"></textarea></label><label>内容<textarea name="content"></textarea></label>
+    <div class="two"><label>对象类型<input name="object_type" placeholder="品牌、门店、产品"></label><label>对象编号<input name="object_id"></label></div>
+    <label>来源类型<input name="source_type" placeholder="企业资料、Data Core、Living Enterprise" required></label><label>来源记录<input name="source_id" required></label><label>来源位置<input name="source_ref" required></label><label>依据说明<textarea name="statement" required></textarea></label><button>保存草稿</button>
+  </form>
+  <section class="panel"><h2>知识记录</h2><div class="list compact">{% for item in items %}<article class="run"><span class="status">{{ {'approved':'已确认','rejected':'已拒绝','draft':'待确认'}.get(item.status,item.status) }}</span><h3>{{ item.title }}</h3><p>{{ item.summary or '尚未生成摘要' }}</p>{% if item.status == 'draft' and user.role in ['admin','manager','boss'] %}<div class="actions"><form method="post" action="/ops-api/knowledge/{{ item.knowledge_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve"><button>确认知识</button></form><form method="post" action="/ops-api/knowledge/{{ item.knowledge_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject"><button class="secondary">拒绝</button></form></div>{% endif %}</article>{% else %}<div class="empty"><h3>暂无知识记录</h3><p>从一份有明确来源的企业资料开始。</p></div>{% endfor %}</div></section>
+</section>
+{% endblock %}

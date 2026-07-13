@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}企业提问｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">AI工作台</p><h1>基于企业事实提问</h1><p>没有依据的问题不会进入分析；AI回答默认等待人工确认。</p></section>
+<section class="split">
+  <form class="panel" method="post" action="/ops-api/runs">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>新建分析</h2>
+    <label>选择助手<select name="agent_id" required>{% for agent in agents %}<option value="{{ agent.agent_id }}">{{ agent.name }}</option>{% endfor %}</select></label>
+    <label>企业问题<textarea name="question" placeholder="例如：南山店最近最需要关注什么？" required></textarea></label>
+    <div class="two"><label>关联对象类型<input name="object_type" placeholder="门店、品牌、产品"></label><label>关联对象<input name="object_id" placeholder="例如：南山店"></label></div>
+    <fieldset><legend>本次分析依据</legend>
+      <input type="hidden" name="source_layer" value="enterprise_fact">
+      <label>来源<select name="source_type" required><option value="core.vafox.com">Enterprise Data Core</option><option value="living_enterprise">Living Enterprise</option><option value="huyan.vafox.com">CEO Enterprise Brain</option></select></label>
+      <label>来源记录<input name="source_id" placeholder="同步批次、对象编号或资料编号" required></label>
+      <label>来源位置<input name="source_ref" placeholder="可回溯的页面或记录位置" required></label>
+      <label>依据说明<textarea name="statement" placeholder="用一句话说明这条事实支持什么" required></textarea></label>
+    </fieldset>
+    <button>提交分析</button>
+  </form>
+  <section class="panel"><h2>最近分析</h2><div class="list compact">
+    {% for run in runs %}<article class="run"><div><span class="status">{{ {'waiting_ai':'等待 AI','pending_review':'待确认'}.get(run.status,run.status) }}</span><h3>{{ run.question }}</h3><p>{{ run.answer or '问题与企业依据已保存，AI服务返回前不会生成结论。' }}</p></div>{% if run.status == 'pending_review' and user.role in ['admin','manager','boss'] %}<div class="actions"><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve"><button>接受建议</button></form><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject"><button class="secondary">拒绝</button></form></div>{% endif %}</article>{% else %}<div class="empty"><h3>暂无分析</h3><p>填写左侧问题和企业依据后开始。</p></div>{% endfor %}
+  </div></section>
+</section>
+{% endblock %}
