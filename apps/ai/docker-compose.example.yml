@@ -1,0 +1,16 @@
+services:
+  enterprise-ai:
+    build: .
+    container_name: vafox-auth
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:5010:5010"
+    networks:
+      - vafox-platform
+
+networks:
+  vafox-platform:
+    external: true
+    name: ai-vafox_default

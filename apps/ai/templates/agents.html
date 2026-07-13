@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block title %}Agent中心｜FoxBrain{% endblock %}
+{% block content %}<section class="page-title"><p class="eyebrow">Agent中心</p><h1>企业数字助手</h1><p>每个 Agent 都有明确职责、只读数据范围、工具边界和人工审批规则。</p></section><section class="agent-grid">{% for agent in agents %}<article><span class="status active">可用</span><h2>{{ agent.name }}</h2><p>{{ agent.description }}</p><dl><dt>数据权限</dt><dd>企业事实只读</dd><dt>经营动作</dt><dd>必须人工确认</dd><dt>输出要求</dt><dd>必须展示依据</dd></dl><a href="/workbench">使用这个助手</a></article>{% endfor %}</section>{% endblock %}

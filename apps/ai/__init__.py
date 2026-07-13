@@ -1,0 +1,1 @@
+"""FoxBrain Enterprise AI application."""

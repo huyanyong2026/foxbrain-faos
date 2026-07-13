@@ -2,7 +2,7 @@
 
 **The Enterprise Second Brain for Huohu Fox / 火狐狸企业第二大脑**
 
-This repository is the official development headquarters for **huyan.vafox.com**.
+This repository is the official development headquarters for the FoxBrain enterprise platform.
 
 ## Project Positioning
 
@@ -15,15 +15,15 @@ FoxBrain is an **Enterprise Second Brain**:
 - It connects files, SAP data, photos, videos, contracts, employees, stores, brands, products, suppliers and customers.
 - It helps the CEO analyze, reason and make better decisions.
 
-## Current Focus
-
-We only focus on:
+## Current Product Surfaces
 
 ```text
-huyan.vafox.com = FoxBrain CEO Brain
+core.vafox.com  = Enterprise Data Core / enterprise facts
+ai.vafox.com    = Enterprise AI / agents, knowledge, tasks and feedback
+huyan.vafox.com = FoxBrain CEO Brain / decisions and memory
 ```
 
-Do not develop `ai.vafox.com` yet.
+`ai.vafox.com` development started only after the CEO Brain and Living Enterprise foundations were established. The three surfaces remain independently deployable and keep strict evidence and permission boundaries.
 
 ## First 90-Day Goal
 

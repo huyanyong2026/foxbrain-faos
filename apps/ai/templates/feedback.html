@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}反馈学习｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">AI反馈学习</p><h1>让 AI 越来越懂企业</h1><p>反馈只形成学习候选，必须人工复核后才能影响企业经验和规则。</p></section>
+<section class="split">
+  <form class="panel" method="post" action="/ops-api/feedback">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><h2>记录使用结果</h2>
+    <label>关联分析<select name="run_id" required>{% for run in runs %}<option value="{{ run.run_id }}">{{ run.question }}</option>{% endfor %}</select></label>
+    <label>反馈<select name="feedback_type"><option value="accepted">已采纳</option><option value="rejected">未采纳</option><option value="modified">修改后采纳</option><option value="effective">执行有效</option><option value="ineffective">执行无效</option></select></label>
+    <label>效果评分<select name="effect_score"><option value="">暂不评分</option>{% for score in range(1,6) %}<option value="{{ score }}">{{ score }} 分</option>{% endfor %}</select></label><label>补充说明<textarea name="comment"></textarea></label>{% if runs %}<button>保存反馈</button>{% else %}<div class="empty"><p>还没有经过人工复核的 AI 分析，暂时不能记录反馈。</p></div>{% endif %}
+  </form>
+  <section class="panel"><h2>学习候选</h2><div class="list compact">{% for item in feedback %}<article class="run"><span class="status">{{ {'pending_review':'待复核','approved':'已确认','rejected':'已拒绝'}.get(item.learning_status,item.learning_status) }}</span><h3>{{ item.question }}</h3><p>{{ item.comment or '未填写补充说明' }}</p>{% if item.learning_status == 'pending_review' and user.role in ['admin','manager','boss'] %}<div class="actions"><form method="post" action="/ops-api/feedback/{{ item.feedback_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve"><button>确认学习</button></form><form method="post" action="/ops-api/feedback/{{ item.feedback_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject"><button class="secondary">拒绝</button></form></div>{% endif %}</article>{% else %}<div class="empty"><h3>暂无反馈</h3><p>先完成一次 AI 分析的人工确认，再记录实际效果。</p></div>{% endfor %}</div></section>
+</section>
+{% endblock %}

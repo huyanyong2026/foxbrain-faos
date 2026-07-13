@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}AI工作台｜FoxBrain{% endblock %}
+{% block content %}
+<section class="hero"><div><p class="eyebrow">企业协同中枢</p><h1>今天，让 AI 帮企业做什么？</h1><p>事实来自 Data Core，关系来自 Living Enterprise，重要建议由负责人确认后才能进入行动。</p></div><a class="primary" href="/workbench">开始提问</a></section>
+<section class="metrics">
+  <article><span>可用 Agent</span><strong>{{ metrics.agents }}</strong></article>
+  <article><span>待确认建议</span><strong>{{ metrics.pending_runs }}</strong></article>
+  <article><span>待审批任务</span><strong>{{ metrics.pending_tasks }}</strong></article>
+  <article><span>已确认知识</span><strong>{{ metrics.knowledge }}</strong></article>
+</section>
+<section class="section-head"><div><p class="eyebrow">企业连接</p><h2>数据与决策链路</h2></div>{% if user.role in ['admin','manager','boss'] %}<form method="post" action="/ops-api/connections/check"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>检查连接</button></form>{% endif %}</section>
+<section class="list">
+{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>{{ '只读企业事实' if item.access_mode == 'read_only' else '人工确认后交换' if item.access_mode == 'approved_exchange' else '安全回调连接' }}</p></div><span class="status {{ item.status }}">{{ {'connected':'已连接','unavailable':'暂不可用','not_configured':'待配置'}.get(item.status,item.status) }}</span></article>{% endfor %}
+</section>
+<section class="section-head"><div><p class="eyebrow">最近分析</p><h2>等待确认的 AI 工作</h2></div><a href="/workbench">查看全部</a></section>
+<section class="list">
+{% for run in runs %}<article class="row"><div><strong>{{ run.question }}</strong><p>{{ run.answer or '已保存问题，正在等待 AI 服务返回有依据的分析。' }}</p></div><span class="status">{{ {'waiting_ai':'等待分析','pending_review':'待人工确认'}.get(run.status,run.status) }}</span></article>{% else %}<div class="empty"><h3>还没有分析记录</h3><p>先进入 AI 工作台，选择 Agent 和企业依据后提出问题。</p><a class="primary" href="/workbench">提出第一个问题</a></div>{% endfor %}
+</section>
+{% endblock %}
