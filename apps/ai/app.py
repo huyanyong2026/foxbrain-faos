@@ -675,24 +675,49 @@ def import_replenishment_file():
     return redirect("/replenishment/history/{}".format(batch_id))
 
 
-@app.post("/ops-api/replenishment/pull-core")
-@manager_required
-def pull_replenishment_from_core():
-    require_csrf()
+def generate_replenishment_from_core():
+    """Fetch one normalized Core batch and save it exactly once."""
     result = data_core_connector(
         os.environ.get("CORE_BASE_URL", "https://core.vafox.com"),
         os.environ.get("CORE_API_TOKEN", ""),
     ).get_json("api/v1/replenishment/input")
     if not result["ok"]:
-        raise ValueError("Data Core 暂未提供补货标准数据，请先上传真实 SAP 导出文件")
+        raise ValueError("Data Core 补货接口暂不可用：{}".format(result.get("error") or "unknown"))
     payload = result["data"] or {}
+    core_batch_id = str(payload.get("batch_id") or "").strip()
+    if not core_batch_id:
+        raise ValueError("Data Core 返回结果缺少 batch_id")
+    existing = one(
+        """select batch_id from replenishment_batches where source_type='core_api' and source_name=%s
+        and status in ('completed','completed_with_warnings') order by created_at desc limit 1""",
+        (core_batch_id,),
+    )
+    if existing:
+        return existing["batch_id"], False
     input_rows = payload.get("items") or payload.get("data") or []
     business_date = date.fromisoformat(payload.get("business_date") or business_today().isoformat())
     batch_id = save_replenishment_batch(
-        input_rows, "core_api", str(payload.get("batch_id") or "core.vafox.com"), business_date,
-        {"core_batch_id": payload.get("batch_id"), "data_as_of": payload.get("data_as_of"), "source_label": "core.vafox.com"},
+        input_rows, "core_api", core_batch_id, business_date,
+        {"core_batch_id": core_batch_id, "data_as_of": payload.get("data_as_of"),
+         "source_label": "core.vafox.com"},
     )
+    return batch_id, True
+
+
+@app.post("/ops-api/replenishment/pull-core")
+@manager_required
+def pull_replenishment_from_core():
+    require_csrf()
+    batch_id, _created = generate_replenishment_from_core()
     return redirect("/replenishment/history/{}".format(batch_id))
+
+
+@app.post("/ops-api/internal/replenishment/run")
+def run_replenishment_internal():
+    require_service_token()
+    batch_id, created = generate_replenishment_from_core()
+    return jsonify({"ok": True, "batch_id": batch_id, "created": created,
+                    "source": "core.vafox.com", "sap_write": False})
 
 
 @app.get("/ops-api/replenishment/export/<batch_id>/<store_code>.xlsx")
