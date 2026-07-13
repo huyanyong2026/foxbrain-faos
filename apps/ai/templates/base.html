@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#15382c">
   <title>{% block title %}FoxBrain 企业 AI{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='replenishment.css') }}">
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
 <body>
@@ -15,6 +16,7 @@
   </header>
   <nav class="nav" aria-label="主要导航">
     <a href="/dashboard">AI工作台</a>
+    {% if user and user.role in ['admin','manager','boss','purchaser','store_manager'] %}<a href="/replenishment">AI补货中心</a>{% endif %}
     <a href="/agents">Agent中心</a>
     <a href="/wecom">企业微信</a>
     <a href="/knowledge">知识中心</a>

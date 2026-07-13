@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}导入补货数据｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">管理员</p><h1>导入真实补货数据</h1><p>在 core.vafox.com 标准接口完成前，可上传真实 SAP 导出的 Excel 或 CSV。系统不会把测试数据标记为正式数据。</p></section>
+<div class="split"><section class="panel"><h2>上传文件</h2><form method="post" action="/ops-api/replenishment/import" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>业务日期<input type="date" name="business_date" value="{{ business_date }}" required></label><label>Excel/CSV 文件<input type="file" name="file" accept=".xlsx,.csv" required></label><button>校验并生成补货建议</button></form></section>
+<section class="panel"><h2>字段要求</h2><p>必须包含：门店、商品编码、商品名称、当前库存、近30天销售，以及“前30天销售”或“近60天销售”。</p><p>可选字段：品牌、产品类别、颜色、尺码。</p><p>门店名称仅接受：南山店、航苑店、振兴店。</p><p>规则版本：{{ rule_version }}</p><p><a href="/static/replenishment_import_template.csv" class="primary secondary" download>下载空白模板</a></p><form method="post" action="/ops-api/replenishment/pull-core"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary">尝试从 core.vafox.com 获取</button></form></section></div>
+{% endblock %}

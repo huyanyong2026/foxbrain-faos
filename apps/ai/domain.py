@@ -30,6 +30,7 @@ DEFAULT_APPROVAL_POLICY = {
 }
 
 SCHEMA_STATEMENTS = (
+    "alter table auth_users add column if not exists store_code varchar(40)",
     """create table if not exists ai_agents(
     id bigserial primary key,agent_id varchar(80) unique not null,agent_type varchar(40) not null,
     name varchar(120) not null,description text not null default '',status varchar(20) not null default 'active',
@@ -77,11 +78,34 @@ SCHEMA_STATEMENTS = (
     corp_id_masked varchar(120) not null default '',callback_path varchar(240) not null default '/wecom/',
     status varchar(30) not null default 'not_configured',last_event_at timestamptz,
     metadata jsonb not null default '{}'::jsonb,updated_at timestamptz not null default now())""",
+    """create table if not exists replenishment_batches(
+    id bigserial primary key,batch_id varchar(100) unique not null,business_date date not null,
+    source_type varchar(30) not null,source_name varchar(240) not null,data_as_of timestamptz,
+    rule_version varchar(40) not null,status varchar(40) not null default 'validating',revision integer not null default 1,
+    input_rows integer not null default 0,result_rows integer not null default 0,error_summary text,
+    metadata jsonb not null default '{}'::jsonb,created_by bigint,created_at timestamptz not null default now(),
+    completed_at timestamptz,unique(business_date,source_type,source_name,rule_version,revision))""",
+    """create table if not exists replenishment_items(
+    id bigserial primary key,batch_id varchar(100) not null,store_code varchar(40) not null,
+    store_name varchar(80) not null,sku_code varchar(100) not null,product_name varchar(300) not null,
+    brand_name varchar(160) not null default '',category_name varchar(160) not null default '',
+    color varchar(100) not null default '',size varchar(100) not null default '',available_stock integer not null,
+    sales_30d integer not null,sales_prev_30d integer not null,sales_60d integer not null,
+    avg_daily_sales numeric(14,4) not null,stock_days numeric(14,2),safety_stock integer not null,
+    suggested_qty integer not null,priority varchar(20) not null,recommendation varchar(40) not null,
+    reason text not null,warning text not null default '',created_at timestamptz not null default now(),
+    unique(batch_id,store_code,sku_code))""",
+    """create table if not exists replenishment_audit_logs(
+    id bigserial primary key,action varchar(60) not null,batch_id varchar(100),store_code varchar(40),
+    actor_id bigint,details jsonb not null default '{}'::jsonb,created_at timestamptz not null default now())""",
     "create index if not exists idx_ai_runs_status on ai_agent_runs(status,approval_status,updated_at desc)",
     "create index if not exists idx_ai_tasks_status on ai_tasks(status,approval_status,updated_at desc)",
     "create index if not exists idx_ai_knowledge_object on ai_knowledge_items(object_type,object_id,status)",
     "create index if not exists idx_ai_feedback_run on ai_feedback(run_id,created_at desc)",
     "create index if not exists idx_ai_evidence_target on ai_evidence_links(target_type,target_id)",
+    "create index if not exists idx_replenishment_batches_date on replenishment_batches(business_date desc,created_at desc)",
+    "create index if not exists idx_replenishment_items_store on replenishment_items(batch_id,store_code,priority)",
+    "create index if not exists idx_replenishment_audit_batch on replenishment_audit_logs(batch_id,created_at desc)",
 )
 
 
