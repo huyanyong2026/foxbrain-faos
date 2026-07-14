@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate workflow deployment scripts
+        run: python3 .github/scripts/check_workflow_scripts.py
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -48,6 +50,8 @@ jobs:
       CORE_STORE_MAP_JSON: ${{ secrets.CORE_STORE_MAP_JSON }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate workflow deployment scripts
+        run: python3 .github/scripts/check_workflow_scripts.py
       - name: Require Core deployment secrets
         run: |
           missing=0
@@ -122,6 +126,8 @@ jobs:
       CORE_API_TOKEN: ${{ secrets.CORE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate workflow deployment scripts
+        run: python3 .github/scripts/check_workflow_scripts.py
       - name: Require AI deployment secrets
         run: |
           missing=0

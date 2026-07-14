@@ -17,6 +17,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate workflow deployment scripts
+        run: python3 .github/scripts/check_workflow_scripts.py
+
       - name: Prepare compose env
         run: cp .env.example .env
 
