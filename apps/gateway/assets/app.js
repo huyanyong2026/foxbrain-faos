@@ -103,8 +103,15 @@ const applyPublicStores = async () => {
     if (!response.ok) return;
     const payload = await response.json();
     const stores = Array.isArray(payload.items) ? payload.items : [];
+    const preferredNames = ['南山店', '振兴店', '航苑店', '成都金沙店'];
+    const activeStores = stores.filter((store) => store && store.name !== '成都武侯祠店');
+    const preferredStores = preferredNames
+      .map((name) => activeStores.find((store) => store.name === name))
+      .filter(Boolean);
+    const remainingStores = activeStores.filter((store) => !preferredNames.includes(store.name));
+    const displayStores = [...preferredStores, ...remainingStores];
     const buttons = Array.from(document.querySelectorAll('[data-store]'));
-    stores.slice(0, buttons.length).forEach((store, index) => {
+    displayStores.slice(0, buttons.length).forEach((store, index) => {
       if (!store || !store.name) return;
       buttons[index].dataset.store = store.name;
       buttons[index].textContent = store.name;
