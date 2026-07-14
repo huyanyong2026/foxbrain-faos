@@ -74,6 +74,11 @@ class CoreApiTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             quote_identifier("OITM; drop table x")
 
+    def test_operation_snapshot_filters_inactive_catalog_rows(self):
+        source = (Path(__file__).resolve().parents[1] / "apps" / "core_api" / "app.py").read_text(encoding="utf-8")
+        self.assertIn("coalesce(w.OnHand,0)<>0", source)
+        self.assertIn("or s.ItemCode is not null", source)
+
     def test_state_status_is_read_only(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state.db"
