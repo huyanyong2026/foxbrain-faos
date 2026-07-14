@@ -6,6 +6,7 @@ const requiredContent = [
   "Adventure",
   "Brand Universe",
   "Explorer",
+  "/explorer/register",
   "南山店",
   "commerce.vafox.com",
   "ai.vafox.com",
