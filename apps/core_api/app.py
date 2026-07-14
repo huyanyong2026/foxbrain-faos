@@ -182,24 +182,7 @@ class CoreService:
             warehouse = {key: json_value(value) for key, value in warehouses[0].items()}
             code = warehouse["WhsCode"]
             cursor.execute(
-                """select i.ItemCode,i.ItemName,g.ItmsGrpNam,m.FirmName,
-                w.OnHand,w.IsCommited,w.OnOrder,w.AvgPrice
-                from dbo.OITW w join dbo.OITM i on i.ItemCode=w.ItemCode
-                left join dbo.OITB g on g.ItmsGrpCod=i.ItmsGrpCod
-                left join dbo.OMRC m on m.FirmCode=i.FirmCode
-                where w.WhsCode=%s""",
-                (code,),
-            )
-            columns = [item[0] for item in cursor.description]
-            products = [dict(zip(columns, (json_value(value) for value in row))) for row in cursor.fetchall()]
-            cursor.execute(
-                """select sales.ItemCode,
-                sum(case when sales.DocDate>=dateadd(day,-30,cast(%s as date)) then sales.Quantity else 0 end) Sales30,
-                sum(case when sales.DocDate>=dateadd(day,-60,cast(%s as date)) then sales.Quantity else 0 end) Sales60,
-                sum(case when sales.DocDate>=dateadd(day,-90,cast(%s as date)) then sales.Quantity else 0 end) Sales90,
-                sum(sales.Quantity) Sales180,
-                max(case when sales.Quantity>0 then sales.DocDate end) LastSaleDate
-                from (
+                """with movements as (
                   select l.ItemCode,h.DocDate,cast(l.Quantity as decimal(19,6)) Quantity
                   from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry
                   where h.CANCELED='N' and l.WhsCode=%s and h.DocDate>=dateadd(day,-180,cast(%s as date))
@@ -207,11 +190,37 @@ class CoreService:
                   select l.ItemCode,h.DocDate,-cast(l.Quantity as decimal(19,6)) Quantity
                   from dbo.ORIN h join dbo.RIN1 l on l.DocEntry=h.DocEntry
                   where h.CANCELED='N' and l.WhsCode=%s and h.DocDate>=dateadd(day,-180,cast(%s as date))
-                ) sales group by sales.ItemCode""",
-                (as_of, as_of, as_of, code, as_of, code, as_of),
+                ), sales as (
+                  select ItemCode,
+                  sum(case when DocDate>=dateadd(day,-30,cast(%s as date)) then Quantity else 0 end) Sales30,
+                  sum(case when DocDate>=dateadd(day,-60,cast(%s as date)) then Quantity else 0 end) Sales60,
+                  sum(case when DocDate>=dateadd(day,-90,cast(%s as date)) then Quantity else 0 end) Sales90,
+                  sum(Quantity) Sales180,
+                  max(case when Quantity>0 then DocDate end) LastSaleDate
+                  from movements group by ItemCode
+                )
+                select i.ItemCode,i.ItemName,g.ItmsGrpNam,m.FirmName,
+                w.OnHand,w.IsCommited,w.OnOrder,w.AvgPrice,
+                coalesce(s.Sales30,0) Sales30,coalesce(s.Sales60,0) Sales60,
+                coalesce(s.Sales90,0) Sales90,coalesce(s.Sales180,0) Sales180,s.LastSaleDate
+                from dbo.OITW w join dbo.OITM i on i.ItemCode=w.ItemCode
+                left join dbo.OITB g on g.ItmsGrpCod=i.ItmsGrpCod
+                left join dbo.OMRC m on m.FirmCode=i.FirmCode
+                left join sales s on s.ItemCode=w.ItemCode
+                where w.WhsCode=%s and (
+                  coalesce(w.OnHand,0)<>0 or coalesce(w.IsCommited,0)<>0
+                  or coalesce(w.OnOrder,0)<>0 or s.ItemCode is not null
+                )""",
+                (code, as_of, code, as_of, as_of, as_of, as_of, code),
             )
             columns = [item[0] for item in cursor.description]
-            sales = [dict(zip(columns, (json_value(value) for value in row))) for row in cursor.fetchall()]
+            products = [dict(zip(columns, (json_value(value) for value in row))) for row in cursor.fetchall()]
+            sales = [
+                {key: row.get(key) for key in ("ItemCode", "Sales30", "Sales60", "Sales90", "Sales180", "LastSaleDate")}
+                for row in products
+                if row.get("LastSaleDate") is not None
+                or any(row.get(key) for key in ("Sales30", "Sales60", "Sales90", "Sales180"))
+            ]
             return {"as_of": as_of, "warehouse": warehouse, "products": products, "sales": sales}
         finally:
             connection.close()
