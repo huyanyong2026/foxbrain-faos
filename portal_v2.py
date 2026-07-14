@@ -54,6 +54,7 @@ try:
     from foxbrain_os.enterprise_second_brain_v11 import build_ceo_home_v11_contract, build_drive_2_contract, build_enterprise_second_brain_v11_contract, build_knowledge_pipeline_contract, build_object_engine_contract
     from foxbrain_os.brand_life_engine import brand_life_payload, ensure_brand_life_schema, extract_brand_document, register_brand_document, seed_kailas
     from foxbrain_os.living_enterprise import LIFE_DIMENSIONS as LIVING_DIMENSIONS, LIFE_OBJECT_TYPES, ensure_living_enterprise_schema, living_enterprise_summary, living_object_payload, sync_life_objects_from_confirmed_sources
+    from foxbrain_os.life_import import OBJECT_CONFIGS as LIFE_IMPORT_OBJECTS, approve_import as approve_life_import, ensure_life_import_schema, import_batch_detail, life_object_allowed, list_import_batches, rollback_import as rollback_life_import, stage_import_bytes, update_import_mapping
     from foxbrain_os.enterprise_brain import activate_constitution, confirm_founder_memory, create_constitution_draft, create_founder_memory, ensure_enterprise_brain_schema, enterprise_asset_map, enterprise_brain_summary, enterprise_timeline
     from foxbrain_os.ceo_operating_loop import attach_ai_analysis, confirm_decision_memory, confirm_operating_review, create_decision_memory, create_enterprise_question, create_morning_brief, create_operating_review, ensure_ceo_operating_loop_schema, evidence_chain as operating_evidence_chain, operating_loop_summary, review_ai_analysis
 except Exception:
@@ -175,6 +176,23 @@ except Exception:
         return {"ok": False, "object_counts": {}, "total_objects": 0, "source_records": 0, "objects_without_source": 0, "dimensions": list(LIVING_DIMENSIONS), "recent_objects": []}
     def living_object_payload(conn, life_id):
         return {"ok": False, "message": "living enterprise unavailable"}
+    LIFE_IMPORT_OBJECTS = {}
+    def ensure_life_import_schema(conn):
+        return None
+    def list_import_batches(conn, limit=50):
+        return []
+    def import_batch_detail(conn, batch_id, row_limit=100):
+        return {"ok": False, "message": "life import unavailable"}
+    def stage_import_bytes(*args, **kwargs):
+        raise ValueError("life import unavailable")
+    def approve_life_import(*args, **kwargs):
+        raise ValueError("life import unavailable")
+    def rollback_life_import(*args, **kwargs):
+        raise ValueError("life import unavailable")
+    def update_import_mapping(*args, **kwargs):
+        raise ValueError("life import unavailable")
+    def life_object_allowed(user_role, object_type, object_state=None, user_store=""):
+        return user_role in ("boss", "admin")
     def ensure_enterprise_brain_schema(conn):
         return None
     def enterprise_brain_summary(conn):
@@ -5704,6 +5722,7 @@ create table if not exists manual_business_report_publications(
         ensure_brand_life_schema(conn)
         seed_kailas(conn)
         ensure_living_enterprise_schema(conn)
+        ensure_life_import_schema(conn)
         sync_life_objects_from_confirmed_sources(conn)
         ensure_enterprise_brain_schema(conn)
         ensure_ceo_operating_loop_schema(conn)
@@ -5977,6 +5996,10 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_center_page(user)
         if path == "/living-enterprise":
             return self.living_enterprise_page(user)
+        if path == "/admin/import":
+            return self.life_import_center_page(user)
+        if path == "/api/life-import":
+            return self.api_life_import_get(user)
         m_living_page = re.match(r"^/living-enterprise/objects/([^/]+)$", path)
         if m_living_page:
             return self.living_object_page(user, m_living_page.group(1))
@@ -6401,6 +6424,8 @@ class App(BaseHTTPRequestHandler):
             return self.proactive_intelligence_rebuild_post()
         if path == "/api/living-enterprise/rebuild":
             return self.api_living_enterprise_rebuild(self.current_user())
+        if path.startswith("/api/life-import/"):
+            return self.api_life_import_post(self.current_user(), path)
         if path == "/api/brand-life/documents/import":
             return self.api_brand_life_import(self.current_user())
         if path == "/reports/save":
@@ -9188,7 +9213,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return
         with db() as conn:
             rows = conn.execute("select * from users order by status='pending' desc, created_at desc").fetchall()
-        body = f'<div class="panel"><h2>{T["users"]}</h2><p class="small">{U(r"\u65b0\u5458\u5de5\u6ce8\u518c\u540e\u9ed8\u8ba4\u4e3a\u5f85\u5ba1\u6838\u3002\u7ba1\u7406\u5458\u53ef\u4ee5\u5ba1\u6838\u901a\u8fc7\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002")}</p><table><thead><tr><th>{T["name"]}</th><th>{T["email"]}</th><th>{T["phone"]}</th><th>{T["store"]}</th><th>{T["role"]}</th><th>{T["status"]}</th><th>{T["action"]}</th></tr></thead><tbody>'
+        body = '<div class="panel"><h2>企业资料导入</h2><p>先预览、检查和人工确认，再建立供应商、产品和人才生命对象。</p><a class="btn" href="/admin/import">打开生命资料导入中心</a></div>'
+        body += f'<div class="panel"><h2>{T["users"]}</h2><p class="small">{U(r"\u65b0\u5458\u5de5\u6ce8\u518c\u540e\u9ed8\u8ba4\u4e3a\u5f85\u5ba1\u6838\u3002\u7ba1\u7406\u5458\u53ef\u4ee5\u5ba1\u6838\u901a\u8fc7\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002")}</p><table><thead><tr><th>{T["name"]}</th><th>{T["email"]}</th><th>{T["phone"]}</th><th>{T["store"]}</th><th>{T["role"]}</th><th>{T["status"]}</th><th>{T["action"]}</th></tr></thead><tbody>'
         for row in rows:
             update = (
                 '<form method="post" action="/admin/update">'
@@ -27669,16 +27695,224 @@ group by coalesce(store_name,'')
                 return self.json_out({"ok": False, "message": str(exc)}, code=400)
             return self.out(layout(U(r"CEO \u7ecf\u8425\u95ed\u73af"), '<div class="alert">{}</div><p><a class="btn" href="/ceo-operating-loop">{}</a></p>'.format(esc(str(exc)), U(r"\u8fd4\u56de CEO \u7ecf\u8425\u95ed\u73af")), user=user), code=400)
 
+    def require_life_import_access(self, user, api=False):
+        user = self.require_login(user)
+        if not user:
+            return None
+        if user["role"] not in ("boss", "admin"):
+            if api:
+                self.json_out({"ok": False, "message": "当前账号无权查看企业导入资料。"}, code=403)
+            else:
+                self.out(layout("生命资料导入", self.guided_empty_state(
+                    "当前账号无权查看企业导入资料。",
+                    "供应商和员工资料属于商业敏感信息，仅老板或管理员可以访问。",
+                    "/", "返回首页"), user=user), code=403)
+            return None
+        return user
+
+    def life_import_center_page(self, user):
+        user = self.require_life_import_access(user)
+        if not user:
+            return
+        query = parse_qs(urlparse(self.path).query)
+        selected_batch = (query.get("batch") or [""])[0]
+        with db() as conn:
+            batches = list_import_batches(conn, 50)
+            detail = import_batch_detail(conn, selected_batch, 80) if selected_batch else {"ok": False}
+        object_options = "".join(
+            '<option value="{}">{}</option>'.format(esc(key), esc(value.get("label", key)))
+            for key, value in LIFE_IMPORT_OBJECTS.items()
+            if key in ("supplier_life", "product_life", "people_life")
+        )
+        status_labels = {
+            "review_required": "等待人工确认", "imported": "已正式导入",
+            "rolled_back": "已回滚", "failed": "导入失败",
+        }
+        history_rows = "".join(
+            "<tr><td><a href='/admin/import?batch={}'>{}</a></td><td>{}</td><td>{}</td><td>{}</td><td>{}/{}/{}</td><td>{}</td></tr>".format(
+                esc(item["batch_id"]), esc(item["original_filename"]),
+                esc(LIFE_IMPORT_OBJECTS.get(item["object_type"], {}).get("label", item["object_type"])),
+                int(item["row_count"] or 0), esc(status_labels.get(item["status"], item["status"])),
+                int(item["valid_count"] or 0), int(item["warning_count"] or 0), int(item["error_count"] or 0),
+                esc(dt(item["created_at"])),
+            ) for item in batches
+        ) or "<tr><td colspan='6'>还没有导入记录。上传文件后，系统只生成预览，不会立即入库。</td></tr>"
+        detail_html = ""
+        if detail.get("ok"):
+            batch = detail["batch"]
+            import_field_labels = {
+                "supplier_code": "供应商编号", "supplier_name": "供应商名称", "contact": "联系人",
+                "phone": "联系电话", "phone_secondary": "备用电话", "address": "地址",
+                "group_name": "分组", "account_balance": "科目余额", "cooperation_start": "合作时间",
+                "product_code": "商品编码", "product_name": "商品名称", "brand": "品牌",
+                "category": "类别", "inventory": "库存数量", "purchase_price": "采购价",
+                "member_price": "会员价", "barcode": "附加标识", "sales_history": "销售历史",
+                "sales_trend": "销售趋势", "use_scenario": "使用场景",
+                "employee_code": "员工编号", "employee_name": "姓名", "store": "门店",
+                "position": "岗位", "status": "状态", "hire_date": "入职时间",
+                "training_records": "培训记录", "capability_tags": "能力标签", "growth_path": "成长路径",
+            }
+            source_headers = batch.get("validation_summary", {}).get("headers", [])
+            mapping_editable = batch["status"] == "review_required"
+            def mapping_value(target, source):
+                if not mapping_editable:
+                    return esc(source or "未识别")
+                options = ['<option value="">未识别</option>']
+                options.extend(
+                    '<option value="{}"{}>{}</option>'.format(
+                        esc(header), " selected" if header == source else "", esc(header)
+                    ) for header in source_headers
+                )
+                return '<select name="map__{}">{}</select>'.format(esc(target), "".join(options))
+            mapping_rows = "".join(
+                "<tr><td>{}</td><td>{}</td></tr>".format(
+                    esc(import_field_labels.get(target, "资料字段")), mapping_value(target, source)
+                )
+                for target, source in batch.get("mapping", {}).items()
+            )
+            mapping_form_start = ""
+            mapping_form_end = ""
+            if mapping_editable:
+                mapping_form_start = '<form method="post" action="/api/life-import/mapping"><input type="hidden" name="batch_id" value="{}">'.format(esc(batch["batch_id"]))
+                mapping_form_end = '<button type="submit">保存字段映射并重新检查</button></form>'
+            preview_rows = []
+            for item in batch.get("rows", []):
+                mapped = item.get("mapped", {})
+                issues = item.get("validation", [])
+                preview_rows.append(
+                    "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+                        int(item["row_number"]),
+                        esc(" / ".join(str(value) for value in list(mapped.values())[:5] if value) or "空行"),
+                        esc("；".join(issue.get("message", "") for issue in issues) or "通过"),
+                        esc({"valid": "可导入", "warning": "需确认", "error": "有错误", "imported": "已导入", "rolled_back": "已回滚"}.get(item["status"], item["status"])),
+                    )
+                )
+            action = ""
+            if batch["status"] == "review_required":
+                warning_check = ""
+                if int(batch["warning_count"] or 0):
+                    warning_check = '<label><input type="checkbox" name="include_warnings" value="1" required> 我已核对警告行，确认将其一并导入</label>'
+                action = """<form method="post" action="/api/life-import/approve">
+<input type="hidden" name="batch_id" value="{batch_id}">{warning_check}
+<button type="submit"{disabled}>人工确认并正式导入</button>
+<p class="small">确认后才会建立生命对象；不会修改或回写 SAP。</p></form>""".format(
+                    batch_id=esc(batch["batch_id"]), warning_check=warning_check,
+                    disabled=" disabled" if int(batch["error_count"] or 0) else "",
+                )
+            elif batch["status"] == "imported":
+                action = """<form method="post" action="/api/life-import/rollback">
+<input type="hidden" name="batch_id" value="{}"><button class="gray" type="submit">回滚本批次</button>
+<p class="small">如对象已有后续版本，系统会阻止自动回滚。</p></form>""".format(esc(batch["batch_id"]))
+            detail_html = """
+<div class="panel"><h2>导入批次详情</h2><div class="metrics">{metrics}</div><p>原始文件：{filename}</p><p>原文件已完整保存并校验，确认导入不会覆盖原件。</p>{action}</div>
+<div class="split"><div class="panel"><h2>字段映射</h2>{mapping_form_start}<table><thead><tr><th>生命字段</th><th>SAP导出字段</th></tr></thead><tbody>{mapping}</tbody></table>{mapping_form_end}</div>
+<div class="panel"><h2>数据质量</h2>{quality}</div></div>
+<div class="panel"><h2>数据预览（前80行）</h2><table><thead><tr><th>行</th><th>识别内容</th><th>检查结果</th><th>状态</th></tr></thead><tbody>{preview}</tbody></table></div>
+""".format(
+                metrics="".join([
+                    self.metric("总行数", batch["row_count"], "原始记录"),
+                    self.metric("可导入", batch["valid_count"], "校验通过"),
+                    self.metric("需确认", batch["warning_count"], "人工核对"),
+                    self.metric("错误", batch["error_count"], "必须修正"),
+                ]), filename=esc(batch["original_filename"]),
+                action=action, mapping=mapping_rows, mapping_form_start=mapping_form_start,
+                mapping_form_end=mapping_form_end,
+                quality=self.bullets([
+                    "重复编号、空字段、编号冲突和数值格式已检查。",
+                    "原始文件及每一行哈希均已保留。",
+                    "供应商和员工资料仅老板或管理员可查看。",
+                ]), preview="".join(preview_rows),
+            )
+        body = """
+<div class="ceo-hero compact"><span class="status-tag">人工确认后导入</span><h1>生命资料导入中心</h1><p class="lead">SAP 导出文件先保存、识别、映射和检查；未确认前不会建立生命对象。</p><div class="inline"><a class="btn gray" href="/living-enterprise">查看生命企业</a></div></div>
+<div class="panel"><h2>上传 SAP 导出文件</h2><form method="post" action="/api/life-import/upload" enctype="multipart/form-data">
+<label>生命对象类型</label><select name="object_type" required><option value="">请选择</option>{options}</select>
+<label>选择文件</label><input type="file" name="file" accept=".xls,.xlsx,.csv,.tsv" required>
+<label>来源时间（可选）</label><input name="source_time" placeholder="例如 2026-07-14">
+<button type="submit">上传并生成预览</button></form>
+<p class="small">支持 SAP 导出的旧版 XLS、XLSX、CSV 和制表符文本，单个文件不超过 50MB。重复文件会提示，不会静默覆盖。</p></div>
+{detail}
+<div class="panel"><h2>导入历史</h2><table><thead><tr><th>文件</th><th>对象</th><th>行数</th><th>状态</th><th>通过/警告/错误</th><th>时间</th></tr></thead><tbody>{history}</tbody></table></div>
+""".format(options=object_options, detail=detail_html, history=history_rows)
+        self.out(layout("生命资料导入", body, user=user, wide=True))
+
+    def api_life_import_get(self, user):
+        user = self.require_life_import_access(user, api=True)
+        if not user:
+            return
+        query = parse_qs(urlparse(self.path).query)
+        batch_id = (query.get("batch") or [""])[0]
+        with db() as conn:
+            payload = import_batch_detail(conn, batch_id, 100) if batch_id else {
+                "ok": True, "items": list_import_batches(conn, 50), "sap_write": False,
+            }
+        return self.json_out(payload, code=200 if payload.get("ok") else 404)
+
+    def api_life_import_post(self, user, path):
+        user = self.require_life_import_access(user, api=True)
+        if not user:
+            return
+        try:
+            if path == "/api/life-import/upload":
+                size = int(self.headers.get("Content-Length", "0") or 0)
+                if size > 52 * 1024 * 1024:
+                    raise ValueError("文件超过 50MB，未进入导入流程。")
+                form = self.multipart()
+                item = form["file"] if "file" in form else None
+                if item is None or not getattr(item, "filename", ""):
+                    raise ValueError("请选择需要导入的文件。")
+                data = item.file.read(50 * 1024 * 1024 + 1)
+                object_type = str(form.getfirst("object_type", ""))
+                source_time = str(form.getfirst("source_time", ""))
+                with db() as conn:
+                    result = stage_import_bytes(
+                        conn, data, Path(item.filename).name, object_type,
+                        Path(APP_DIR) / "life-import", user["id"], source_time,
+                    )
+                batch = result["batch"]
+                self.log_action(user, "life_import_staged", "life_import", batch.get("id"), batch["batch_id"])
+                target = "/admin/import?batch=" + quote(batch["batch_id"])
+            else:
+                form = self.form()
+                batch_id = form.get("batch_id", "")
+                with db() as conn:
+                    if path == "/api/life-import/mapping":
+                        mapping = {key[5:]: value for key, value in form.items() if key.startswith("map__")}
+                        result = update_import_mapping(conn, batch_id, mapping, user["id"])
+                        action = "life_import_mapping_reviewed"
+                    elif path == "/api/life-import/approve":
+                        result = approve_life_import(conn, batch_id, user["id"], form.get("include_warnings") == "1")
+                        action = "life_import_approved"
+                    elif path == "/api/life-import/rollback":
+                        result = rollback_life_import(conn, batch_id, user["id"])
+                        action = "life_import_rolled_back"
+                    else:
+                        return self.json_out({"ok": False, "message": "导入操作不存在。"}, code=404)
+                self.log_action(user, action, "life_import", None, json.dumps(result, ensure_ascii=False))
+                target = "/admin/import?batch=" + quote(batch_id)
+            if "application/json" in (self.headers.get("Accept") or ""):
+                return self.json_out({"ok": True, "result": result, "redirect": target, "sap_write": False})
+            return self.redir(target)
+        except (ValueError, OSError, csv.Error) as exc:
+            if "application/json" in (self.headers.get("Accept") or ""):
+                return self.json_out({"ok": False, "message": str(exc), "sap_write": False}, code=400)
+            return self.out(layout("生命资料导入", '<div class="alert">{}</div><p><a class="btn" href="/admin/import">返回导入中心</a></p>'.format(esc(str(exc))), user=user), code=400)
+
     def living_enterprise_page(self, user):
         user = self.require_login(user)
         if not user:
             return
         with db() as conn:
             summary = living_enterprise_summary(conn)
+        summary["recent_objects"] = [
+            item for item in summary.get("recent_objects", [])
+            if life_object_allowed(user["role"], item["object_type"], {}, user["store"])
+        ]
         type_labels = {
             "store_life": U(r"\u95e8\u5e97\u751f\u547d"),
             "people_life": U(r"\u4eba\u624d\u751f\u547d"),
             "brand_life": U(r"\u54c1\u724c\u751f\u547d"),
+            "product_life": U(r"\u4ea7\u54c1\u751f\u547d"),
             "supplier_life": U(r"\u4f9b\u5e94\u5546\u751f\u547d"),
             "explorer_life": U(r"\u63a2\u7d22\u8005\u751f\u547d"),
         }
@@ -27710,7 +27944,8 @@ group by coalesce(store_name,'')
         )
         rebuild = ""
         if user["role"] in ("boss", "admin"):
-            rebuild = """<form method="post" action="/api/living-enterprise/rebuild"><button>{}</button></form>""".format(U(r"\u4ece\u5df2\u786e\u8ba4\u6765\u6e90\u66f4\u65b0"))
+            rebuild = """<form method="post" action="/api/living-enterprise/rebuild"><button>{}</button></form><a class="btn gray" href="/admin/import">{}</a>""".format(
+                U(r"\u4ece\u5df2\u786e\u8ba4\u6765\u6e90\u66f4\u65b0"), "导入生命资料")
         counts = summary.get("object_counts", {})
         body = """
 <div class="ceo-hero compact"><span class="status-tag">Living Enterprise V1.0</span><h1>{title}</h1><p class="lead">{lead}</p><div class="inline"><a class="btn" href="/copilot?q={ask}">{ask_label}</a>{rebuild}</div></div>
@@ -27747,6 +27982,11 @@ group by coalesce(store_name,'')
                 U(r"\u8be5\u5bf9\u8c61\u53ef\u80fd\u5c1a\u672a\u4ece\u5df2\u786e\u8ba4\u6765\u6e90\u5efa\u7acb\u3002"),
                 "/living-enterprise", U(r"\u8fd4\u56de\u751f\u547d\u4f01\u4e1a")), user=user))
         obj = payload["object"]
+        if not life_object_allowed(user["role"], obj["object_type"], obj.get("state_json", {}), user["store"]):
+            return self.out(layout("生命档案", self.guided_empty_state(
+                "当前账号不能查看这份生命档案。",
+                "生命对象会继承岗位、门店和商业敏感级别的权限。",
+                "/living-enterprise", "返回生命企业"), user=user), code=403)
         dimension_labels = {
             "identity_json": U(r"\u8eab\u4efd"), "origin_json": U(r"\u8d77\u6e90"),
             "state_json": U(r"\u5f53\u524d\u72b6\u6001"), "future_json": U(r"\u672a\u6765\u57fa\u7ebf"),
@@ -27812,7 +28052,12 @@ group by coalesce(store_name,'')
         if not user:
             return
         with db() as conn:
-            return self.json_out(living_enterprise_summary(conn))
+            summary = living_enterprise_summary(conn)
+        summary["recent_objects"] = [
+            item for item in summary.get("recent_objects", [])
+            if life_object_allowed(user["role"], item["object_type"], {}, user["store"])
+        ]
+        return self.json_out(summary)
 
     def api_living_object_get(self, user, life_id):
         user = self.require_login(user)
@@ -27820,6 +28065,10 @@ group by coalesce(store_name,'')
             return
         with db() as conn:
             payload = living_object_payload(conn, life_id)
+        if payload.get("ok"):
+            obj = payload["object"]
+            if not life_object_allowed(user["role"], obj["object_type"], obj.get("state_json", {}), user["store"]):
+                return self.json_out({"ok": False, "message": "当前账号无权查看该生命对象。"}, code=403)
         return self.json_out(payload, code=200 if payload.get("ok") else 404)
 
     def api_living_enterprise_rebuild(self, user):

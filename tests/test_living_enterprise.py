@@ -48,12 +48,13 @@ class LivingEnterpriseTest(unittest.TestCase):
         self.conn.close()
         self.temp.cleanup()
 
-    def test_framework_exposes_eight_dimensions_and_five_types(self):
+    def test_framework_exposes_eight_dimensions_and_six_types(self):
         self.assertEqual(
             LIFE_DIMENSIONS,
             ("identity", "origin", "timeline", "state", "relationship", "memory", "decision", "future"),
         )
-        self.assertEqual(len(LIFE_OBJECT_TYPES), 5)
+        self.assertEqual(len(LIFE_OBJECT_TYPES), 6)
+        self.assertIn("product_life", LIFE_OBJECT_TYPES)
 
     def test_portal_exposes_page_api_and_manual_rebuild_hooks(self):
         portal_source = (Path(__file__).resolve().parents[1] / "portal_v2.py").read_text(encoding="utf-8")
