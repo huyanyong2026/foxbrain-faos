@@ -8,6 +8,21 @@
   <article><span>待审批任务</span><strong>{{ metrics.pending_tasks }}</strong></article>
   <article><span>已确认知识</span><strong>{{ metrics.knowledge }}</strong></article>
 </section>
+{% if user.role in ['admin','manager','boss','purchaser','store_manager'] %}
+<section class="section-head"><div><p class="eyebrow">今日 AI 任务</p><h2>AI 补货中心</h2></div><a href="/replenishment">查看补货建议</a></section>
+{% if replenishment_batch %}
+<section class="task-status">
+  <div><span>业务日期</span><strong>{{ replenishment_batch.business_date }}</strong></div>
+  <div><span>数据来源</span><strong>{{ 'core.vafox.com' if replenishment_batch.source_type == 'core_api' else '真实SAP导出文件' }}</strong></div>
+  <div><span>分析状态</span><strong class="success">✓ 补货建议完成</strong></div>
+</section>
+<section class="store-cards">
+{% for item in replenishment_summary %}<a href="/replenishment/stores/{{ item.store_code }}"><span>{{ item.store_name }}</span><strong>{{ item.suggested_skus }} 个SKU</strong><small>{{ item.urgent_skus }} 个紧急 · 建议 {{ item.suggested_units or 0 }} 件</small></a>{% endfor %}
+</section>
+{% else %}
+<div class="empty"><h3>等待第一批真实数据</h3><p>管理员上传 SAP 导出文件，或等待 core.vafox.com 标准接口就绪后即可生成三店补货建议。</p>{% if user.role in ['admin','manager','boss'] %}<a class="primary" href="/admin/data-import">导入真实数据</a>{% endif %}</div>
+{% endif %}
+{% endif %}
 <section class="section-head"><div><p class="eyebrow">企业连接</p><h2>数据与决策链路</h2></div>{% if user.role in ['admin','manager','boss'] %}<form method="post" action="/ops-api/connections/check"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>检查连接</button></form>{% endif %}</section>
 <section class="list">
 {% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>{{ '只读企业事实' if item.access_mode == 'read_only' else '人工确认后交换' if item.access_mode == 'approved_exchange' else '安全回调连接' }}</p></div><span class="status {{ item.status }}">{{ {'connected':'已连接','unavailable':'暂不可用','not_configured':'待配置'}.get(item.status,item.status) }}</span></article>{% endfor %}

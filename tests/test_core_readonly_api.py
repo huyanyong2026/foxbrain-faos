@@ -19,6 +19,9 @@ class FakeService:
     def rows(self, schema, table, limit, offset):
         return {"table": schema + "." + table, "rows": [{"ItemCode": "A1"}]}
 
+    def replenishment_input(self):
+        return {"batch_id": "core-1", "business_date": "2026-07-13", "items": [{"sku_code": "A1"}]}
+
 
 class CoreApiTests(unittest.TestCase):
     @classmethod
@@ -48,6 +51,9 @@ class CoreApiTests(unittest.TestCase):
     def test_facts_token_reads_health_and_rows(self):
         self.assertEqual(self.request("/api/health", "facts-token")[0], 200)
         self.assertEqual(self.request("/api/v1/tables/dbo/OITM/rows", "facts-token")[0], 200)
+        status, payload = self.request("/api/v1/replenishment/input", "facts-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["batch_id"], "core-1")
 
     def test_gateway_token_cannot_read_enterprise_tables(self):
         self.assertEqual(self.request("/api/v1/public/status", "public-token")[0], 200)

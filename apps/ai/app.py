@@ -6,14 +6,15 @@ from __future__ import annotations
 import json
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+import hashlib
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import urlparse
 
 import bcrypt
 import psycopg2
 import psycopg2.extras
-from flask import Flask, abort, g, jsonify, redirect, render_template, request, session
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_file, session
 
 try:
     from .connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
@@ -24,6 +25,10 @@ try:
     from .identity import (
         IDENTITY_SCHEMA_STATEMENTS, ROLE_DEFINITIONS, allows, authorize_ai_context,
         build_identity_context, seed_identity,
+    )
+    from .replenishment import (
+        ALLOWED_STORES, RULE_VERSION, build_excel, business_now, business_today, calculate_batch, new_batch_id,
+        normalize_input_rows, parse_uploaded_file,
     )
 except ImportError:
     from connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
@@ -42,6 +47,10 @@ except ImportError:
     from identity import (
         IDENTITY_SCHEMA_STATEMENTS, ROLE_DEFINITIONS, allows, authorize_ai_context,
         build_identity_context, seed_identity,
+    )
+    from replenishment import (
+        ALLOWED_STORES, RULE_VERSION, build_excel, business_now, business_today, calculate_batch, new_batch_id,
+        normalize_input_rows, parse_uploaded_file,
     )
 
 
@@ -169,9 +178,12 @@ def current_user():
     cur = get_db().cursor()
     cur.execute(
         """select a.id,a.username,a.display_name,a.email,a.role,a.status,a.last_login,
+        coalesce(a.store_code,case s.name when '南山店' then 'nanshan' when '振兴店' then 'zhenxing'
+        when '航苑店' then 'hangyuan' end) store_code,
         p.real_name,p.employee_no,p.mobile,p.wecom_userid,p.department_id,p.store_id,p.position_id,
         p.verification_status,p.must_change_password
-        from auth_users a left join identity_profiles p on p.user_id=a.id where a.id=%s""",
+        from auth_users a left join identity_profiles p on p.user_id=a.id
+        left join identity_org_units s on s.id=p.store_id where a.id=%s""",
         (session["user_id"],),
     )
     row = cur.fetchone()
@@ -243,6 +255,17 @@ def permission_required(permission):
     return decorator
 
 
+def replenishment_required(function):
+    return permission_required("replenishment.read")(function)
+
+
+def can_access_store(user, store_code):
+    scopes = user["identity"]["data_scopes"]
+    if any(item["type"] == "company" for item in scopes):
+        return True
+    return any(item["type"] == "store" for item in scopes) and user.get("store_code") == store_code
+
+
 def csrf_token():
     if "csrf_token" not in session:
         session["csrf_token"] = secrets.token_urlsafe(24)
@@ -283,6 +306,63 @@ def rows(query, params=()):
 def one(query, params=()):
     result = rows(query, params)
     return result[0] if result else None
+
+
+def latest_replenishment_batch():
+    return one(
+        """select * from replenishment_batches where status in ('completed','completed_with_warnings')
+        order by business_date desc,revision desc,completed_at desc limit 1"""
+    )
+
+
+def replenishment_summary(batch_id):
+    if not batch_id:
+        return []
+    return rows(
+        """select store_code,store_name,count(*) filter(where recommendation='replenish') as suggested_skus,
+        count(*) filter(where priority='紧急') as urgent_skus,sum(suggested_qty) as suggested_units
+        from replenishment_items where batch_id=%s group by store_code,store_name order by store_name""",
+        (batch_id,),
+    )
+
+
+def save_replenishment_batch(input_rows, source_type, source_name, business_date, metadata=None):
+    normalized = normalize_input_rows(input_rows)
+    results = calculate_batch(normalized)
+    batch_id = new_batch_id(source_type, business_date.isoformat())
+    warnings = sum(1 for item in results if item["warning"])
+    status = "completed_with_warnings" if warnings else "completed"
+    cur = get_db().cursor()
+    cur.execute(
+        """select coalesce(max(revision),0)+1 as revision from replenishment_batches
+        where business_date=%s and source_type=%s and source_name=%s and rule_version=%s""",
+        (business_date, source_type, source_name, RULE_VERSION),
+    )
+    revision = cur.fetchone()["revision"]
+    cur.execute(
+        """insert into replenishment_batches(batch_id,business_date,source_type,source_name,data_as_of,
+        rule_version,status,revision,input_rows,result_rows,metadata,created_by,completed_at)
+        values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,now())""",
+        (batch_id, business_date, source_type, source_name, business_now(), RULE_VERSION,
+         status, revision, len(normalized), len(results), json.dumps(metadata or {}, ensure_ascii=False), session.get("user_id")),
+    )
+    insert_sql = """insert into replenishment_items(
+        batch_id,store_code,store_name,sku_code,product_name,brand_name,category_name,color,size,
+        available_stock,sales_30d,sales_prev_30d,sales_60d,avg_daily_sales,stock_days,safety_stock,
+        suggested_qty,priority,recommendation,reason,warning)
+        values(%(batch_id)s,%(store_code)s,%(store_name)s,%(sku_code)s,%(product_name)s,%(brand_name)s,
+        %(category_name)s,%(color)s,%(size)s,%(available_stock)s,%(sales_30d)s,%(sales_prev_30d)s,
+        %(sales_60d)s,%(avg_daily_sales)s,%(stock_days)s,%(safety_stock)s,%(suggested_qty)s,
+        %(priority)s,%(recommendation)s,%(reason)s,%(warning)s)"""
+    for item in results:
+        cur.execute(insert_sql, {**item, "batch_id": batch_id})
+    cur.execute(
+        """insert into replenishment_audit_logs(action,batch_id,actor_id,details)
+        values('generate',%s,%s,%s::jsonb)""",
+        (batch_id, session.get("user_id"), json.dumps({"source_type": source_type, "rows": len(results), "warnings": warnings}, ensure_ascii=False)),
+    )
+    get_db().commit()
+    return batch_id
 
 
 def evidence_from_form(form):
@@ -582,6 +662,7 @@ def identity_me_api():
 @permission_required("ai.use")
 def dashboard():
     user = current_user()
+    latest_batch = latest_replenishment_batch()
     metrics = {
         "agents": one("select count(*) as value from ai_agents where status='active'")["value"],
         "pending_runs": one("select count(*) as value from ai_agent_runs where approval_status='pending'")["value"],
@@ -590,7 +671,9 @@ def dashboard():
     }
     return render_template("dashboard.html", user=user, metrics=metrics,
                            connections=rows("select * from enterprise_connections order by id"),
-                           runs=visible_runs(user, 8))
+                           runs=visible_runs(user, 8),
+                           replenishment_batch=latest_batch,
+                           replenishment_summary=replenishment_summary(latest_batch["batch_id"] if latest_batch else None))
 
 
 @app.route("/workbench")
@@ -830,6 +913,208 @@ def check_connections():
         )
     get_db().commit()
     return redirect("/dashboard")
+
+
+@app.get("/replenishment")
+@replenishment_required
+def replenishment_center():
+    user = current_user()
+    batch = latest_replenishment_batch()
+    summaries = replenishment_summary(batch["batch_id"] if batch else None)
+    if user["role"] == "store_manager":
+        summaries = [item for item in summaries if item["store_code"] == user.get("store_code")]
+    return render_template(
+        "replenishment.html", user=user, batch=batch, summaries=summaries,
+        stores=ALLOWED_STORES, can_import=user["role"] in ("admin", "manager", "boss"),
+    )
+
+
+@app.get("/replenishment/stores/<store_code>")
+@replenishment_required
+def replenishment_store(store_code):
+    if store_code not in ALLOWED_STORES:
+        abort(404)
+    user = current_user()
+    if not can_access_store(user, store_code):
+        abort(403)
+    requested_batch = request.args.get("batch")
+    batch = one("select * from replenishment_batches where batch_id=%s", (requested_batch,)) if requested_batch else latest_replenishment_batch()
+    if not batch:
+        return render_template("replenishment_store.html", user=user, store_code=store_code,
+                               store_name=ALLOWED_STORES[store_code], batch=None, items=[], brands=[], categories=[])
+    conditions = ["batch_id=%s", "store_code=%s"]
+    params = [batch["batch_id"], store_code]
+    brand = str(request.args.get("brand") or "").strip()
+    category = str(request.args.get("category") or "").strip()
+    priority = str(request.args.get("priority") or "").strip()
+    query = str(request.args.get("q") or "").strip()
+    if brand:
+        conditions.append("brand_name=%s")
+        params.append(brand)
+    if category:
+        conditions.append("category_name=%s")
+        params.append(category)
+    if priority:
+        conditions.append("priority=%s")
+        params.append(priority)
+    if query:
+        conditions.append("(sku_code ilike %s or product_name ilike %s)")
+        params.extend(["%" + query + "%", "%" + query + "%"])
+    order_map = {
+        "sales": "sales_30d desc,sku_code", "quantity": "suggested_qty desc,sku_code",
+        "stock_days": "stock_days asc nulls last,sku_code",
+    }
+    order_sql = order_map.get(request.args.get("sort"), "case priority when '紧急' then 1 when '高' then 2 when '普通' then 3 else 4 end,stock_days asc nulls last,sku_code")
+    items = rows("select * from replenishment_items where {} order by {}".format(" and ".join(conditions), order_sql), tuple(params))
+    brands = rows("select distinct brand_name from replenishment_items where batch_id=%s and store_code=%s and brand_name<>'' order by brand_name", (batch["batch_id"], store_code))
+    categories = rows("select distinct category_name from replenishment_items where batch_id=%s and store_code=%s and category_name<>'' order by category_name", (batch["batch_id"], store_code))
+    return render_template(
+        "replenishment_store.html", user=user, store_code=store_code, store_name=ALLOWED_STORES[store_code],
+        batch=batch, items=items, brands=brands, categories=categories, filters=request.args,
+    )
+
+
+@app.get("/replenishment/history")
+@replenishment_required
+def replenishment_history():
+    return render_template(
+        "replenishment_history.html", user=current_user(),
+        batches=rows("select * from replenishment_batches order by business_date desc,revision desc,created_at desc limit 180"),
+    )
+
+
+@app.get("/replenishment/history/<batch_id>")
+@replenishment_required
+def replenishment_history_detail(batch_id):
+    batch = one("select * from replenishment_batches where batch_id=%s", (batch_id,))
+    if not batch:
+        abort(404)
+    user = current_user()
+    summaries = replenishment_summary(batch_id)
+    if user["role"] == "store_manager":
+        summaries = [item for item in summaries if item["store_code"] == user.get("store_code")]
+    return render_template("replenishment_history_detail.html", user=user, batch=batch, summaries=summaries)
+
+
+@app.get("/admin/data-import")
+@manager_required
+def replenishment_import_page():
+    return render_template("replenishment_import.html", user=current_user(), rule_version=RULE_VERSION,
+                           business_date=business_today().isoformat())
+
+
+@app.post("/ops-api/replenishment/import")
+@manager_required
+def import_replenishment_file():
+    require_csrf()
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        raise ValueError("请选择补货数据文件")
+    content = upload.read(10 * 1024 * 1024 + 1)
+    if len(content) > 10 * 1024 * 1024:
+        raise ValueError("文件不能超过10MB")
+    source_name = os.path.basename(upload.filename).replace("\x00", "").strip()
+    input_rows = parse_uploaded_file(source_name, content)
+    try:
+        business_date = date.fromisoformat(request.form.get("business_date") or business_today().isoformat())
+    except ValueError as exc:
+        raise ValueError("业务日期格式不正确") from exc
+    batch_id = save_replenishment_batch(
+        input_rows, "admin_upload", source_name, business_date,
+        {"original_filename": source_name, "sha256": hashlib.sha256(content).hexdigest(),
+         "source_label": "管理员上传的真实SAP导出文件"},
+    )
+    return redirect("/replenishment/history/{}".format(batch_id))
+
+
+def generate_replenishment_from_core():
+    """Fetch one normalized Core batch and save it exactly once."""
+    result = data_core_connector(
+        os.environ.get("CORE_BASE_URL", "https://core.vafox.com"),
+        os.environ.get("CORE_API_TOKEN", ""),
+    ).get_json("api/v1/replenishment/input")
+    if not result["ok"]:
+        raise ValueError("Data Core 补货接口暂不可用：{}".format(result.get("error") or "unknown"))
+    payload = result["data"] or {}
+    core_batch_id = str(payload.get("batch_id") or "").strip()
+    if not core_batch_id:
+        raise ValueError("Data Core 返回结果缺少 batch_id")
+    existing = one(
+        """select batch_id from replenishment_batches where source_type='core_api' and source_name=%s
+        and status in ('completed','completed_with_warnings') order by created_at desc limit 1""",
+        (core_batch_id,),
+    )
+    if existing:
+        return existing["batch_id"], False
+    input_rows = payload.get("items") or payload.get("data") or []
+    business_date = date.fromisoformat(payload.get("business_date") or business_today().isoformat())
+    batch_id = save_replenishment_batch(
+        input_rows, "core_api", core_batch_id, business_date,
+        {"core_batch_id": core_batch_id, "data_as_of": payload.get("data_as_of"),
+         "source_label": "core.vafox.com"},
+    )
+    return batch_id, True
+
+
+@app.post("/ops-api/replenishment/pull-core")
+@manager_required
+def pull_replenishment_from_core():
+    require_csrf()
+    batch_id, _created = generate_replenishment_from_core()
+    return redirect("/replenishment/history/{}".format(batch_id))
+
+
+@app.post("/ops-api/internal/replenishment/run")
+def run_replenishment_internal():
+    require_service_token()
+    batch_id, created = generate_replenishment_from_core()
+    return jsonify({"ok": True, "batch_id": batch_id, "created": created,
+                    "source": "core.vafox.com", "sap_write": False})
+
+
+@app.get("/ops-api/replenishment/export/<batch_id>/<store_code>.xlsx")
+@replenishment_required
+def export_replenishment_excel(batch_id, store_code):
+    if store_code not in ALLOWED_STORES:
+        abort(404)
+    user = current_user()
+    if not can_access_store(user, store_code):
+        abort(403)
+    batch = one("select * from replenishment_batches where batch_id=%s", (batch_id,))
+    if not batch:
+        abort(404)
+    items = rows(
+        """select * from replenishment_items where batch_id=%s and store_code=%s
+        order by case priority when '紧急' then 1 when '高' then 2 when '普通' then 3 else 4 end,sku_code""",
+        (batch_id, store_code),
+    )
+    stream = build_excel(items, {
+        "业务日期": batch["business_date"].isoformat(), "数据来源": batch["source_name"],
+        "数据批次": batch["batch_id"], "规则版本": batch["rule_version"],
+        "生成时间": batch["completed_at"].astimezone().isoformat(timespec="seconds") if batch["completed_at"] else "",
+    })
+    cur = get_db().cursor()
+    cur.execute(
+        "insert into replenishment_audit_logs(action,batch_id,store_code,actor_id) values('export',%s,%s,%s)",
+        (batch_id, store_code, session.get("user_id")),
+    )
+    get_db().commit()
+    filename = "{}_AI补货建议_{}.xlsx".format(ALLOWED_STORES[store_code], batch["business_date"].strftime("%Y%m%d"))
+    return send_file(stream, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.get("/ops-api/replenishment/latest")
+@replenishment_required
+def replenishment_latest_api():
+    batch = latest_replenishment_batch()
+    if not batch:
+        return jsonify({"ok": True, "data_status": "waiting_for_data", "batch": None, "stores": []})
+    return jsonify({
+        "ok": True, "data_status": batch["status"],
+        "batch": {key: batch[key] for key in ("batch_id", "business_date", "source_type", "source_name", "rule_version", "status")},
+        "stores": replenishment_summary(batch["batch_id"]),
+    })
 
 
 @app.get("/ops-api/health")
