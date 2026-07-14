@@ -1,0 +1,16 @@
+{
+  "stores": {
+    "REPLACE_WITH_APPROVED_WAREHOUSE_CODE": {
+      "public": true,
+      "address": "核实后填写公开地址",
+      "description": "核实后填写公开门店介绍",
+      "employee_ids": []
+    }
+  },
+  "brands": {
+    "REPLACE_WITH_APPROVED_BRAND_ID": {
+      "public": true,
+      "description": "核实后填写公开品牌介绍"
+    }
+  }
+}

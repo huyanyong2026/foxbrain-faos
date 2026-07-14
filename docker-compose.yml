@@ -12,8 +12,6 @@ services:
       - .env
     environment:
       APP_DIR: /data/firefox-portal
-      SAP_SYNC_BASE: /data/firefox-sap-sync
-      SAP_SUMMARY_FILE: /data/firefox-sap-sync/latest_summary.json
       HOST: 0.0.0.0
       PORT: 3000
       APP_TIMEZONE: ${TIMEZONE:-Asia/Shanghai}
@@ -21,7 +19,6 @@ services:
       - "3000"
     volumes:
       - foxbrain_portal:/data/firefox-portal
-      - foxbrain_sap_sync:/data/firefox-sap-sync
       - ./logs:/app/logs
     depends_on:
       postgres:
@@ -43,8 +40,6 @@ services:
       - .env
     environment:
       APP_DIR: /data/firefox-portal
-      SAP_SYNC_BASE: /data/firefox-sap-sync
-      SAP_SUMMARY_FILE: /data/firefox-sap-sync/latest_summary.json
       HOST: 0.0.0.0
       PORT: 8000
       APP_TIMEZONE: ${TIMEZONE:-Asia/Shanghai}
@@ -53,7 +48,6 @@ services:
       - "8000"
     volumes:
       - foxbrain_portal:/data/firefox-portal
-      - foxbrain_sap_sync:/data/firefox-sap-sync
       - ./logs:/app/logs
     depends_on:
       foxbrain-web:
@@ -73,13 +67,10 @@ services:
       - .env
     environment:
       APP_DIR: /data/firefox-portal
-      SAP_SYNC_BASE: /data/firefox-sap-sync
-      SAP_SUMMARY_FILE: /data/firefox-sap-sync/latest_summary.json
       APP_TIMEZONE: ${TIMEZONE:-Asia/Shanghai}
     command: ["python", "infra/scripts/cloud_worker.py"]
     volumes:
       - foxbrain_portal:/data/firefox-portal
-      - foxbrain_sap_sync:/data/firefox-sap-sync
       - ./logs:/app/logs
     depends_on:
       foxbrain-web:
@@ -209,7 +200,6 @@ services:
 
 volumes:
   foxbrain_portal:
-  foxbrain_sap_sync:
   foxbrain_postgres:
   foxbrain_redis:
   foxbrain_minio:

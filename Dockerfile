@@ -3,8 +3,6 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV APP_DIR=/data/firefox-portal
-ENV SAP_SYNC_BASE=/data/firefox-sap-sync
-ENV SAP_SUMMARY_FILE=/data/firefox-sap-sync/latest_summary.json
 ENV HOST=0.0.0.0
 ENV PORT=8088
 
@@ -17,11 +15,12 @@ RUN apt-get update \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-COPY portal_v2.py sync_sap_b1.py sap_b1_sync_page.md wiki_ai_plan_content.json README.md /app/
+COPY portal_v2.py sap_b1_sync_page.md wiki_ai_plan_content.json README.md /app/
+COPY foxbrain_os /app/foxbrain_os
 COPY infra/scripts /app/infra/scripts
 COPY docs /app/docs
 
-RUN mkdir -p /data/firefox-portal/uploads /data/firefox-sap-sync /app/logs
+RUN mkdir -p /data/firefox-portal/uploads /app/logs
 
 EXPOSE 3000 8000 8088
 

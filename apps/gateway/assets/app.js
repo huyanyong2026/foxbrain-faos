@@ -93,3 +93,25 @@ document.querySelectorAll('[data-reserved-link]').forEach((link) => {
     showNotice(`${link.querySelector('strong').textContent} 正在接入。`, '当前先保留入口，不跳转到未完成页面。');
   });
 });
+
+const applyPublicStores = async () => {
+  try {
+    const response = await fetch('/api/public/stores', {
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return;
+    const payload = await response.json();
+    const stores = Array.isArray(payload.items) ? payload.items : [];
+    const buttons = Array.from(document.querySelectorAll('[data-store]'));
+    stores.slice(0, buttons.length).forEach((store, index) => {
+      if (!store || !store.name) return;
+      buttons[index].dataset.store = store.name;
+      buttons[index].textContent = store.name;
+    });
+  } catch (_error) {
+    // The curated static content remains usable while public data is unavailable.
+  }
+};
+
+applyPublicStores();

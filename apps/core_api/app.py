@@ -11,6 +11,8 @@ import json
 import os
 import re
 import sqlite3
+import threading
+import time
 from contextlib import closing
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -59,13 +61,43 @@ class TokenPolicy:
         for client, config in parsed.items():
             token = str(config.get("token", ""))
             if token:
-                self.entries.append((client, token, set(config.get("scopes", []))))
+                self.entries.append({
+                    "client": client,
+                    "token": token,
+                    "scopes": set(config.get("scopes", [])),
+                    "role": str(config.get("role", "service")),
+                    "store_ids": {str(value) for value in config.get("store_ids", [])},
+                })
 
     def authorize(self, token: str, scope: str):
-        for client, expected, scopes in self.entries:
-            if hmac.compare_digest(token, expected) and scope in scopes:
-                return client
+        for entry in self.entries:
+            if hmac.compare_digest(token, entry["token"]) and scope in entry["scopes"]:
+                return {
+                    "client": entry["client"],
+                    "role": entry["role"],
+                    "store_ids": set(entry["store_ids"]),
+                    "scopes": set(entry["scopes"]),
+                }
         return None
+
+
+class TTLCache:
+    """Small process-local cache; cached values never become a write path."""
+
+    def __init__(self):
+        self._items = {}
+        self._lock = threading.Lock()
+
+    def get_or_build(self, key, ttl_seconds, builder):
+        now = time.monotonic()
+        with self._lock:
+            item = self._items.get(key)
+            if item and now - item[0] <= ttl_seconds:
+                return item[1]
+        value = builder()
+        with self._lock:
+            self._items[key] = (now, value)
+        return value
 
 
 class CoreService:
@@ -78,6 +110,9 @@ class CoreService:
             item.strip() for item in configured.split(",") if item.strip()
         } or set(DEFAULT_TABLES)
         self.connector = connector or self._connect
+        self.cache = TTLCache()
+        self.reference_ttl = int(os.environ.get("CORE_REFERENCE_CACHE_SECONDS", "86400"))
+        self.metrics_ttl = int(os.environ.get("CORE_METRICS_CACHE_SECONDS", "300"))
 
     def _connect(self):
         import pytds
@@ -286,6 +321,253 @@ class CoreService:
         finally:
             connection.close()
 
+    def _query(self, sql, params=()):
+        connection = self.connector()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(sql, params)
+            columns = [item[0] for item in cursor.description]
+            return [
+                {key: json_value(value) for key, value in zip(columns, row)}
+                for row in cursor.fetchall()
+            ]
+        finally:
+            connection.close()
+
+    def _enrichment(self):
+        path = os.environ.get("CORE_OBJECT_ENRICHMENT_FILE", "").strip()
+        if not path:
+            return {}
+
+        def load():
+            try:
+                value = json.loads(Path(path).read_text(encoding="utf-8"))
+                return value if isinstance(value, dict) else {}
+            except (OSError, json.JSONDecodeError):
+                return {}
+
+        return self.cache.get_or_build(("enrichment", path), self.reference_ttl, load)
+
+    def _object_result(self, object_type, rows, limit, offset):
+        enrichment = self._enrichment().get(object_type, {})
+        for row in rows:
+            extra = enrichment.get(str(row.get("id")), {}) if isinstance(enrichment, dict) else {}
+            if isinstance(extra, dict):
+                row.update({key: value for key, value in extra.items() if key not in {"id", "source"}})
+            row["source"] = {
+                "system": "core.vafox.com",
+                "dataset": "SAP Mirror",
+                "mode": "read_only",
+                "object_type": object_type,
+            }
+        return {
+            "object_type": object_type,
+            "offset": offset,
+            "limit": limit,
+            "returned": len(rows),
+            "data_as_of": self.status().get("mirror", {}).get("finished_at"),
+            "items": rows,
+        }
+
+    def business_objects(self, object_type, limit=50, offset=0, object_id="", allowed_store_ids=None):
+        """Return normalized business objects without exposing SAP table names."""
+        limit = max(1, min(int(limit), 200))
+        offset = max(0, int(offset))
+        object_id = str(object_id or "").strip()
+        allowed_store_ids = {str(value) for value in (allowed_store_ids or set())}
+        cache_key = ("objects", object_type, limit, offset, object_id, tuple(sorted(allowed_store_ids)))
+
+        def build():
+            if object_type == "stores":
+                rows = self._query(
+                    """with sales as (
+                      select WhsCode,sum(SalesAmount) Sales90,sum(GrossProfit) GrossProfit90 from (
+                        select l.WhsCode,l.LineTotal SalesAmount,l.GrossBuyPr*l.Quantity*-1+l.LineTotal GrossProfit
+                        from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry
+                        where h.CANCELED='N' and h.DocDate>=dateadd(day,-89,cast(getdate() as date))
+                        union all
+                        select l.WhsCode,-l.LineTotal,-(l.GrossBuyPr*l.Quantity*-1+l.LineTotal)
+                        from dbo.ORIN h join dbo.RIN1 l on l.DocEntry=h.DocEntry
+                        where h.CANCELED='N' and h.DocDate>=dateadd(day,-89,cast(getdate() as date))
+                      ) x group by WhsCode
+                    ), stock as (
+                      select WhsCode,sum(OnHand) StockQuantity,sum(OnHand*AvgPrice) StockAmount
+                      from dbo.OITW group by WhsCode
+                    )
+                    select w.WhsCode id,w.WhsName name,cast(null as nvarchar(300)) address,
+                    coalesce(s.Sales90,0) sales_90d,coalesce(s.GrossProfit90,0) gross_profit_90d,
+                    coalesce(i.StockQuantity,0) stock_quantity,coalesce(i.StockAmount,0) stock_amount
+                    from dbo.OWHS w left join sales s on s.WhsCode=w.WhsCode
+                    left join stock i on i.WhsCode=w.WhsCode
+                    order by w.WhsCode offset %s rows fetch next %s rows only""",
+                    (offset, limit),
+                )
+                if object_id:
+                    rows = [row for row in rows if str(row.get("id")) == object_id]
+                if allowed_store_ids:
+                    rows = [row for row in rows if str(row.get("id")) in allowed_store_ids]
+                for row in rows:
+                    row["employee_ids"] = []
+                return self._object_result(object_type, rows, limit, offset)
+
+            if object_type == "products":
+                rows = self._query(
+                    """with stock as (
+                      select ItemCode,sum(OnHand) StockQuantity,sum(OnHand*AvgPrice) StockAmount
+                      from dbo.OITW group by ItemCode
+                    ), sales as (
+                      select ItemCode,sum(Quantity) SalesQuantity90,sum(SalesAmount) SalesAmount90 from (
+                        select l.ItemCode,l.Quantity,l.LineTotal SalesAmount from dbo.OINV h
+                        join dbo.INV1 l on l.DocEntry=h.DocEntry where h.CANCELED='N'
+                        and h.DocDate>=dateadd(day,-89,cast(getdate() as date))
+                        union all
+                        select l.ItemCode,-l.Quantity,-l.LineTotal from dbo.ORIN h
+                        join dbo.RIN1 l on l.DocEntry=h.DocEntry where h.CANCELED='N'
+                        and h.DocDate>=dateadd(day,-89,cast(getdate() as date))
+                      ) x group by ItemCode
+                    )
+                    select i.ItemCode id,i.ItemCode sku,i.ItemName name,m.FirmName brand,
+                    g.ItmsGrpNam category,coalesce(st.StockQuantity,0) stock_quantity,
+                    coalesce(st.StockAmount,0) stock_amount,coalesce(sa.SalesQuantity90,0) sales_quantity_90d,
+                    coalesce(sa.SalesAmount90,0) sales_amount_90d,
+                    case when coalesce(i.frozenFor,'N')='Y' then 'inactive' else 'active' end lifecycle
+                    from dbo.OITM i left join dbo.OMRC m on m.FirmCode=i.FirmCode
+                    left join dbo.OITB g on g.ItmsGrpCod=i.ItmsGrpCod
+                    left join stock st on st.ItemCode=i.ItemCode left join sales sa on sa.ItemCode=i.ItemCode
+                    order by i.ItemCode offset %s rows fetch next %s rows only""",
+                    (offset, limit),
+                )
+            elif object_type == "brands":
+                rows = self._query(
+                    """with stock as (
+                      select i.FirmCode,count(distinct i.ItemCode) ProductCount,sum(w.OnHand) StockQuantity,
+                      sum(w.OnHand*w.AvgPrice) StockAmount from dbo.OITM i left join dbo.OITW w on w.ItemCode=i.ItemCode
+                      group by i.FirmCode
+                    ), sales as (
+                      select i.FirmCode,sum(x.SalesAmount) SalesAmount90 from (
+                        select l.ItemCode,l.LineTotal SalesAmount from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry
+                        where h.CANCELED='N' and h.DocDate>=dateadd(day,-89,cast(getdate() as date))
+                        union all
+                        select l.ItemCode,-l.LineTotal from dbo.ORIN h join dbo.RIN1 l on l.DocEntry=h.DocEntry
+                        where h.CANCELED='N' and h.DocDate>=dateadd(day,-89,cast(getdate() as date))
+                      ) x join dbo.OITM i on i.ItemCode=x.ItemCode group by i.FirmCode
+                    )
+                    select cast(m.FirmCode as varchar(40)) id,m.FirmName name,
+                    coalesce(st.ProductCount,0) product_count,coalesce(st.StockQuantity,0) stock_quantity,
+                    coalesce(st.StockAmount,0) stock_amount,coalesce(sa.SalesAmount90,0) sales_amount_90d,
+                    'active' cooperation_status from dbo.OMRC m
+                    left join stock st on st.FirmCode=m.FirmCode left join sales sa on sa.FirmCode=m.FirmCode
+                    order by m.FirmCode offset %s rows fetch next %s rows only""",
+                    (offset, limit),
+                )
+            elif object_type == "suppliers":
+                rows = self._query(
+                    """with purchases as (
+                      select CardCode,count(*) PurchaseDocuments365,sum(DocTotal) PurchaseAmount365,max(DocDate) LastPurchaseDate
+                      from dbo.OPCH where CANCELED='N' and DocDate>=dateadd(day,-364,cast(getdate() as date)) group by CardCode
+                    ) select c.CardCode id,c.CardName name,
+                    case when coalesce(c.frozenFor,'N')='Y' then 'inactive' else 'active' end cooperation_status,
+                    coalesce(p.PurchaseDocuments365,0) purchase_documents_365d,
+                    coalesce(p.PurchaseAmount365,0) purchase_amount_365d,p.LastPurchaseDate last_purchase_date
+                    from dbo.OCRD c left join purchases p on p.CardCode=c.CardCode where c.CardType='S'
+                    order by c.CardCode offset %s rows fetch next %s rows only""",
+                    (offset, limit),
+                )
+            elif object_type == "customers":
+                rows = self._query(
+                    """with sales as (
+                      select CardCode,count(*) PurchaseDocuments365,sum(DocTotal) PurchaseAmount365,max(DocDate) LastPurchaseDate
+                      from dbo.OINV where CANCELED='N' and DocDate>=dateadd(day,-364,cast(getdate() as date)) group by CardCode
+                    ) select c.CardCode id,c.CardName name,
+                    coalesce(s.PurchaseDocuments365,0) purchase_documents_365d,
+                    coalesce(s.PurchaseAmount365,0) purchase_amount_365d,s.LastPurchaseDate last_purchase_date
+                    from dbo.OCRD c left join sales s on s.CardCode=c.CardCode where c.CardType='C'
+                    order by c.CardCode offset %s rows fetch next %s rows only""",
+                    (offset, limit),
+                )
+            else:
+                raise ValueError("unsupported business object")
+            if object_id:
+                rows = [row for row in rows if str(row.get("id")) == object_id]
+            return self._object_result(object_type, rows, limit, offset)
+
+        ttl = self.reference_ttl if object_type in {"brands", "suppliers"} else self.metrics_ttl
+        return self.cache.get_or_build(cache_key, ttl, build)
+
+    def public_objects(self, object_type):
+        enrichment = self._enrichment().get(object_type, {})
+        if object_type not in {"stores", "brands"}:
+            raise PermissionError("object is not public")
+        result = self.business_objects(object_type, 200, 0)
+        public_fields = {"id", "name", "address", "description", "public_status", "source"}
+        result["items"] = [
+            {key: value for key, value in item.items() if key in public_fields}
+            for item in result["items"]
+            if isinstance(enrichment, dict)
+            and enrichment.get(str(item.get("id")), {}).get("public") is True
+        ]
+        result["returned"] = len(result["items"])
+        return result
+
+    def business_summary(self):
+        def build():
+            rows = self._query(
+                """with dates as (
+                  select max(DocDate) DataDate from dbo.OINV where CANCELED='N'
+                ), sales as (
+                  select sum(SalesAmount) SalesAmount,sum(GrossProfit) GrossProfit from (
+                    select l.LineTotal SalesAmount,l.LineTotal-l.GrossBuyPr*l.Quantity GrossProfit
+                    from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry cross join dates d
+                    where h.CANCELED='N' and year(h.DocDate)=year(d.DataDate)
+                    union all
+                    select -l.LineTotal,-(l.LineTotal-l.GrossBuyPr*l.Quantity)
+                    from dbo.ORIN h join dbo.RIN1 l on l.DocEntry=h.DocEntry cross join dates d
+                    where h.CANCELED='N' and year(h.DocDate)=year(d.DataDate)
+                  ) x
+                ), stock as (
+                  select sum(OnHand) StockQuantity,sum(OnHand*AvgPrice) StockAmount from dbo.OITW
+                ) select d.DataDate data_date,coalesce(s.SalesAmount,0) sales_amount,
+                coalesce(s.GrossProfit,0) gross_profit,coalesce(i.StockQuantity,0) stock_quantity,
+                coalesce(i.StockAmount,0) stock_amount from dates d cross join sales s cross join stock i"""
+            )
+            summary = rows[0] if rows else {}
+            summary.update({
+                "top_stores": self.business_objects("stores", 12, 0)["items"],
+                "top_brands": self.business_objects("brands", 20, 0)["items"],
+                "source": {"system": "core.vafox.com", "dataset": "SAP Mirror", "mode": "read_only"},
+                "data_as_of": self.status().get("mirror", {}).get("finished_at"),
+            })
+            return summary
+
+        return self.cache.get_or_build("business_summary", self.metrics_ttl, build)
+
+    def data_health(self):
+        def build():
+            status = self.status()
+            mirror = status.get("mirror", {})
+            counts = self._query(
+                """select (select count(*) from dbo.OWHS) stores,
+                (select count(*) from dbo.OITM) products,(select count(*) from dbo.OMRC) brands,
+                (select count(*) from dbo.OCRD where CardType='S') suppliers,
+                (select count(*) from dbo.OCRD where CardType='C') customers"""
+            )
+            problems = []
+            if mirror.get("status") != "completed":
+                problems.append("mirror_not_completed")
+            if mirror.get("failed_tables", 0):
+                problems.append("mirror_has_failed_tables")
+            return {
+                "status": "healthy" if not problems else "attention",
+                "checked_at": utc_now(),
+                "data_as_of": mirror.get("finished_at"),
+                "mirror": mirror,
+                "object_counts": counts[0] if counts else {},
+                "problems": problems,
+                "source": {"system": "core.vafox.com", "mode": "read_only"},
+            }
+
+        return self.cache.get_or_build("data_health", min(self.metrics_ttl, 60), build)
+
 
 class CoreApiHandler(BaseHTTPRequestHandler):
     server_version = "FoxBrainCore/1.0"
@@ -309,10 +591,18 @@ class CoreApiHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def _authorized(self, scope):
-        client = self.server.policy.authorize(self._token(), scope)
-        if not client:
+        principal = self.server.policy.authorize(self._token(), scope)
+        if not principal:
             self._reply(401, {"error": "unauthorized"})
-        return client
+        return principal
+
+    def _authorized_any(self, *scopes):
+        for scope in scopes:
+            principal = self.server.policy.authorize(self._token(), scope)
+            if principal:
+                return principal
+        self._reply(401, {"error": "unauthorized"})
+        return None
 
     def do_HEAD(self):
         self.do_GET()
@@ -340,8 +630,43 @@ class CoreApiHandler(BaseHTTPRequestHandler):
                     "service": status["service"], "mode": status["mode"],
                     "status": status["mirror"]["status"], "checked_at": status["checked_at"],
                 })
+            match = re.fullmatch(r"/api/v1/public/(stores|brands)", parsed.path)
+            if match:
+                if not self._authorized("public:read"):
+                    return
+                return self._reply(200, self.server.service.public_objects(match.group(1)))
+            if parsed.path == "/api/v1/data-health":
+                if not self._authorized_any("health:read", "facts:read"):
+                    return
+                return self._reply(200, self.server.service.data_health())
+            if parsed.path == "/api/v1/business/summary":
+                if not self._authorized_any("objects:read", "facts:read"):
+                    return
+                return self._reply(200, self.server.service.business_summary())
+            match = re.fullmatch(r"/api/v1/objects/(stores|products|brands|suppliers|customers)", parsed.path)
+            if match:
+                object_type = match.group(1)
+                if object_type == "customers":
+                    principal = self._authorized("customers:read")
+                else:
+                    principal = self._authorized_any("objects:read", "facts:read")
+                if not principal:
+                    return
+                query = parse_qs(parsed.query)
+                allowed_store_ids = set()
+                if principal.get("role") == "store_manager":
+                    allowed_store_ids = principal.get("store_ids", set())
+                    if object_type != "stores" or not allowed_store_ids:
+                        return self._reply(403, {"error": "scope_forbidden"})
+                return self._reply(200, self.server.service.business_objects(
+                    object_type,
+                    int(query.get("limit", [50])[0]),
+                    int(query.get("offset", [0])[0]),
+                    "",
+                    allowed_store_ids,
+                ))
             if parsed.path == "/api/v1/tables":
-                if not self._authorized("facts:read"):
+                if not self._authorized("raw:read"):
                     return
                 return self._reply(200, {"tables": self.server.service.tables()})
             if parsed.path == "/api/v1/operation/snapshot":
@@ -357,7 +682,7 @@ class CoreApiHandler(BaseHTTPRequestHandler):
                 return self._reply(200, self.server.service.replenishment_input())
             match = re.fullmatch(r"/api/v1/tables/([^/]+)/([^/]+)/rows", parsed.path)
             if match:
-                if not self._authorized("facts:read"):
+                if not self._authorized("raw:read"):
                     return
                 query = parse_qs(parsed.query)
                 result = self.server.service.rows(

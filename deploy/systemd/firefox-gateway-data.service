@@ -1,0 +1,24 @@
+[Unit]
+Description=FireFox Gateway public data proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/foxbrain
+EnvironmentFile=/etc/firefox-gateway-data.env
+ExecStart=/usr/bin/python3 -m apps.gateway.public_api
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

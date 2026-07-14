@@ -36,6 +36,7 @@ jobs:
             tests.test_ai_enterprise_platform \
             tests.test_ai_replenishment \
             tests.test_core_readonly_api \
+            tests.test_enterprise_data_integration \
             tests.test_replenishment_worker
       - name: Build AI image
         run: docker build -t foxbrain-enterprise-ai:${{ github.sha }} apps/ai

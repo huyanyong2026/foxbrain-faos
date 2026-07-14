@@ -27,6 +27,11 @@ except Exception:
     psycopg2 = None
 
 try:
+    from foxbrain_os.enterprise_data_service import build_enterprise_data_client
+except Exception:
+    build_enterprise_data_client = None
+
+try:
     from foxbrain_os.architecture import enterprise_v1_architecture_contract
     from foxbrain_os.agent_orchestration import build_agent_orchestration_contract, build_agent_plan_request, find_agent_domain
     from foxbrain_os.auto_operation import build_auto_operation_contract, build_daily_loop_plan
@@ -298,7 +303,6 @@ APP_DIR = os.environ.get("APP_DIR", "/opt/firefox-portal")
 DB = APP_DIR + "/portal.db"
 SECRET_FILE = APP_DIR + "/secret.key"
 ENV_FILE = APP_DIR + "/portal.env"
-SAP_SUMMARY_FILE = os.environ.get("SAP_SUMMARY_FILE", "/opt/firefox-sap-sync/latest_summary.json")
 UPLOAD_DIR = APP_DIR + "/uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8088"))
@@ -491,7 +495,9 @@ def pg_query(sql, params=None):
         return []
 
 
-def sap_live_summary():
+def _legacy_pg_summary():
+    # Kept only for database migration compatibility; application routes never call it.
+    return None
     latest_rows = pg_query(
         """
 select sales_date, sales_amount, gross_profit
@@ -580,6 +586,69 @@ where on_hand > 0
         "_last_sync_status": (run_rows[0].get("status") if run_rows else ""),
         "_last_sync_time": str(run_rows[0].get("finished_at") or "") if run_rows else "",
     }
+
+
+_ENTERPRISE_DATA_CLIENT = {"key": None, "client": None}
+
+
+def sap_live_summary():
+    """Read the CEO operating summary from Core; local legacy data is opt-in only."""
+    if build_enterprise_data_client:
+        base_url = os.environ.get("CORE_BASE_URL", "https://core.vafox.com")
+        token = os.environ.get("CORE_API_TOKEN", "")
+        if token:
+            try:
+                key = (base_url, token)
+                if _ENTERPRISE_DATA_CLIENT["key"] != key:
+                    _ENTERPRISE_DATA_CLIENT["key"] = key
+                    _ENTERPRISE_DATA_CLIENT["client"] = build_enterprise_data_client(
+                        base_url,
+                        token,
+                        timeout=int(os.environ.get("CORE_API_TIMEOUT", "8")),
+                        cache_seconds=int(os.environ.get("CORE_API_CACHE_SECONDS", "60")),
+                    )
+                result = _ENTERPRISE_DATA_CLIENT["client"].summary()
+            except ValueError:
+                result = {"ok": False}
+            if result.get("ok") and isinstance(result.get("data"), dict):
+                value = result["data"]
+                sales = float(value.get("sales_amount") or 0)
+                gross_profit = float(value.get("gross_profit") or 0)
+                gross_margin = gross_profit / sales * 100 if sales else 0
+                top_stores = [
+                    {
+                        "store": row.get("name") or row.get("id") or U(r"\u672a\u5206\u95e8\u5e97"),
+                        "sales": float(row.get("sales_90d") or 0),
+                        "gross_profit": float(row.get("gross_profit_90d") or 0),
+                    }
+                    for row in value.get("top_stores", [])
+                ]
+                top_brands = [
+                    {"brand": row.get("name") or row.get("id"), "sales": float(row.get("sales_amount_90d") or 0)}
+                    for row in value.get("top_brands", [])
+                ]
+                return {
+                    "data_date": str(value.get("data_date") or ""),
+                    "yesterday_sales": sales,
+                    "yesterday_gross_profit": gross_profit,
+                    "yesterday_gross_margin": gross_margin,
+                    "month_sales": sales,
+                    "month_gross_profit": gross_profit,
+                    "month_target": float(os.environ.get("MONTH_TARGET", "900000") or 900000),
+                    "completion_rate": 0,
+                    "inventory_amount": float(value.get("stock_amount") or 0),
+                    "risk_count": 0,
+                    "top_stores": top_stores,
+                    "top_brands": top_brands,
+                    "ai_suggestions": [],
+                    "todos": [],
+                    "_source": "core.vafox.com/api/v1/business/summary",
+                    "_is_fallback": False,
+                    "_loaded_at": ts(),
+                    "_last_sync_status": "read_only",
+                    "_last_sync_time": str(value.get("data_as_of") or ""),
+                }
+    return None
 
 
 def csv_values(value):
@@ -795,23 +864,12 @@ def load_summary():
         "top_brands": [],
         "ai_suggestions": [],
         "todos": [],
-        "_source": SAP_SUMMARY_FILE,
+        "_source": "core.vafox.com",
         "_is_fallback": True,
     }
     live = sap_live_summary()
     if live:
         return {**fallback, **live}
-    try:
-        if os.path.exists(SAP_SUMMARY_FILE):
-            with open(SAP_SUMMARY_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            merged = {**fallback, **data}
-            merged["_source"] = SAP_SUMMARY_FILE
-            merged["_is_fallback"] = False
-            merged["_loaded_at"] = ts()
-            return merged
-    except Exception:
-        pass
     return fallback
 
 
@@ -6685,7 +6743,7 @@ class App(BaseHTTPRequestHandler):
             "scheduler": {
                 "supports": ["cron_schedules", "event_triggers", "retry_policy", "failure_notifications", "audit_history"],
                 "cron_jobs": {
-                    "sap_nightly_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
+                    "core_data_refresh": "external_core_schedule",
                     "knowledge_indexing": os.environ.get("KNOWLEDGE_INDEX_TIME", "02:00"),
                     "daily_business_report": os.environ.get("DAILY_REPORT_TIME", "08:00"),
                     "backup": os.environ.get("BACKUP_TIME", "02:30"),
@@ -14248,7 +14306,7 @@ where ki.deleted_at is null"""
             },
             "source": {
                 "name": U(r"SAP B1 \u540c\u6b65\u6458\u8981"),
-                "file": s.get("_source") or SAP_SUMMARY_FILE,
+                "file": s.get("_source") or "core.vafox.com",
                 "loaded_at": s.get("_loaded_at") or "",
                 "is_fallback": bool(s.get("_is_fallback")),
             },
@@ -16651,11 +16709,11 @@ where ki.deleted_at is null"""
         self.out(layout("Enterprise Sync Center", body, user=user, wide=True))
 
     def sap_sync_config_status(self):
-        required = ["SAP_HOST", "SAP_DB", "SAP_USER", "SAP_PASSWORD"]
+        required = ["CORE_BASE_URL", "CORE_API_TOKEN"]
         missing = [k for k in required if not os.environ.get(k) or os.environ.get(k) == "change-me"]
         if missing:
-            return False, [U(r"\u7f3a\u5c11\u6216\u672a\u6b63\u5f0f\u914d\u7f6e\uff1a") + ", ".join(missing), U(r"\u5bc6\u7801\u4e0d\u5141\u8bb8\u5199\u5165 GitHub\uff0c\u8bf7\u5728 .env \u6216\u670d\u52a1\u5668\u73af\u5883\u53d8\u91cf\u914d\u7f6e\u3002")]
-        return True, [U(r"SAP \u8fde\u63a5\u73af\u5883\u53d8\u91cf\u5df2\u914d\u7f6e\uff0cAPI \u4e0d\u8fd4\u56de\u5bc6\u94a5\u3002")]
+            return False, [U(r"\u7f3a\u5c11\u6216\u672a\u6b63\u5f0f\u914d\u7f6e\uff1a") + ", ".join(missing), U(r"Huyan \u53ea\u5141\u8bb8\u901a\u8fc7 core.vafox.com \u8bfb\u53d6\u4f01\u4e1a\u6570\u636e\u3002")]
+        return True, [U(r"core.vafox.com \u53ea\u8bfb\u8fde\u63a5\u5df2\u914d\u7f6e\uff0cHuyan \u4e0d\u4fdd\u5b58 SAP \u51ed\u636e\u3002")]
 
     def sap_sync_freshness(self, last_row=None):
         now = ts()
@@ -16709,10 +16767,10 @@ where ki.deleted_at is null"""
         )
         return {
             "ok": True,
-            "enabled": os.environ.get("SAP_SYNC_ENABLED", "true").lower() == "true",
-            "schedule_time": os.environ.get("SAP_SYNC_TIME", "22:00"),
+            "enabled": False,
+            "schedule_time": "managed_by_core.vafox.com",
             "timezone": os.environ.get("APP_TIMEZONE", "Asia/Shanghai"),
-            "next_run_time": os.environ.get("SAP_SYNC_TIME", "22:00"),
+            "next_run_time": "managed_by_core.vafox.com",
             "last_status": last_status,
             "last_sync_time": last_sync_time,
             "freshness": freshness,
@@ -16728,15 +16786,15 @@ where ki.deleted_at is null"""
         configured, config_status = self.sap_sync_config_status()
         return {
             "ok": True,
-            "system_of_record": "SAP",
+            "system_of_record": "core.vafox.com",
             "connector": {
-                "key": "sap_b1",
-                "mode": os.environ.get("SAP_DB_TYPE", "sqlserver"),
-                "db_direct_available": bool(os.environ.get("SAP_DB_HOST") or os.environ.get("SAP_HOST")),
-                "service_layer_available": bool(os.environ.get("SAP_API_BASE_URL")),
+                "key": "enterprise_data_core",
+                "mode": "https_read_only_api",
+                "db_direct_available": False,
+                "service_layer_available": bool(os.environ.get("CORE_BASE_URL") and os.environ.get("CORE_API_TOKEN")),
                 "configured": configured,
                 "config_status": config_status,
-                "write_policy": "read_only_until_explicit_business_rules",
+                "write_policy": "read_only_permanent",
             },
             "sync_interfaces": [
                 {"object": "products", "mode": "incremental", "status": "contract_ready"},
@@ -16755,22 +16813,11 @@ where ki.deleted_at is null"""
     def run_sap_sync_stub(self, trigger_type="manual", user=None, retry_sync_id=""):
         if not self.can_manage_sap_sync(user):
             return {"ok": False, "message": "no permission"}, 403
-        now = ts()
-        timeout = int(os.environ.get("SAP_SYNC_LOCK_TIMEOUT_MINUTES", "120") or 120) * 60
-        with db() as conn:
-            lock = conn.execute("select * from job_locks where job_name='sap_b1_sync'").fetchone()
-            if lock and lock["lock_status"] == "running" and (lock["expires_at"] or 0) > now:
-                return {"ok": False, "message": "SAP sync is already running."}, 409
-            conn.execute("insert or replace into job_locks(job_name,lock_status,locked_at,locked_by,expires_at) values(?,?,?,?,?)", ("sap_b1_sync", "running", now, str(user["id"]), now + timeout))
-            sync_id = "SAP-" + uuid.uuid4().hex[:10]
-            configured, config_status = self.sap_sync_config_status()
-            status = "skipped" if not configured else "pending"
-            error = "" if configured else U(r"SAP \u73af\u5883\u53d8\u91cf\u672a\u5b8c\u6574\uff0c\u672c\u6b21\u4e0d\u6267\u884c\u771f\u5b9e\u540c\u6b65\u3002")
-            cur = conn.execute("insert into sap_sync_history(sync_id,job_name,trigger_type,status,started_at,finished_at,duration_seconds,records_read,records_written,records_updated,records_failed,error_message,log_path,created_by) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (sync_id, "sap_b1_sync", trigger_type, status, now, now, 0, 0, 0, 0, 0, error, "", user["id"]))
-            conn.execute("update job_locks set lock_status='free', expires_at=? where job_name='sap_b1_sync'", (now,))
-            conn.execute("insert into notifications(notification_id,channel,title,body,recipient_user_id,status,related_object_type,related_object_id,created_by,created_at) values(?,?,?,?,?,?,?,?,?,?)", ("N-"+uuid.uuid4().hex[:10], "in_app", U(r"SAP \u540c\u6b65") + " " + status, error or U(r"SAP \u540c\u6b65\u5df2\u8bb0\u5f55\uff0c\u8bf7\u5728\u670d\u52a1\u5668\u8c03\u5ea6\u4e2d\u6267\u884c\u771f\u5b9e\u540c\u6b65\u547d\u4ee4\u3002"), user["id"], "unread", "sap_sync", cur.lastrowid, user["id"], now))
-        self.log_action(user, "sap_sync_triggered", "sap_sync", cur.lastrowid, trigger_type)
-        return {"ok": True, "sync_id": sync_id, "status": status, "message": error or U(r"SAP \u540c\u6b65\u4efb\u52a1\u5df2\u8bb0\u5f55\u3002")}, 200
+        return {
+            "ok": False,
+            "status": "disabled",
+            "message": U(r"Huyan \u4e0d\u518d\u6267\u884c SAP \u540c\u6b65\u3002\u751f\u4ea7\u6570\u636e\u7531 core.vafox.com \u5728 22:00 \u53ea\u8bfb\u590d\u5236\u540e\u63d0\u4f9b\u3002"),
+        }, 409
 
     def data_pipeline_payload(self):
         sap = self.sap_sync_status_payload()
@@ -18015,7 +18062,7 @@ where ki.deleted_at is null"""
             checks["database_status"] = "ok"
         except Exception:
             checks["database_status"] = "error"
-        checks["sap_sync_status"] = "summary_file_present" if os.path.exists(SAP_SUMMARY_FILE) else "waiting"
+        checks["sap_sync_status"] = "core_api_configured" if os.environ.get("CORE_API_TOKEN") else "waiting"
         checks["document_engine_status"] = "ready"
         checks["knowledge_engine_status"] = "ready"
         checks["research_engine_status"] = "placeholder"
@@ -18144,7 +18191,7 @@ where ki.deleted_at is null"""
         checks["release_1_0_gate_status"] = "candidate_ready_after_remote_smoke_test"
         checks["v6_autonomous_worker_status"] = "scheduled" if os.environ.get("APP_ENV", "production") else "local"
         checks["worker_jobs"] = {
-            "sap_sync": os.environ.get("SAP_SYNC_TIME", "22:00"),
+            "core_data_refresh": "external_core_schedule",
             "knowledge_index": os.environ.get("KNOWLEDGE_INDEX_TIME", "02:00"),
             "backup": os.environ.get("BACKUP_TIME", "02:30"),
             "daily_report": os.environ.get("DAILY_REPORT_TIME", "08:00"),

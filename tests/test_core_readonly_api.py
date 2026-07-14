@@ -25,12 +25,42 @@ class FakeService:
     def replenishment_input(self):
         return {"batch_id": "core-1", "business_date": "2026-07-13", "items": [{"sku_code": "A1"}]}
 
+    def business_objects(self, object_type, limit=50, offset=0, object_id="", allowed_store_ids=None):
+        items = {
+            "stores": [
+                {"id": "NS", "name": "南山店", "sales_90d": 100, "stock_amount": 50},
+                {"id": "ZX", "name": "振兴店", "sales_90d": 200, "stock_amount": 70},
+            ],
+            "products": [{"id": "A1", "name": "冲锋衣"}],
+            "brands": [{"id": "1", "name": "KAILAS", "sales_amount_90d": 300}],
+            "suppliers": [{"id": "S1", "name": "供应商"}],
+            "customers": [{"id": "C1", "name": "顾客"}],
+        }[object_type]
+        if object_id:
+            items = [item for item in items if item["id"] == object_id]
+        if object_type == "stores" and allowed_store_ids:
+            items = [item for item in items if item["id"] in allowed_store_ids]
+        return {"object_type": object_type, "items": items, "returned": len(items)}
+
+    def public_objects(self, object_type):
+        values = self.business_objects(object_type)["items"]
+        return {"object_type": object_type, "items": [{"id": item["id"], "name": item["name"]} for item in values]}
+
+    def business_summary(self):
+        return {"sales_amount": 1000, "gross_profit": 300, "source": {"mode": "read_only"}}
+
+    def data_health(self):
+        return {"status": "healthy", "object_counts": {"stores": 2}, "problems": []}
+
 
 class CoreApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         policy = TokenPolicy(json.dumps({
-            "huyan": {"token": "facts-token", "scopes": ["facts:read"]},
+            "huyan": {"token": "facts-token", "role": "ceo", "scopes": ["facts:read", "objects:read", "customers:read", "health:read"]},
+            "store": {"token": "store-token", "role": "store_manager", "store_ids": ["NS"], "scopes": ["objects:read"]},
+            "ai": {"token": "ai-token", "role": "purchasing", "scopes": ["objects:read", "health:read"]},
+            "operator": {"token": "raw-token", "role": "core_operator", "scopes": ["raw:read"]},
             "gateway": {"token": "public-token", "scopes": ["public:read"]},
         }))
         cls.server = create_server("127.0.0.1", 0, FakeService(), policy)
@@ -53,7 +83,8 @@ class CoreApiTests(unittest.TestCase):
 
     def test_facts_token_reads_health_and_rows(self):
         self.assertEqual(self.request("/api/health", "facts-token")[0], 200)
-        self.assertEqual(self.request("/api/v1/tables/dbo/OITM/rows", "facts-token")[0], 200)
+        self.assertEqual(self.request("/api/v1/tables/dbo/OITM/rows", "facts-token")[0], 401)
+        self.assertEqual(self.request("/api/v1/tables/dbo/OITM/rows", "raw-token")[0], 200)
         status, snapshot = self.request("/api/v1/operation/snapshot?store=%E5%8D%97%E5%B1%B1%E5%BA%97&as_of=2026-07-13", "facts-token")
         self.assertEqual(status, 200)
         self.assertEqual(snapshot["warehouse"]["WhsCode"], "NS")
@@ -63,7 +94,28 @@ class CoreApiTests(unittest.TestCase):
 
     def test_gateway_token_cannot_read_enterprise_tables(self):
         self.assertEqual(self.request("/api/v1/public/status", "public-token")[0], 200)
+        status, payload = self.request("/api/v1/public/stores", "public-token")
+        self.assertEqual(status, 200)
+        self.assertNotIn("sales_90d", payload["items"][0])
         self.assertEqual(self.request("/api/v1/tables", "public-token")[0], 401)
+        self.assertEqual(self.request("/api/v1/objects/stores", "public-token")[0], 401)
+
+    def test_business_objects_health_and_summary(self):
+        self.assertEqual(self.request("/api/v1/objects/products", "ai-token")[0], 200)
+        self.assertEqual(self.request("/api/v1/data-health", "ai-token")[0], 200)
+        status, payload = self.request("/api/v1/business/summary", "facts-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["source"]["mode"], "read_only")
+
+    def test_store_manager_is_limited_to_assigned_store(self):
+        status, payload = self.request("/api/v1/objects/stores", "store-token")
+        self.assertEqual(status, 200)
+        self.assertEqual([item["id"] for item in payload["items"]], ["NS"])
+        self.assertEqual(self.request("/api/v1/objects/products", "store-token")[0], 403)
+
+    def test_customer_objects_require_sensitive_scope(self):
+        self.assertEqual(self.request("/api/v1/objects/customers", "ai-token")[0], 401)
+        self.assertEqual(self.request("/api/v1/objects/customers", "facts-token")[0], 200)
 
     def test_missing_token_and_writes_are_rejected(self):
         self.assertEqual(self.request("/api/health")[0], 401)
