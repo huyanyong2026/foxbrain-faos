@@ -9,7 +9,7 @@ Depends on: Sprint008.5 Business Calibration, Sprint009 Business Knowledge Graph
 
 ## 1. Sprint Goal
 
-Build the first version of FoxBrain Decision Engine.
+Build the first version of VAFOX Decision Engine.
 
 The goal is not to let AI make decisions automatically. The goal is to help the CEO understand:
 

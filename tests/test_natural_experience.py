@@ -106,7 +106,7 @@ class NaturalExperienceTests(unittest.TestCase):
         class Upload:
             filename = "upload-regression.txt"
             type = "text/plain"
-            file = io.BytesIO(b"FoxBrain upload regression test")
+            file = io.BytesIO(b"VAFOX upload regression test")
 
         class Form(dict):
             def getfirst(self, key, default=""):
@@ -128,7 +128,7 @@ class NaturalExperienceTests(unittest.TestCase):
                 "select text_content, created_at, updated_at from drive_file_extractions where file_id=?",
                 (file_id,),
             ).fetchone()
-        self.assertIn("FoxBrain upload regression test", extraction["text_content"])
+        self.assertIn("VAFOX upload regression test", extraction["text_content"])
         self.assertEqual(extraction["created_at"], extraction["updated_at"])
 
     def test_baidu_drive_share_requires_official_https_url(self):

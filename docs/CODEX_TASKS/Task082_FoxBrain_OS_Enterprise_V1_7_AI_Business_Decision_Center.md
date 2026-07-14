@@ -1,6 +1,6 @@
-# Task082 FoxBrain OS Enterprise V1.7 AI Business Decision Center
+# Task082 VAFOX Enterprise OS V1.7 AI Business Decision Center
 
-Continue from FoxBrain OS Enterprise V1.6.6 without rebuilding the system.
+Continue from VAFOX Enterprise OS V1.6.6 without rebuilding the system.
 
 ## Requirements
 

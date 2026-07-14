@@ -1,6 +1,6 @@
-# FoxBrain OS Enterprise V2.3 Ecosystem Hub
+# VAFOX Enterprise OS V2.3 Ecosystem Hub
 
-V2.3 upgrades FoxBrain from internal AI operation into enterprise ecosystem integration.
+V2.3 upgrades VAFOX from internal AI operation into enterprise ecosystem integration.
 
 ## Scope
 

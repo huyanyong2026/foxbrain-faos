@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a unified enterprise portal based on Pack 01 to Pack 08 without breaking existing FoxBrain features.
+Build a unified enterprise portal based on Pack 01 to Pack 08 without breaking existing VAFOX features.
 
 ## Completed
 

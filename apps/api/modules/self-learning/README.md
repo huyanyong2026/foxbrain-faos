@@ -1,6 +1,6 @@
 # Self Learning Module
 
-FoxBrain OS Enterprise V2.2 self-learning boundary.
+VAFOX Enterprise OS V2.2 self-learning boundary.
 
 - API: `/api/v2.2/learning`
 - Storage: `ai_learning_records`, `rule_evolution`

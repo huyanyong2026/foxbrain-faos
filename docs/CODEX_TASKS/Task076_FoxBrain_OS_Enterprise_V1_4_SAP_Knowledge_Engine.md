@@ -1,8 +1,8 @@
-# Task076 FoxBrain OS Enterprise V1.4 SAP Knowledge Engine
+# Task076 VAFOX Enterprise OS V1.4 SAP Knowledge Engine
 
 ## Request
 
-Continue upgrading from FoxBrain OS Enterprise V1.0 to V1.3. Focus on SAP Knowledge Engine, not adding pages. Establish read-only sync layer and AI data warehouse first, then product, sales, inventory and member knowledge models. Do not directly connect to modify SAP production database.
+Continue upgrading from VAFOX Enterprise OS V1.0 to V1.3. Focus on SAP Knowledge Engine, not adding pages. Establish read-only sync layer and AI data warehouse first, then product, sales, inventory and member knowledge models. Do not directly connect to modify SAP production database.
 
 ## Work Completed
 

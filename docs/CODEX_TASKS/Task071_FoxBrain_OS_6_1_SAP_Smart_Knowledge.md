@@ -1,8 +1,8 @@
-# Task071 FoxBrain OS 6.1 SAP Smart Knowledge
+# Task071 VAFOX OS 6.1 SAP Smart Knowledge
 
 ## Goal
 
-Build the FoxBrain OS 6.1 SAP smart knowledge upgrade package.
+Build the VAFOX OS 6.1 SAP smart knowledge upgrade package.
 
 ## Completed
 

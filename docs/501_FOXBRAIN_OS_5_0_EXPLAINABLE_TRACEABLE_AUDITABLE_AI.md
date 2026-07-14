@@ -1,4 +1,4 @@
-# FoxBrain OS 5.0 Explainable, Traceable and Auditable AI
+# VAFOX OS 5.0 Explainable, Traceable and Auditable AI
 
 ## Explainable
 

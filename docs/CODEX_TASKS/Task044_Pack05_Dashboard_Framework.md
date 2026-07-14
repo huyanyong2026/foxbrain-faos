@@ -2,7 +2,7 @@
 
 ## Goal
 
-Create a unified dashboard framework based on Pack 01 to Pack 05 while preserving existing FoxBrain behavior.
+Create a unified dashboard framework based on Pack 01 to Pack 05 while preserving existing VAFOX behavior.
 
 ## Completed
 

@@ -49,7 +49,7 @@ systemctl is-active nginx 2>/dev/null || true
 systemctl is-active "$PORTAL_SERVICE" 2>/dev/null || true
 systemctl status "$PORTAL_SERVICE" --no-pager -l 2>/dev/null | tail -n 20 || true
 
-section "FoxBrain App"
+section "VAFOX App"
 if [ -d "$APP_DIR" ]; then
   cd "$APP_DIR"
   if [ -f docker-compose.yml ] && command -v docker >/dev/null 2>&1; then

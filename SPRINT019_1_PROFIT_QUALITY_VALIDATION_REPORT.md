@@ -2,7 +2,7 @@
 
 ## Rule
 
-2026 SAP profit already includes identified brand rebate income. FoxBrain must display rebates as composition only and must not add them again.
+2026 SAP profit already includes identified brand rebate income. VAFOX must display rebates as composition only and must not add them again.
 
 ## Display Values
 

@@ -9,7 +9,7 @@ Depends on: Sprint015.5 CEO Brain, Sprint016 Sync Engine, Sprint016.5 SAP Readon
 
 ## 1. Sprint Goal
 
-Build FoxBrain Daily Intelligence Engine.
+Build VAFOX Daily Intelligence Engine.
 
 Goal:
 

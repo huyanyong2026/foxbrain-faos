@@ -2,7 +2,7 @@
 
 ## Goal
 
-The Content Publishing Engine helps FoxBrain turn internal knowledge, brand assets, product files, store stories, reports and AI analysis into reviewable multi-platform content drafts.
+The Content Publishing Engine helps VAFOX turn internal knowledge, brand assets, product files, store stories, reports and AI analysis into reviewable multi-platform content drafts.
 
 It does not publish automatically in V1.
 

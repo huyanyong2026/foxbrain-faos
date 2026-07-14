@@ -1,8 +1,8 @@
-# Task088 FoxBrain OS UX 2.0 Information Architecture
+# Task088 VAFOX OS UX 2.0 Information Architecture
 
 ## Objective
 
-Implement the 7.8 private AI upgrade suggestion as FoxBrain OS UX 2.0, focused on Apple Experience Edition information architecture.
+Implement the 7.8 private AI upgrade suggestion as VAFOX OS UX 2.0, focused on Apple Experience Edition information architecture.
 
 ## Scope
 
@@ -31,7 +31,7 @@ Implement the 7.8 private AI upgrade suggestion as FoxBrain OS UX 2.0, focused o
 ## Acceptance Tests
 
 - The UX module imports successfully.
-- The contract version is `FoxBrain OS UX 2.0`.
+- The contract version is `VAFOX OS UX 2.0`.
 - The first layer has exactly four entries.
 - The home page block links to the four first-layer routes.
 - Advanced pages are not expanded in the final home page block.

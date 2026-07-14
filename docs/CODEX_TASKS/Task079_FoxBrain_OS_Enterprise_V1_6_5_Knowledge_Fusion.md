@@ -1,8 +1,8 @@
-# Task079 FoxBrain OS Enterprise V1.6.5 Knowledge Fusion
+# Task079 VAFOX Enterprise OS V1.6.5 Knowledge Fusion
 
 ## Request
 
-Based on FoxBrain OS Enterprise V1.6, complete the V1.6.5 knowledge fusion upgrade. Focus on a three-layer fusion system: SAP enterprise knowledge base, external industry knowledge base and boss experience base. Existing Agents must call fused knowledge.
+Based on VAFOX Enterprise OS V1.6, complete the V1.6.5 knowledge fusion upgrade. Focus on a three-layer fusion system: SAP enterprise knowledge base, external industry knowledge base and boss experience base. Existing Agents must call fused knowledge.
 
 ## Implementation
 

@@ -1,6 +1,6 @@
 # Ecosystem Module
 
-FoxBrain OS Enterprise V2.3 ecosystem hub boundary.
+VAFOX Enterprise OS V2.3 ecosystem hub boundary.
 
 - Page route: `/ecosystem-hub`
 - API: `/api/v2.3`

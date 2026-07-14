@@ -1,4 +1,4 @@
-# FoxBrain V6.4 AI Decision Center Runbook
+# VAFOX V6.4 AI Decision Center Runbook
 
 ## Scope
 

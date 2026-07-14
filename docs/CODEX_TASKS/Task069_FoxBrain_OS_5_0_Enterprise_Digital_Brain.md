@@ -1,8 +1,8 @@
-# Task069 FoxBrain OS 5.0 Enterprise Digital Brain
+# Task069 VAFOX OS 5.0 Enterprise Digital Brain
 
 ## Objective
 
-Build Enterprise Digital Brain as the explainable, traceable and auditable recommendation layer for FoxBrain OS.
+Build Enterprise Digital Brain as the explainable, traceable and auditable recommendation layer for VAFOX OS.
 
 ## Scope
 

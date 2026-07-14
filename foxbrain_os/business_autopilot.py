@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V2.2 autonomous business operation contracts."""
+"""VAFOX Enterprise OS V2.2 autonomous business operation contracts."""
 
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -67,7 +67,7 @@ V22_GUARDRAILS = {
 def build_business_autopilot_contract() -> dict[str, Any]:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V2.2",
+        "version": "VAFOX Enterprise OS V2.2",
         "module": "business_autopilot",
         "positioning": "AI autonomous business operation center",
         "flow": [

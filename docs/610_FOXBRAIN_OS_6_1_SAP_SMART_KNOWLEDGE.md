@@ -1,6 +1,6 @@
-# FoxBrain OS 6.1 SAP Smart Knowledge Base
+# VAFOX OS 6.1 SAP Smart Knowledge Base
 
-FoxBrain OS 6.1 upgrades the knowledge base so SAP and synced business data can be turned into AI-queryable knowledge cards.
+VAFOX OS 6.1 upgrades the knowledge base so SAP and synced business data can be turned into AI-queryable knowledge cards.
 
 ## Goal
 

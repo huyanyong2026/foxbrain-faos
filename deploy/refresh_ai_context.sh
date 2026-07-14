@@ -9,7 +9,7 @@ REPORT="$REPORT_DIR/ai-context-refresh-$DATE_STAMP.txt"
 mkdir -p "$REPORT_DIR"
 
 {
-  echo "FoxBrain AI context refresh"
+  echo "VAFOX AI context refresh"
   echo "Started: $(date '+%F %T')"
   echo "Source: $APP_URL/api/health"
   echo

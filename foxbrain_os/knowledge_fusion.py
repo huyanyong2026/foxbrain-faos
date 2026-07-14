@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.6.5 knowledge fusion contracts."""
+"""VAFOX Enterprise OS V1.6.5 knowledge fusion contracts."""
 
 from dataclasses import asdict, dataclass
 
@@ -119,7 +119,7 @@ FUSION_AGENT_ACCESS = (
 def build_knowledge_fusion_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6.5",
+        "version": "VAFOX Enterprise OS V1.6.5",
         "module": "knowledge_fusion",
         "strategy": "fuse_sap_enterprise_knowledge_external_industry_knowledge_and_boss_experience_for_agents",
         "layers": [asdict(layer) for layer in FUSION_KNOWLEDGE_LAYERS],
@@ -156,7 +156,7 @@ def build_fusion_context(sap_engine: dict | None = None, knowledge_quality: dict
     }
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6.5",
+        "version": "VAFOX Enterprise OS V1.6.5",
         "contract": build_knowledge_fusion_contract(),
         "layer_readiness": layer_readiness,
         "fusion_ready": layer_readiness["sap_enterprise_knowledge"] == "ready",
@@ -180,7 +180,7 @@ def build_agent_fusion_context(agent_key: str, fusion_context: dict | None = Non
     access = access_map.get(normalized, access_map["ceo"])
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6.5",
+        "version": "VAFOX Enterprise OS V1.6.5",
         "agent": access,
         "fusion_context": fusion_context or {},
         "required_output_basis": access["output_requirements"],

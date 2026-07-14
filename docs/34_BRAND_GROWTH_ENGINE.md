@@ -2,7 +2,7 @@
 
 ## Goal
 
-Brand Growth Engine helps FoxBrain manage each brand strategically.
+Brand Growth Engine helps VAFOX manage each brand strategically.
 
 It supports:
 

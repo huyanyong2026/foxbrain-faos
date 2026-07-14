@@ -1,4 +1,4 @@
-# FoxBrain V4 Enterprise AI Operating System
+# VAFOX V4 Enterprise AI Operating System
 ## CODEX EXECUTION TASK 001
 ### Project Architecture Upgrade / 企业 AI 操作系统整体升级任务
 
@@ -14,7 +14,7 @@ This task is NOT a rewrite.
 
 本次任务不是重写项目，不允许推倒重做。
 
-Codex must upgrade the existing FoxBrain project based on the current repository.
+Codex must upgrade the existing VAFOX project based on the current repository.
 
 Must preserve and remain compatible with:
 
@@ -39,11 +39,11 @@ All new features must be modular, maintainable, and backward compatible.
 
 ## 1. Product Positioning / 产品定位
 
-FoxBrain V4 is not a traditional ERP, CRM, or simple knowledge base.
+VAFOX V4 is not a traditional ERP, CRM, or simple knowledge base.
 
 It should be upgraded into:
 
-> FireFox / 火狐狸 Enterprise AI Operating System
+> VAFOX / 火狐狸 Enterprise AI Operating System
 
 Its long-term goal is to become the digital brain of the company.
 
@@ -582,7 +582,7 @@ After completion:
 Recommended PR title:
 
 ```text
-Task001: FoxBrain V4 Architecture Upgrade
+Task001: VAFOX V4 Architecture Upgrade
 ```
 
 Recommended PR description:
@@ -641,7 +641,7 @@ Do NOT:
 
 ## 19. Expected Result / 预期结果
 
-After this task, FoxBrain should look and feel like the first version of an enterprise AI operating system.
+After this task, VAFOX should look and feel like the first version of an enterprise AI operating system.
 
 It should have:
 

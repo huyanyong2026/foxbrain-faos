@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}补货批次详情｜FoxBrain{% endblock %}
+{% block title %}补货批次详情｜VAFOX{% endblock %}
 {% block content %}
 <section class="page-title"><p class="eyebrow">历史批次</p><h1>{{ batch.business_date }} 补货建议</h1><p>{{ batch.batch_id }}</p></section>
 <section class="batch-meta"><div><span>数据来源</span><strong>{{ batch.source_name }}</strong></div><div><span>规则版本</span><strong>{{ batch.rule_version }}</strong></div><div><span>生成时间</span><strong>{{ batch.completed_at }}</strong></div><div><span>状态</span><strong>{{ batch.status }}</strong></div></section>

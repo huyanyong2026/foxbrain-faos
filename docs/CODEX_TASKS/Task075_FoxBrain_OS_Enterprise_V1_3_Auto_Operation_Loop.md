@@ -1,8 +1,8 @@
-# Task075 FoxBrain OS Enterprise V1.3 Auto Operation Loop
+# Task075 VAFOX Enterprise OS V1.3 Auto Operation Loop
 
 ## Request
 
-Continue based on FoxBrain OS Enterprise V1.0 to V1.2. Do not rebuild. Implement V1.3 automatic operation loop covering SAP daily sync, AI analysis, boss daily report, task center and approval flow. Keep SAP production server independent with read-only sync.
+Continue based on VAFOX Enterprise OS V1.0 to V1.2. Do not rebuild. Implement V1.3 automatic operation loop covering SAP daily sync, AI analysis, boss daily report, task center and approval flow. Keep SAP production server independent with read-only sync.
 
 ## Work Completed
 

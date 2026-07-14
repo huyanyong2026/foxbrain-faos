@@ -1,8 +1,8 @@
-# Enterprise Pack 17 - FoxBrain University
+# Enterprise Pack 17 - VAFOX University
 
 ## Goal
 
-Pack 17 establishes FoxBrain University as the enterprise learning and capability
+Pack 17 establishes VAFOX University as the enterprise learning and capability
 development platform. It connects the enterprise knowledge platform with role-based
 learning, AI Tutor support, certification tracking and knowledge feedback.
 

@@ -1,6 +1,6 @@
-# FoxBrain OS Enterprise V1.7 AI Business Decision Center
+# VAFOX Enterprise OS V1.7 AI Business Decision Center
 
-V1.7 continues from V1.6.6 without rebuilding the system. It upgrades FoxBrain from an AI knowledge assistant into an AI business management system.
+V1.7 continues from V1.6.6 without rebuilding the system. It upgrades VAFOX from an AI knowledge assistant into an AI business management system.
 
 ## Scope
 

@@ -1,6 +1,6 @@
-# FoxBrain AI Provider Setup
+# VAFOX AI Provider Setup
 
-FoxBrain Jarvis can run in two modes:
+VAFOX AI Assistant can run in two modes:
 
 - Built-in mode: no API key required. Jarvis uses existing SAP summaries, knowledge, memory, graph and task data.
 - AI provider mode: set an OpenAI-compatible API key. Jarvis first gathers internal evidence, then asks the model to write a clearer business answer with sources.

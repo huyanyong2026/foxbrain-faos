@@ -1,8 +1,8 @@
-# FoxBrain OS UX 2.0 Apple Experience Edition
+# VAFOX OS UX 2.0 Apple Experience Edition
 
 ## Goal
 
-FoxBrain OS UX 2.0 makes the portal feel like an operating system instead of an ERP administration backend.
+VAFOX OS UX 2.0 makes the portal feel like an operating system instead of an ERP administration backend.
 
 The home page is now only a first-layer entrance. It does not expose deep hierarchy, detailed numbers, repeated business modules or explanatory small text.
 

@@ -1,8 +1,8 @@
-# FoxBrain CEO Operating Loop 建设报告
+# VAFOX CEO Operating Loop 建设报告
 
 ## 建设结果
 
-CEO Operating Loop 已在 FoxBrain Enterprise Brain V2.0 基础上完成增量建设，形成以下闭环：
+CEO Operating Loop 已在 VAFOX Enterprise Brain V2.0 基础上完成增量建设，形成以下闭环：
 
 ```text
 core.vafox.com 企业事实

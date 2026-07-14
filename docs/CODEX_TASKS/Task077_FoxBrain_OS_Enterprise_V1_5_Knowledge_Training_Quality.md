@@ -1,8 +1,8 @@
-# Task077 FoxBrain OS Enterprise V1.5 Knowledge Training Quality
+# Task077 VAFOX Enterprise OS V1.5 Knowledge Training Quality
 
 ## Request
 
-Continue upgrading based on FoxBrain OS Enterprise V1.4. Do not rebuild. Improve knowledge-base quality, AI learning capability and boss operating experience memory.
+Continue upgrading based on VAFOX Enterprise OS V1.4. Do not rebuild. Improve knowledge-base quality, AI learning capability and boss operating experience memory.
 
 ## Work Completed
 

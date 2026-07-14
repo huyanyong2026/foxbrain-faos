@@ -1,4 +1,4 @@
-# FoxBrain Enterprise Second Brain V1.1
+# VAFOX Enterprise Brain V1.1
 
 ## Focus
 
@@ -13,7 +13,7 @@ This is an architecture and product-baseline upgrade, not a page-only change.
 
 ## Drive 2.0
 
-FoxBrain Drive 2.0 is the Enterprise Knowledge Drive. Files and folders are no longer passive storage; they become AI-readable enterprise knowledge assets.
+VAFOX Drive 2.0 is the Enterprise Knowledge Drive. Files and folders are no longer passive storage; they become AI-readable enterprise knowledge assets.
 
 Initial domains:
 

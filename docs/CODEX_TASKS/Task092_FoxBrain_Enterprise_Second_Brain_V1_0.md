@@ -1,8 +1,8 @@
-# Task092 FoxBrain Enterprise Second Brain V1.0
+# Task092 VAFOX Enterprise Brain V1.0
 
 ## Goal
 
-Implement the FoxBrain Enterprise Second Brain V1.0 baseline from the attached product upgrade package. The result must guide future work as a productized enterprise AI operating system, not a collection of page edits.
+Implement the VAFOX Enterprise Brain V1.0 baseline from the attached product upgrade package. The result must guide future work as a productized enterprise AI operating system, not a collection of page edits.
 
 ## Scope
 

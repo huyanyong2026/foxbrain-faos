@@ -2,7 +2,7 @@
 
 ## Goal
 
-Pack 16 establishes the AI Strategy Center as the strategic planning layer for FoxBrain OS.
+Pack 16 establishes the AI Strategy Center as the strategic planning layer for VAFOX OS.
 It supports long-term business planning, OKR alignment, strategic initiative evaluation,
 scenario comparison and explainable recommendations.
 

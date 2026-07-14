@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the Enterprise Brain foundation based on Pack 01 to Pack 07 while preserving existing FoxBrain features.
+Build the Enterprise Brain foundation based on Pack 01 to Pack 07 while preserving existing VAFOX features.
 
 ## Completed
 

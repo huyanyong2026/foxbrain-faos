@@ -1,4 +1,4 @@
-# FoxBrain SDK Extension Standard
+# VAFOX SDK Extension Standard
 
 ## Manifest
 
@@ -50,7 +50,7 @@ The following actions default to human approval:
 
 ## Compatibility
 
-FoxBrain SDK uses semantic versioning:
+VAFOX SDK uses semantic versioning:
 
 - Major version: breaking changes only.
 - Minor version: additive optional capabilities.

@@ -13,7 +13,7 @@ REPORT="$REPORT_DIR/sap-sync-report-$DATE_STAMP.txt"
 mkdir -p "$INCOMING" "$PROCESSED" "$ERROR_DIR" "$LOG_DIR" "$REPORT_DIR"
 
 {
-  echo "FoxBrain SAP nightly sync"
+  echo "VAFOX SAP nightly sync"
   echo "Started: $(date '+%F %T')"
   echo "Mode: file_sync_placeholder"
   echo "Policy: read_only_snapshot"

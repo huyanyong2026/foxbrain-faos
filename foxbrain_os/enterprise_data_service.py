@@ -36,7 +36,7 @@ class EnterpriseDataClient:
         now = time.monotonic()
         if cached and now - cached[0] <= self.cache_seconds:
             return cached[1]
-        headers = {"Accept": "application/json", "User-Agent": "FoxBrain-Enterprise/1.0"}
+        headers = {"Accept": "application/json", "User-Agent": "VAFOX-Enterprise/1.0"}
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         request = Request(url, headers=headers, method="GET")

@@ -1,8 +1,8 @@
-# FoxBrain OS Enterprise V1.5 AI Knowledge Training and Quality
+# VAFOX Enterprise OS V1.5 AI Knowledge Training and Quality
 
 ## Objective
 
-Continue from FoxBrain OS Enterprise V1.4 without rebuilding the system. V1.5 improves knowledge-base quality, AI learning capability and boss operating experience memory.
+Continue from VAFOX Enterprise OS V1.4 without rebuilding the system. V1.5 improves knowledge-base quality, AI learning capability and boss operating experience memory.
 
 ## Scope
 

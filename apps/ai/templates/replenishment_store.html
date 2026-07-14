@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ store_name }}补货建议｜FoxBrain{% endblock %}
+{% block title %}{{ store_name }}补货建议｜VAFOX{% endblock %}
 {% block content %}
 <section class="page-title"><p class="eyebrow">AI补货中心</p><h1>{{ store_name }}</h1>{% if batch %}<p>业务日期 {{ batch.business_date }} · {{ batch.rule_version }} · 来源：{{ 'core.vafox.com' if batch.source_type == 'core_api' else batch.source_name }}</p>{% endif %}</section>
 {% if batch %}

@@ -2,7 +2,7 @@
 
 ## 目标
 
-保证 `https://huyan.vafox.com` 上的 FoxBrain 可以稳定、安全、可回滚地升级。
+保证 `https://huyan.vafox.com` 上的 VAFOX 可以稳定、安全、可回滚地升级。
 
 ## 环境变量
 

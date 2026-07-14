@@ -9,7 +9,7 @@ Depends on: Sprint019 / Sprint019.1
 
 ## 1. Sprint Goal
 
-Upgrade FoxBrain Drive from a basic upload area into a business-grade enterprise file system that feels as easy to use as a mainstream cloud drive, while ensuring every file can be understood, indexed, linked, searched, cited, and used by FoxBrain AI.
+Upgrade VAFOX Drive from a basic upload area into a business-grade enterprise file system that feels as easy to use as a mainstream cloud drive, while ensuring every file can be understood, indexed, linked, searched, cited, and used by VAFOX AI.
 
 Target experience:
 

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Pack 13 establishes the unified data intelligence layer for FoxBrain OS. Dashboards,
+Pack 13 establishes the unified data intelligence layer for VAFOX OS. Dashboards,
 AI Agents and decision engines must use one KPI catalog and one metrics service instead
 of recalculating business numbers independently.
 

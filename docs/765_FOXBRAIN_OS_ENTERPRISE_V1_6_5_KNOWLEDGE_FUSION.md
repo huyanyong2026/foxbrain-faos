@@ -1,8 +1,8 @@
-# FoxBrain OS Enterprise V1.6.5 Knowledge Fusion
+# VAFOX Enterprise OS V1.6.5 Knowledge Fusion
 
 ## Goal
 
-Continue from FoxBrain OS Enterprise V1.6 without rebuilding the system. V1.6.5 builds a three-layer knowledge fusion system for existing Agents.
+Continue from VAFOX Enterprise OS V1.6 without rebuilding the system. V1.6.5 builds a three-layer knowledge fusion system for existing Agents.
 
 ## Three Layers
 

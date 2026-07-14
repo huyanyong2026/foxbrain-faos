@@ -1,8 +1,8 @@
-# FoxBrain OS 2.0 AI Orchestration
+# VAFOX OS 2.0 AI Orchestration
 
 ## Purpose
 
-FoxBrain OS 2.0 AI orchestration defines how Jarvis, AI CEO and specialist agents collaborate without creating conflicting answers or unsafe actions.
+VAFOX OS 2.0 AI orchestration defines how Jarvis, AI CEO and specialist agents collaborate without creating conflicting answers or unsafe actions.
 
 ## Shared Context Contract
 

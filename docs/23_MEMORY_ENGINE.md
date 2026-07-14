@@ -2,7 +2,7 @@
 
 ## 目标
 
-Memory Engine 让 FoxBrain 记住长期企业上下文，不再把每一次提问都当作孤立问题。
+Memory Engine 让 VAFOX 记住长期企业上下文，不再把每一次提问都当作孤立问题。
 
 它用于沉淀：
 

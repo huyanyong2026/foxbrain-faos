@@ -1,11 +1,11 @@
-# FoxBrain 自动更新说明
+# VAFOX 自动更新说明
 
 ## 自动更新流程
 
 ```text
 老板提出需求 -> Codex 开发 -> 提交 GitHub -> GitHub Actions
 -> 腾讯云服务器执行 /opt/foxbrain/deploy.sh
--> Docker 自动重建 -> FoxBrain 自动升级
+-> Docker 自动重建 -> VAFOX 自动升级
 ```
 
 ## 手动更新

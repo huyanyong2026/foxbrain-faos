@@ -1,4 +1,4 @@
-# FoxBrain OS 6.0 Plugin, Integration and API Governance
+# VAFOX OS 6.0 Plugin, Integration and API Governance
 
 This document defines the operating rules for the Enterprise AI Platform.
 

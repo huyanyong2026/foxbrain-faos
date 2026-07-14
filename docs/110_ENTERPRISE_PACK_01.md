@@ -1,10 +1,10 @@
-# FoxBrain OS Enterprise Pack 01
+# VAFOX Enterprise OS Pack 01
 
-Pack 01 is the foundation engineering standard for FoxBrain OS Enterprise Edition.
+Pack 01 is the foundation engineering standard for VAFOX Enterprise OS Edition.
 
 ## Project Charter
 
-FoxBrain should become a unified enterprise AI operating system that works with SAP, enterprise knowledge, AI agents, workflow automation and executive decision support.
+VAFOX should become a unified enterprise AI operating system that works with SAP, enterprise knowledge, AI agents, workflow automation and executive decision support.
 
 ## Principles
 

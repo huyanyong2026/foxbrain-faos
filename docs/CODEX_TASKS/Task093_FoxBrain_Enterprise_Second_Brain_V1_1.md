@@ -1,8 +1,8 @@
-# Task093 FoxBrain Enterprise Second Brain V1.1
+# Task093 VAFOX Enterprise Brain V1.1
 
 ## Goal
 
-Upgrade the existing FoxBrain Enterprise Second Brain baseline with Drive 2.0, Object Engine, Knowledge Pipeline and CEO Home.
+Upgrade the existing VAFOX Enterprise Brain baseline with Drive 2.0, Object Engine, Knowledge Pipeline and CEO Home.
 
 ## Scope
 

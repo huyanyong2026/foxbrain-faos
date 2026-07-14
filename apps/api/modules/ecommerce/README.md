@@ -1,6 +1,6 @@
 # Ecommerce Module
 
-FoxBrain OS Enterprise V2.3 ecommerce data boundary.
+VAFOX Enterprise OS V2.3 ecommerce data boundary.
 
 - API: `/api/v2.3/ecommerce`
 - Reserved platforms: Tmall, JD, Douyin Mall, Xiaohongshu Store, WeChat Store and independent site

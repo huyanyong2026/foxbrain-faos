@@ -1,6 +1,6 @@
-# FireFox Gateway V1.0
+# VAFOX Gateway V1.0
 
-FireFox Outdoor Growth Platform 的独立对外入口。
+VAFOX Outdoor Growth Platform 的独立对外入口。
 
 ## 本地预览
 
@@ -18,7 +18,7 @@ node smoke-test.cjs
 
 ## 发布边界
 
-- 页面不连接 SAP、FoxBrain 数据库或 CEO 系统。
+- 页面不连接 SAP、VAFOX 数据库或 CEO 系统。
 - 公开门店和品牌通过本机 `public_api.py` 代理读取 Core 的 `public:read` 接口；浏览器永远看不到 Core Token。
 - `commerce.vafox.com`、`ai.vafox.com` 和 Dream Community 仍为预留入口；Explorer Life 已接入 `/explorer/register`。
 - Nginx 站点根目录建议使用 `/var/www/firefox-gateway/current`。

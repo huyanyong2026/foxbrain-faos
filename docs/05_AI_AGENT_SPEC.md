@@ -74,7 +74,7 @@ AI agents now have structured enterprise roles and can collaborate through:
 
 No agent may execute a business-changing action without human approval.
 
-## Task010 FoxBrain Jarvis
+## Task010 VAFOX AI Assistant
 
 Jarvis is the single AI assistant entrance above the agent matrix.
 

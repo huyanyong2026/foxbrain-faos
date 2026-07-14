@@ -1,4 +1,4 @@
-# FoxBrain CEO Brain 施工前路由与体验基线
+# VAFOX Enterprise Brain 施工前路由与体验基线
 
 检查时间：2026-07-11 19:00（Asia/Shanghai）  
 生产站点：`huyan.vafox.com`  

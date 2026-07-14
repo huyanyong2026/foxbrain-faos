@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V2.3 ecosystem integration hub contracts."""
+"""VAFOX Enterprise OS V2.3 ecosystem integration hub contracts."""
 
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -52,9 +52,9 @@ V23_GUARDRAILS = {
 def build_ecosystem_hub_contract() -> dict[str, Any]:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V2.3",
+        "version": "VAFOX Enterprise OS V2.3",
         "module": "enterprise_ecosystem_hub",
-        "positioning": "central connection platform for the FireFox commercial ecosystem",
+        "positioning": "central connection platform for the VAFOX commercial ecosystem",
         "connectors": [asdict(c) for c in ECOSYSTEM_CONNECTORS],
         "database_tables": list(V23_DATA_TABLES),
         "guardrails": dict(V23_GUARDRAILS),

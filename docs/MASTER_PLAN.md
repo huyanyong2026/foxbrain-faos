@@ -1,4 +1,4 @@
-# FoxBrain Enterprise OS Master Plan
+# VAFOX Enterprise OS Master Plan
 
 Version: Alpha 0.1
 Target Domain: huyan.vafox.com
@@ -8,7 +8,7 @@ Owner: Huohu Fox / 火狐狸
 
 ## 1. Mission
 
-FoxBrain exists to become the enterprise second brain of Huohu Fox.
+VAFOX exists to become the enterprise second brain of Huohu Fox.
 
 It must preserve enterprise knowledge, connect enterprise data, understand enterprise relationships, remember decisions, and assist the CEO in making better decisions.
 
@@ -18,7 +18,7 @@ It must preserve enterprise knowledge, connect enterprise data, understand enter
 
 - huyan.vafox.com
 - CEO Brain
-- FoxBrain Drive
+- VAFOX Drive
 - Object Engine
 - Knowledge Pipeline
 - Global Search
@@ -83,7 +83,7 @@ All uploaded files, extracted text, AI summaries, object relations, vectors, gra
 
 ## 5. First 10 Sprints
 
-### Sprint001: FoxBrain Drive Foundation
+### Sprint001: VAFOX Drive Foundation
 
 Goal: Make file upload and enterprise knowledge entry usable.
 
@@ -152,7 +152,7 @@ Within 90 days, huyan.vafox.com must become the CEO's daily enterprise brain:
 
 ## 8. Long-Term Target
 
-FoxBrain will evolve from CEO Brain into Enterprise OS:
+VAFOX will evolve from CEO Brain into Enterprise OS:
 
 - V1: Enterprise Second Brain
 - V2: Enterprise Knowledge Graph

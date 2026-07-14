@@ -1,6 +1,6 @@
 # Business Monitor Module
 
-FoxBrain OS Enterprise V2.2 business monitor boundary.
+VAFOX Enterprise OS V2.2 business monitor boundary.
 
 - API: `/api/v2.2/health-score`
 - Storage: `business_health_scores`, `monitor_rules`

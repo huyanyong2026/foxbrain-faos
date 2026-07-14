@@ -1,4 +1,4 @@
-# Task073 FoxBrain OS Enterprise V1.1 AI Knowledge Brain
+# Task073 VAFOX Enterprise OS V1.1 AI Knowledge Brain
 
 ## Goal
 

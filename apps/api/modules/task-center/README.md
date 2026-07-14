@@ -1,6 +1,6 @@
 # Task Center Module
 
-FoxBrain OS Enterprise V1.8 AI task center boundary.
+VAFOX Enterprise OS V1.8 AI task center boundary.
 
 - API: `/api/workflow-automation/tasks`
 - Storage: `tasks`, `task_logs`

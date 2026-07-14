@@ -1,4 +1,4 @@
-"""FoxBrain OS UX 2.0 information architecture contract."""
+"""VAFOX OS UX 2.0 information architecture contract."""
 
 from dataclasses import asdict, dataclass
 
@@ -38,10 +38,10 @@ UX_PRINCIPLES = {
 def build_ux_information_architecture_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS UX 2.0",
+        "version": "VAFOX OS UX 2.0",
         "codename": "Apple Experience Edition",
         "module": "ux_information_architecture",
-        "goal": "make FoxBrain simple enough that employees know where to click on first use",
+        "goal": "make VAFOX simple enough that employees know where to click on first use",
         "home_policy": "first_layer_four_entries_only_no_repeated_business_content",
         "v8_policy": "fixed_global_search_fixed_ai_entry_mobile_bottom_navigation_and_no_home_small_text",
         "layers": [asdict(layer) for layer in UX_NAVIGATION_LAYERS],

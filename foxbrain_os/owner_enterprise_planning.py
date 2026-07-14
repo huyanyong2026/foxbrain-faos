@@ -1,4 +1,4 @@
-"""FoxBrain dual-system planning contract for Owner OS and Enterprise OS."""
+"""VAFOX dual-system planning contract for Owner OS and Enterprise OS."""
 
 from dataclasses import asdict, dataclass
 
@@ -27,7 +27,7 @@ OWNER_ENTERPRISE_SYSTEMS = (
     SystemBoundary(
         "owner_os",
         "huyan.vafox.com",
-        "FoxBrain Owner OS",
+        "VAFOX Enterprise Brain",
         "Owner private enterprise brain for assets, knowledge, decisions and high-permission management.",
         ("owner", "boss"),
         (
@@ -57,7 +57,7 @@ OWNER_ENTERPRISE_SYSTEMS = (
     SystemBoundary(
         "enterprise_os",
         "ai.vafox.com",
-        "FoxBrain Enterprise OS",
+        "VAFOX Enterprise OS",
         "Employee-facing enterprise operations and collaboration system.",
         ("boss", "finance", "store_manager", "employee", "operations"),
         (
@@ -186,7 +186,7 @@ def build_sync_policy() -> dict:
 def build_owner_enterprise_planning_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain Owner/Enterprise OS 7.9",
+        "version": "VAFOX Enterprise OS 7.9",
         "module": "owner_enterprise_planning",
         "strategy": "one_private_owner_system_one_employee_enterprise_system",
         "systems": [asdict(system) for system in OWNER_ENTERPRISE_SYSTEMS],
@@ -200,7 +200,7 @@ def build_owner_enterprise_planning_contract() -> dict:
             "then_connect_sap_wecom_mini_program_and_official_account",
         ],
         "conclusion": {
-            "huyan.vafox.com": "FoxBrain Owner OS",
-            "ai.vafox.com": "FoxBrain Enterprise OS",
+            "huyan.vafox.com": "VAFOX Enterprise Brain",
+            "ai.vafox.com": "VAFOX Enterprise OS",
         },
     }

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Mobile Field Operation turns FoxBrain into a daily tool for store employees.
+Mobile Field Operation turns VAFOX into a daily tool for store employees.
 
 Employees can use phones to:
 

@@ -1,6 +1,6 @@
 # Approval Module
 
-FoxBrain OS Enterprise V1.8 approval center boundary.
+VAFOX Enterprise OS V1.8 approval center boundary.
 
 - API: `/api/workflow-automation/approvals`
 - Storage: `approvals`, plus existing `ai_operation_plans`

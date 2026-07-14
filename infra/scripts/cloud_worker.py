@@ -101,7 +101,7 @@ def main():
         ("web_research", os.getenv("WEB_RESEARCH_TIME", "10:00"), run_web_research),
     ]
     last_runs = {}
-    log("FoxBrain V6 worker started. Jobs: " + ", ".join(f"{name}@{clock}" for name, clock, _ in jobs))
+    log("VAFOX V6 worker started. Jobs: " + ", ".join(f"{name}@{clock}" for name, clock, _ in jobs))
     while True:
         now = datetime.now()
         for name, clock, runner in jobs:

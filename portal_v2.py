@@ -59,25 +59,25 @@ try:
     from foxbrain_os.ceo_operating_loop import attach_ai_analysis, confirm_decision_memory, confirm_operating_review, create_decision_memory, create_enterprise_question, create_morning_brief, create_operating_review, ensure_ceo_operating_loop_schema, evidence_chain as operating_evidence_chain, operating_loop_summary, review_ai_analysis
 except Exception:
     def enterprise_v1_architecture_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.0", "message": "architecture contract unavailable"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.0", "message": "architecture contract unavailable"}
     def build_agent_orchestration_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.2", "message": "agent orchestration unavailable", "domains": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.2", "message": "agent orchestration unavailable", "domains": []}
     def build_agent_plan_request(domain_key, objective, created_by_role=""):
         return {"ok": False, "domain": {"key": domain_key}, "objective": objective, "approval_required": True, "risk_level": "high"}
     def find_agent_domain(domain_key):
         return {"key": domain_key or "business", "name": "Business Operations Agent"}
     def build_auto_operation_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.3", "message": "auto operation unavailable", "stages": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.3", "message": "auto operation unavailable", "stages": []}
     def build_daily_loop_plan(sap_status, ai_context, briefing, task_plan, approvals):
         return {"ok": False, "approval_required": True, "risk_level": "high"}
     def build_sap_knowledge_engine_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.4", "message": "sap knowledge engine unavailable", "knowledge_models": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.4", "message": "sap knowledge engine unavailable", "knowledge_models": []}
     def build_warehouse_readiness(sync_status, sap_knowledge_metrics=None):
         return {"ok": False, "datasets": []}
     def build_model_catalog(model_key=""):
         return {"ok": False, "models": []}
     def build_knowledge_training_quality_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.5", "message": "knowledge quality unavailable"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.5", "message": "knowledge quality unavailable"}
     def score_knowledge_quality(metrics):
         return {"ok": False, "score": 0, "level": "unavailable", "metrics": metrics}
     def build_ai_learning_plan(quality_score, boss_experience):
@@ -89,27 +89,27 @@ except Exception:
     def build_query_plan(question, scope="all"):
         return {"ok": False, "message": "knowledge brain unavailable", "question": question, "scope": scope}
     def build_multi_agent_system_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6", "message": "multi-agent system unavailable", "roles": [], "collaboration_flows": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6", "message": "multi-agent system unavailable", "roles": [], "collaboration_flows": []}
     def build_shared_sap_context(sap_engine=None, knowledge_quality=None):
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6", "message": "shared SAP context unavailable"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6", "message": "shared SAP context unavailable"}
     def build_agent_collaboration_plan(objective, agents=None):
         return {"ok": False, "objective": objective, "agents": agents or [], "approval_required": True, "risk_level": "high"}
     def build_knowledge_fusion_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.5", "message": "knowledge fusion unavailable", "layers": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6.5", "message": "knowledge fusion unavailable", "layers": []}
     def build_fusion_context(sap_engine=None, knowledge_quality=None, external_knowledge=None):
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.5", "message": "fusion context unavailable"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6.5", "message": "fusion context unavailable"}
     def build_agent_fusion_context(agent_key, fusion_context=None):
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.5", "agent": {"agent_key": agent_key}, "fusion_context": fusion_context or {}}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6.5", "agent": {"agent_key": agent_key}, "fusion_context": fusion_context or {}}
     def build_knowledge_training_engine_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "message": "knowledge training engine unavailable"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6.6", "message": "knowledge training engine unavailable"}
     def build_operating_rule_library(domain=""):
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "rules": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6.6", "rules": []}
     def build_training_cycle_plan(fusion_context=None, knowledge_quality=None):
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "approval_required": True}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6.6", "approval_required": True}
     def build_ai_decision_logic(fusion_context=None, operating_metrics=None):
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.6.6", "decision_logic": {}}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.6.6", "decision_logic": {}}
     def build_ai_business_center_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.7", "message": "AI business center unavailable", "modules": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.7", "message": "AI business center unavailable", "modules": []}
     def build_daily_business_report(metrics, knowledge_context=None, operating_rules=None):
         return {"ok": False, "approval_required": True, "data_sources": []}
     def build_sales_forecast(metrics, forecast_period="7d"):
@@ -125,7 +125,7 @@ except Exception:
     def build_ai_task_plan(question, context=None):
         return {"ok": False, "question": question, "approval_required": True, "risk_level": "high"}
     def build_workflow_automation_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.8", "message": "workflow automation unavailable", "node_types": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.8", "message": "workflow automation unavailable", "node_types": []}
     def build_inventory_warning_workflow():
         return {"ok": False, "approval_required": True, "nodes": []}
     def build_ai_operating_task(problem, source="risk_engine", owner="store_manager"):
@@ -141,7 +141,7 @@ except Exception:
     def build_workflow_acceptance_plan(request_text):
         return {"ok": False, "request": request_text, "approval_required": True}
     def build_enterprise_knowledge_graph_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V1.9", "message": "enterprise knowledge graph unavailable"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V1.9", "message": "enterprise knowledge graph unavailable"}
     def build_kg_builder_plan():
         return {"ok": False, "schedule": "02:30 daily"}
     def build_relationship_query_plan(question):
@@ -232,7 +232,7 @@ except Exception:
     def confirm_operating_review(*args, **kwargs):
         raise ValueError("CEO operating loop unavailable")
     def build_digital_twin_simulation_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V2.1"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V2.1"}
     def build_company_twin_model(metrics=None):
         return {"ok": False, "current_metrics": metrics or {}}
     def build_discount_adjustment_scenario(brand="Osprey", current_discount=0.62, target_discount=0.59):
@@ -252,7 +252,7 @@ except Exception:
     def build_board_assistant_pack():
         return {"ok": False, "approval_required": True}
     def build_business_autopilot_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V2.2"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V2.2"}
     def calculate_business_health_score(metrics=None):
         return {"ok": False, "score": 0}
     def build_daily_inspection_plan():
@@ -272,7 +272,7 @@ except Exception:
     def build_biggest_risk_analysis():
         return {"ok": False, "approval_required": True}
     def build_ecosystem_hub_contract():
-        return {"ok": False, "version": "FoxBrain OS Enterprise V2.3"}
+        return {"ok": False, "version": "VAFOX Enterprise OS V2.3"}
     def build_enterprise_data_lake_plan():
         return {"ok": False, "sources": []}
     def build_wecom_crm_agent():
@@ -290,25 +290,25 @@ except Exception:
     def build_vip_recall_workflow():
         return {"ok": False, "external_send_requires_approval": True}
     def build_ux_information_architecture_contract():
-        return {"ok": False, "version": "FoxBrain OS UX 2.0", "layers": []}
+        return {"ok": False, "version": "VAFOX OS UX 2.0", "layers": []}
     def build_owner_enterprise_planning_contract():
-        return {"ok": False, "version": "FoxBrain Owner/Enterprise OS 7.9", "systems": []}
+        return {"ok": False, "version": "VAFOX Enterprise OS 7.9", "systems": []}
     def build_sync_policy():
         return {"ok": False, "allowed_domains": [], "blocked_domains": []}
     def classify_data_domain(domain_key):
         return {"ok": False, "domain": domain_key, "sync_allowed": False, "approval_required": True}
     def build_owner_os_foundation_contract():
-        return {"ok": False, "version": "FoxBrain Owner OS V1 Foundation", "centers": []}
+        return {"ok": False, "version": "VAFOX Enterprise Brain V1 Foundation", "centers": []}
     def build_owner_home_contract():
         return {"ok": False, "home_entries": []}
     def build_master_blueprint_contract():
         return {"ok": False, "documents": []}
     def build_enterprise_second_brain_contract():
-        return {"ok": False, "version": "FoxBrain Enterprise Second Brain V1.0", "product_spec_books": [], "engines": []}
+        return {"ok": False, "version": "VAFOX Enterprise Brain V1.0", "product_spec_books": [], "engines": []}
     def build_enterprise_second_brain_v11_contract():
-        return {"ok": False, "version": "FoxBrain Enterprise Second Brain V1.1"}
+        return {"ok": False, "version": "VAFOX Enterprise Brain V1.1"}
     def build_drive_2_contract():
-        return {"ok": False, "version": "FoxBrain Drive 2.0", "domains": []}
+        return {"ok": False, "version": "VAFOX Drive 2.0", "domains": []}
     def build_object_engine_contract():
         return {"ok": False, "version": "Object Engine V1.1", "models": []}
     def build_knowledge_pipeline_contract():
@@ -363,7 +363,7 @@ def baidu_drive_share_url():
     return share_url
 
 T = {
-    "brand": "FoxBrain \u8001\u677f\u7ecf\u8425\u7cfb\u7edf",
+    "brand": "VAFOX \u8001\u677f\u7ecf\u8425\u7cfb\u7edf",
     "subtitle": "",
     "login": U(r"\u767b\u5f55"),
     "register": U(r"\u65b0\u5458\u5de5\u6ce8\u518c"),
@@ -766,7 +766,7 @@ def fetch_url_text(url):
     if not url.lower().startswith(("http://", "https://")):
         return ""
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 FoxBrain"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 VAFOX"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = resp.read(500000)
         text = raw.decode("utf-8", errors="ignore")
@@ -844,7 +844,7 @@ def call_ai_chat(messages, temperature=0.2):
             headers={
                 "Authorization": "Bearer " + cfg["api_key"],
                 "Content-Type": "application/json",
-                "User-Agent": "FoxBrain/1.0",
+                "User-Agent": "VAFOX/1.0",
             },
             method="POST",
         )
@@ -3052,7 +3052,7 @@ create table if not exists observability_metrics(
         conn.execute("create index if not exists idx_observability_metrics_key on observability_metrics(metric_key, collected_at)")
         now_kernel = ts()
         seed_settings = [
-            ("platform.version", "V7.1", "string", "FoxBrain Enterprise Kernel version"),
+            ("platform.version", "V7.1", "string", "VAFOX Enterprise Kernel version"),
             ("sap.sync.time", "22:00", "string", "Daily SAP read-only sync time"),
             ("security.high_risk_approval", "true", "boolean", "High-risk actions require human approval"),
             ("feature.mcp_gateway", "true", "boolean", "Enable MCP gateway registry"),
@@ -8051,7 +8051,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 [
                     {
                         "role": "system",
-                        "content": U(r"\u4f60\u662f FoxBrain \u4f01\u4e1a\u77e5\u8bc6\u5e93\u52a9\u624b\u3002\u53ea\u80fd\u6839\u636e\u63d0\u4f9b\u7684\u5185\u90e8\u77e5\u8bc6\u56de\u7b54\uff0c\u4e0d\u80fd\u7f16\u9020\u672a\u63d0\u4f9b\u7684\u4e8b\u5b9e\u3002\u7528\u4e2d\u6587\u56de\u7b54\uff0c\u7ed3\u6784\u4e3a\uff1a\u76f4\u63a5\u7b54\u6848\u3001\u4f9d\u636e\u3001\u9700\u590d\u6838\u4e8b\u9879\u3002"),
+                        "content": U(r"\u4f60\u662f VAFOX \u4f01\u4e1a\u77e5\u8bc6\u5e93\u52a9\u624b\u3002\u53ea\u80fd\u6839\u636e\u63d0\u4f9b\u7684\u5185\u90e8\u77e5\u8bc6\u56de\u7b54\uff0c\u4e0d\u80fd\u7f16\u9020\u672a\u63d0\u4f9b\u7684\u4e8b\u5b9e\u3002\u7528\u4e2d\u6587\u56de\u7b54\uff0c\u7ed3\u6784\u4e3a\uff1a\u76f4\u63a5\u7b54\u6848\u3001\u4f9d\u636e\u3001\u9700\u590d\u6838\u4e8b\u9879\u3002"),
                     },
                     {
                         "role": "user",
@@ -8751,7 +8751,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         body = """
 <div class="ceo-hero">
   <span class="status-tag">CEO Experience 2.0</span>
-  <h1>FoxBrain CEO Brain</h1>
+  <h1>VAFOX Enterprise Brain</h1>
   <p class="lead">{state}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
@@ -8802,7 +8802,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             nav_title=U(r"\u4e8c\u7ea7\u5165\u53e3"),
             nav_groups=self.ceo_navigation_groups_html(),
         )
-        return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
+        return self.out(layout("VAFOX Enterprise Brain", body, user=user, wide=False))
         role = user["role"]
         can_boss = role in ("boss", "admin", "finance", "purchasing")
         can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
@@ -8957,7 +8957,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         body = """
 <div class="ceo-hero">
   <span class="status-tag">CEO Experience 2.0</span>
-  <h1>FoxBrain CEO Brain</h1>
+  <h1>VAFOX Enterprise Brain</h1>
   <p class="lead">{state}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
@@ -9008,7 +9008,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             nav_title=U(r"\u4e8c\u7ea7\u5165\u53e3"),
             nav_groups=self.ceo_navigation_groups_html(),
         )
-        return self.out(layout("FoxBrain CEO Brain", body, user=user, wide=False))
+        return self.out(layout("VAFOX Enterprise Brain", body, user=user, wide=False))
 
     def ai_ceo(self, user):
         user = self.require_login(user)
@@ -9325,7 +9325,7 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         return {
             "ok": True,
             "dashboard": "ceo_brain",
-            "positioning": "FoxBrain CEO Brain",
+            "positioning": "VAFOX Enterprise Brain",
             "subtitle": U(r"\u4f01\u4e1a\u7b2c\u4e8c\u5927\u8111"),
             "summary": {
                 "documents_total": documents_total,
@@ -9403,10 +9403,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "recent_memories": recent_memories,
             "system_status": status,
             "core_entries": [
-                {"title": "FoxBrain Drive", "url": "/drive", "status": "ready"},
+                {"title": "VAFOX Drive", "url": "/drive", "status": "ready"},
                 {"title": U(r"\u5bf9\u8c61\u4e2d\u5fc3"), "url": "/object-center", "status": "ready"},
                 {"title": U(r"\u77e5\u8bc6\u4e2d\u5fc3"), "url": "/knowledge", "status": "ready"},
-                {"title": "FoxBrain Data Lake", "url": "/data-lake", "status": "ready"},
+                {"title": "VAFOX Data Lake", "url": "/data-lake", "status": "ready"},
                 {"title": "Enterprise Sync Center", "url": "/sync-center", "status": "ready"},
                 {"title": "Object Match Center", "url": "/object-links", "status": "ready"},
                 {"title": "Business Calibration", "url": "/business-calibration", "status": "ready"},
@@ -10146,8 +10146,8 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             self.card(U(r"\u6570\u636e\u540c\u6b65\u4e2d\u5fc3"), U(r"\u67e5\u770b\u6570\u636e\u65b0\u9c9c\u5ea6\u3001\u5bf9\u8d26\u7ed3\u679c\u4e0e\u4eba\u5de5\u53d1\u5e03\u72b6\u6001\u3002"), "/sync-center", "btn", True),
         ])
         body = """
-<div class="panel hero" data-home-contract="{}" data-legacy-title="FoxBrain CEO Home">
-  <h1>FoxBrain 老板经营大脑</h1>
+<div class="panel hero" data-home-contract="{}" data-legacy-title="VAFOX Enterprise Brain">
+  <h1>VAFOX 企业大脑</h1>
   <p class="lead">{}</p>
   <form method="get" action="/copilot">
     <label>{}</label>
@@ -10320,7 +10320,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
         center = centers.get(center_key)
         if not center:
             center = {
-                "name": "FoxBrain Owner OS",
+                "name": "VAFOX Enterprise Brain",
                 "purpose": contract.get("positioning", ""),
                 "entries": [item.get("name") for item in contract.get("home", {}).get("home_entries", [])],
             }
@@ -10331,11 +10331,11 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
         if center_key == "archive":
             cards = self.card(U(r"\u5bf9\u8c61\u4e2d\u5fc3"), U(r"\u7edf\u4e00\u7ba1\u7406\u95e8\u5e97\u3001\u5458\u5de5\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u4f9b\u5e94\u5546\u3001\u5ba2\u6237\u3001\u5408\u540c\u3001\u9879\u76ee\u3001\u4f1a\u8bae\u548c\u4efb\u52a1\u3002"), "/object-center", "btn dark", True) + cards
         body = '<div class="panel"><h2>{}</h2><p class="small">{}</p></div><div class="grid">{}</div>'.format(
-            esc(center.get("name", "FoxBrain Owner OS")),
+            esc(center.get("name", "VAFOX Enterprise Brain")),
             esc(center.get("purpose", "")),
             cards,
         )
-        self.out(layout(esc(center.get("name", "FoxBrain Owner OS")), body, user=user, wide=True))
+        self.out(layout(esc(center.get("name", "VAFOX Enterprise Brain")), body, user=user, wide=True))
 
     def os_business_layer(self, user):
         user = self.require_login(user)
@@ -10367,11 +10367,11 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             (U(r"AI\u667a\u80fd\u4f53"), U(r"\u6570\u5b57\u5458\u5de5\u548c\u591a\u667a\u80fd\u4f53\u3002"), "/agents", role in ("boss", "admin", "finance", "purchasing", "store_manager")),
             (U(r"AI\u4efb\u52a1"), U(r"\u8ba1\u5212\u3001\u6267\u884c\u3001\u5ba1\u6279\u524d\u7f6e\u3002"), "/ai-task-planner", True),
         ]
-        body = '<div class="panel"><h2>FoxBrain AI</h2><p><a class="btn dark full" href="/jarvis">{}</a></p></div><div class="grid">{}</div>'.format(
+        body = '<div class="panel"><h2>VAFOX AI</h2><p><a class="btn dark full" href="/jarvis">{}</a></p></div><div class="grid">{}</div>'.format(
             U(r"\u4eca\u5929\u6709\u4ec0\u4e48\u9700\u8981\u6211\u5e2e\u5fd9\uff1f"),
             self.os_layer_cards(items),
         )
-        self.out(layout("FoxBrain AI", body, user=user, wide=True))
+        self.out(layout("VAFOX AI", body, user=user, wide=True))
 
     def os_messages_layer(self, user):
         user = self.require_login(user)
@@ -10450,7 +10450,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
 </div>
 <div class="panel"><h2>{}</h2>{}</div>""".format(
             U(r"\u4e00\u79c1\u4e00\u516c\uff0c\u4e24\u5957\u7cfb\u7edf"),
-            "huyan.vafox.com = FoxBrain Owner OS / ai.vafox.com = FoxBrain Enterprise OS",
+            "huyan.vafox.com = VAFOX Enterprise Brain / ai.vafox.com = VAFOX Enterprise AI Center",
             system_cards,
             U(r"\u53ef\u90e8\u5206\u540c\u6b65"),
             self.bullets(allowed),
@@ -10459,7 +10459,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             U(r"\u6570\u636e\u4e2d\u53f0\u6d41\u7a0b"),
             self.bullets(contract.get("data_middle_platform_flow", [])),
         )
-        self.out(layout("FoxBrain Owner/Enterprise OS", body, user=user, wide=True))
+        self.out(layout("VAFOX Enterprise OS", body, user=user, wide=True))
 
     def api_owner_enterprise_get(self, user, path):
         if not user:
@@ -10533,7 +10533,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
         ]
         body = """
 <div class="panel">
-  <h2>FoxBrain Enterprise Second Brain V1.0</h2>
+  <h2>VAFOX Enterprise Brain V1.0</h2>
   <p class="small">{}</p>
   <p><a class="btn dark" href="/api/second-brain">API</a> <a class="btn" href="/owner/system">{}</a></p>
 </div>
@@ -10558,7 +10558,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             U(r"\u4ea7\u54c1\u89c4\u8303\u4e66"),
             books,
         )
-        self.out(layout("FoxBrain Enterprise Second Brain", body, user=user, wide=True))
+        self.out(layout("VAFOX Enterprise Brain", body, user=user, wide=True))
 
     def api_second_brain_get(self, user, path):
         if not user:
@@ -12206,7 +12206,7 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         payload = {
             "ok": True,
             "module": "ai_business_management_center",
-            "version": "FoxBrain OS Enterprise V1.7",
+            "version": "VAFOX Enterprise OS V1.7",
             "page_route": "/ai-business-center",
             "mobile_ready": True,
             "contract": build_ai_business_center_contract(),
@@ -12442,7 +12442,7 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         return {
             "ok": True,
             "module": "workflow_automation_engine",
-            "version": "FoxBrain OS Enterprise V1.8",
+            "version": "VAFOX Enterprise OS V1.8",
             "page_route": "/workflow-automation",
             "contract": contract,
             "workflow_builder": inventory_workflow,
@@ -12601,7 +12601,7 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         return {
             "ok": True,
             "module": "enterprise_knowledge_graph",
-            "version": "FoxBrain OS Enterprise V1.9",
+            "version": "VAFOX Enterprise OS V1.9",
             "page_route": "/enterprise-knowledge-graph",
             "contract": contract,
             "kg_builder": build_kg_builder_plan(),
@@ -12730,7 +12730,7 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         return {
             "ok": True,
             "module": "digital_twin_simulation",
-            "version": "FoxBrain OS Enterprise V2.1",
+            "version": "VAFOX Enterprise OS V2.1",
             "page_route": "/ai-strategy-center",
             "contract": build_digital_twin_simulation_contract(),
             "company_twin": build_company_twin_model(metrics),
@@ -12859,7 +12859,7 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         return {
             "ok": True,
             "module": "business_autopilot",
-            "version": "FoxBrain OS Enterprise V2.2",
+            "version": "VAFOX Enterprise OS V2.2",
             "page_route": "/business-autopilot",
             "contract": build_business_autopilot_contract(),
             "health_score": calculate_business_health_score(metrics),
@@ -12990,7 +12990,7 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         return {
             "ok": True,
             "module": "enterprise_ecosystem_hub",
-            "version": "FoxBrain OS Enterprise V2.3",
+            "version": "VAFOX Enterprise OS V2.3",
             "page_route": "/ecosystem-hub",
             "contract": build_ecosystem_hub_contract(),
             "data_lake": build_enterprise_data_lake_plan(),
@@ -13365,7 +13365,7 @@ limit 200
         body = f"""
 <div class="panel">
   <h2>{U(r'\u77e5\u8bc6\u5f15\u64ce\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u8fd9\u91cc\u662f FoxBrain \u7684\u4f01\u4e1a\u957f\u671f\u8bb0\u5fc6\uff1a\u6587\u6863\u3001\u5236\u5ea6\u3001\u5408\u540c\u3001SAP \u6458\u8981\u3001\u57f9\u8bad\u548c AI \u95ee\u7b54\u90fd\u4f1a\u6c89\u6dc0\u5230\u8fd9\u91cc\u3002')}</p>
+  <p class="small">{U(r'\u8fd9\u91cc\u662f VAFOX \u7684\u4f01\u4e1a\u957f\u671f\u8bb0\u5fc6\uff1a\u6587\u6863\u3001\u5236\u5ea6\u3001\u5408\u540c\u3001SAP \u6458\u8981\u3001\u57f9\u8bad\u548c AI \u95ee\u7b54\u90fd\u4f1a\u6c89\u6dc0\u5230\u8fd9\u91cc\u3002')}</p>
   <div class="inline"><a class="btn" href="/upload">{U(r'\u4e0a\u4f20\u6587\u4ef6')}</a><a class="btn green" href="/knowledge/new">{U(r'\u65b0\u5efa\u77e5\u8bc6')}</a><a class="btn dark" href="/ai-query">{U(r'AI \u67e5\u8be2')}</a><a class="btn orange" href="/knowledge/sap">{U(r'SAP \u77e5\u8bc6\u5316')}</a><a class="btn" href="/knowledge/brain">{U(r'AI \u77e5\u8bc6\u5927\u8111')}</a><a class="btn gray" href="/web-search">{U(r'\u5916\u7f51\u4fdd\u5b58')}</a></div>
 </div>
 <div class="metrics">
@@ -13496,7 +13496,7 @@ limit 200
         candidates = self.sap_knowledge_source_rows("all", 40)
         return {
             "ok": True,
-            "version": "FoxBrain OS 6.1",
+            "version": "VAFOX OS 6.1",
             "service": "sap_smart_knowledge_base",
             "sap_core_rule": "SAP_B1_is_the_core_business_data_source",
             "writeback_rule": "read_only_knowledge_generation_no_sap_writeback",
@@ -13522,7 +13522,7 @@ limit 200
         models = build_model_catalog()
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.4",
+            "version": "VAFOX Enterprise OS V1.4",
             "module": "sap_knowledge_engine",
             "contract": contract,
             "read_only_sync_layer": contract.get("read_only_sync_layers", []),
@@ -13572,7 +13572,7 @@ limit 200
         learning_plan = build_ai_learning_plan(quality, boss_experience)
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.5",
+            "version": "VAFOX Enterprise OS V1.5",
             "module": "knowledge_training_quality",
             "contract": build_knowledge_training_quality_contract(),
             "knowledge_quality": quality,
@@ -13609,7 +13609,7 @@ limit 200
             items.append(item)
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.6.5",
+            "version": "VAFOX Enterprise OS V1.6.5",
             "module": "external_industry_knowledge",
             "items": items,
             "item_count": len(items),
@@ -13624,7 +13624,7 @@ limit 200
         fusion_context = build_fusion_context(sap_engine, quality, external)
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.6.5",
+            "version": "VAFOX Enterprise OS V1.6.5",
             "module": "knowledge_fusion",
             "contract": build_knowledge_fusion_contract(),
             "fusion_context": fusion_context,
@@ -13648,7 +13648,7 @@ limit 200
         decision_logic = build_ai_decision_logic(fusion_context, metrics)
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.6.6",
+            "version": "VAFOX Enterprise OS V1.6.6",
             "module": "knowledge_training_rules_engine",
             "contract": build_knowledge_training_engine_contract(),
             "fusion_knowledge": fusion_context,
@@ -13670,7 +13670,7 @@ limit 200
         candidate_items = [c["entity_type"] + " / " + str(c["name"]) + " / " + str(c["source_table"]) for c in payload["candidate_preview"]]
         body = f"""
 <div class="panel">
-  <h2>FoxBrain OS 6.1 SAP {U(r'\u667a\u80fd\u77e5\u8bc6\u5e93')}</h2>
+  <h2>VAFOX OS 6.1 SAP {U(r'\u667a\u80fd\u77e5\u8bc6\u5e93')}</h2>
   <p class="small">{U(r'\u4ece SAP/\u672c\u5730\u540c\u6b65\u6570\u636e\u6574\u7406\u54c1\u724c\u3001\u5546\u54c1\u3001\u95e8\u5e97\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001\u4f9b\u5e94\u5546\u77e5\u8bc6\u5361\uff0c\u4f9b Jarvis \u548c AI \u67e5\u8be2\u5f15\u7528\u3002')}</p>
   <div class="metrics">{self.metric(U(r'SAP \u77e5\u8bc6'), payload['metrics']['sap_knowledge_items'], U(r'\u5df2\u5165\u5e93'))}{self.metric(U(r'\u5019\u9009\u6570\u636e'), payload['metrics']['candidate_count'], U(r'\u53ef\u751f\u6210'))}{self.metric(U(r'\u6620\u5c04'), payload['metrics']['mapping_count'], U(r'\u7c7b\u578b'))}</div>
   <form method="post" action="/api/knowledge/sap-generate"><input type="hidden" name="scope" value="all"><button>{U(r'\u751f\u6210/\u66f4\u65b0 SAP \u77e5\u8bc6\u5361')}</button></form>
@@ -13679,7 +13679,7 @@ limit 200
 <div class="panel"><h2>{U(r'\u5019\u9009\u6570\u636e\u9884\u89c8')}</h2>{self.bullets(candidate_items or [U(r'\u6682\u65e0 SAP/\u672c\u5730\u540c\u6b65\u5019\u9009\u6570\u636e')])}</div>
 <div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([U(r'\u53ea\u8bfb\u751f\u6210\u77e5\u8bc6\uff0c\u4e0d\u56de\u5199 SAP'), U(r'\u9ad8\u98ce\u9669\u52a8\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279'), U(r'\u77e5\u8bc6\u6761\u76ee\u4fdd\u7559\u6765\u6e90\u3001\u6458\u8981\u3001\u5207\u7247\u548c\u5ba1\u8ba1\u65e5\u5fd7')])}</div>
 """
-        self.out(layout("FoxBrain OS 6.1 SAP Knowledge", body, user=user, wide=True))
+        self.out(layout("VAFOX OS 6.1 SAP Knowledge", body, user=user, wide=True))
 
     def ai_knowledge_brain_center(self, user):
         user = self.require_login(user)
@@ -13696,7 +13696,7 @@ limit 200
         guardrail_items = [k + " = " + str(v) for k, v in payload.get("guardrails", {}).items()]
         body = f"""
 <div class="panel">
-  <h2>FoxBrain OS Enterprise V1.1 AI {U(r'\u77e5\u8bc6\u5927\u8111')}</h2>
+  <h2>VAFOX Enterprise OS V1.1 AI {U(r'\u77e5\u8bc6\u5927\u8111')}</h2>
   <p class="small">{U(r'\u628a SAP \u6570\u636e\u7406\u89e3\u3001\u4f01\u4e1a\u77e5\u8bc6\u5e93\u3001\u6743\u9650\u8fc7\u6ee4\u3001\u5f15\u7528\u548c\u9ad8\u98ce\u9669\u5ba1\u6279\u8fde\u6210\u7edf\u4e00 AI \u4e0a\u4e0b\u6587\u3002')}</p>
   <div class="metrics">{self.metric(U(r'\u77e5\u8bc6'), payload['knowledge_metrics']['knowledge_items'], U(r'\u6761\u76ee'))}{self.metric(U(r'\u5207\u7247'), payload['knowledge_metrics']['chunks'], U(r'AI \u68c0\u7d22'))}{self.metric(U(r'\u5f85\u590d\u6838'), payload['knowledge_metrics']['pending_review'], U(r'\u77e5\u8bc6'))}</div>
 </div>
@@ -13704,7 +13704,7 @@ limit 200
 <div class="split"><div class="panel"><h2>{U(r'\u67e5\u8be2\u6d41\u7a0b')}</h2>{self.bullets(flow_items)}</div><div class="panel"><h2>{U(r'\u62a4\u680f')}</h2>{self.bullets(guardrail_items)}</div></div>
 <div class="panel"><h2>{U(r'\u5feb\u6377\u5165\u53e3')}</h2><div class="inline"><a class="btn" href="/api/knowledge/brain">API</a><a class="btn orange" href="/knowledge/sap">SAP {U(r'\u77e5\u8bc6\u5316')}</a><a class="btn dark" href="/ai-query">AI {U(r'\u67e5\u8be2')}</a></div></div>
 """
-        self.out(layout("FoxBrain OS Enterprise V1.1 AI Knowledge Brain", body, user=user, wide=True))
+        self.out(layout("VAFOX Enterprise OS V1.1 AI Knowledge Brain", body, user=user, wide=True))
 
     def knowledge_view(self, user):
         user = self.require_login(user)
@@ -14711,7 +14711,7 @@ where ki.deleted_at is null"""
 <div class="panel compact-panel"><h2>{action_title}</h2>{actions}<p><a class="btn" href="/action-center">{action_open}</a></p></div>
 <div class="panel compact-panel"><h2>CEO Vault</h2>{vault}</div>
 """.format(today=esc(today_text), welcome=esc(U(r"\u60a8\u597d，") + (user["name"] or U(r"\u547c\u603b"))), lead=U(r"\u8fd9\u91cc\u53ea\u663e\u793a\u4eca\u5929\u7684\u4f01\u4e1a，\u4e0d\u663e\u793a\u7cfb\u7edf\u3002"), brain_entry=("<div class='panel compact-panel'><h2>{}</h2><p>{}</p><a class='btn' href='/enterprise-brain'>{}</a></div>".format(U(r"CEO \u4f01\u4e1a\u5927\u8111"), U(r"\u4ece\u4f01\u4e1a\u5baa\u7ae0\u3001Founder \u8bb0\u5fc6\u3001\u8d44\u4ea7\u3001\u65f6\u95f4\u8f74\u548c\u51b3\u7b56\u770b\u61c2\u4f01\u4e1a\u3002"), U(r"\u6253\u5f00\u4f01\u4e1a\u5927\u8111")) if user["role"] in ("boss", "admin") else ""), health_title=U(r"\u4f01\u4e1a\u5065\u5eb7"), health=genesis_health, health_action=U(r"\u67e5\u770b\u5065\u5eb7\u4f9d\u636e"), business_title=U(r"\u4eca\u65e5\u7ecf\u8425"), business=genesis_today, business_action=U(r"\u6253\u5f00\u4eca\u65e5\u7ecf\u8425\u62a5\u544a"), risk_title=U(r"\u4eca\u65e5\u98ce\u9669"), risks=home_risks, risk_action=U(r"\u67e5\u770b\u98ce\u9669\u4f9d\u636e"), opportunity_title=U(r"\u4eca\u65e5\u673a\u4f1a"), opportunities=home_opportunities, opportunity_action=U(r"\u67e5\u770b\u673a\u4f1a\u6765\u6e90"), advice_title=U(r"\u4eca\u65e5\u5efa\u8bae"), advice=home_daily, advice_action=U(r"\u8bf7 AI Agent \u6df1\u5165\u5206\u6790"), action_title=U(r"\u4eca\u65e5\u884c\u52a8"), actions=focus_html, action_open=U(r"\u8fdb\u5165\u884c\u52a8\u4e2d\u5fc3"), vault=genesis_vault)
-            return self.out(layout(U(r"FoxBrain \u4f01\u4e1a\u6570\u5b57\u603b\u90e8"), genesis_body, user=user, wide=False))
+            return self.out(layout(U(r"VAFOX \u4f01\u4e1a\u6570\u5b57\u603b\u90e8"), genesis_body, user=user, wide=False))
             body = """
 <div class="ceo-hero compact">
   <span class="status-tag">{today}</span>
@@ -14763,7 +14763,7 @@ where ki.deleted_at is null"""
                 primary_links=primary_links,
                 questions=question_chips,
             )
-            return self.out(layout(U(r"FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
+            return self.out(layout(U(r"VAFOX \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
         if compact_home:
             light_metrics = "".join([
                 "<div class='metric {}'><span>{}</span><strong>{}</strong><span>{}</span></div>".format(health_class, U(r"\u4f01\u4e1a\u5065\u5eb7"), "{:.1f}/100".format(summary["business_health_score"]), esc(summary["business_health_status"])),
@@ -14780,7 +14780,7 @@ where ki.deleted_at is null"""
             body = """
 <div class="ceo-hero compact">
   <span class="status-tag">\u8001\u677f\u7ecf\u8425\u5de5\u4f5c\u53f0</span>
-  <h1>FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
+  <h1>VAFOX \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
   <p class="lead">{lead}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
@@ -14809,11 +14809,11 @@ where ki.deleted_at is null"""
                 primary_links=primary_links,
                 questions=question_chips,
             )
-            return self.out(layout(U(r"FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
+            return self.out(layout(U(r"VAFOX \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
         body = """
 <div class="ceo-hero">
   <span class="status-tag">\u8001\u677f\u7ecf\u8425\u5de5\u4f5c\u53f0</span>
-  <h1>FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
+  <h1>VAFOX \u8001\u677f\u7ecf\u8425\u5927\u8111</h1>
   <p class="lead">{lead}</p>
   <form class="ceo-ask" method="get" action="/copilot">
     <div><label>{ask_label}</label><input name="q" placeholder="{ask_placeholder}"></div>
@@ -14868,7 +14868,7 @@ where ki.deleted_at is null"""
             nav_title=U(r"\u4e8c\u7ea7\u5165\u53e3"),
             nav_groups=self.ceo_navigation_groups_html(),
         )
-        return self.out(layout(U(r"FoxBrain \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
+        return self.out(layout(U(r"VAFOX \u8001\u677f\u7ecf\u8425\u5927\u8111"), body, user=user, wide=False))
 
     def role_can_manage(self, user):
         return bool(user and user["role"] in ("boss", "admin", "finance", "purchasing", "store_manager"))
@@ -14902,7 +14902,7 @@ where ki.deleted_at is null"""
         body = f"""
 <div class="panel">
   <h2>{U(r'AI \u603b\u7ecf\u7406\u65e5\u62a5')}</h2>
-  <p class="small">{U(r'\u8001\u677f\u6bcf\u5929\u6253\u5f00 FoxBrain\uff0c\u5148\u770b\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\u3002')}</p>
+  <p class="small">{U(r'\u8001\u677f\u6bcf\u5929\u6253\u5f00 VAFOX\uff0c\u5148\u770b\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\u3002')}</p>
   <div class="metrics">{metrics}</div>
 </div>
 <div class="split">
@@ -15888,7 +15888,7 @@ where ki.deleted_at is null"""
         return {
             "ok": True,
             "platform": "Enterprise Digital Brain",
-            "version": "FoxBrain OS 5.0",
+            "version": "VAFOX OS 5.0",
             "sap_core_data_source": "SAP B1",
             "principles": [
                 "sap_remains_core_business_data_source",
@@ -16891,7 +16891,7 @@ where ki.deleted_at is null"""
         quality_items = self.bullets(["{} / {} / {}".format(esc(r["check_key"]), esc(r["status"]), esc(r["message"] or "")) for r in quality] or [U(r"\u6682\u65e0\u8d28\u91cf\u544a\u8b66\u3002")])
         body = """
 <div class="panel">
-  <h2>FoxBrain Data Lake</h2>
+  <h2>VAFOX Data Lake</h2>
   <p class="small">{}</p>
   <form method="post" action="/api/data-lake/rebuild"><button>{}</button></form>
 </div>
@@ -16916,7 +16916,7 @@ where ki.deleted_at is null"""
             U(r"\u539f\u59cb\u884c\u8bb0\u5f55"),
             record_rows,
         )
-        self.out(layout("FoxBrain Data Lake", body, user=user, wide=True))
+        self.out(layout("VAFOX Data Lake", body, user=user, wide=True))
 
     def object_match_center(self, user, path="/object-links"):
         user = self.require_login(user)
@@ -16988,7 +16988,7 @@ where ki.deleted_at is null"""
   <div class="panel"><h2>{}</h2><table><thead><tr><th>Metric</th><th>Type</th><th>Value</th><th>Message</th></tr></thead><tbody>{}</tbody></table></div>
 </div>
 """.format(
-            U(r"\u4ec5\u5728 FoxBrain Data Lake \u548c\u7ecf\u8425\u6307\u6807\u5c42\u6821\u51c6\uff0c\u4e0d\u8fde\u63a5\u6216\u4fee\u6539\u751f\u4ea7 SAP\u3002"),
+            U(r"\u4ec5\u5728 VAFOX Data Lake \u548c\u7ecf\u8425\u6307\u6807\u5c42\u6821\u51c6\uff0c\u4e0d\u8fde\u63a5\u6216\u4fee\u6539\u751f\u4ea7 SAP\u3002"),
             U(r"\u91cd\u5efa\u6821\u51c6\u6307\u6807"),
             U(r"\u6821\u51c6\u6458\u8981"),
             metrics,
@@ -17453,7 +17453,7 @@ where ki.deleted_at is null"""
         app_cards = "".join(self.card(n["label"], n["category"], n["route"], "btn", True) for n in nav)
         body = f"""
 <div class="panel">
-  <h2>FoxBrain {U(r'\u7edf\u4e00\u4f01\u4e1a\u95e8\u6237')}</h2>
+  <h2>VAFOX {U(r'\u7edf\u4e00\u4f01\u4e1a\u95e8\u6237')}</h2>
   <p class="small">{U(r'\u4e00\u6b21\u767b\u5f55\uff0c\u6309\u89d2\u8272\u8fdb\u5165\u8001\u677f\u3001\u5e97\u957f\u3001\u5458\u5de5\u3001\u7ba1\u7406\u5458\u7b49\u95e8\u6237\u3002\u624b\u673a\u3001\u5e73\u677f\u3001\u7535\u8111\u5171\u7528\u540c\u4e00\u5957\u7ec4\u4ef6\u548c\u5bfc\u822a\u3002')}</p>
   <div class="metrics">{self.metric('Portal', data['role_profile']['portal'], data['role_profile']['role'])}{self.metric('SSO', data['sso']['status'], data['sso']['provider'])}{self.metric(U(r'\u6d88\u606f'), len(messages['notifications']), U(r'\u901a\u77e5'))}{self.metric(U(r'\u5f85\u529e'), len(tasks['assigned_tasks']), U(r'\u4efb\u52a1'))}{self.metric(U(r'\u5ba1\u6279'), len(tasks['pending_approvals']), U(r'\u5f85\u5904\u7406'))}</div>
 </div>
@@ -17716,7 +17716,7 @@ where ki.deleted_at is null"""
         daily_loop = build_daily_loop_plan(sap, planner.get("data_context", {}), briefing, planner, approvals)
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.3",
+            "version": "VAFOX Enterprise OS V1.3",
             "module": "auto_operation_loop",
             "contract": contract,
             "sap_daily_sync": sap,
@@ -17738,7 +17738,7 @@ where ki.deleted_at is null"""
             "daily_auto_operation_loop",
             payload,
             {
-                "source": "FoxBrain OS Enterprise V1.3",
+                "source": "VAFOX Enterprise OS V1.3",
                 "sap_sync": "/api/sap/sync/status",
                 "ai_analysis": "/api/ai-task-planner",
                 "boss_daily_report": "/api/ai-ceo/daily-briefing",
@@ -17782,7 +17782,7 @@ where ki.deleted_at is null"""
         )
         body = f"""
 <div class="panel">
-  <h2>FoxBrain OS Enterprise V1.3</h2>
+  <h2>VAFOX Enterprise OS V1.3</h2>
   <p class="small">{U(r'SAP \u6bcf\u65e5\u53ea\u8bfb\u540c\u6b65\u3001AI \u5206\u6790\u3001\u8001\u677f\u65e5\u62a5\u3001\u4efb\u52a1\u4e2d\u5fc3\u548c\u5ba1\u6279\u6d41\u7a0b\u7ec4\u6210\u81ea\u52a8\u8fd0\u8425\u95ed\u73af\u3002')}</p>
   <div class="metrics">{self.metric("SAP", sap.get("freshness"), U(r'\u53ea\u8bfb\u540c\u6b65'))}{self.metric(U(r'\u4e0a\u6b21\u540c\u6b65'), sap.get("last_sync_time"), sap.get("last_status"))}{self.metric(U(r'\u4e0b\u6b21\u540c\u6b65'), sap.get("next_run_time"), U(r'\u751f\u4ea7\u670d\u52a1\u5668\u72ec\u7acb'))}{self.metric(U(r'\u5f85\u5ba1\u6279'), len(payload['approval_flow']['approvals']), U(r'\u4eba\u5de5\u786e\u8ba4'))}</div>
 </div>
@@ -17800,7 +17800,7 @@ where ki.deleted_at is null"""
 <div class="split"><div class="panel"><h2>{U(r'\u8001\u677f\u65e5\u62a5\u8349\u7a3f')}</h2>{self.bullets(payload['boss_daily_report']['actions'] or [U(r'\u6682\u65e0\u65e5\u62a5\u52a8\u4f5c\u3002')])}<p><a class="btn" href="/ai-ceo">{U(r'\u6253\u5f00\u8001\u677f\u65e5\u62a5')}</a></p></div><div class="panel"><h2>{U(r'\u4efb\u52a1\u4e2d\u5fc3')}</h2>{self.bullets([i['title'] for i in payload['task_center']['items'][:6]] or [payload['task_center']['empty_message']])}<p><a class="btn green" href="/tasks">{U(r'\u6253\u5f00\u4efb\u52a1')}</a></p></div></div>
 <div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/auto-operation">/api/auto-operation</a><a class="button" href="/api/auto-operation/contract">Contract</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279')}</a></div></div>
 """
-        self.out(layout("FoxBrain OS Enterprise V1.3", body, user=user, wide=True))
+        self.out(layout("VAFOX Enterprise OS V1.3", body, user=user, wide=True))
 
     def ai_task_planner_page(self, user):
         user = self.require_login(user)
@@ -18225,7 +18225,7 @@ where ki.deleted_at is null"""
             "weekly_report": os.environ.get("WEEKLY_REPORT_TIME", "MON 09:00"),
             "monthly_report_day": os.environ.get("MONTHLY_REPORT_DAY", "1"),
         }
-        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "FoxBrain V6 Autonomous Cloud Framework", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
+        return {"status": "ok" if checks["database_status"] == "ok" else "degraded", "app_version": "VAFOX V6 Autonomous Cloud Framework", "environment": os.environ.get("APP_ENV", "production"), **checks, "timestamp": now}
 
     def api_health(self):
         return self.json_out(self.health_payload())
@@ -19696,7 +19696,7 @@ where ki.deleted_at is null"""
         stale_items = [e for e in evidence if e.get("freshness") in ("stale", "outdated", "unknown")]
         stale_text = U(r"\u6709 {} \u6761 evidence \u7f3a\u5c11\u66f4\u65b0\u65f6\u95f4\u6216\u5df2\u53ef\u80fd\u8fc7\u671f\uff0c\u9700\u590d\u6838\u3002").format(len(stale_items)) if stale_items else U(r"\u4e3b\u8981\u8bc1\u636e\u672a\u89e6\u53d1\u9648\u65e7\u8b66\u544a\u3002")
         answer = "\n\n".join([
-            U(r"\u7ed3\u8bba\uff1a\u53ea\u57fa\u4e8e FoxBrain Enterprise OS \u5df2\u6709 evidence \u56de\u7b54\u3002\u5f53\u524d\u53ef\u4fe1\u7ecf\u8425\u6458\u8981\uff1a\u9500\u552e {} \uff0c\u6bdb\u5229 {} \uff0c\u5e93\u5b58\u91d1\u989d {} \uff0c\u5e93\u5b58\u6570\u91cf {}\u3002").format(
+            U(r"\u7ed3\u8bba\uff1a\u53ea\u57fa\u4e8e VAFOX Enterprise OS \u5df2\u6709 evidence \u56de\u7b54\u3002\u5f53\u524d\u53ef\u4fe1\u7ecf\u8425\u6458\u8981\uff1a\u9500\u552e {} \uff0c\u6bdb\u5229 {} \uff0c\u5e93\u5b58\u91d1\u989d {} \uff0c\u5e93\u5b58\u6570\u91cf {}\u3002").format(
                 money(metrics.get("sales_amount") or 0),
                 money(metrics.get("gross_profit") or 0),
                 money(metrics.get("inventory_retail_amount") or 0),
@@ -22425,7 +22425,7 @@ group by coalesce(store_name,'')
         return {
             "ok": True,
             "system": "Enterprise Digital Workforce",
-            "version": "FoxBrain OS 4.0",
+            "version": "VAFOX OS 4.0",
             "safety_rule": "high_risk_operations_must_require_human_approval",
             "employees": employees,
             "governance": {
@@ -22717,14 +22717,14 @@ group by coalesce(store_name,'')
             result_html = """
 <div class="panel"><h2>{title}</h2><p class="small">{agent} · {review}</p><div class="answer">{output}</div><h2>{evidence_title}</h2><div class="evidence-grid">{evidence}</div></div>
 <div class="panel form"><h2>{feedback_title}</h2><p class="small">{feedback_rule}</p><form method="post" action="/api/agents/runs/{run_id}/feedback"><label>{type_label}</label><select name="feedback_type"><option value="useful">{useful}</option><option value="modified">{modified}</option><option value="not_useful">{not_useful}</option><option value="effective">{effective}</option><option value="ineffective">{ineffective}</option></select><label>{decision}</label><textarea name="boss_decision"></textarea><label>{correction}</label><textarea name="correction"></textarea><label>{actual}</label><textarea name="actual_result"></textarea><button>{submit}</button></form></div>
-""".format(title=U(r"\u5206\u6790\u7ed3\u679c"), agent=esc(selected["agent_name"] or "Agent"), review=U(r"\u5f85\u4eba\u5de5\u590d\u6838"), output=esc(selected["output"] or "").replace("\n", "<br>"), evidence_title=U(r"\u4f9d\u636e\u5361\u7247"), evidence=evidence_html or self.empty_state(U(r"\u5f53\u524d\u6ca1\u6709\u53ef\u9760\u4f9d\u636e\uff0c\u4e0d\u5f97\u4f5c\u51fa\u7ecf\u8425\u7ed3\u8bba\u3002")), feedback_title=U(r"\u544a\u8bc9 FoxBrain \u8fd9\u6761\u5efa\u8bae\u600e\u4e48\u6837"), feedback_rule=U(r"\u53cd\u9988\u53ea\u8fdb\u5165\u5f85\u5ba1\u6838\u8bad\u7ec3\u6837\u672c，\u4e0d\u4f1a\u81ea\u52a8\u6539\u89c4\u5219\u3002"), run_id=selected["id"], type_label=U(r"\u53cd\u9988\u7c7b\u578b"), useful=U(r"\u6709\u7528"), modified=U(r"\u4fee\u6539\u540e\u91c7\u7eb3"), not_useful=U(r"\u4e0d\u91c7\u7eb3"), effective=U(r"\u6267\u884c\u540e\u6709\u6548"), ineffective=U(r"\u6267\u884c\u540e\u65e0\u6548"), decision=U(r"CEO \u6700\u7ec8\u51b3\u5b9a"), correction=U(r"\u9700\u8981\u4fee\u6b63\u7684\u5730\u65b9"), actual=U(r"\u5b9e\u9645\u7ed3\u679c"), submit=U(r"\u63d0\u4ea4\u5f85\u5ba1\u6838\u53cd\u9988"))
+""".format(title=U(r"\u5206\u6790\u7ed3\u679c"), agent=esc(selected["agent_name"] or "Agent"), review=U(r"\u5f85\u4eba\u5de5\u590d\u6838"), output=esc(selected["output"] or "").replace("\n", "<br>"), evidence_title=U(r"\u4f9d\u636e\u5361\u7247"), evidence=evidence_html or self.empty_state(U(r"\u5f53\u524d\u6ca1\u6709\u53ef\u9760\u4f9d\u636e\uff0c\u4e0d\u5f97\u4f5c\u51fa\u7ecf\u8425\u7ed3\u8bba\u3002")), feedback_title=U(r"\u544a\u8bc9 VAFOX \u8fd9\u6761\u5efa\u8bae\u600e\u4e48\u6837"), feedback_rule=U(r"\u53cd\u9988\u53ea\u8fdb\u5165\u5f85\u5ba1\u6838\u8bad\u7ec3\u6837\u672c，\u4e0d\u4f1a\u81ea\u52a8\u6539\u89c4\u5219\u3002"), run_id=selected["id"], type_label=U(r"\u53cd\u9988\u7c7b\u578b"), useful=U(r"\u6709\u7528"), modified=U(r"\u4fee\u6539\u540e\u91c7\u7eb3"), not_useful=U(r"\u4e0d\u91c7\u7eb3"), effective=U(r"\u6267\u884c\u540e\u6709\u6548"), ineffective=U(r"\u6267\u884c\u540e\u65e0\u6548"), decision=U(r"CEO \u6700\u7ec8\u51b3\u5b9a"), correction=U(r"\u9700\u8981\u4fee\u6b63\u7684\u5730\u65b9"), actual=U(r"\u5b9e\u9645\u7ed3\u679c"), submit=U(r"\u63d0\u4ea4\u5f85\u5ba1\u6838\u53cd\u9988"))
         recent = "".join("<a class='card' href='/agents?run={}'><div><span class='status-tag'>{}</span><h2>{}</h2><p>{}</p><p class='small'>{} · {} {}</p></div></a>".format(r["id"], esc(self.status_label(r["human_review_status"])), esc(r["agent_name"] or U(r"AI \u667a\u80fd\u4f53")), esc(summarize_text(r["input"] or "", 80)), esc(dt(r["started_at"])), U(r"\u4f9d\u636e"), len(safe_json(r["evidence_json"], []))) for r in runs)
         body = """
 <div class="ceo-hero compact"><span class="status-tag">V2.8</span><h1>{title}</h1><p class="lead">{lead}</p><form class="ceo-ask" method="post" action="/api/agents/run"><div><label>{choose}</label><select name="agent_code">{options}</select><label>{question}</label><textarea name="question" required placeholder="{placeholder}"></textarea></div><button>{analyze}</button></form></div>
 <div class="panel"><h2>{team}</h2><div class="grid">{agents}</div></div>{result}
 <div class="panel"><h2>{recent_title}</h2><div class="grid">{recent}</div></div>
 <div class="panel"><a class="btn" href="/knowledge-training">{training}</a></div>
-""".format(title=U(r"AI \u667a\u80fd\u4f53\u5de5\u4f5c\u53f0"), lead=U(r"\u4e94\u7c7b\u4f01\u4e1a\u52a9\u624b\u5171\u7528 FoxBrain \u6570\u636e\u3001\u8d44\u6599\u3001\u89c4\u5219\u548c\u8bb0\u5fc6\uff1b\u53ea\u5206\u6790\u548c\u5efa\u8bae，\u4e0d\u81ea\u52a8\u6267\u884c\u3002"), choose=U(r"\u9009\u62e9\u52a9\u624b"), options="".join("<option value='{}'>{}</option>".format(esc(a["code"]), esc(a["name"])) for a in agents), question=U(r"\u8981\u5206\u6790\u7684\u95ee\u9898"), placeholder=U(r"\u4f8b\u5982：Osprey \u5e93\u5b58\u548c\u54c1\u724c\u7ecf\u8425\u6709\u54ea\u4e9b\u98ce\u9669？"), analyze=U(r"\u57fa\u4e8e\u4f9d\u636e\u751f\u6210\u5efa\u8bae"), team=U(r"\u4f01\u4e1a AI \u52a9\u624b\u56e2\u961f"), agents=agent_cards, result=result_html, recent_title=U(r"\u6700\u8fd1\u5206\u6790"), recent=recent or self.empty_state(U(r"\u8fd8\u6ca1\u6709 Agent \u5206\u6790\u8bb0\u5f55\u3002")), training=U(r"\u8fdb\u5165\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3"))
+""".format(title=U(r"AI \u667a\u80fd\u4f53\u5de5\u4f5c\u53f0"), lead=U(r"\u4e94\u7c7b\u4f01\u4e1a\u52a9\u624b\u5171\u7528 VAFOX \u6570\u636e\u3001\u8d44\u6599\u3001\u89c4\u5219\u548c\u8bb0\u5fc6\uff1b\u53ea\u5206\u6790\u548c\u5efa\u8bae，\u4e0d\u81ea\u52a8\u6267\u884c\u3002"), choose=U(r"\u9009\u62e9\u52a9\u624b"), options="".join("<option value='{}'>{}</option>".format(esc(a["code"]), esc(a["name"])) for a in agents), question=U(r"\u8981\u5206\u6790\u7684\u95ee\u9898"), placeholder=U(r"\u4f8b\u5982：Osprey \u5e93\u5b58\u548c\u54c1\u724c\u7ecf\u8425\u6709\u54ea\u4e9b\u98ce\u9669？"), analyze=U(r"\u57fa\u4e8e\u4f9d\u636e\u751f\u6210\u5efa\u8bae"), team=U(r"\u4f01\u4e1a AI \u52a9\u624b\u56e2\u961f"), agents=agent_cards, result=result_html, recent_title=U(r"\u6700\u8fd1\u5206\u6790"), recent=recent or self.empty_state(U(r"\u8fd8\u6ca1\u6709 Agent \u5206\u6790\u8bb0\u5f55\u3002")), training=U(r"\u8fdb\u5165\u4f01\u4e1a\u77e5\u8bc6\u8bad\u7ec3"))
         self.out(layout(U(r"AI \u667a\u80fd\u4f53\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
 
     def knowledge_training_center_page(self, user):
@@ -22954,7 +22954,7 @@ group by coalesce(store_name,'')
         data = self.agent_summary()
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.2",
+            "version": "VAFOX Enterprise OS V1.2",
             "module": "agent_orchestration",
             "rule": "all_ai_execution_requests_must_enter_approval_flow",
             "contract": contract,
@@ -23021,7 +23021,7 @@ group by coalesce(store_name,'')
         data = self.agent_summary()
         return {
             "ok": True,
-            "version": "FoxBrain OS Enterprise V1.6",
+            "version": "VAFOX Enterprise OS V1.6",
             "module": "multi_agent_system",
             "rule": "agents_share_sap_knowledge_context_and_high_risk_actions_wait_for_human_approval",
             "fusion_rule": "agents_share_fusion_knowledge_context_across_sap_industry_and_boss_experience",
@@ -23115,7 +23115,7 @@ group by coalesce(store_name,'')
         fusion_items = [k + ": " + v for k, v in (fusion.get("layer_readiness") or {}).items()]
         body = f"""
 <div class="panel">
-  <h2>FoxBrain OS Enterprise V1.6</h2>
+  <h2>VAFOX Enterprise OS V1.6</h2>
   <div class="metrics">{self.metric("Agent", len(roles), U(r'\u534f\u540c'))}{self.metric("SAP", len(model_items), U(r'\u5171\u4eab\u6a21\u578b'))}{self.metric(U(r'\u5ba1\u6279'), U(r'\u5fc5\u987b'), U(r'\u9ad8\u98ce\u9669'))}</div>
 </div>
 <div class="split">
@@ -23133,7 +23133,7 @@ group by coalesce(store_name,'')
 <div class="panel"><h2>Agents</h2><div class="grid">{cards}</div></div>
 <div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.6">/api/agents/v1.6</a><a class="button" href="/api/agents/v1.6/fusion-knowledge">Fusion</a><a class="button" href="/api/agents/v1.6/shared-sap-knowledge">SAP Context</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</a></div></div>
 """
-        self.out(layout("FoxBrain OS Enterprise V1.6", body, user=user, wide=True))
+        self.out(layout("VAFOX Enterprise OS V1.6", body, user=user, wide=True))
 
     def agent_orchestration_center(self, user):
         user = self.require_login(user)
@@ -23153,7 +23153,7 @@ group by coalesce(store_name,'')
         options = "".join("<option value='{}'>{}</option>".format(esc(d.get("key", "")), esc(d.get("name", ""))) for d in domains)
         body = f"""
 <div class="panel">
-  <h2>FoxBrain OS Enterprise V1.2</h2>
+  <h2>VAFOX Enterprise OS V1.2</h2>
   <p class="small">{U(r'\u7ecf\u8425\u3001\u5e93\u5b58\u3001\u4f1a\u5458\u3001\u5185\u5bb9\u667a\u80fd\u4f53\u5df2\u63a5\u5165\u73b0\u6709 Agent \u6846\u67b6\uff0c\u6240\u6709 AI \u6267\u884c\u5148\u8fdb\u5165\u5ba1\u6279\u8ba1\u5212\u3002')}</p>
   <div class="metrics">{self.metric(U(r'\u667a\u80fd\u4f53'), len(domains), U(r'\u4e1a\u52a1\u57df'))}{self.metric(U(r'\u5ba1\u6279'), U(r'\u5fc5\u987b'), U(r'AI \u6267\u884c'))}{self.metric("SAP", U(r'\u6838\u5fc3'), U(r'\u6570\u636e\u6e90'))}</div>
 </div>
@@ -23174,7 +23174,7 @@ group by coalesce(store_name,'')
 <div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u57df')}</h2><div class="grid">{cards}</div></div>
 <div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.2">/api/agents/v1.2</a><a class="button" href="/api/agents/v1.2/inventory">Inventory</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</a></div></div>
 """
-        self.out(layout("FoxBrain OS Enterprise V1.2", body, user=user, wide=True))
+        self.out(layout("VAFOX Enterprise OS V1.2", body, user=user, wide=True))
 
     def agent_runtime_contract_payload(self):
         return {
@@ -23317,7 +23317,7 @@ group by coalesce(store_name,'')
             return self.json_out(self.enterprise_v12_agent_orchestration_payload(user))
         m = re.match(r"^/api/agents/v1\.2/(business|inventory|membership|content)$", path)
         if m:
-            return self.json_out({"ok": True, "version": "FoxBrain OS Enterprise V1.2", "domain": find_agent_domain(m.group(1)), "approval_required": True, "execution_mode": "approval_then_execute"})
+            return self.json_out({"ok": True, "version": "VAFOX Enterprise OS V1.2", "domain": find_agent_domain(m.group(1)), "approval_required": True, "execution_mode": "approval_then_execute"})
         if path in ("/api/agents/v1.6", "/api/agents/multi-agent"):
             return self.json_out(self.enterprise_v16_multi_agent_payload(user))
         if path in ("/api/agents/v1.6/shared-sap-knowledge", "/api/agents/multi-agent/shared-sap-knowledge"):
@@ -23328,10 +23328,10 @@ group by coalesce(store_name,'')
             return self.json_out(self.agent_fusion_knowledge_payload(user, agent_key))
         if path in ("/api/agents/v1.6/agents", "/api/agents/multi-agent/agents"):
             payload = self.enterprise_v16_multi_agent_payload(user)
-            return self.json_out({"ok": True, "version": "FoxBrain OS Enterprise V1.6", "agents": payload["contract"].get("roles", [])})
+            return self.json_out({"ok": True, "version": "VAFOX Enterprise OS V1.6", "agents": payload["contract"].get("roles", [])})
         if path in ("/api/agents/v1.6/flows", "/api/agents/multi-agent/flows"):
             payload = self.enterprise_v16_multi_agent_payload(user)
-            return self.json_out({"ok": True, "version": "FoxBrain OS Enterprise V1.6", "flows": payload["contract"].get("collaboration_flows", [])})
+            return self.json_out({"ok": True, "version": "VAFOX Enterprise OS V1.6", "flows": payload["contract"].get("collaboration_flows", [])})
         if path.startswith(("/api/agents/workflows", "/api/agents/workflow-templates", "/api/agents/marketplace", "/api/agents/templates", "/api/agents/builder", "/api/agents/sandbox", "/api/agents/runtime", "/api/agents/approvals")):
             return self.api_v5_get(user, path)
         data = self.agent_summary()
@@ -23857,7 +23857,7 @@ group by coalesce(store_name,'')
 
     def developer_docs_payload(self):
         docs = [
-            {"title": "FoxBrain OS 6.0 Enterprise AI Platform", "path": "docs/600_FOXBRAIN_OS_6_0_ENTERPRISE_AI_PLATFORM.md"},
+            {"title": "VAFOX OS 6.0 Enterprise AI Platform", "path": "docs/600_FOXBRAIN_OS_6_0_ENTERPRISE_AI_PLATFORM.md"},
             {"title": "Plugin Integration API Governance", "path": "docs/601_FOXBRAIN_OS_6_0_PLUGIN_INTEGRATION_API_GOVERNANCE.md"},
             {"title": "SDK Extension Standard", "path": "docs/SDK_EXTENSION_STANDARD.md"},
             {"title": "API Standard", "path": "docs/10_API_STANDARD.md"},
@@ -24048,11 +24048,11 @@ group by coalesce(store_name,'')
             "/decision-center": ("Enterprise Decision Engine", "Explainable decisions with unified data, KPI, knowledge, risk scoring and approval gates.", ["Decision engine", "Risk scoring", "Opportunities", "Explainable recommendations", "Approval gate"], "/api/decision-engine/framework", "Task054"),
             "/ai-memory": ("AI Memory Center", "Long-term company memory for strategy, decisions, projects and boss intent.", ["Long-term memory", "Pending memory", "Approved memory", "Related objects", "Memory logs"], "/api/memory", "V5"),
             "/web-research-center": ("Web Research Center", "Public web research intake with source URL, summary and human review.", ["Search task", "Source URL", "Summary", "Review queue", "Save to knowledge"], "/api/knowledge", "V5"),
-            "/system/kernel": ("FoxBrain Core Kernel", "Central kernel for modules, objects, events, permissions, tools and health.", ["Module registry", "Object registry", "Event bus", "AI context", "Tool registry", "Health"], "/api/kernel", "Task030"),
+            "/system/kernel": ("VAFOX Core Kernel", "Central kernel for modules, objects, events, permissions, tools and health.", ["Module registry", "Object registry", "Event bus", "AI context", "Tool registry", "Health"], "/api/kernel", "Task030"),
             "/system/permissions": ("Permission Matrix", "Role, module, action and sensitive data permission adapter.", ["Roles", "Modules", "Actions", "Sensitive scopes", "AI scopes"], "/api/kernel/permissions", "Task030"),
             "/data-fabric": ("AI Data Fabric", "Unified data catalog, freshness, lineage, quality and AI readiness.", ["Data sources", "Catalog", "Lineage", "Quality", "AI-ready data", "Sensitive data"], "/api/data-fabric", "Task031"),
             "/data-intelligence": ("Data Intelligence", "Unified KPI and data service for dashboards, AI agents and decision engines.", ["Unified metrics", "KPI catalog", "Insight engine", "Data quality", "Trend APIs"], "/api/data-intelligence/framework", "Task052"),
-            "/university": ("FoxBrain University", "Enterprise learning center with role paths, AI Tutor, certification and knowledge feedback.", ["Learning catalog", "Role paths", "AI Tutor", "Certification", "Progress", "Knowledge feedback"], "/api/university/framework", "Task056"),
+            "/university": ("VAFOX University", "Enterprise learning center with role paths, AI Tutor, certification and knowledge feedback.", ["Learning catalog", "Role paths", "AI Tutor", "Certification", "Progress", "Knowledge feedback"], "/api/university/framework", "Task056"),
             "/growth-engine": ("Enterprise Growth Engine", "Traceable growth scorecards for stores, brands, products and customers.", ["Growth scores", "Store growth", "Brand growth", "Product growth", "Customer growth", "Executive scorecard"], "/api/growth-engine/framework", "Task057"),
             "/executive-command-center": ("Executive Command Center", "Unified executive entrance for cockpit, risk center, AI Command and system health.", ["Executive cockpit", "Risk center", "AI Command", "System health", "Module monitoring", "Unified governance"], "/api/executive-command-center/framework", "Task058"),
             "/system/apps": ("App Platform", "Built-in app registry and future plugin architecture.", ["Installed apps", "Available apps", "Permissions", "Settings", "Health", "Events"], "/api/apps", "Task032"),
@@ -24066,7 +24066,7 @@ group by coalesce(store_name,'')
             "/sdk/extensions": ("Extension API", "Stable extension APIs for authentication, knowledge, SAP, workflow, notifications and AI tools.", ["Auth API", "Knowledge API", "SAP API", "Workflow API", "Notification API", "AI Tool API"], "/api/extensions/contracts", "Task051"),
             "/marketplace": ("Marketplace", "Internal plugin marketplace for agents, dashboards, reports, workflow packs, SAP extensions and knowledge connectors.", ["AI agents", "Dashboards", "Reports", "Workflow packs", "SAP extensions", "Knowledge connectors"], "/api/marketplace/apps", "Task051"),
             "/product": ("Productization Center", "Versioning, onboarding, help, feature flags and production readiness.", ["Version info", "Release notes", "Feature flags", "Onboarding", "Help center", "Feedback"], "/api/product", "Task036"),
-            "/product/release-1-0": ("FoxBrain OS 1.0 Release", "Architecture integration review, production gate and next-stage roadmap.", ["Integrated modules", "API consistency", "Documentation", "Automated tests", "Production readiness", "Architecture review"], "/api/product/release-1-0", "Task059"),
+            "/product/release-1-0": ("VAFOX OS 1.0 Release", "Architecture integration review, production gate and next-stage roadmap.", ["Integrated modules", "API consistency", "Documentation", "Automated tests", "Production readiness", "Architecture review"], "/api/product/release-1-0", "Task059"),
             "/product/releases": ("Release Notes", "Task history and known issues.", ["Cloud edition", "Task023-038", "Known issues", "Upgrade notes"], "/api/product/releases", "Task036"),
             "/onboarding": ("User Onboarding", "Role-based first steps for boss, manager, employee and admin.", ["Boss", "Manager", "Employee", "Admin"], "/api/onboarding", "Task036"),
             "/onboarding/boss": ("Boss Onboarding", "Daily action review, decisions, AI CEO and operating loop.", ["Open action board", "Review decisions", "Ask Jarvis", "Approve actions"], "/api/onboarding", "Task036"),
@@ -24087,7 +24087,7 @@ group by coalesce(store_name,'')
             "/action/finance": ("Finance Action Console", "Profit, rebate, cashflow and break-even warnings.", ["Profit warnings", "Rebate risks", "Cashflow", "Break-even"], "/api/action/finance", "Task038"),
             "/action/agents": ("AI Agent Action Console", "Agent plans, approvals, failed runs and safety blocks.", ["Running agents", "Pending approvals", "Safety blocks", "Next actions"], "/api/action/agents", "Task038"),
             "/action/today": ("Daily Action Board", "What to decide, execute and review today.", ["Must decide", "Must execute", "Must review", "Completed today"], "/api/action/today", "Task038"),
-            "/action/rhythm": ("FireFox Operating Rhythm", "Daily, weekly and monthly operating cadence.", ["Daily", "Weekly", "Monthly"], "/api/action/rhythm", "Task038"),
+            "/action/rhythm": ("VAFOX Operating Rhythm", "Daily, weekly and monthly operating cadence.", ["Daily", "Weekly", "Monthly"], "/api/action/rhythm", "Task038"),
         }
 
     def v5_page(self, user, path):
@@ -24895,7 +24895,7 @@ group by coalesce(store_name,'')
                 {"course_id": "UNI-SALES-001", "title": "Product Selling Script and Customer Follow-up", "track": "Sales", "source": "knowledge_platform", "required_for": ["employee"]},
                 {"course_id": "UNI-FIN-001", "title": "Finance Process and Payment Approval", "track": "Finance", "source": "knowledge_platform", "required_for": ["finance"]},
                 {"course_id": "UNI-PUR-001", "title": "Purchasing and Supplier Risk Basics", "track": "Purchasing", "source": "knowledge_platform", "required_for": ["purchasing"]},
-                {"course_id": "UNI-AI-001", "title": "How to Use FoxBrain AI Safely", "track": "All Roles", "source": "knowledge_platform", "required_for": ["boss", "admin", "store_manager", "employee", "finance", "purchasing"]},
+                {"course_id": "UNI-AI-001", "title": "How to Use VAFOX AI Safely", "track": "All Roles", "source": "knowledge_platform", "required_for": ["boss", "admin", "store_manager", "employee", "finance", "purchasing"]},
             ],
             "rule": "learning_catalog_is_generated_from_enterprise_knowledge_and_training_materials",
         }
@@ -24925,7 +24925,7 @@ group by coalesce(store_name,'')
         return {
             "ok": True,
             "service": "ai_tutor_interface",
-            "tutor": "FoxBrain AI Tutor",
+            "tutor": "VAFOX AI Tutor",
             "connected_sources": {
                 "knowledge": "/api/knowledge/retrieval-contract",
                 "learning_path": "/api/university/learning-paths",
@@ -24947,7 +24947,7 @@ group by coalesce(store_name,'')
             "sample_certifications": [
                 {"cert_id": "CERT-SALES-001", "name": "Sales Foundation", "status": "available", "renewal": "annual"},
                 {"cert_id": "CERT-STORE-001", "name": "Store Manager Foundation", "status": "available", "renewal": "annual"},
-                {"cert_id": "CERT-AI-001", "name": "FoxBrain AI Safe Use", "status": "available", "renewal": "annual"},
+                {"cert_id": "CERT-AI-001", "name": "VAFOX AI Safe Use", "status": "available", "renewal": "annual"},
             ],
             "permission_policy": "certification_results_can_support_employee_growth_but_must_not_automatically_change_business_permissions",
             "approval_rule": "role_or_permission_changes_require_manager_or_admin_rule",
@@ -25139,7 +25139,7 @@ group by coalesce(store_name,'')
     def sdk_platform_payload(self, user):
         return {
             "ok": True,
-            "platform": "FoxBrain OS Extension Platform",
+            "platform": "VAFOX OS Extension Platform",
             "sdk_version": "1.0.0",
             "api_version": "v1",
             "stability": "core_stable_extensions_pluggable",
@@ -25405,7 +25405,7 @@ group by coalesce(store_name,'')
             {"key": "secrets_management", "status": "enabled", "evidence": ".env and server-only portal.env"},
             {"key": "backup_recovery", "status": "ready", "evidence": "backup and restore scripts documented"},
             {"key": "sap_sync", "status": self.sap_sync_status_payload()["freshness"], "evidence": "SAP data freshness and 22:00 schedule"},
-            {"key": "release_gate", "status": self.release_1_0_payload()["status"], "evidence": "FoxBrain OS 1.0 release review"},
+            {"key": "release_gate", "status": self.release_1_0_payload()["status"], "evidence": "VAFOX OS 1.0 release review"},
         ]
         return {
             "ok": True,
@@ -25546,7 +25546,7 @@ group by coalesce(store_name,'')
             ("Pack 14", "Digital Twin", "completed", "entity model, relationships and sandbox simulation"),
             ("Pack 15", "Decision Engine", "completed", "risk scoring, opportunities and approval gates"),
             ("Pack 16", "AI Strategy Center", "completed", "OKR, models, scenario comparison and strategy dashboard"),
-            ("Pack 17", "FoxBrain University", "completed", "learning paths, AI Tutor and certifications"),
+            ("Pack 17", "VAFOX University", "completed", "learning paths, AI Tutor and certifications"),
             ("Pack 18", "Growth Engine", "completed", "store, brand, product and customer growth scorecards"),
             ("Pack 19", "Executive Command Center", "completed", "executive cockpit, risk, AI Command and health rollup"),
             ("Pack 20", "Release 1.0 Review", "completed", "architecture review, integration checklist and release gate"),
@@ -25581,7 +25581,7 @@ group by coalesce(store_name,'')
     def architecture_review_report_payload(self):
         return {
             "ok": True,
-            "title": "FoxBrain OS 1.0 Architecture Review Report",
+            "title": "VAFOX OS 1.0 Architecture Review Report",
             "completed_modules": self.release_1_0_module_registry_payload()["modules"],
             "pending_modules": [
                 {"module": "Real SAP production sync validation", "reason": "requires live server deployment window and business data verification"},
@@ -25608,7 +25608,7 @@ group by coalesce(store_name,'')
     def release_1_0_payload(self):
         return {
             "ok": True,
-            "release": "FoxBrain OS 1.0",
+            "release": "VAFOX OS 1.0",
             "status": "release_candidate_ready_after_remote_smoke_test",
             "scope_rule": "do_not_add_unplanned_features_prioritize_architecture_integration_interface_consistency_docs_tests_production_readiness",
             "modules": self.release_1_0_module_registry_payload()["modules"],
@@ -26488,7 +26488,7 @@ group by coalesce(store_name,'')
             rule = rules.get(platform, {"tone": U(r"\u901a\u7528\u8349\u7a3f"), "length_limit": "", "media": ""})
             cur = conn.execute(
                 "insert into content_platform_versions(version_id,content_id,platform,title,body,hashtags,media_requirements,length_limit,tone,status,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?)",
-                ("VER-" + uuid.uuid4().hex[:10], content_id, platform, title, body, "#VAFOX #FireFox", rule["media"], rule["length_limit"], rule["tone"], "draft", now, now),
+                ("VER-" + uuid.uuid4().hex[:10], content_id, platform, title, body, "#VAFOX #户外", rule["media"], rule["length_limit"], rule["tone"], "draft", now, now),
             )
             created.append(cur.lastrowid)
         return created
@@ -27053,7 +27053,7 @@ group by coalesce(store_name,'')
             [
                 {
                     "role": "system",
-                    "content": U(r"\u4f60\u662f FoxBrain Jarvis\uff0c\u4f01\u4e1a\u7ecf\u8425 AI \u52a9\u624b\u3002\u7528\u4e2d\u6587\u56de\u7b54\uff0c\u8bed\u6c14\u76f4\u63a5\u3001\u53ef\u6267\u884c\u3002\u5fc5\u987b\u5148\u4f9d\u636e\u7cfb\u7edf\u63d0\u4f9b\u7684\u5185\u90e8\u6570\u636e\u3001SAP \u6458\u8981\u3001\u77e5\u8bc6\u5e93\u3001\u8bb0\u5fc6\u6216\u56fe\u8c31\u6765\u56de\u7b54\u3002\u6ca1\u6709\u4f9d\u636e\u65f6\u8981\u660e\u8bf4\u4e0d\u8db3\uff0c\u4e0d\u8981\u7f16\u9020\u6570\u636e\u3002\u56de\u7b54\u7ed3\u6784\uff1a\u7ed3\u8bba\u3001\u4f9d\u636e\u3001\u5efa\u8bae\u52a8\u4f5c\u3001\u9700\u590d\u6838\u4e8b\u9879\u3002"),
+                    "content": U(r"\u4f60\u662f VAFOX AI Assistant\uff0c\u4f01\u4e1a\u7ecf\u8425 AI \u52a9\u624b\u3002\u7528\u4e2d\u6587\u56de\u7b54\uff0c\u8bed\u6c14\u76f4\u63a5\u3001\u53ef\u6267\u884c\u3002\u5fc5\u987b\u5148\u4f9d\u636e\u7cfb\u7edf\u63d0\u4f9b\u7684\u5185\u90e8\u6570\u636e\u3001SAP \u6458\u8981\u3001\u77e5\u8bc6\u5e93\u3001\u8bb0\u5fc6\u6216\u56fe\u8c31\u6765\u56de\u7b54\u3002\u6ca1\u6709\u4f9d\u636e\u65f6\u8981\u660e\u8bf4\u4e0d\u8db3\uff0c\u4e0d\u8981\u7f16\u9020\u6570\u636e\u3002\u56de\u7b54\u7ed3\u6784\uff1a\u7ed3\u8bba\u3001\u4f9d\u636e\u3001\u5efa\u8bae\u52a8\u4f5c\u3001\u9700\u590d\u6838\u4e8b\u9879\u3002"),
                 },
                 {
                     "role": "user",
@@ -27235,7 +27235,7 @@ group by coalesce(store_name,'')
 <div class="chat-shell">
   <div>
     <div class="panel">
-      <h2>FoxBrain Jarvis</h2>
+      <h2>VAFOX AI Assistant</h2>
       <p class="small">{U(r'\u7b80\u6d01\u6a21\u5f0f\uff1a\u53ea\u56de\u7b54\u7ed3\u8bba\u3001\u4f9d\u636e\u548c\u4e0b\u4e00\u6b65\uff0c\u7ecf\u8425\u6570\u5b57\u7edf\u4e00\u4f7f\u7528 SAP B1 \u540c\u6b65\u6458\u8981\u3002')}</p>
       <p class="small"><span class="confidence">{esc(ai_status_text)}</span></p>
       <div class="metrics">
@@ -27262,7 +27262,7 @@ group by coalesce(store_name,'')
     <div class="panel"><h2>{U(r'\u8bed\u97f3\u8f93\u5165')}</h2>{self.empty_state(U(r'\u8bed\u97f3\u8f93\u5165\u80fd\u529b\u9884\u7559\uff0c\u7b49\u5f85\u63a5\u5165\u8bed\u97f3\u8bc6\u522b\u670d\u52a1\u3002'))}</div>
   </div>
 </div>"""
-        self.out(layout(U(r"FoxBrain Jarvis"), body, user=user, wide=True))
+        self.out(layout(U(r"VAFOX AI Assistant"), body, user=user, wide=True))
 
     def jarvis_message_post(self):
         user = self.current_user()
@@ -27360,7 +27360,7 @@ group by coalesce(store_name,'')
 <div class="panel"><h2>{timeline_title}</h2>{timeline}<p><a class="btn gray" href="/enterprise-timeline">{timeline_open}</a></p></div>
 <div class="panel"><h2>{modules}</h2><div class="grid">{entries}</div></div>
 """.format(
-            title=U(r"FoxBrain CEO \u4f01\u4e1a\u5927\u8111"), principle=esc(payload.get("principle") or ""),
+            title=U(r"VAFOX CEO \u4f01\u4e1a\u5927\u8111"), principle=esc(payload.get("principle") or ""),
             ask=U(r"AI \u95ee\u4f01\u4e1a"), placeholder=U(r"\u4f8b\u5982\uff1a\u7ed3\u5408\u4f01\u4e1a\u5baa\u7ae0\u548c Founder \u7ecf\u9a8c\uff0c\u4eca\u5929\u5e94\u8be5\u5982\u4f55\u51b3\u7b56\uff1f"), answer=U(r"\u57fa\u4e8e\u4f9d\u636e\u56de\u7b54"),
             constitution_title=U(r"\u73b0\u884c\u4f01\u4e1a\u5baa\u7ae0"), constitution=constitution_html,
             facts_title=U(r"\u4f01\u4e1a\u4e8b\u5b9e"), freshness=U(r"\u6765\u6e90\uff1aData Core \u526f\u672c\u94fe\u8def\uff1b\u6700\u540e\u6210\u529f\u8bb0\u5f55\uff1a") + esc(dt(sync.get("updated_at")) if sync.get("updated_at") else U(r"\u6682\u65e0\u6210\u529f\u540c\u6b65\u8bb0\u5f55")), facts=facts_html,
@@ -27524,7 +27524,7 @@ group by coalesce(store_name,'')
         ready, cfg = self.ceo_loop_ai_ready()
         if not ready:
             return {"ok": False, "status": "waiting_ai", "reason": "ai.vafox.com_not_configured"}
-        prompt = U(r"\u4f60\u662f FoxBrain CEO \u7ecf\u8425\u5206\u6790\u52a9\u624b\u3002\u53ea\u80fd\u6839\u636e\u4e0b\u5217 Data Core \u4e8b\u5b9e\u56de\u7b54\uff0c\u4e0d\u5f97\u8865\u9020\u6570\u636e\u3002\u8f93\u51fa\u53d1\u73b0\u3001\u539f\u56e0\u3001\u98ce\u9669\u3001\u5efa\u8bae\u548c\u5f85 CEO \u786e\u8ba4\u4e8b\u9879\u3002")
+        prompt = U(r"\u4f60\u662f VAFOX CEO \u7ecf\u8425\u5206\u6790\u52a9\u624b\u3002\u53ea\u80fd\u6839\u636e\u4e0b\u5217 Data Core \u4e8b\u5b9e\u56de\u7b54\uff0c\u4e0d\u5f97\u8865\u9020\u6570\u636e\u3002\u8f93\u51fa\u53d1\u73b0\u3001\u539f\u56e0\u3001\u98ce\u9669\u3001\u5efa\u8bae\u548c\u5f85 CEO \u786e\u8ba4\u4e8b\u9879\u3002")
         result = call_ai_chat([
             {"role": "system", "content": prompt},
             {"role": "user", "content": question + "\nData Core facts:\n" + prompt_json(facts)},

@@ -1,8 +1,8 @@
-# FoxBrain OS Enterprise V1.6 Multi-Agent System
+# VAFOX Enterprise OS V1.6 Multi-Agent System
 
 ## Goal
 
-Continue from FoxBrain OS Enterprise V1.0-V1.5 without rebuilding the system. V1.6 adds a governed multi-agent collaboration layer so the CEO, business, inventory, product, member and content agents can share SAP Knowledge Engine context and work together.
+Continue from VAFOX Enterprise OS V1.0-V1.5 without rebuilding the system. V1.6 adds a governed multi-agent collaboration layer so the CEO, business, inventory, product, member and content agents can share SAP Knowledge Engine context and work together.
 
 ## Scope
 

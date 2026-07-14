@@ -7,7 +7,7 @@
 - This sprint does not require any external AI API.
 
 ## Homepage Changes
-- Reworked the root homepage into `FoxBrain CEO Brain`.
+- Reworked the root homepage into `VAFOX Enterprise Brain`.
 - Added the positioning line `企业第二大脑`.
 - Added a first-screen global search form that submits to `/search`.
 - Added focused CEO summary cards instead of heavy charts.
@@ -34,7 +34,7 @@
 - Existing `/search`, `/drive`, `/object-center`, `/knowledge`, and `/timeline` routes.
 
 ## UI Entries
-- FoxBrain Drive -> `/drive`
+- VAFOX Drive -> `/drive`
 - 对象中心 -> `/object-center`
 - 知识中心 -> `/knowledge`
 - 全局搜索 -> `/search`

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#15382c">
-  <title>{% block title %}FireFox 企业 AI{% endblock %}</title>
+  <title>{% block title %}VAFOX Enterprise AI Center{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='identity.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='operation.css') }}">
@@ -13,7 +13,7 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/dashboard"><span>F</span><strong>FireFox 企业 AI</strong></a>
+    <a class="brand" href="/dashboard"><span>V</span><strong>VAFOX Enterprise AI Center</strong></a>
     <div class="user"><span>{{ user.real_name or user.display_name if user else '' }}</span><button class="icon-button" data-logout title="退出登录" aria-label="退出登录">退出</button></div>
   </header>
   <nav class="nav" aria-label="主要导航">

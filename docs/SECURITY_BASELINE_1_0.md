@@ -1,4 +1,4 @@
-# FoxBrain OS 1.0 Security Baseline
+# VAFOX OS 1.0 Security Baseline
 
 ## Application Security
 

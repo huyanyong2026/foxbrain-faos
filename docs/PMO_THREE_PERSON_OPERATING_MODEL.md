@@ -1,7 +1,7 @@
-# FoxBrain PMO Three-Person Operating Model
+# VAFOX PMO Three-Person Operating Model
 
 Version: 2026-07-09
-Project: FoxBrain Enterprise OS
+Project: VAFOX Enterprise OS
 Repository: huyanyong2026/foxbrain-faos
 Primary System: huyan.vafox.com
 
@@ -9,7 +9,7 @@ Primary System: huyan.vafox.com
 
 ## 1. Team Model
 
-FoxBrain will be built by a compact AI-native team:
+VAFOX will be built by a compact AI-native team:
 
 ```text
 Founder / CEO
@@ -52,7 +52,7 @@ Responsible for:
 - Codex prompts
 - Review of Codex output
 
-The architect must ensure FoxBrain grows as a coherent Enterprise OS, not a set of scattered features.
+The architect must ensure VAFOX grows as a coherent Enterprise OS, not a set of scattered features.
 
 ### 2.3 Codex Chief Engineer
 
@@ -119,9 +119,9 @@ GitHub stores:
 - QA reports
 - Release notes
 
-### FoxBrain Drive owns enterprise assets
+### VAFOX Drive owns enterprise assets
 
-FoxBrain Drive stores:
+VAFOX Drive stores:
 
 - SAP export files
 - Contracts
@@ -136,8 +136,8 @@ FoxBrain Drive stores:
 ### Rule
 
 ```text
-GitHub manages how FoxBrain runs.
-FoxBrain Drive manages what Huohu Fox owns and knows.
+GitHub manages how VAFOX runs.
+VAFOX Drive manages what Huohu Fox owns and knows.
 ```
 
 ---
@@ -156,9 +156,9 @@ FoxBrain Drive manages what Huohu Fox owns and knows.
 
 ## 6. Development Philosophy
 
-FoxBrain is not a website.
+VAFOX is not a website.
 
-FoxBrain is an Enterprise Second Brain Operating System.
+VAFOX is an Enterprise Second Brain Operating System.
 
 Every module must serve long-term enterprise memory, data understanding, and decision quality.
 
@@ -237,7 +237,7 @@ Do not rush to AI agents before business data, calibration, and graph are stable
 
 ## 10. Long-Term Goal
 
-FoxBrain should become the system the CEO opens every day before SAP.
+VAFOX should become the system the CEO opens every day before SAP.
 
 It should answer:
 
@@ -250,6 +250,6 @@ It should answer:
 The final product is:
 
 ```text
-FoxBrain Enterprise OS
+VAFOX Enterprise OS
 The Enterprise Second Brain
 ```

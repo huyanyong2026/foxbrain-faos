@@ -1,12 +1,12 @@
-# Task010 FoxBrain Jarvis V1
+# Task010 VAFOX AI Assistant V1
 
 ## Completed
 
-- Added `/jarvis` as the unified FoxBrain AI assistant entrance.
+- Added `/jarvis` as the unified VAFOX AI assistant entrance.
 - Added conversation and message persistence.
 - Added Jarvis action confirmation persistence.
 - Added keyword intent routing for business, SAP, knowledge, memory, graph, agents, tasks, reports, research and help.
-- Added safe tool adapter layer for existing FoxBrain modules.
+- Added safe tool adapter layer for existing VAFOX modules.
 - Added citation-ready answer payload with sources, limitations and next actions.
 - Added suggested question groups.
 - Added human confirmation UI for suggested actions.

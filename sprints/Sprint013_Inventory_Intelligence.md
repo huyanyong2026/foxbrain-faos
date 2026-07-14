@@ -9,7 +9,7 @@ Depends on: Sprint008 Data Lake, Sprint010 Decision Engine, Sprint011 Business R
 
 ## 1. Sprint Goal
 
-Build FoxBrain Inventory Intelligence Engine.
+Build VAFOX Inventory Intelligence Engine.
 
 Goal:
 
@@ -31,7 +31,7 @@ Action Recommendation
 
 ## 2. Core Questions
 
-FoxBrain should answer:
+VAFOX should answer:
 
 - 哪些库存风险最高？
 - 哪些 SKU 长时间没有销售？

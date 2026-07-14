@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise architecture contracts."""
+"""VAFOX Enterprise OS architecture contracts."""
 
 from .architecture import (
     ENTERPRISE_MODULES,

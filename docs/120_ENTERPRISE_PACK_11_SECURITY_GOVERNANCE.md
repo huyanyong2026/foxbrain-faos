@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Pack 11 unifies enterprise security, governance and compliance for FoxBrain OS.
+Pack 11 unifies enterprise security, governance and compliance for VAFOX OS.
 
 The framework covers RBAC, audit logs, data governance, backup recovery and approval governance.
 
@@ -10,7 +10,7 @@ The framework covers RBAC, audit logs, data governance, backup recovery and appr
 
 Security rules:
 
-- Single Sign-On through existing FoxBrain session
+- Single Sign-On through existing VAFOX session
 - Role-based permissions
 - Least privilege
 - Multi-factor authentication ready

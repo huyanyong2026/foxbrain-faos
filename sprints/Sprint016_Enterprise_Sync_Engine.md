@@ -9,7 +9,7 @@ Depends on: Sprint007-015.5
 
 ## 1. Sprint Goal
 
-Build the first production-safe Enterprise Sync Engine for FoxBrain.
+Build the first production-safe Enterprise Sync Engine for VAFOX.
 
 The goal is to replace manual SAP Excel upload with an automated, auditable and recoverable data-copy pipeline:
 
@@ -20,7 +20,7 @@ Read-only extraction
 ↓
 Encrypted transfer
 ↓
-FoxBrain staging area
+VAFOX staging area
 ↓
 Data validation
 ↓
@@ -29,7 +29,7 @@ Enterprise Data Lake
 Calibration / Intelligence / CEO Brain
 ```
 
-FoxBrain must copy data from SAP safely. It must never control, modify or interrupt production SAP.
+VAFOX must copy data from SAP safely. It must never control, modify or interrupt production SAP.
 
 ---
 
@@ -47,12 +47,12 @@ Read-only source only
 SAP-REPLICA or SYNC-SOURCE
 Independent replica or export host
         │
-        │ encrypted pull by FoxBrain
+        │ encrypted pull by VAFOX
         ▼
-FoxBrain Sync Engine
+VAFOX Sync Engine
         │
         ▼
-FoxBrain Data Lake
+VAFOX Data Lake
 ```
 
 ### Hard rules
@@ -157,7 +157,7 @@ Default planned schedule:
 
 ```text
 22:00 source backup / export / replica refresh
-22:30 FoxBrain incremental sync
+22:30 VAFOX incremental sync
 23:00 calibration and intelligence rebuild
 ```
 
@@ -515,7 +515,7 @@ Record audit events for:
 
 Recommended network rules:
 
-- allow only FoxBrain Sync host to reach replica/export host
+- allow only VAFOX Sync host to reach replica/export host
 - restrict SQL port by IP allowlist
 - use VPN/private network when available
 - use TLS/SFTP for transport

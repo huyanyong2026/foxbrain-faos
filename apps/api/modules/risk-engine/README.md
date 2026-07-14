@@ -1,6 +1,6 @@
 # Risk Engine Module
 
-FoxBrain OS Enterprise V1.7 risk engine boundary.
+VAFOX Enterprise OS V1.7 risk engine boundary.
 
 - API: `/api/risk/list`
 - Storage: `risk_alerts`

@@ -1,10 +1,10 @@
-# FoxBrain V6 Server Upgrade Runbook
+# VAFOX V6 Server Upgrade Runbook
 
 This runbook turns the uploaded V6 server upgrade package into a safe operating procedure for `https://huyan.vafox.com`.
 
 ## Goal
 
-- Keep the current FoxBrain portal stable.
+- Keep the current VAFOX portal stable.
 - Back up before every server upgrade.
 - Standardize Docker Compose, PostgreSQL, Redis, MinIO, Qdrant, n8n placeholders and Wiki.js placeholders.
 - Keep SAP B1 sync scheduled at `22:00`.
@@ -20,7 +20,7 @@ This runbook turns the uploaded V6 server upgrade package into a safe operating 
 
 ## Current Repository Coverage
 
-- `docker-compose.yml`: FoxBrain Web, API, worker, PostgreSQL, Redis, MinIO, Qdrant, Nginx and optional n8n / Dify / Wiki.js placeholders.
+- `docker-compose.yml`: VAFOX Web, API, worker, PostgreSQL, Redis, MinIO, Qdrant, Nginx and optional n8n / Dify / Wiki.js placeholders.
 - `install.sh`: one-command installation with pre-upgrade backup and cron setup.
 - `backup.sh`: Docker data backup.
 - `healthcheck.sh`: Docker application health check.
@@ -79,7 +79,7 @@ Daily backup:
 - CPU, memory and disk are recorded.
 - Timezone is `Asia/Shanghai`.
 - Docker and Docker Compose are installed.
-- FoxBrain portal can be opened and logged into.
+- VAFOX portal can be opened and logged into.
 - HTTPS is valid.
 - UFW allows only required public ports.
 - Fail2ban is running.

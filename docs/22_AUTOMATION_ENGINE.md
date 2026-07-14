@@ -2,7 +2,7 @@
 
 ## 目标
 
-Automation Engine 把 FoxBrain 的 AI 建议、SAP B1 数据、知识库、研究引擎、任务中心和通知中心连接成可执行流程。
+Automation Engine 把 VAFOX 的 AI 建议、SAP B1 数据、知识库、研究引擎、任务中心和通知中心连接成可执行流程。
 
 当前版本提供安全框架、数据模型、页面和 API，占位等待后续接入 n8n、Dify、企业微信和 SAP 事件。
 

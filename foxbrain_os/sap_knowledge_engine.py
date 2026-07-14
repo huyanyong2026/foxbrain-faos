@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.4 SAP Knowledge Engine contracts."""
+"""VAFOX Enterprise OS V1.4 SAP Knowledge Engine contracts."""
 
 from dataclasses import asdict, dataclass
 
@@ -111,7 +111,7 @@ SAP_KNOWLEDGE_MODELS = (
 def build_sap_knowledge_engine_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.4",
+        "version": "VAFOX Enterprise OS V1.4",
         "module": "sap_knowledge_engine",
         "strategy": "build_read_only_sync_layer_ai_warehouse_and_business_knowledge_models",
         "production_boundary": SAP_PRODUCTION_BOUNDARY,
@@ -141,7 +141,7 @@ def build_warehouse_readiness(sync_status: dict, sap_knowledge_metrics: dict | N
         })
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.4",
+        "version": "VAFOX Enterprise OS V1.4",
         "sap_freshness": freshness,
         "warehouse_boundary": SAP_PRODUCTION_BOUNDARY,
         "datasets": datasets,
@@ -155,7 +155,7 @@ def build_model_catalog(model_key: str = "") -> dict:
         models = [model for model in models if model["key"] == normalized or model["entity"] == normalized]
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.4",
+        "version": "VAFOX Enterprise OS V1.4",
         "models": models,
         "model_count": len(models),
         "approval_boundary": "models_can_recommend_but_must_not_write_sap_or_execute_high_risk_actions",

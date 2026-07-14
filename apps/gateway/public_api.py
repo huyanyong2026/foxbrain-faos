@@ -17,7 +17,7 @@ PUBLIC_ROUTES = {
 
 
 class GatewayPublicHandler(BaseHTTPRequestHandler):
-    server_version = "FireFoxGatewayData/1.0"
+    server_version = "VAFOXGatewayData/1.0"
 
     def log_message(self, fmt, *args):
         return

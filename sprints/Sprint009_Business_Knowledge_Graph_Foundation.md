@@ -9,7 +9,7 @@ Depends on: Sprint008.5 Business Calibration
 
 # 1. Sprint Goal
 
-Build the first version of FoxBrain Business Knowledge Graph.
+Build the first version of VAFOX Business Knowledge Graph.
 
 Goal:
 
@@ -33,7 +33,7 @@ AI Understanding
 
 > A company is not a collection of tables. A company is a network of relationships.
 
-FoxBrain must understand:
+VAFOX must understand:
 
 - Which products belong to which brands.
 - Which products sell in which stores.

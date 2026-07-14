@@ -1,6 +1,6 @@
 # Alert Center Module
 
-FoxBrain OS Enterprise V2.2 alert center boundary.
+VAFOX Enterprise OS V2.2 alert center boundary.
 
 - API: `/api/v2.2/alerts`
 - Storage: `business_alerts`

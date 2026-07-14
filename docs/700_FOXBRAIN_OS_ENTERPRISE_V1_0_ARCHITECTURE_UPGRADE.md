@@ -1,6 +1,6 @@
-# FoxBrain OS Enterprise V1.0 Architecture Upgrade
+# VAFOX Enterprise OS V1.0 Architecture Upgrade
 
-This upgrade package moves FoxBrain from page-level feature growth toward an enterprise AI operating system architecture.
+This upgrade package moves VAFOX from page-level feature growth toward an enterprise AI operating system architecture.
 
 ## Current V6 Structure Check
 

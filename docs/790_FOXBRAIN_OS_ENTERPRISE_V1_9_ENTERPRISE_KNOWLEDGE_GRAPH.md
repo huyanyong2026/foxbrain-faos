@@ -1,6 +1,6 @@
-# FoxBrain OS Enterprise V1.9 Enterprise Knowledge Graph
+# VAFOX Enterprise OS V1.9 Enterprise Knowledge Graph
 
-V1.9 continues from V1.8 without rebuilding the system. It upgrades FoxBrain from workflow automation into enterprise relationship understanding with role-based AI permissions.
+V1.9 continues from V1.8 without rebuilding the system. It upgrades VAFOX from workflow automation into enterprise relationship understanding with role-based AI permissions.
 
 ## Scope
 

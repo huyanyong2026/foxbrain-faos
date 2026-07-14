@@ -1,8 +1,8 @@
-# FoxBrain Owner OS V1 Foundation
+# VAFOX Enterprise Brain V1 Foundation
 
 ## Positioning
 
-FoxBrain Owner OS is the owner's enterprise second brain.
+VAFOX Enterprise Brain is the owner's enterprise second brain.
 
 It is not ERP, not a wiki and not a general employee system. It is the System of Intelligence for `huyan.vafox.com`.
 
@@ -38,7 +38,7 @@ Details appear only after click-through.
 
 ## Master Blueprint
 
-FoxBrain Master Blueprint is the single highest design standard for future development.
+VAFOX Master Blueprint is the single highest design standard for future development.
 
 The first V1 deliverable contains:
 
@@ -62,10 +62,10 @@ The first V1 deliverable contains:
 
 ## Long-Term Documents
 
-- FoxBrain Product Constitution
-- FoxBrain Product Specification
-- FoxBrain Technical Architecture
-- FoxBrain Development Handbook
+- VAFOX Product Constitution
+- VAFOX Product Specification
+- VAFOX Technical Architecture
+- VAFOX Development Handbook
 
 ## SAP Principle
 

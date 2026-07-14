@@ -2,7 +2,7 @@
 
 ## Goal
 
-Pack 15 builds the Enterprise Decision Engine for FoxBrain OS. It turns business signals
+Pack 15 builds the Enterprise Decision Engine for VAFOX OS. It turns business signals
 into explainable recommendations with data evidence, knowledge evidence, risk scoring,
 confidence and approval gates.
 

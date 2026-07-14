@@ -1,4 +1,4 @@
-# FoxBrain OS 4.0 Digital Employee Governance
+# VAFOX OS 4.0 Digital Employee Governance
 
 ## Governance Flow
 

@@ -1,6 +1,6 @@
 # Workflow Module
 
-FoxBrain OS Enterprise V1.8 workflow automation boundary.
+VAFOX Enterprise OS V1.8 workflow automation boundary.
 
 - Page route: `/workflow-automation`
 - API: `/api/workflow-automation`

@@ -1,14 +1,14 @@
-# FoxBrain Enterprise OS
+# VAFOX Enterprise OS
 
 **The Enterprise Second Brain for Huohu Fox / 火狐狸企业第二大脑**
 
-This repository is the official development headquarters for the FoxBrain enterprise platform.
+This repository is the official development headquarters for the VAFOX enterprise platform.
 
 ## Project Positioning
 
-FoxBrain is not a normal website, ERP, OA, CRM, BI dashboard, or AI chat page.
+VAFOX is not a normal website, ERP, OA, CRM, BI dashboard, or AI chat page.
 
-FoxBrain is an **Enterprise Second Brain**:
+VAFOX is an **Enterprise Second Brain**:
 
 - It remembers the enterprise.
 - It understands enterprise objects.
@@ -20,7 +20,7 @@ FoxBrain is an **Enterprise Second Brain**:
 ```text
 core.vafox.com  = Enterprise Data Core / enterprise facts
 ai.vafox.com    = Enterprise AI / agents, knowledge, tasks and feedback
-huyan.vafox.com = FoxBrain CEO Brain / decisions and memory
+huyan.vafox.com = VAFOX Enterprise Brain / decisions and memory
 ```
 
 `ai.vafox.com` development started only after the CEO Brain and Living Enterprise foundations were established. The three surfaces remain independently deployable and keep strict evidence and permission boundaries.
@@ -31,7 +31,7 @@ Make `huyan.vafox.com` the system that the CEO opens every day to understand the
 
 ## Core Engines
 
-FoxBrain will be developed as engines, not scattered pages:
+VAFOX will be developed as engines, not scattered pages:
 
 1. Drive Engine
 2. Object Engine
@@ -56,7 +56,7 @@ FoxBrain will be developed as engines, not scattered pages:
 
 ## Sprint Roadmap
 
-- Sprint001: FoxBrain Drive Foundation
+- Sprint001: VAFOX Drive Foundation
 - Sprint002: Object Engine
 - Sprint003: Knowledge Pipeline
 - Sprint004: Global Search + Timeline
@@ -78,4 +78,4 @@ Every sprint must be:
 
 ## Product Principle
 
-> FoxBrain does not replace the CEO. FoxBrain helps the CEO make better decisions by preserving enterprise knowledge, connecting enterprise data, and continuously learning from enterprise history.
+> VAFOX does not replace the CEO. VAFOX helps the CEO make better decisions by preserving enterprise knowledge, connecting enterprise data, and continuously learning from enterprise history.

@@ -1,4 +1,4 @@
-# FoxBrain OS 6.1 SAP Knowledge Mapping Template
+# VAFOX OS 6.1 SAP Knowledge Mapping Template
 
 This template defines how SAP or synced business tables are transformed into knowledge objects.
 

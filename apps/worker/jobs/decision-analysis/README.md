@@ -1,6 +1,6 @@
 # Decision Analysis Jobs
 
-FoxBrain OS Enterprise V1.7 worker job boundary.
+VAFOX Enterprise OS V1.7 worker job boundary.
 
 Planned jobs:
 

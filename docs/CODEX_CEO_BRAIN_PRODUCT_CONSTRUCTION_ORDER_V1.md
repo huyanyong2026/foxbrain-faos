@@ -1,4 +1,4 @@
-# FoxBrain CEO Brain 产品建设总令 V1
+# VAFOX Enterprise Brain 产品建设总令 V1
 
 状态：Ready for Codex  
 目标站点：huyan.vafox.com  
@@ -260,7 +260,7 @@
 
 ## 7. P0-4：统一 AI 助手
 
-整个网站只保留一个 FoxBrain AI 助手。
+整个网站只保留一个 VAFOX AI 助手。
 
 ### 7.1 上下文
 

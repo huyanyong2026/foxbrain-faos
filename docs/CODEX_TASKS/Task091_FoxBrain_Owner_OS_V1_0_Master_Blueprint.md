@@ -1,8 +1,8 @@
-# Task091 FoxBrain Owner OS V1.0 Master Blueprint
+# Task091 VAFOX Enterprise Brain V1.0 Master Blueprint
 
 ## Request
 
-Apply the `经营 - 私有AI升级建议v1.0.mhtml` package to the existing FoxBrain Owner OS work.
+Apply the `经营 - 私有AI升级建议v1.0.mhtml` package to the existing VAFOX Enterprise Brain work.
 
 ## Scope
 

@@ -9,9 +9,9 @@ Depends on: Sprint010 Decision Engine
 
 ## 1. Sprint Goal
 
-Build the first version of FoxBrain Business Rule Engine.
+Build the first version of VAFOX Business Rule Engine.
 
-FoxBrain already has:
+VAFOX already has:
 
 ```text
 Drive
@@ -23,7 +23,7 @@ Knowledge Graph
 Decision Engine
 ```
 
-Sprint011 adds the rule layer that tells FoxBrain how Huohu Fox interprets business situations.
+Sprint011 adds the rule layer that tells VAFOX how Huohu Fox interprets business situations.
 
 The goal is:
 

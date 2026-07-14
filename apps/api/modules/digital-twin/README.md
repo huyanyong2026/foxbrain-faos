@@ -1,6 +1,6 @@
 # Digital Twin Module
 
-FoxBrain OS Enterprise V2.1 digital twin boundary.
+VAFOX Enterprise OS V2.1 digital twin boundary.
 
 - Page route: `/ai-strategy-center`
 - API: `/api/v2.1/digital-twin`

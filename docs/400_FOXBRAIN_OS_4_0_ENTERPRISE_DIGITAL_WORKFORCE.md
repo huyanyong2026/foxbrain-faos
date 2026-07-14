@@ -1,8 +1,8 @@
-# FoxBrain OS 4.0 Enterprise Digital Workforce
+# VAFOX OS 4.0 Enterprise Digital Workforce
 
 ## Purpose
 
-FoxBrain OS 4.0 builds the Enterprise Digital Workforce system on top of OS 1.0 release governance, OS 2.0 unified architecture and OS 3.0 AI Operations.
+VAFOX OS 4.0 builds the Enterprise Digital Workforce system on top of OS 1.0 release governance, OS 2.0 unified architecture and OS 3.0 AI Operations.
 
 The goal is to turn AI agents into managed digital employees with clear roles, permission boundaries, tool scope, approval rules, audit logs and performance evaluation.
 

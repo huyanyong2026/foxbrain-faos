@@ -1,8 +1,8 @@
-# FoxBrain OS 2.0 Architecture Review Baseline
+# VAFOX OS 2.0 Architecture Review Baseline
 
 ## Review Scope
 
-This baseline should be updated after each significant FoxBrain OS 2.0 upgrade batch.
+This baseline should be updated after each significant VAFOX OS 2.0 upgrade batch.
 
 ## Current Direction
 
@@ -34,7 +34,7 @@ The system should evolve from a large compatible portal into a layered operating
 
 ## 2.0 Acceptance Gate
 
-FoxBrain OS 2.0 is not considered production-complete until:
+VAFOX OS 2.0 is not considered production-complete until:
 
 - Critical dashboards read real data services or clearly declare missing sources.
 - Jarvis and AI CEO share the same evidence-based context.

@@ -1,8 +1,8 @@
-# FoxBrain Enterprise Brain V2.0 建设报告
+# VAFOX Enterprise Brain V2.0 建设报告
 
 ## 建设结果
 
-FoxBrain Enterprise Brain V2.0 已在现有 FoxBrain Enterprise OS 与 Living Enterprise 基础上完成增量建设。系统没有重建现有 Data Lake、Object、Knowledge Graph、Decision、Memory、CEO Vault 或 AI 模块，而是新增统一 CEO Enterprise Brain 组合层。
+VAFOX Enterprise Brain V2.0 已在现有 VAFOX Enterprise OS 与 Living Enterprise 基础上完成增量建设。系统没有重建现有 Data Lake、Object、Knowledge Graph、Decision、Memory、CEO Vault 或 AI 模块，而是新增统一 CEO Enterprise Brain 组合层。
 
 核心原则已经落实为系统边界：
 
@@ -109,13 +109,13 @@ FoxBrain Enterprise Brain V2.0 已在现有 FoxBrain Enterprise OS 与 Living En
 
 ### 企业事实
 
-- 来源：core.vafox.com 企业事实经现有只读副本与 FoxBrain 本地数据链路进入。
+- 来源：core.vafox.com 企业事实经现有只读副本与 VAFOX 本地数据链路进入。
 - Enterprise Brain 不直接连接生产 SAP。
 - Enterprise Brain 不直接写 core.vafox.com。
 
 ### AI 分析
 
-- 来源：已经进入 FoxBrain、并带 evidence 的 Decision Insight。
+- 来源：已经进入 VAFOX、并带 evidence 的 Decision Insight。
 - 预留 ai.vafox.com 分析来源，但本次不修改或部署 ai.vafox.com。
 - 无 evidence 的 AI 建议不会被标记为可靠结论。
 

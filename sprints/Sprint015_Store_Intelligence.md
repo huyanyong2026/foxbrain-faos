@@ -9,7 +9,7 @@ Depends on: Sprint012 Business Health, Sprint013 Inventory Intelligence, Sprint0
 
 ## 1. Sprint Goal
 
-Build FoxBrain Store Intelligence Engine.
+Build VAFOX Store Intelligence Engine.
 
 Goal:
 
@@ -31,7 +31,7 @@ Store Improvement
 
 ## 2. Core Questions
 
-FoxBrain should answer:
+VAFOX should answer:
 
 - 哪个门店经营最好？
 - 哪个门店利润最高？

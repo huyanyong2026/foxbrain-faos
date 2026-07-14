@@ -6,7 +6,7 @@ Sprint019 upgrades the visible CEO experience on `huyan.vafox.com` without addin
 
 ## Changes
 
-- Repointed the authenticated root page `/` to the new FoxBrain CEO Brain experience.
+- Repointed the authenticated root page `/` to the new VAFOX Enterprise Brain experience.
 - Kept existing login, permissions, and all Sprint001-018.5 modules available.
 - Added a five-item primary navigation: 首页, 经营, 企业资料, AI助手, 系统.
 - Added a CEO-first homepage with:

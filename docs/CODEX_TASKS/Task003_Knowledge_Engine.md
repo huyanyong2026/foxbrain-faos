@@ -6,7 +6,7 @@ Completed as a foundation upgrade.
 
 ## Scope
 
-Task003 upgrades FoxBrain from basic file storage to an AI-ready enterprise knowledge system.
+Task003 upgrades VAFOX from basic file storage to an AI-ready enterprise knowledge system.
 
 ## Delivered
 

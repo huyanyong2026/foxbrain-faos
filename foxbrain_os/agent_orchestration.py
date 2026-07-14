@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.2 governed agent orchestration contract."""
+"""VAFOX Enterprise OS V1.2 governed agent orchestration contract."""
 
 from dataclasses import asdict, dataclass
 
@@ -83,7 +83,7 @@ AGENT_DOMAINS = (
 def build_agent_orchestration_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.2",
+        "version": "VAFOX Enterprise OS V1.2",
         "module": "agent_orchestration",
         "strategy": "extend_existing_agent_framework_without_database_refactor",
         "domains": [asdict(profile) for profile in AGENT_DOMAINS],
@@ -115,7 +115,7 @@ def build_agent_plan_request(domain_key: str, objective: str, created_by_role: s
     domain = find_agent_domain(domain_key)
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.2",
+        "version": "VAFOX Enterprise OS V1.2",
         "domain": domain,
         "objective": (objective or "").strip(),
         "created_by_role": created_by_role or "unknown",

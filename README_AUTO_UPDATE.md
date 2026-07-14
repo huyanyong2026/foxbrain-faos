@@ -1,6 +1,6 @@
-# FoxBrain Auto Update
+# VAFOX Auto Update
 
-FoxBrain uses GitHub Actions plus `deploy.sh` for cloud updates.
+VAFOX uses GitHub Actions plus `deploy.sh` for cloud updates.
 
 Supported commands on the Ubuntu server:
 

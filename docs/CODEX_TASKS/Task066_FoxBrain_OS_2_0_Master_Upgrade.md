@@ -1,12 +1,12 @@
-# Task066 FoxBrain OS 2.0 Master Upgrade
+# Task066 VAFOX OS 2.0 Master Upgrade
 
 ## Objective
 
-Use the V5 progress package as the overall FoxBrain OS 2.0 development target. Upgrade the existing system by compatibility-first integration, not by removing current capabilities.
+Use the V5 progress package as the overall VAFOX OS 2.0 development target. Upgrade the existing system by compatibility-first integration, not by removing current capabilities.
 
 ## Scope
 
-- Preserve current FoxBrain OS 1.0 and V6 capabilities.
+- Preserve current VAFOX OS 1.0 and V6 capabilities.
 - Unify architecture, data service, AI orchestration and production operations.
 - Continue the Pack 18 Growth Engine, Pack 19 Executive Command Center and Pack 20 Release 1.0 foundation into OS 2.0.
 - Produce documentation, tests and architecture review output for every major batch.

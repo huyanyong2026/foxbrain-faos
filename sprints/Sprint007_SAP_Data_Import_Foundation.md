@@ -9,7 +9,7 @@ Depends on: Sprint001-006
 
 ## 1. Sprint Goal
 
-建立安全的 SAP 数据导入基础，让 FoxBrain 可以从 SAP 导出的 Excel / CSV 文件中导入经营数据。
+建立安全的 SAP 数据导入基础，让 VAFOX 可以从 SAP 导出的 Excel / CSV 文件中导入经营数据。
 
 本 Sprint 不直接连接生产 SAP 数据库，不安装任何会影响 SAP 生产服务器的程序。
 
@@ -18,7 +18,7 @@ Depends on: Sprint001-006
 ```text
 SAP 导出 Excel/CSV
 ↓
-上传到 FoxBrain Drive
+上传到 VAFOX Drive
 ↓
 识别为 SAP 数据
 ↓

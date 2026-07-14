@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Pack 02 adds the enterprise connector layer for SAP B1 and the shared framework used by FoxBrain AI agents.
+Pack 02 adds the enterprise connector layer for SAP B1 and the shared framework used by VAFOX AI agents.
 
 The current implementation is intentionally additive. Existing login, dashboard, knowledge center, SAP sync status, cloud deployment, and worker scheduling remain unchanged.
 

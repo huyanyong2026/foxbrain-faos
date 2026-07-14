@@ -28,7 +28,7 @@
 
 The authenticated home page contains:
 
-- `FoxBrain CEO Brain`
+- `VAFOX Enterprise Brain`
 - CEO must-read summary
 - AI Ask Enterprise entry
 - Recalculation area

@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.5 AI knowledge training and quality contracts."""
+"""VAFOX Enterprise OS V1.5 AI knowledge training and quality contracts."""
 
 from dataclasses import asdict, dataclass
 
@@ -95,7 +95,7 @@ BOSS_EXPERIENCE_MODELS = (
 def build_knowledge_training_quality_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.5",
+        "version": "VAFOX Enterprise OS V1.5",
         "module": "knowledge_training_quality",
         "strategy": "improve_knowledge_quality_ai_learning_and_boss_experience_memory_without_rebuilding",
         "quality_dimensions": [asdict(item) for item in KNOWLEDGE_QUALITY_DIMENSIONS],
@@ -141,7 +141,7 @@ def score_knowledge_quality(metrics: dict) -> dict:
         level = "foundation"
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.5",
+        "version": "VAFOX Enterprise OS V1.5",
         "score": score,
         "level": level,
         "breakdown": {
@@ -159,7 +159,7 @@ def score_knowledge_quality(metrics: dict) -> dict:
 def build_ai_learning_plan(quality_score: dict, boss_experience: dict) -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.5",
+        "version": "VAFOX Enterprise OS V1.5",
         "quality_level": quality_score.get("level"),
         "learning_mode": "reviewed_context_learning_not_autonomous_model_training",
         "allowed_sources": [asdict(item) for item in AI_LEARNING_SIGNALS],

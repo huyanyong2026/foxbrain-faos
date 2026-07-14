@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Pack 04 defines the unified multi-agent framework for FoxBrain.
+Pack 04 defines the unified multi-agent framework for VAFOX.
 
 All agents must follow the same runtime, permission checks, tool interface, memory model, approval rules, and audit mechanism.
 

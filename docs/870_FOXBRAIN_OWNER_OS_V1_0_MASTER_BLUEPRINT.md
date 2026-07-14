@@ -1,16 +1,16 @@
-# FoxBrain Owner OS V1.0 Master Blueprint
+# VAFOX Enterprise Brain V1.0 Master Blueprint
 
 ## Goal
 
-FoxBrain Owner OS V1.0 is the owner-facing enterprise second brain for `huyan.vafox.com`.
+VAFOX Enterprise Brain V1.0 is the owner-facing enterprise second brain for `huyan.vafox.com`.
 
 This phase pauses feature-first expansion and establishes the master design baseline before more page work.
 
 ## Ecosystem Boundary
 
 - SAP Business One is the System of Record.
-- FoxBrain Owner OS is the System of Intelligence.
-- FoxBrain Enterprise OS is the System of Execution.
+- VAFOX Enterprise Brain is the System of Intelligence.
+- VAFOX Enterprise OS is the System of Execution.
 
 SAP stays independent. Owner OS reads synchronized data, documents and knowledge, but does not create SAP sales, purchase or inventory transactions.
 

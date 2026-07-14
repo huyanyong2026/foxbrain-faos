@@ -1,6 +1,6 @@
 # Workflow Engine Jobs
 
-FoxBrain OS Enterprise V1.8 worker job boundary.
+VAFOX Enterprise OS V1.8 worker job boundary.
 
 Planned jobs:
 

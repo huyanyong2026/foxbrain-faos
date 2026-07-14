@@ -1,8 +1,8 @@
-# Task090 FoxBrain Owner OS V1 Foundation
+# Task090 VAFOX Enterprise Brain V1 Foundation
 
 ## Objective
 
-Implement the v1 package as FoxBrain Owner OS V1 Foundation for `huyan.vafox.com`.
+Implement the v1 package as VAFOX Enterprise Brain V1 Foundation for `huyan.vafox.com`.
 
 ## Delivered
 

@@ -1,4 +1,4 @@
-# FoxBrain OS Enterprise V1.1 AI Knowledge Brain
+# VAFOX Enterprise OS V1.1 AI Knowledge Brain
 
 V1.1 continues the Enterprise V1.0 architecture refactor. It does not rebuild the system. It integrates an AI Knowledge Brain module into the existing portal, SAP and knowledge-base workflows.
 

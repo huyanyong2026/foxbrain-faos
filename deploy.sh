@@ -11,7 +11,7 @@ log() {
 
 cd "$APP_DIR"
 
-log "Starting FoxBrain deployment."
+log "Starting VAFOX deployment."
 
 if [ "$MODE" = "--rollback" ]; then
   PREVIOUS_COMMIT="$(git rev-parse HEAD~1)"

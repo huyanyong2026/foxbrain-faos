@@ -6,7 +6,7 @@
 - Added worker visibility to `healthcheck.sh`.
 - Updated `/api/health` to expose V6 worker job schedule and app version.
 - Preserved existing login, V5 pages, SAP sync and cloud deployment behavior.
-- Imported FoxBrain OS Enterprise Pack 01 as the foundation engineering standard and aligned roadmap/docs.
+- Imported VAFOX Enterprise OS Pack 01 as the foundation engineering standard and aligned roadmap/docs.
 - Integrated Pack 02 SAP and AI framework contracts for CEO dashboard, SAP connector and agent registry.
 - Integrated Pack 03 enterprise knowledge platform framework with governance fields, ingestion status, retrieval contract and knowledge graph contract APIs.
 - Added Task041 and Task042 documentation plus smoke-test coverage for the new enterprise pack framework.
@@ -36,11 +36,11 @@
 - Enterprise Brain decision output now uses the decision engine and requires evidence, risk score and confidence for business recommendations.
 - Integrated Pack 16 AI Strategy Center with KPI-linked OKRs, strategy models, scenario comparison, expansion analysis and strategy dashboard.
 - Strategy analysis now aligns with Data Intelligence, Digital Twin and Enterprise Decision Engine contracts.
-- Integrated Pack 17 FoxBrain University with learning catalog, role-based paths, AI Tutor, certification, progress dashboard and knowledge feedback.
+- Integrated Pack 17 VAFOX University with learning catalog, role-based paths, AI Tutor, certification, progress dashboard and knowledge feedback.
 - Learning outcomes now support employee growth while explicitly avoiding automatic business permission changes.
 - Integrated Pack 18 Enterprise Growth Engine with growth scorecards, store growth, brand/product growth, customer growth and executive scorecards.
 - Growth recommendations now reference data sources and align with Data Intelligence, Decision Engine, Digital Twin and Strategy Center.
 - Integrated Pack 19 Executive Command Center with unified executive cockpit, risk center, AI Command, system health and module monitoring.
 - Executive Command Center now follows unified RBAC, unified data model, unified monitoring and human approval for high-risk AI commands.
-- Integrated Pack 20 FoxBrain OS 1.0 release review with module registry, integration checklist, architecture review payload and operations runbook.
-- Added formal FoxBrain OS 1.0 Architecture Review Report and release candidate gate for remote smoke test, backup and rollback rehearsal.
+- Integrated Pack 20 VAFOX OS 1.0 release review with module registry, integration checklist, architecture review payload and operations runbook.
+- Added formal VAFOX OS 1.0 Architecture Review Report and release candidate gate for remote smoke test, backup and rollback rehearsal.

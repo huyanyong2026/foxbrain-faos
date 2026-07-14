@@ -1,8 +1,8 @@
-# Task067 FoxBrain OS 3.0 AI Operations
+# Task067 VAFOX OS 3.0 AI Operations
 
 ## Objective
 
-Build AI Operations Center, AI Task Planner, approval-then-execute mechanism and business feedback loop based on FoxBrain OS 1.0 and 2.0.
+Build AI Operations Center, AI Task Planner, approval-then-execute mechanism and business feedback loop based on VAFOX OS 1.0 and 2.0.
 
 ## Scope
 

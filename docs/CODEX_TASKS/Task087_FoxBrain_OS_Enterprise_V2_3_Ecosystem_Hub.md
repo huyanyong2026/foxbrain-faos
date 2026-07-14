@@ -1,6 +1,6 @@
-# Task087 FoxBrain OS Enterprise V2.3 Ecosystem Hub
+# Task087 VAFOX Enterprise OS V2.3 Ecosystem Hub
 
-Continue from FoxBrain OS Enterprise V2.2 without rebuilding the system.
+Continue from VAFOX Enterprise OS V2.2 without rebuilding the system.
 
 ## Requirements
 

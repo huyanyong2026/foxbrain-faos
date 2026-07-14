@@ -1,4 +1,4 @@
-"""Enterprise V1.0 architecture contract for the gradual FoxBrain OS refactor.
+"""Enterprise V1.0 architecture contract for the gradual VAFOX OS refactor.
 
 The current production portal remains compatibility-first. This module defines
 the target operating-system boundaries so code can migrate out of portal_v2.py
@@ -67,11 +67,11 @@ ENTERPRISE_MODULES = (
     EnterpriseModule("digital_twin_simulation", "Enterprise Digital Twin and Business Simulator", "strategy", "strategy", "digital_twin_models_business_scenarios_simulation_results", "/api/v2.1", "/ai-strategy-center", "high", True, "service_contract_ready"),
     EnterpriseModule("business_autopilot", "Autonomous Business Operation System", "operations", "operations", "business_health_alerts_actions_learning_rules", "/api/v2.2", "/business-autopilot", "high", True, "service_contract_ready"),
     EnterpriseModule("enterprise_ecosystem_hub", "Enterprise Ecosystem Integration Hub", "platform", "platform", "data_sources_sync_jobs_customer_profiles_channel_orders_content_assets_integration_logs", "/api/v2.3", "/ecosystem-hub", "high", True, "service_contract_ready"),
-    EnterpriseModule("ux_information_architecture", "FoxBrain OS UX 2.0 Information Architecture", "platform", "product", "navigation_layers_and_user_experience_contract", "/api/ux", "/", "medium", False, "service_contract_ready"),
+    EnterpriseModule("ux_information_architecture", "VAFOX OS UX 2.0 Information Architecture", "platform", "product", "navigation_layers_and_user_experience_contract", "/api/ux", "/", "medium", False, "service_contract_ready"),
     EnterpriseModule("owner_enterprise_planning", "Owner OS and Enterprise OS Boundary Planning", "platform", "platform", "owner_private_data_enterprise_operations_sync_policy", "/api/owner-enterprise", "/owner-enterprise-plan", "high", True, "service_contract_ready"),
-    EnterpriseModule("owner_os_foundation", "FoxBrain Owner OS V1 Foundation", "platform", "product", "owner_second_brain_master_blueprint", "/api/owner-os", "/", "high", True, "service_contract_ready"),
-    EnterpriseModule("enterprise_second_brain", "FoxBrain Enterprise Second Brain V1.0", "platform", "product", "product_specification_baseline", "/api/second-brain", "/second-brain", "high", True, "service_contract_ready"),
-    EnterpriseModule("enterprise_second_brain_v11", "FoxBrain Enterprise Second Brain V1.1", "platform", "product", "drive_object_pipeline_ceo_home_baseline", "/api/second-brain/v1.1", "/ceo-home", "high", True, "service_contract_ready"),
+    EnterpriseModule("owner_os_foundation", "VAFOX Enterprise Brain V1 Foundation", "platform", "product", "owner_second_brain_master_blueprint", "/api/owner-os", "/", "high", True, "service_contract_ready"),
+    EnterpriseModule("enterprise_second_brain", "VAFOX Enterprise Brain V1.0", "platform", "product", "product_specification_baseline", "/api/second-brain", "/second-brain", "high", True, "service_contract_ready"),
+    EnterpriseModule("enterprise_second_brain_v11", "VAFOX Enterprise Brain V1.1", "platform", "product", "drive_object_pipeline_ceo_home_baseline", "/api/second-brain/v1.1", "/ceo-home", "high", True, "service_contract_ready"),
     EnterpriseModule("approvals", "Approval Center", "governance", "operations", "approvals", "/api/approvals", "/approvals", "high", True, "legacy_in_portal"),
     EnterpriseModule("brain", "Enterprise Digital Brain", "ai", "strategy", "enterprise_digital_brain_recommendations", "/api/digital-brain", "/digital-brain", "high", True, "service_contract_ready"),
     EnterpriseModule("platform", "Enterprise AI Platform", "platform", "platform", "platform_plugins", "/api/enterprise-ai-platform", "/enterprise-ai-platform", "high", True, "service_contract_ready"),
@@ -101,7 +101,7 @@ ENTERPRISE_UPGRADE_PHASES = (
         "Data and knowledge services",
         "Move SAP, knowledge and retrieval logic behind service modules with compatibility adapters.",
         ("sap data understanding", "AI knowledge brain", "SAP Knowledge Engine", "knowledge fusion engine", "knowledge training rules engine", "enterprise knowledge graph", "entity center", "AI permission engine", "operating rule library", "knowledge quality scoring", "AI learning plan", "boss experience memory", "adapter tests"),
-        ("existing /api/sap and /api/knowledge responses stay compatible", "SAP stays source of truth", "knowledge brain cites SAP or knowledge sources", "fusion context combines SAP, external industry and boss experience sources", "AI decision logic follows reviewed FireFox operating rules", "entity relationships are queryable", "AI permissions isolate employee, manager and boss scopes", "SAP production database is not modified", "boss experience requires review before active memory"),
+        ("existing /api/sap and /api/knowledge responses stay compatible", "SAP stays source of truth", "knowledge brain cites SAP or knowledge sources", "fusion context combines SAP, external industry and boss experience sources", "AI decision logic follows reviewed VAFOX operating rules", "entity relationships are queryable", "AI permissions isolate employee, manager and boss scopes", "SAP production database is not modified", "boss experience requires review before active memory"),
         "in_progress",
     ),
     UpgradePhase(
@@ -133,7 +133,7 @@ def approval_required_for(action: str, risk_level: str = "") -> bool:
 def enterprise_v1_architecture_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.0",
+        "version": "VAFOX Enterprise OS V1.0",
         "strategy": "compatibility_first_modular_refactor",
         "current_runtime": {
             "portal": "portal_v2.py",

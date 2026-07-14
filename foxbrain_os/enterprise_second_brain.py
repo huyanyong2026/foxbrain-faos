@@ -1,4 +1,4 @@
-"""FoxBrain Enterprise Second Brain product specification contract."""
+"""VAFOX Enterprise Brain product specification contract."""
 
 from dataclasses import asdict, dataclass
 
@@ -27,7 +27,7 @@ SECOND_BRAIN_PRINCIPLES = {
     "everything_is_connected": "Objects are connected through relationship graphs instead of isolated menus.",
     "ai_first": "Every module has AI capability from the first day, not as a later add-on.",
     "knowledge_never_dies": "Meetings, policies, decisions and operating experience become reusable long-term enterprise assets.",
-    "platform_after_firefox": "FireFox is the first complete landing case; the core must later become reusable platform capability.",
+    "platform_after_firefox": "VAFOX is the first complete landing case; the core must later become reusable platform capability.",
 }
 
 
@@ -80,7 +80,7 @@ SECOND_BRAIN_ENGINES = (
 
 
 PRODUCT_SPEC_BOOKS = (
-    ProductBook("constitution", "01 Product Constitution", "Define what FoxBrain is and the principles for the next decade.", ("vision", "mission", "positioning", "core_principles", "enterprise_second_brain_model", "long_term_roadmap")),
+    ProductBook("constitution", "01 Product Constitution", "Define what VAFOX is and the principles for the next decade.", ("vision", "mission", "positioning", "core_principles", "enterprise_second_brain_model", "long_term_roadmap")),
     ProductBook("enterprise_architecture", "02 Enterprise Architecture", "Define the full technical and product architecture.", ("servers", "SAP", "databases", "vector_database", "graph", "AI_models", "Dify", "n8n", "permissions", "message_center")),
     ProductBook("data_architecture", "03 Data Architecture", "Define unified enterprise object data models.", ("Store", "Employee", "Customer", "Brand", "Supplier", "Product", "Inventory", "Sales", "Finance", "Knowledge", "Memory")),
     ProductBook("knowledge_engine", "04 Knowledge Engine", "Define the knowledge brain.", ("knowledge_base", "embedding", "tags", "classification", "full_text_search", "OCR", "PDF", "Word", "Excel", "images", "videos", "automatic_learning")),
@@ -109,14 +109,14 @@ FIREFOX_LANDING_ROUTE = {
     "production_system": "SAP Business One stays stable as system of record.",
     "ai_data_server": "Sync SAP at 22:00 and start knowledge training at 22:30.",
     "owner_portal": "https://huyan.vafox.com is the AI portal and first landing case.",
-    "future_platform": "https://ai.vafox.com becomes the reusable FoxBrain product platform.",
+    "future_platform": "https://ai.vafox.com becomes the reusable VAFOX product platform.",
 }
 
 
 def build_enterprise_second_brain_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain Enterprise Second Brain V1.0",
+        "version": "VAFOX Enterprise Brain V1.0",
         "positioning": "Enterprise AI Operating System",
         "mission": "Connect enterprise data, knowledge, experience, workflows, decisions and history into a continuously learning enterprise second brain.",
         "not": ["ERP", "OA", "CRM", "BI", "standalone knowledge base", "simple LLM chatbot"],

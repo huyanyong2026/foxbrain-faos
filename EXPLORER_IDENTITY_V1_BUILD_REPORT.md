@@ -1,4 +1,4 @@
-# FireFox Explorer Identity V1.0 建设报告
+# VAFOX Explorer Identity V1.0 建设报告
 
 ## 1. 建设结论
 
@@ -91,7 +91,7 @@ Explorer 匹配接口要求独立的 `explorer:match`，只接收以服务令牌
 ## 8. 下一步
 
 1. 接入企业认证的微信公众号网页授权和合规手机号验证服务。
-2. 与 FireFox Identity Center 连接，增加员工服务范围和 CEO 脱敏汇总权限。
+2. 与 VAFOX Identity Center 连接，增加员工服务范围和 CEO 脱敏汇总权限。
 3. 建设数据更正、撤回同意、账号注销和保留期限管理。
 4. 在用户再次明确授权后接入 Dream Community、活动和个性化 AI 服务。
 5. Explorer Partner 与生态贡献机制需单独完成合规、财务和隐私评审后再开发。

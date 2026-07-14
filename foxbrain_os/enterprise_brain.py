@@ -1,6 +1,6 @@
 """Evidence-backed CEO Enterprise Brain composition layer.
 
-The module reads local FoxBrain facts derived from the Data Core and stores only
+The module reads local VAFOX facts derived from the Data Core and stores only
 Founder-authored constitution and memory records. It never connects to SAP.
 """
 
