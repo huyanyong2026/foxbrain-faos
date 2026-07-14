@@ -1,0 +1,17 @@
+.icon-button{min-width:54px;width:auto;padding:0 10px}
+.narrow{max-width:620px;margin:0 auto}
+.wecom-login{display:block;margin-top:16px;text-align:center;color:var(--green);font-weight:700}
+.identity-create{margin-bottom:34px}
+.plain-list{padding-left:20px;line-height:1.9;color:var(--muted)}
+.identity-table{background:#fff;border-top:1px solid var(--line)}
+.identity-row{display:grid;grid-template-columns:minmax(220px,1fr) 160px minmax(300px,1fr);gap:18px;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}
+.identity-row p{margin:6px 0 0;color:var(--muted)}
+.identity-row small{display:block;margin-top:7px;color:var(--muted)}
+.identity-actions,.identity-actions form{display:flex;gap:8px;align-items:center}
+.identity-actions{justify-content:flex-end;flex-wrap:wrap}
+.identity-actions select{max-width:130px;border:1px solid var(--line);padding:9px;background:#fff}
+.audit-panels{margin-top:28px}
+.audit-line{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.audit-line small{grid-column:1/-1;color:var(--muted)}
+.empty-note{color:var(--muted)}
+@media(max-width:780px){.identity-row{grid-template-columns:1fr}.identity-actions{justify-content:flex-start}.identity-actions form{width:100%;flex-wrap:wrap}.identity-actions select{flex:1;max-width:none}.audit-panels{grid-template-columns:1fr}}
