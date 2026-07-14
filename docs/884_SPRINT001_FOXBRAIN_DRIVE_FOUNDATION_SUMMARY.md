@@ -2,11 +2,11 @@
 
 ## Scope
 
-Implemented FoxBrain Drive Foundation on top of the existing huyan.vafox.com portal.
+Implemented VAFOX Drive Foundation on top of the existing huyan.vafox.com portal.
 
 ## Changes
 
-- Upgraded `/drive` into a working FoxBrain Drive file center.
+- Upgraded `/drive` into a working VAFOX Drive file center.
 - Added upload form with category, tags and related object fields.
 - Added Drive search, category filter and file type filter.
 - Added recent files and processing queue sections.

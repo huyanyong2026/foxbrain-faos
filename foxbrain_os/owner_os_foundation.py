@@ -1,4 +1,4 @@
-"""FoxBrain Owner OS V1 foundation and master blueprint contract."""
+"""VAFOX Enterprise Brain V1 foundation and master blueprint contract."""
 
 from dataclasses import asdict, dataclass
 
@@ -43,7 +43,7 @@ OWNER_OS_CENTERS = (
     OwnerCenter("ai", "AI Center", "/jarvis", "Unified owner AI entrance for asking questions about the enterprise.", ("owner_ai_chat", "recent_questions", "source_citations", "decision_context")),
     OwnerCenter("decision", "Decision Center", "/owner/decision", "Business cockpit, risk analysis, investment analysis and strategic planning.", ("business_cockpit", "risk_analysis", "investment_analysis", "strategy_planning", "ai_daily_report")),
     OwnerCenter("data", "Data Center", "/owner/data", "SAP sync database, business data warehouse, GraphRAG and knowledge graph.", ("sap_sync", "warehouse", "graphrag", "knowledge_graph", "data_quality")),
-    OwnerCenter("project", "Project Center", "/owner/projects", "Flagship store, brand upgrade, renovation, VAFOX and FoxBrain projects.", ("flagship_store", "brand_upgrade", "renovation", "vafox", "foxbrain")),
+    OwnerCenter("project", "Project Center", "/owner/projects", "Flagship store, brand upgrade, renovation, VAFOX and VAFOX projects.", ("flagship_store", "brand_upgrade", "renovation", "vafox", "foxbrain")),
     OwnerCenter("strategy", "Strategy Center", "/owner/strategy", "Three-year plan, five-year plan, organization, brand and investment planning.", ("three_year_plan", "five_year_plan", "organization_plan", "brand_plan", "investment_plan")),
     OwnerCenter("system", "System Center", "/owner/system", "Docker, GitHub, Codex, API, model management, sync, backup and logs.", ("docker", "github", "codex", "api", "model_management", "sync", "backup", "logs")),
 )
@@ -52,25 +52,25 @@ OWNER_OS_CENTERS = (
 BLUEPRINT_DOCUMENTS = (
     BlueprintDocument(
         "product_constitution",
-        "FoxBrain Product Constitution",
+        "VAFOX Product Constitution",
         "The highest product philosophy and boundary document.",
         ("why_foxbrain_exists", "product_philosophy", "design_principles", "things_never_done", "owner_os_enterprise_os_sap_relationship", "ten_year_roadmap"),
     ),
     BlueprintDocument(
         "product_specification",
-        "FoxBrain Product Specification",
+        "VAFOX Product Specification",
         "The product design standard for all future Codex development.",
         ("information_architecture", "page_prototypes", "data_models", "permissions", "ai_design", "ui_rules", "api_rules"),
     ),
     BlueprintDocument(
         "technical_architecture",
-        "FoxBrain Technical Architecture",
+        "VAFOX Technical Architecture",
         "The technical architecture for services, deployment and data flows.",
         ("microservices", "docker", "github", "codex", "ci_cd", "data_sync", "warehouse", "mcp", "graphrag", "model_management"),
     ),
     BlueprintDocument(
         "development_handbook",
-        "FoxBrain Development Handbook",
+        "VAFOX Development Handbook",
         "The Codex development handbook for consistent implementation.",
         ("coding_rules", "naming_rules", "database_migrations", "testing", "release", "git_rules", "pull_request_rules"),
     ),
@@ -147,9 +147,9 @@ def build_owner_home_contract() -> dict:
 def build_master_blueprint_contract() -> dict:
     return {
         "ok": True,
-        "name": "FoxBrain Master Blueprint",
+        "name": "VAFOX Master Blueprint",
         "version": "Owner OS V1.0",
-        "role": "single highest design standard for FoxBrain development",
+        "role": "single highest design standard for VAFOX development",
         "documents": [asdict(doc) for doc in BLUEPRINT_DOCUMENTS],
         "product_principles": dict(OWNER_OS_PRODUCT_PRINCIPLES),
         "v1_blueprint_sections": [
@@ -176,10 +176,10 @@ def build_master_blueprint_contract() -> dict:
 def build_owner_os_foundation_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain Owner OS V1 Foundation",
+        "version": "VAFOX Enterprise Brain V1 Foundation",
         "module": "owner_os_foundation",
         "positioning": "owner_enterprise_second_brain_system_of_intelligence",
-        "slogan": "FoxBrain Owner OS -- your enterprise second brain.",
+        "slogan": "VAFOX Enterprise Brain -- your enterprise second brain.",
         "domain": "huyan.vafox.com",
         "pause_enterprise_os_until_owner_os_foundation_ready": True,
         "current_priority": "complete_master_blueprint_v1_before_more_feature_pages",

@@ -1,8 +1,8 @@
-# Task068 FoxBrain OS 4.0 Digital Workforce
+# Task068 VAFOX OS 4.0 Digital Workforce
 
 ## Objective
 
-Build Enterprise Digital Workforce governance for AI digital employees based on FoxBrain OS 1.0 through 3.0.
+Build Enterprise Digital Workforce governance for AI digital employees based on VAFOX OS 1.0 through 3.0.
 
 ## Scope
 

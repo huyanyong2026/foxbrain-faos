@@ -1,4 +1,4 @@
-# FoxBrain Operations
+# VAFOX Operations
 
 Daily checks:
 

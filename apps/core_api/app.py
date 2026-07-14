@@ -128,7 +128,7 @@ class CoreService:
 
     def status(self):
         result = {
-            "service": "FoxBrain Enterprise Data Core",
+            "service": "VAFOX Enterprise Data Core",
             "mode": "read_only",
             "source": "SAP mirror",
             "checked_at": utc_now(),
@@ -643,7 +643,7 @@ class CoreService:
 
 
 class CoreApiHandler(BaseHTTPRequestHandler):
-    server_version = "FoxBrainCore/1.0"
+    server_version = "VAFOXCore/1.0"
 
     def log_message(self, fmt, *args):
         print(json.dumps({"at": utc_now(), "client": self.client_address[0], "message": fmt % args}, ensure_ascii=True))

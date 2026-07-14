@@ -1,8 +1,8 @@
-# FoxBrain V6.1 DataHub, SAP and RAG Runbook
+# VAFOX V6.1 DataHub, SAP and RAG Runbook
 
 ## Purpose
 
-V6.1 upgrades FoxBrain from a runnable portal into the first version of an enterprise data center:
+V6.1 upgrades VAFOX from a runnable portal into the first version of an enterprise data center:
 
 - Enterprise Data Hub base schema
 - SAP nightly sync center

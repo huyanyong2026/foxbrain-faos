@@ -1,4 +1,4 @@
-# Task001: FoxBrain V4 Architecture Upgrade
+# Task001: VAFOX V4 Architecture Upgrade
 
 ## Status
 

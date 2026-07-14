@@ -2,7 +2,7 @@
 
 ## Scope
 
-Sprint009 builds the first usable Business Knowledge Graph foundation for FoxBrain Enterprise OS.
+Sprint009 builds the first usable Business Knowledge Graph foundation for VAFOX Enterprise OS.
 
 It is an incremental upgrade:
 
@@ -14,7 +14,7 @@ It is an incremental upgrade:
 
 ## Engine
 
-FoxBrain Enterprise OS module:
+VAFOX Enterprise OS module:
 
 - Knowledge Graph
 
@@ -160,5 +160,5 @@ This allows graph context discovery from the existing search entry.
 
 ## Safety
 
-No production SAP connection was made. Sprint009 only reads existing local tables and uploaded/imported SAP data already in FoxBrain.
+No production SAP connection was made. Sprint009 only reads existing local tables and uploaded/imported SAP data already in VAFOX.
 

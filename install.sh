@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="FoxBrain Cloud Edition"
+APP_NAME="VAFOX Cloud Edition"
 APP_DIR="${APP_DIR:-/opt/foxbrain}"
 REPO_URL="${REPO_URL:-https://github.com/huyanyong2026/foxbrain-v4.git}"
 

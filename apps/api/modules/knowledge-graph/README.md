@@ -1,6 +1,6 @@
 # Knowledge Graph Module
 
-FoxBrain OS Enterprise V1.9 enterprise knowledge graph boundary.
+VAFOX Enterprise OS V1.9 enterprise knowledge graph boundary.
 
 - Page route: `/enterprise-knowledge-graph`
 - API: `/api/enterprise-knowledge-graph`

@@ -1,15 +1,15 @@
-# FoxBrain Enterprise Second Brain V1.0
+# VAFOX Enterprise Brain V1.0
 
 ## Positioning
 
-FoxBrain is an Enterprise AI Operating System and an enterprise second brain. It is not a replacement ERP, OA, CRM, BI, standalone knowledge base or simple LLM chatbot.
+VAFOX is an Enterprise AI Operating System and an enterprise second brain. It is not a replacement ERP, OA, CRM, BI, standalone knowledge base or simple LLM chatbot.
 
 The V1.0 product baseline converts scattered upgrade packages into one durable product architecture:
 
 - unified enterprise object model
 - unified knowledge and memory layer
 - AI-native analysis, decision and action loop
-- FireFox first landing case
+- VAFOX first landing case
 - future reusable platform on ai.vafox.com
 
 ## Core Principles
@@ -20,7 +20,7 @@ The V1.0 product baseline converts scattered upgrade packages into one durable p
 - Everything is connected.
 - AI capability is native in every module.
 - Enterprise knowledge and decisions never disappear.
-- FireFox Edition lands first, then the platform core becomes reusable.
+- VAFOX Edition lands first, then the platform core becomes reusable.
 
 ## Core Engines
 
@@ -45,12 +45,12 @@ The V1.0 product baseline converts scattered upgrade packages into one durable p
 11. API & Plugin
 12. Codex Execution Standard
 
-## FireFox Landing Route
+## VAFOX Landing Route
 
 - SAP Business One remains the stable production system and system of record.
 - The AI data server performs SAP sync at 22:00 and knowledge training at 22:30.
-- https://huyan.vafox.com remains the first AI portal and FireFox landing case.
-- https://ai.vafox.com is reserved for the reusable FoxBrain product platform.
+- https://huyan.vafox.com remains the first AI portal and VAFOX landing case.
+- https://ai.vafox.com is reserved for the reusable VAFOX product platform.
 
 ## Governance
 

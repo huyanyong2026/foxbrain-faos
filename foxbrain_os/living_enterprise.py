@@ -1,4 +1,4 @@
-"""Evidence-backed Life Object Framework for the FireFox Living Enterprise."""
+"""Evidence-backed Life Object Framework for the VAFOX Living Enterprise."""
 
 from __future__ import annotations
 
@@ -475,7 +475,7 @@ def sync_life_objects_from_confirmed_sources(conn):
                 row["id"],
                 row["name"],
                 identity={"name": row["name"], "code": row["code"], "enterprise_object_type": row["object_type"]},
-                origin={"system": "FoxBrain Enterprise Object Engine"},
+                origin={"system": "VAFOX Enterprise Object Engine"},
                 state={"status": row["status"], "metadata": metadata},
                 future={"status": "awaiting_evidence"},
                 source_type="enterprise_objects",

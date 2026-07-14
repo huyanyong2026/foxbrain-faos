@@ -19,10 +19,10 @@ Used Sprint016 local read-only fixture flow:
 
 - staged sales rows
 - approved publish
-- published into local FoxBrain tables
+- published into local VAFOX tables
 - staged inventory rows
 - approved publish
-- published into local FoxBrain tables
+- published into local VAFOX tables
 
 This provided local business data for Daily Intelligence generation.
 

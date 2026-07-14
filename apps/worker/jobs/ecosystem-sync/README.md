@@ -1,6 +1,6 @@
 # Ecosystem Sync Jobs
 
-FoxBrain OS Enterprise V2.3 worker job boundary.
+VAFOX Enterprise OS V2.3 worker job boundary.
 
 Schedule:
 

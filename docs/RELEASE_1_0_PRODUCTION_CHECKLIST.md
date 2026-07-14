@@ -1,4 +1,4 @@
-# FoxBrain Release 1.0 Production Checklist
+# VAFOX Release 1.0 Production Checklist
 
 ## Stability
 

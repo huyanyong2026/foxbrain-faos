@@ -2,7 +2,7 @@
 
 ## Goal
 
-Operating System Layer turns FoxBrain into the daily entrance for company work.
+Operating System Layer turns VAFOX into the daily entrance for company work.
 
 ## Routes
 

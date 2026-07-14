@@ -1,8 +1,8 @@
-# FoxBrain OS Enterprise V1.2 Agent Orchestration
+# VAFOX Enterprise OS V1.2 Agent Orchestration
 
 ## Objective
 
-Continue from FoxBrain OS Enterprise V1.0 and V1.1 without rebuilding the system and without refactoring the database. V1.2 adds a governed AI agent orchestration layer on top of the existing Agent framework, SAP understanding and enterprise knowledge brain.
+Continue from VAFOX Enterprise OS V1.0 and V1.1 without rebuilding the system and without refactoring the database. V1.2 adds a governed AI agent orchestration layer on top of the existing Agent framework, SAP understanding and enterprise knowledge brain.
 
 ## Scope
 

@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V2.1 digital twin and simulation contracts."""
+"""VAFOX Enterprise OS V2.1 digital twin and simulation contracts."""
 
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -67,7 +67,7 @@ V21_GUARDRAILS = {
 def build_digital_twin_simulation_contract() -> dict[str, Any]:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V2.1",
+        "version": "VAFOX Enterprise OS V2.1",
         "module": "digital_twin_simulation",
         "positioning": "predict future and simulate business decisions before reality",
         "models": [asdict(model) for model in DIGITAL_TWIN_MODELS],
@@ -82,7 +82,7 @@ def build_company_twin_model(metrics: dict[str, Any] | None = None) -> dict[str,
     metrics = metrics or {}
     return {
         "ok": True,
-        "model": "FoxBrain Digital Twin",
+        "model": "VAFOX Digital Twin",
         "real_enterprise_sources": ["SAP sales", "inventory", "purchase", "stores", "employees", "brands", "customers", "cash", "market"],
         "company_structure": ["company", "stores", "brands", "products", "employees", "suppliers", "customers", "finance", "operating_rules"],
         "current_metrics": metrics,

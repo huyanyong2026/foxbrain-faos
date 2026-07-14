@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.3 automatic operation loop contract."""
+"""VAFOX Enterprise OS V1.3 automatic operation loop contract."""
 
 from dataclasses import asdict, dataclass
 
@@ -37,7 +37,7 @@ AUTO_OPERATION_STAGES = (
 def build_auto_operation_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.3",
+        "version": "VAFOX Enterprise OS V1.3",
         "module": "auto_operation_loop",
         "strategy": "connect_existing_v1_0_to_v1_2_capabilities_without_rebuilding",
         "sap_read_only_policy": SAP_READ_ONLY_POLICY,
@@ -62,7 +62,7 @@ def build_auto_operation_contract() -> dict:
 def build_daily_loop_plan(sap_status: dict, ai_context: dict, briefing: dict, task_plan: dict, approvals: dict) -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.3",
+        "version": "VAFOX Enterprise OS V1.3",
         "plan_type": "daily_auto_operation_loop",
         "sap": {
             "freshness": sap_status.get("freshness"),

@@ -1,6 +1,6 @@
 # Business Simulator Module
 
-FoxBrain OS Enterprise V2.1 business simulator boundary.
+VAFOX Enterprise OS V2.1 business simulator boundary.
 
 - API: `/api/v2.1/scenario/osprey-discount`
 - Storage: `business_scenarios`, `simulation_results`

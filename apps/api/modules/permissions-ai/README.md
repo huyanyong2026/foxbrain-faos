@@ -1,6 +1,6 @@
 # AI Permissions Module
 
-FoxBrain OS Enterprise V1.9 AI permission engine boundary.
+VAFOX Enterprise OS V1.9 AI permission engine boundary.
 
 - API: `/api/enterprise-knowledge-graph/permissions`
 - Storage: `ai_permissions`

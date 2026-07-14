@@ -9,7 +9,7 @@ Depends on: Sprint016 Enterprise Sync Engine
 
 ## 1. Sprint Goal
 
-Safely connect FoxBrain Enterprise Sync Engine to a real SAP Business One data source through a read-only path.
+Safely connect VAFOX Enterprise Sync Engine to a real SAP Business One data source through a read-only path.
 
 The objective is:
 
@@ -18,7 +18,7 @@ SAP B1 Production
 ↓
 Read-only Replica / Backup / Secure Export
 ↓
-FoxBrain Sync Engine
+VAFOX Sync Engine
 ↓
 Staging
 ↓
@@ -37,7 +37,7 @@ This Sprint is a controlled rollout, not a direct production cutover.
 
 ## 2. Non-Negotiable Safety Rules
 
-- Do not install FoxBrain, Python, AI, or experimental software on the SAP production server.
+- Do not install VAFOX, Python, AI, or experimental software on the SAP production server.
 - Do not write to the SAP production database.
 - Do not use SAP administrator credentials.
 - Use a dedicated read-only account with SELECT-only permission.
@@ -46,7 +46,7 @@ This Sprint is a controlled rollout, not a direct production cutover.
 - Keep scheduled synchronization disabled until explicit approval.
 - The first real sync must be dry-run only.
 - Failed validation must block publish.
-- A failed FoxBrain sync must never affect SAP operation.
+- A failed VAFOX sync must never affect SAP operation.
 
 ---
 
@@ -111,7 +111,7 @@ Store the result as an audit record.
 First real run must:
 
 - Read data only.
-- Write only to FoxBrain staging tables.
+- Write only to VAFOX staging tables.
 - Not publish to Data Lake.
 - Not advance the production sync cursor permanently.
 - Produce row counts and reconciliation results.
@@ -219,7 +219,7 @@ The approval page must show:
 
 After manual approval:
 
-- Publish from staging to FoxBrain Data Lake.
+- Publish from staging to VAFOX Data Lake.
 - Use idempotency keys.
 - Preserve source lineage.
 - Record source batch IDs.
@@ -308,9 +308,9 @@ Only prepare configuration and documentation for a later controlled activation.
 
 Rollback must:
 
-- Remove or supersede the FoxBrain published batch only.
+- Remove or supersede the VAFOX published batch only.
 - Never modify SAP source data.
-- Restore previous FoxBrain cursor when safe.
+- Restore previous VAFOX cursor when safe.
 - Record the reason and operator.
 - Preserve audit history.
 

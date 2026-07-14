@@ -1,1 +1,1 @@
-"""FoxBrain Enterprise Data Core read-only API."""
+"""VAFOX Enterprise Data Core read-only API."""

@@ -69,4 +69,4 @@ The existing `sync_jobs` table name was already present from earlier ecosystem w
 - Production SAP source is configured as `sap_b1_sql_readonly` but remains disabled.
 - Schedules are seeded as `manual_only` with `is_enabled=0`.
 - Credentials are represented only by environment-variable references, never by secret values.
-- All publish actions require a user action and write only to FoxBrain local tables.
+- All publish actions require a user action and write only to VAFOX local tables.

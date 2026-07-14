@@ -599,7 +599,7 @@ def test_pack_release_1_0_present():
     ]:
         assert phrase in portal
     for phrase in [
-        "FoxBrain OS 1.0 Architecture Review Report",
+        "VAFOX OS 1.0 Architecture Review Report",
         "Completed Modules",
         "Pending Modules",
         "Technical Debt",
@@ -820,7 +820,7 @@ def test_foxbrain_os_6_1_sap_smart_knowledge_docs_present():
         assert (ROOT / doc).exists()
     combined = "\n".join(read(doc) for doc in docs)
     for phrase in [
-        "FoxBrain OS 6.1",
+        "VAFOX OS 6.1",
         "SAP Smart Knowledge",
         "brands, products, stores, employees, customers and suppliers",
         "read-only",
@@ -860,7 +860,7 @@ def test_enterprise_v1_architecture_contract_imports():
     spec.loader.exec_module(module)
     contract = module.enterprise_v1_architecture_contract()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.0"
+    assert contract["version"] == "VAFOX Enterprise OS V1.0"
     assert module.approval_required_for("sap_writeback") is True
     assert module.approval_required_for("read_only_query", "low") is False
     assert "knowledge" in [item["key"] for item in contract["modules"]]
@@ -929,7 +929,7 @@ def test_enterprise_v1_1_ai_knowledge_brain_imports():
     brain = module.build_enterprise_knowledge_brain({"knowledge_items": 2, "chunks": 4, "pending_review": 0}, sap, [])
     plan = module.build_query_plan("查看 SAP 库存和毛利", "sap")
     assert sap["ok"] is True
-    assert brain["version"] == "FoxBrain OS Enterprise V1.1"
+    assert brain["version"] == "VAFOX Enterprise OS V1.1"
     assert plan["needs_sap_context"] is True
     assert brain["guardrails"]["sap_writeback_disabled"] is True
 
@@ -998,7 +998,7 @@ def test_enterprise_v1_2_agent_orchestration_imports():
     plan = module.build_agent_plan_request("inventory", "review stock risk", "boss")
     domains = [item["key"] for item in contract["domains"]]
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.2"
+    assert contract["version"] == "VAFOX Enterprise OS V1.2"
     assert {"business", "inventory", "membership", "content"}.issubset(set(domains))
     assert plan["approval_required"] is True
     assert plan["execution_mode"] == "approval_then_execute"
@@ -1076,7 +1076,7 @@ def test_enterprise_v1_3_auto_operation_imports():
         {"approvals": []},
     )
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.3"
+    assert contract["version"] == "VAFOX Enterprise OS V1.3"
     assert contract["sap_read_only_policy"]["sap_production_server_independent"] is True
     assert contract["sap_read_only_policy"]["writeback_allowed"] is False
     assert plan["approval_required"] is True
@@ -1152,7 +1152,7 @@ def test_enterprise_v1_4_sap_knowledge_engine_imports():
     catalog = module.build_model_catalog()
     product = module.build_model_catalog("product")
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.4"
+    assert contract["version"] == "VAFOX Enterprise OS V1.4"
     assert contract["production_boundary"]["direct_production_write_disabled"] is True
     assert contract["production_boundary"]["read_only_sync_only"] is True
     assert len(contract["read_only_sync_layers"]) == 4
@@ -1228,7 +1228,7 @@ def test_enterprise_v1_5_knowledge_training_quality_imports():
     score = module.score_knowledge_quality({"total": 10, "reviewed": 8, "with_source": 9, "with_summary": 7, "with_keywords": 6, "sap_items": 4, "approved_memory": 2, "decisions": 1})
     plan = module.build_ai_learning_plan(score, {"approved_memory": 2, "decision_memories": 1})
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.5"
+    assert contract["version"] == "VAFOX Enterprise OS V1.5"
     assert len(contract["quality_dimensions"]) >= 6
     assert len(contract["ai_learning_signals"]) >= 6
     assert len(contract["boss_experience_models"]) >= 4
@@ -1310,7 +1310,7 @@ def test_enterprise_v1_6_multi_agent_system_imports():
     plan = module.build_agent_collaboration_plan("review growth risk", ["ceo", "inventory", "product", "content"])
     role_names = [role["name"] for role in contract["roles"]]
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.6"
+    assert contract["version"] == "VAFOX Enterprise OS V1.6"
     assert {"CEO Agent", "Business Agent", "Inventory Agent", "Product Agent", "Member Agent", "Content Agent"}.issubset(set(role_names))
     assert len(contract["collaboration_flows"]) >= 3
     assert shared_context["readiness"] == "ready"
@@ -1394,7 +1394,7 @@ def test_enterprise_v1_6_5_knowledge_fusion_imports():
     )
     agent = module.build_agent_fusion_context("inventory", context)
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.6.5"
+    assert contract["version"] == "VAFOX Enterprise OS V1.6.5"
     assert len(contract["layers"]) == 3
     layer_keys = [layer["key"] for layer in contract["layers"]]
     assert {"sap_enterprise_knowledge", "external_industry_knowledge", "boss_experience_knowledge"}.issubset(set(layer_keys))
@@ -1438,7 +1438,7 @@ def test_enterprise_v1_6_6_knowledge_training_rules_engine_module_present():
         "KNOWLEDGE_TRAINING_POLICY",
         "Inventory Risk First",
         "Gross Profit Before Sales Volume",
-        "FireFox Operating Logic Required",
+        "VAFOX Operating Logic Required",
         "build_knowledge_training_engine_contract",
         "build_operating_rule_library",
         "build_training_cycle_plan",
@@ -1472,7 +1472,7 @@ def test_enterprise_v1_6_6_knowledge_training_rules_engine_imports():
     cycle = module.build_training_cycle_plan({"layer_readiness": {"sap_enterprise_knowledge": "ready"}}, {"knowledge_quality": {"level": "usable"}})
     logic = module.build_ai_decision_logic({"fusion_ready": True}, {"month_sales": 100})
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.6.6"
+    assert contract["version"] == "VAFOX Enterprise OS V1.6.6"
     assert len(contract["training_signals"]) >= 4
     assert len(rules["rules"]) >= 6
     assert inventory["rules"][0]["domain"] == "inventory"
@@ -1494,7 +1494,7 @@ def test_enterprise_v1_6_6_docs_present():
         "V1.6.6",
         "Knowledge Training",
         "operating rule library",
-        "FireFox operating logic",
+        "VAFOX operating logic",
         "SAP data",
         "external knowledge",
         "boss operating experience",
@@ -1563,7 +1563,7 @@ def test_enterprise_v1_7_ai_business_decision_center_imports():
     risks = module.build_risk_alerts(metrics)
     task = module.build_ai_task_plan("分析一下南山店最近经营情况")
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.7"
+    assert contract["version"] == "VAFOX Enterprise OS V1.7"
     assert "boss_approval" in contract["data_flow"]
     assert report["approval_required"] is True
     assert forecast["confidence"] > 0
@@ -1672,7 +1672,7 @@ def test_enterprise_v1_8_workflow_automation_engine_imports():
     daily = module.build_periodic_report_plan("daily")
     acceptance = module.build_workflow_acceptance_plan("检查最近库存风险")
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.8"
+    assert contract["version"] == "VAFOX Enterprise OS V1.8"
     assert "automatic_task_creation" in contract["closed_loop"]
     assert len(contract["node_types"]) >= 8
     assert workflow["approval_required"] is True
@@ -1681,7 +1681,7 @@ def test_enterprise_v1_8_workflow_automation_engine_imports():
     assert notification["default_channel"] == "in_app"
     assert feedback["learning_rule"] == "approved_results_raise_similar_advice_weight_after_review"
     assert case["knowledge_upgrade"] == "document_knowledge_base_to_enterprise_experience_base"
-    assert daily["title"] == "FireFox daily business report"
+    assert daily["title"] == "VAFOX daily business report"
     assert acceptance["workflow"] == ["call_sap", "analyze_inventory", "generate_risk", "create_task", "notify_owner", "wait_for_approval"]
     assert acceptance["execution_status"] == "waiting_for_human_approval"
 
@@ -1786,7 +1786,7 @@ def test_enterprise_v1_9_enterprise_knowledge_graph_imports():
     employee = module.build_employee_ai_profile_contract()
     business_map = module.build_business_map_payload()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V1.9"
+    assert contract["version"] == "VAFOX Enterprise OS V1.9"
     assert "enterprise_knowledge_graph" == contract["module"]
     assert builder["schedule"] == "02:30 daily"
     assert builder["sap_writeback"] is False
@@ -1903,7 +1903,7 @@ def test_enterprise_v2_1_digital_twin_simulation_imports():
     report = module.build_strategy_agent_report("今年300万Osprey期货是否应该全部提货？")
     board = module.build_board_assistant_pack()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V2.1"
+    assert contract["version"] == "VAFOX Enterprise OS V2.1"
     assert "model_adjustment" in contract["simulation_feedback_loop"]
     assert company["sandbox_rule"] == "read_only_twin_simulation_never_modifies_business_data"
     assert discount["approval_required"] is True
@@ -2021,7 +2021,7 @@ def test_enterprise_v2_2_business_autopilot_imports():
     chairman = module.build_chairman_agent_brief()
     risk = module.build_biggest_risk_analysis()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V2.2"
+    assert contract["version"] == "VAFOX Enterprise OS V2.2"
     assert "detect_anomaly" in contract["flow"]
     assert health["score"] > 0
     assert inspection["schedule"] == "06:00 daily"
@@ -2137,7 +2137,7 @@ def test_enterprise_v2_3_ecosystem_hub_imports():
     churn = module.build_omnichannel_analysis("找出最近90天流失风险最高的100个客户，并制定召回方案。")
     workflow = module.build_vip_recall_workflow()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS Enterprise V2.3"
+    assert contract["version"] == "VAFOX Enterprise OS V2.3"
     assert "channel_execution" in contract["closed_loop"]
     assert len(lake["sync_jobs"]) == 5
     assert wecom["agent"] == "WeCom CRM Agent"
@@ -2201,7 +2201,7 @@ def test_foxbrain_os_ux_2_information_architecture_module_present():
         "UX_NAVIGATION_LAYERS",
         "UX_PRINCIPLES",
         "build_ux_information_architecture_contract",
-        "FoxBrain OS UX 2.0",
+        "VAFOX OS UX 2.0",
         "Apple Experience Edition",
         "first_layer_four_entries_only_no_repeated_business_content",
         "fixed_global_search_fixed_ai_entry_mobile_bottom_navigation_and_no_home_small_text",
@@ -2249,7 +2249,7 @@ def test_foxbrain_os_ux_2_information_architecture_imports():
     spec.loader.exec_module(module)
     contract = module.build_ux_information_architecture_contract()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain OS UX 2.0"
+    assert contract["version"] == "VAFOX OS UX 2.0"
     assert contract["codename"] == "Apple Experience Edition"
     assert contract["recommended_structure"]["home"] == ["Business", "AI", "Messages", "Me"]
     assert contract["principles"]["one_page_one_subject"] is True
@@ -2269,7 +2269,7 @@ def test_foxbrain_owner_os_v1_foundation_module_present():
     architecture = read("foxbrain_os/architecture.py")
     portal = read("portal_v2.py")
     for phrase in [
-        "FoxBrain Owner OS V1 Foundation",
+        "VAFOX Enterprise Brain V1 Foundation",
         "OWNER_HOME_ENTRIES",
         "OWNER_OS_CENTERS",
         "BLUEPRINT_DOCUMENTS",
@@ -2319,7 +2319,7 @@ def test_foxbrain_owner_os_v1_foundation_imports():
     home = module.build_owner_home_contract()
     blueprint = module.build_master_blueprint_contract()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain Owner OS V1 Foundation"
+    assert contract["version"] == "VAFOX Enterprise Brain V1 Foundation"
     assert contract["domain"] == "huyan.vafox.com"
     assert contract["pause_enterprise_os_until_owner_os_foundation_ready"] is True
     assert contract["relationship"] == {
@@ -2344,7 +2344,7 @@ def test_foxbrain_owner_os_v1_foundation_imports():
         "/owner/strategy",
         "/owner/system",
     ]
-    assert blueprint["name"] == "FoxBrain Master Blueprint"
+    assert blueprint["name"] == "VAFOX Master Blueprint"
     assert blueprint["version"] == "Owner OS V1.0"
     assert len(blueprint["documents"]) == 4
     assert blueprint["product_principles"]["not_erp"].startswith("Owner OS does not create")
@@ -2366,7 +2366,7 @@ def test_foxbrain_owner_os_v1_foundation_docs_present():
         assert path.exists()
     combined = "\n".join(path.read_text(encoding="utf-8") for path in docs)
     for phrase in [
-        "FoxBrain Owner OS V1 Foundation",
+        "VAFOX Enterprise Brain V1 Foundation",
         "enterprise second brain",
         "System of Intelligence",
         "Master Blueprint",
@@ -2392,7 +2392,7 @@ def test_foxbrain_os_ux_2_docs_present():
         assert (ROOT / path).exists()
     combined = "\n".join(read(doc) for doc in docs)
     for phrase in [
-        "FoxBrain OS UX 2.0",
+        "VAFOX OS UX 2.0",
         "Apple Experience Edition",
         "one page one subject",
         "four first-layer entries",
@@ -2423,8 +2423,8 @@ def test_foxbrain_owner_enterprise_7_9_module_present():
         "build_owner_enterprise_planning_contract",
         "build_sync_policy",
         "classify_data_domain",
-        "FoxBrain Owner OS",
-        "FoxBrain Enterprise OS",
+        "VAFOX Enterprise Brain",
+        "VAFOX Enterprise OS",
         "personal_capital",
         "core_contract_original_files",
     ]:
@@ -2454,9 +2454,9 @@ def test_foxbrain_owner_enterprise_7_9_imports_and_boundaries():
     blocked = module.classify_data_domain("personal_capital")
     unknown = module.classify_data_domain("unknown_secret")
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain Owner/Enterprise OS 7.9"
-    assert contract["conclusion"]["huyan.vafox.com"] == "FoxBrain Owner OS"
-    assert contract["conclusion"]["ai.vafox.com"] == "FoxBrain Enterprise OS"
+    assert contract["version"] == "VAFOX Enterprise OS 7.9"
+    assert contract["conclusion"]["huyan.vafox.com"] == "VAFOX Enterprise Brain"
+    assert contract["conclusion"]["ai.vafox.com"] == "VAFOX Enterprise OS"
     assert sync_policy["rules"]["not_fully_connected"] is True
     assert sync_policy["rules"]["sensitive_owner_data_never_syncs_to_employee_system"] is True
     assert stores["sync_allowed"] is True
@@ -2475,8 +2475,8 @@ def test_foxbrain_owner_enterprise_7_9_docs_present():
         assert (ROOT / path).exists()
     combined = "\n".join(read(doc) for doc in docs)
     for phrase in [
-        "FoxBrain Owner OS",
-        "FoxBrain Enterprise OS",
+        "VAFOX Enterprise Brain",
+        "VAFOX Enterprise OS",
         "huyan.vafox.com",
         "ai.vafox.com",
         "partial synchronization",
@@ -2494,7 +2494,7 @@ def test_foxbrain_enterprise_second_brain_module_present():
     architecture = read("foxbrain_os/architecture.py")
     portal = read("portal_v2.py")
     for phrase in [
-        "FoxBrain Enterprise Second Brain V1.0",
+        "VAFOX Enterprise Brain V1.0",
         "SECOND_BRAIN_PRINCIPLES",
         "SECOND_BRAIN_ENGINES",
         "PRODUCT_SPEC_BOOKS",
@@ -2528,7 +2528,7 @@ def test_foxbrain_enterprise_second_brain_imports():
     spec.loader.exec_module(module)
     contract = module.build_enterprise_second_brain_contract()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain Enterprise Second Brain V1.0"
+    assert contract["version"] == "VAFOX Enterprise Brain V1.0"
     assert contract["positioning"] == "Enterprise AI Operating System"
     assert "ERP" in contract["not"]
     assert len(contract["product_spec_books"]) == 12
@@ -2548,7 +2548,7 @@ def test_foxbrain_enterprise_second_brain_docs_present():
         assert (ROOT / path).exists()
     combined = "\n".join(read(doc) for doc in docs)
     for phrase in [
-        "FoxBrain Enterprise Second Brain V1.0",
+        "VAFOX Enterprise Brain V1.0",
         "Enterprise AI Operating System",
         "Object Engine",
         "Knowledge Engine",
@@ -2568,7 +2568,7 @@ def test_foxbrain_enterprise_second_brain_v11_module_present():
     architecture = read("foxbrain_os/architecture.py")
     portal = read("portal_v2.py")
     for phrase in [
-        "FoxBrain Enterprise Second Brain V1.1",
+        "VAFOX Enterprise Brain V1.1",
         "DRIVE_2_DOMAINS",
         "OBJECT_ENGINE_MODELS",
         "KNOWLEDGE_PIPELINE_STAGES",
@@ -2595,7 +2595,7 @@ def test_foxbrain_enterprise_second_brain_v11_module_present():
         "object_engine_page",
         "knowledge_pipeline_page",
         "ceo_home_v11_page",
-        "FoxBrain CEO Home",
+        "VAFOX Enterprise Brain",
         "root_home_keeps_ten_entries_only_details_after_click",
     ]:
         assert phrase in portal
@@ -2609,7 +2609,7 @@ def test_foxbrain_enterprise_second_brain_v11_imports():
     spec.loader.exec_module(module)
     contract = module.build_enterprise_second_brain_v11_contract()
     assert contract["ok"] is True
-    assert contract["version"] == "FoxBrain Enterprise Second Brain V1.1"
+    assert contract["version"] == "VAFOX Enterprise Brain V1.1"
     assert "Drive 2.0" in contract["focus"]
     assert contract["drive_2"]["positioning"] == "Enterprise Knowledge Drive"
     assert len(contract["drive_2"]["domains"]) == 5
@@ -2630,7 +2630,7 @@ def test_foxbrain_enterprise_second_brain_v11_docs_present():
         assert (ROOT / path).exists()
     combined = "\n".join(read(doc) for doc in docs)
     for phrase in [
-        "FoxBrain Enterprise Second Brain V1.1",
+        "VAFOX Enterprise Brain V1.1",
         "Drive 2.0",
         "Object Engine",
         "Knowledge Pipeline",
@@ -2700,7 +2700,7 @@ def test_sprint001_drive_home_keeps_ten_entries_and_opens_drive():
     assert '"/drive"' in final_dashboard
     assert '"/owner/knowledge"' not in final_dashboard
     assert "minimal_links" in final_dashboard
-    assert "FoxBrain CEO Home" in final_dashboard
+    assert "VAFOX Enterprise Brain" in final_dashboard
 
 
 def test_sprint001_docs_and_summary_present():
@@ -2713,7 +2713,7 @@ def test_sprint001_docs_and_summary_present():
         assert (ROOT / path).exists()
     combined = "\n".join(read(doc) for doc in docs)
     for phrase in [
-        "FoxBrain Drive Foundation",
+        "VAFOX Drive Foundation",
         "POST /api/drive/upload",
         "GET /api/drive/files",
         "DELETE /api/drive/files/:id",
@@ -2925,8 +2925,8 @@ def test_sprint005_ceo_dashboard_home_and_api_present():
     final_dashboard = portal.rsplit("def dashboard(self, user):", 1)[1].split("def os_layer_cards", 1)[0]
     for phrase in [
         "ceo_dashboard_payload",
-        "FoxBrain CEO Brain",
-        "FoxBrain CEO Home",
+        "VAFOX Enterprise Brain",
+        "VAFOX Enterprise Brain",
         'method="get" action="/search"',
         r"\u4eca\u65e5\u6458\u8981",
         r"\u6838\u5fc3\u5165\u53e3",
@@ -2970,13 +2970,13 @@ def test_sprint005_summary_present():
     summary = read("SPRINT005_CEO_DASHBOARD_SUMMARY.md")
     for phrase in [
         "Sprint005 CEO Dashboard Summary",
-        "FoxBrain CEO Brain",
+        "VAFOX Enterprise Brain",
         "GET /api/dashboard/ceo",
         "documents",
         "enterprise_objects",
         "knowledge_items",
         "timeline_events",
-        "FoxBrain Drive",
+        "VAFOX Drive",
         "Object Engine",
         "Knowledge Engine",
         "Search Engine",
@@ -3102,7 +3102,7 @@ def test_sprint008_data_lake_schema_routes_and_api_present():
 def test_sprint008_dashboard_search_and_safety_present():
     portal = read("portal_v2.py")
     for phrase in [
-        "FoxBrain Data Lake",
+        "VAFOX Data Lake",
         "Object Match Center",
         "data_lake_records",
         "suggested_objects",

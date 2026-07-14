@@ -1,5 +1,5 @@
 [Unit]
-Description=FireFox Gateway public data proxy
+Description=VAFOX Gateway public data proxy
 After=network-online.target
 Wants=network-online.target
 

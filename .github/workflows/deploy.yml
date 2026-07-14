@@ -1,4 +1,4 @@
-name: FoxBrain Auto Deploy
+name: VAFOX Auto Deploy
 
 on:
   push:

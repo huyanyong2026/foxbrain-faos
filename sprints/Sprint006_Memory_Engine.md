@@ -9,7 +9,7 @@ Depends on: Sprint001 Drive, Sprint002 Object Engine, Sprint003 Knowledge Pipeli
 
 ## 1. Sprint Goal
 
-建立 FoxBrain 的企业记忆引擎，让系统不仅能保存文件、对象、知识和时间轴，还能记录“为什么做出某个决定”。
+建立 VAFOX 的企业记忆引擎，让系统不仅能保存文件、对象、知识和时间轴，还能记录“为什么做出某个决定”。
 
 Memory Engine 的目标不是普通备忘录，而是沉淀企业经营过程中的原因、背景、判断、风险和结果。
 

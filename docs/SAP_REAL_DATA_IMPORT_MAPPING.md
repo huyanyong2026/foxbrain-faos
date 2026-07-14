@@ -8,7 +8,7 @@ Data package: sap数据.zip, 店铺费用202605.zip
 
 ## 1. Purpose
 
-This document records the real SAP export files provided by Huohu Fox and defines the first import mapping for FoxBrain Data Lake.
+This document records the real SAP export files provided by Huohu Fox and defines the first import mapping for VAFOX Data Lake.
 
 Sprint007 should use this mapping to import real SAP Excel/CSV-like files safely.
 
@@ -24,7 +24,7 @@ Do not install any software on the SAP production server.
 
 Only import user-uploaded exported files.
 
-Original files must be preserved in FoxBrain Drive.
+Original files must be preserved in VAFOX Drive.
 
 ---
 

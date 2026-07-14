@@ -1,6 +1,6 @@
-# FoxBrain OS Enterprise V2.2 Business Autopilot
+# VAFOX Enterprise OS V2.2 Business Autopilot
 
-V2.2 upgrades FoxBrain from AI strategy simulation into autonomous business operation.
+V2.2 upgrades VAFOX from AI strategy simulation into autonomous business operation.
 
 ## Goal
 

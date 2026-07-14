@@ -1,8 +1,8 @@
-# Task056 - Pack 17 FoxBrain University
+# Task056 - Pack 17 VAFOX University
 
 ## Objective
 
-Build FoxBrain University for enterprise learning, role-based learning paths, AI Tutor,
+Build VAFOX University for enterprise learning, role-based learning paths, AI Tutor,
 certification tracking and knowledge feedback.
 
 ## Completed

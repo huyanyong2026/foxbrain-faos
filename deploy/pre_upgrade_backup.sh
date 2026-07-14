@@ -7,7 +7,7 @@ BACKUP_DIR="${BACKUP_DIR:-/opt/backups/foxbrain_pre_upgrade_$STAMP}"
 
 sudo mkdir -p "$BACKUP_DIR"
 
-echo "Creating FoxBrain pre-upgrade backup at $BACKUP_DIR"
+echo "Creating VAFOX pre-upgrade backup at $BACKUP_DIR"
 
 copy_if_exists() {
   local src="$1"

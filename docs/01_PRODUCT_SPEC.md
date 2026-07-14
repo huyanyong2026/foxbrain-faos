@@ -1,6 +1,6 @@
 # 01 Product Spec / 产品说明书
 
-FoxBrain V4 是火狐狸企业 AI 操作系统。
+VAFOX V4 是火狐狸企业 AI 操作系统。
 
 ## 产品目标
 

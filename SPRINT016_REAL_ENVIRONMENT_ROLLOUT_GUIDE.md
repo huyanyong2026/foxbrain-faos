@@ -9,7 +9,7 @@ Move from local Sprint016 fixtures to a production-safe SAP copy pipeline withou
 ```text
 SAP Production
   -> read-only backup / replica / scheduled export
-  -> FoxBrain Enterprise Sync Engine
+  -> VAFOX Enterprise Sync Engine
   -> staging
   -> validation
   -> reconciliation
@@ -22,7 +22,7 @@ SAP Production
 
 1. Prepare a replica database or safe export folder outside SAP production.
 2. Create a read-only credential for the replica/export source.
-3. Configure only environment-variable references on the FoxBrain server.
+3. Configure only environment-variable references on the VAFOX server.
 4. Keep `sap_b1_sql_readonly` disabled unless explicitly approved.
 5. Open `/sync-center`.
 6. Run connection test.

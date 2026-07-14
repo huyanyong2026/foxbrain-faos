@@ -1,4 +1,4 @@
-# Enterprise Pack 20 - FoxBrain OS 1.0 Release
+# Enterprise Pack 20 - VAFOX OS 1.0 Release
 
 Pack 20 is the 1.0 integration and release-readiness package.
 
@@ -33,7 +33,7 @@ Pack 01 through Pack 19 are treated as the 1.0 baseline:
 - Digital twin
 - Decision engine
 - AI Strategy Center
-- FoxBrain University
+- VAFOX University
 - Growth Engine
 - Executive Command Center
 

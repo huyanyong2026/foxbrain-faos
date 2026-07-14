@@ -1,6 +1,6 @@
-# Task086 FoxBrain OS Enterprise V2.2 Business Autopilot
+# Task086 VAFOX Enterprise OS V2.2 Business Autopilot
 
-Continue from FoxBrain OS Enterprise V2.1 without rebuilding the system.
+Continue from VAFOX Enterprise OS V2.1 without rebuilding the system.
 
 ## Requirements
 

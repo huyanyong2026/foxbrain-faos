@@ -3,7 +3,7 @@
 ## Safety
 
 - Original `sap数据.zip` was not deleted or modified.
-- Validation used a temporary local FoxBrain database only.
+- Validation used a temporary local VAFOX database only.
 - No production SAP connection was made.
 - No program was installed on the SAP server.
 

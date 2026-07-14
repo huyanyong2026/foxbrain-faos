@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.7 AI business management contracts.
+"""VAFOX Enterprise OS V1.7 AI business management contracts.
 
 This module keeps V1.7 additive. It produces deterministic planning payloads
 that the portal can persist, audit and route through approval before any
@@ -80,7 +80,7 @@ def _num(metrics: dict[str, Any], key: str, default: float = 0) -> float:
 def build_ai_business_center_contract() -> dict[str, Any]:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.7",
+        "version": "VAFOX Enterprise OS V1.7",
         "module": "ai_business_management_center",
         "positioning": "AI business management system",
         "data_flow": [

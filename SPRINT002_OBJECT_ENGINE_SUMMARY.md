@@ -2,7 +2,7 @@
 
 ## Scope
 
-Sprint002 adds the FoxBrain Object Engine on top of the existing huyan.vafox.com portal without rebuilding the project or changing the ai.vafox.com boundary.
+Sprint002 adds the VAFOX Object Engine on top of the existing huyan.vafox.com portal without rebuilding the project or changing the ai.vafox.com boundary.
 
 ## Changed Files
 

@@ -20,7 +20,7 @@
 
 ## 保留的正式名称
 
-- FoxBrain、SAP、Osprey、Kailas、AI 等正式产品或品牌名称继续保留。
+- VAFOX、SAP、Osprey、Kailas、AI 等正式产品或品牌名称继续保留。
 
 ## 无效入口治理
 

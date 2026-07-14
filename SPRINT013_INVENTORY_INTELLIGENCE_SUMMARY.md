@@ -2,7 +2,7 @@
 
 ## Goal
 
-Sprint013 adds FoxBrain Inventory Intelligence Engine on top of the existing huyan.vafox.com system.
+Sprint013 adds VAFOX Inventory Intelligence Engine on top of the existing huyan.vafox.com system.
 
 The implementation is incremental. It does not rebuild the project, does not develop ai.vafox.com, and does not connect to production SAP. It only reads already imported SAP Excel/CSV-derived `sap_inventory` and `sap_sales` data.
 

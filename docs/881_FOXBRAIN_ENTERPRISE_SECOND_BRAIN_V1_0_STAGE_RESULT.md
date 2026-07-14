@@ -1,4 +1,4 @@
-# FoxBrain Enterprise Second Brain V1.0 Stage Result
+# VAFOX Enterprise Brain V1.0 Stage Result
 
 ## Completed
 
@@ -29,7 +29,7 @@ The upgrade is a product baseline layer, not a page-only change. It defines the 
 
 - product specification before implementation
 - unified object, knowledge, memory, decision and relationship engines
-- FireFox Edition as first landing case
+- VAFOX Edition as first landing case
 - future platform separation for ai.vafox.com
 
 ## Remaining Work

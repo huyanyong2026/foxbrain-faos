@@ -1,8 +1,8 @@
-# Task078 FoxBrain OS Enterprise V1.6 Multi-Agent System
+# Task078 VAFOX Enterprise OS V1.6 Multi-Agent System
 
 ## Request
 
-Continue based on FoxBrain OS Enterprise V1.0-V1.5. Do not rebuild. Establish a multi-agent framework so business, inventory, product, member and content agents share the SAP knowledge base and collaborate.
+Continue based on VAFOX Enterprise OS V1.0-V1.5. Do not rebuild. Establish a multi-agent framework so business, inventory, product, member and content agents share the SAP knowledge base and collaborate.
 
 ## Implementation
 

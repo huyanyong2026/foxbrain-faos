@@ -1,4 +1,4 @@
-"""Build Life Objects from confirmed local FoxBrain sources. Never connects to SAP."""
+"""Build Life Objects from confirmed local VAFOX sources. Never connects to SAP."""
 
 import argparse
 import json
@@ -23,7 +23,7 @@ def main():
     parser.add_argument(
         "--db",
         default=str(Path(os.environ.get("APP_DIR", "/opt/firefox-portal")) / "portal.db"),
-        help="FoxBrain SQLite database path",
+        help="VAFOX SQLite database path",
     )
     parser.add_argument("--publish", action="store_true", help="Commit local Life Object changes")
     args = parser.parse_args()

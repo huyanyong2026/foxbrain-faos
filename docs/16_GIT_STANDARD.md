@@ -10,7 +10,7 @@
 推荐格式：
 
 ```text
-Task001: FoxBrain V4 Architecture Upgrade
+Task001: VAFOX V4 Architecture Upgrade
 ```
 
 ## PR 描述

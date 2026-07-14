@@ -1,9 +1,9 @@
-# FoxBrain SAP Mirror 施工报告
+# VAFOX SAP Mirror 施工报告
 
 ## 已完成
 
 - 审计 SAP B1 公司数据库：SQL Server 2008 R2 Enterprise、约 5.4 GB、2120 张业务表。
-- 确认 FoxBrain 服务器剩余空间约 155 GB，具备完整镜像容量。
+- 确认 VAFOX 服务器剩余空间约 155 GB，具备完整镜像容量。
 - 在 SAP 中创建 `foxbrain_mirror_reader` 专用账号。
 - 验证专用账号可以读取 2120 张表。
 - 验证 `INSERT`、`UPDATE`、`DELETE`、`ALTER` 权限均为 0。
@@ -23,7 +23,7 @@
 
 提供以下任意一种条件即可继续：
 
-1. 将 `mcr.microsoft.com/mssql/server:2019-latest` 离线镜像包上传到 FoxBrain 服务器；或
+1. 将 `mcr.microsoft.com/mssql/server:2019-latest` 离线镜像包上传到 VAFOX 服务器；或
 2. 提供服务器可访问的 Microsoft SQL Server 2019 Docker 镜像仓库。
 
 镜像可用后继续执行：启动 Mirror、BACPAC 全量复制、2120 表行数与校验对账、只读应用账号、定时增量刷新、人工批准首次发布。
@@ -33,4 +33,4 @@
 - 未安装任何程序到 SAP 服务器。
 - 未修改 SAP 业务数据和数据库结构。
 - 仅新增专用只读安全主体。
-- FoxBrain AI 不写 SAP，不自动执行经营动作。
+- VAFOX AI 不写 SAP，不自动执行经营动作。

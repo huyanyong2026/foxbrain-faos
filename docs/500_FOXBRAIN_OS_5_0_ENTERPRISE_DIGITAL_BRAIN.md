@@ -1,8 +1,8 @@
-# FoxBrain OS 5.0 Enterprise Digital Brain
+# VAFOX OS 5.0 Enterprise Digital Brain
 
 ## Purpose
 
-FoxBrain OS 5.0 builds the Enterprise Digital Brain on top of OS 1.0 release governance, OS 2.0 unified architecture, OS 3.0 AI Operations and OS 4.0 Enterprise Digital Workforce.
+VAFOX OS 5.0 builds the Enterprise Digital Brain on top of OS 1.0 release governance, OS 2.0 unified architecture, OS 3.0 AI Operations and OS 4.0 Enterprise Digital Workforce.
 
 The Enterprise Digital Brain is the explainable decision layer for the company. It connects SAP B1, knowledge, memory, digital employees, AI operations, risk center and approval governance into one auditable recommendation system.
 

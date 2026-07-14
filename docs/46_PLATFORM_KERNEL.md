@@ -2,7 +2,7 @@
 
 ## Goal
 
-Platform Kernel makes FoxBrain feel like one enterprise AI operating system instead of separate pages.
+Platform Kernel makes VAFOX feel like one enterprise AI operating system instead of separate pages.
 
 ## Core Structures
 

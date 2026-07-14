@@ -1,4 +1,4 @@
-# Task059 - Pack20 FoxBrain OS 1.0 Release
+# Task059 - Pack20 VAFOX OS 1.0 Release
 
 ## Status
 

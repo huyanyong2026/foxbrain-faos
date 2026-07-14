@@ -16,7 +16,7 @@ Sprint016.5 extends the Sprint016 Enterprise Sync Engine with rollout controls r
 - Blocking reconciliation status when count, validation, or key issues exist.
 - Manual approval record before first publish.
 - Publish now requires approval and matched reconciliation.
-- Rollback record API for FoxBrain-side rollback tracking.
+- Rollback record API for VAFOX-side rollback tracking.
 - Scheduler remains disabled.
 - `.env.example` placeholders for Sprint016.5 environment variables.
 - `scripts/sprint016_5_readonly_verify.py` verification helper.

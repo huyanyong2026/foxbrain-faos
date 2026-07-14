@@ -1,6 +1,6 @@
-# Task084 FoxBrain OS Enterprise V1.9 Enterprise Knowledge Graph
+# Task084 VAFOX Enterprise OS V1.9 Enterprise Knowledge Graph
 
-Continue from FoxBrain OS Enterprise V1.8 without rebuilding the system.
+Continue from VAFOX Enterprise OS V1.8 without rebuilding the system.
 
 ## Requirements
 

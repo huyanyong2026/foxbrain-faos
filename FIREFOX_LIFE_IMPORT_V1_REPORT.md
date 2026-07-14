@@ -1,4 +1,4 @@
-# FireFox Living Enterprise Data Import V1.0 施工报告
+# VAFOX Living Enterprise Data Import V1.0 施工报告
 
 项目编号：FOX-LIFE-IMPORT-001
 
@@ -8,7 +8,7 @@
 
 ## 完成内容
 
-在现有 FoxBrain Enterprise OS 上增量增加生命资料导入中心，没有推倒现有生命企业、企业对象或 SAP Mirror 架构。
+在现有 VAFOX Enterprise OS 上增量增加生命资料导入中心，没有推倒现有生命企业、企业对象或 SAP Mirror 架构。
 
 导入流程已经实现：
 
@@ -113,6 +113,6 @@
 ## 后续建议
 
 1. 先修正商品文件 153 条缺少名称的数据，再重新上传。
-2. 将员工 SAP 用户清单与真实花名册合并审核，再连接 FireFox Identity Center。
+2. 将员工 SAP 用户清单与真实花名册合并审核，再连接 VAFOX Identity Center。
 3. 正式部署后先用小批次完成生产预览、确认和回滚演练。
 4. 通过独立、受控的 Core 导入服务承接原始资料归档；继续保持 SAP Mirror 与业务应用只读边界。

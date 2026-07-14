@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Pack 10 prepares FoxBrain OS for production deployment.
+Pack 10 prepares VAFOX OS for production deployment.
 
 The priority is stability, deployability, observability and rollback before adding more features.
 

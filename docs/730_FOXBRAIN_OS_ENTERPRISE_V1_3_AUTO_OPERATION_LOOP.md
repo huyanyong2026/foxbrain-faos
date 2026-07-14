@@ -1,8 +1,8 @@
-# FoxBrain OS Enterprise V1.3 Auto Operation Loop
+# VAFOX Enterprise OS V1.3 Auto Operation Loop
 
 ## Objective
 
-Continue from FoxBrain OS Enterprise V1.0 to V1.2 without rebuilding the system. V1.3 connects the existing SAP sync, AI analysis, boss daily report, task center and approval flow into one automatic operation loop.
+Continue from VAFOX Enterprise OS V1.0 to V1.2 without rebuilding the system. V1.3 connects the existing SAP sync, AI analysis, boss daily report, task center and approval flow into one automatic operation loop.
 
 ## Loop
 
@@ -14,7 +14,7 @@ Continue from FoxBrain OS Enterprise V1.0 to V1.2 without rebuilding the system.
 
 ## SAP Production Rule
 
-SAP production server remains independent. FoxBrain only performs read-only sync:
+SAP production server remains independent. VAFOX only performs read-only sync:
 
 - No SAP writeback.
 - No production database schema changes.

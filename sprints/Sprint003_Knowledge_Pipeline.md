@@ -3,13 +3,13 @@
 Status: Ready for Codex
 Target: huyan.vafox.com
 Priority: P0
-Depends on: Sprint001 FoxBrain Drive, Sprint002 Object Engine
+Depends on: Sprint001 VAFOX Drive, Sprint002 Object Engine
 
 ---
 
 ## 1. Sprint Goal
 
-让 FoxBrain Drive 中上传的文件，真正变成 AI 可以搜索、总结、引用和未来问答的企业知识。
+让 VAFOX Drive 中上传的文件，真正变成 AI 可以搜索、总结、引用和未来问答的企业知识。
 
 Sprint003 不要求一次完成真正大模型推理，但必须建立完整的知识流水线架构：
 
@@ -37,7 +37,7 @@ Ready for AI Q&A
 
 > 文件不是终点，知识才是终点。
 
-FoxBrain Drive 负责存文件；Knowledge Pipeline 负责把文件变成企业知识资产。
+VAFOX Drive 负责存文件；Knowledge Pipeline 负责把文件变成企业知识资产。
 
 ---
 

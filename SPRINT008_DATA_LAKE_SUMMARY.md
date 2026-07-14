@@ -2,7 +2,7 @@
 
 ## Scope
 
-Implemented FoxBrain Data Lake → Business Object Pipeline on top of the existing huyan.vafox.com codebase.
+Implemented VAFOX Data Lake → Business Object Pipeline on top of the existing huyan.vafox.com codebase.
 
 No production SAP connection was added. No SAP server program is required. No ai.vafox.com work was introduced.
 
@@ -114,7 +114,7 @@ No automatic object creation without human approval.
 
 - This sprint builds the foundation and uses basic matching rules.
 - Brand inference is conservative and intentionally incomplete.
-- Object approval creates local FoxBrain objects only.
+- Object approval creates local VAFOX objects only.
 - Advanced duplicate management and similarity scoring should be expanded in Sprint009.
 
 ## Test Results

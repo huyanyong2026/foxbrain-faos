@@ -1,16 +1,16 @@
-﻿# FoxBrain Enterprise OS Master Blueprint
+# VAFOX Enterprise OS Master Blueprint
 
 Version: 2026-07-13
 Targets: `core.vafox.com`, `ai.vafox.com`, `huyan.vafox.com`
-Current product surfaces: Enterprise Data Core, Enterprise AI, FoxBrain CEO Brain
+Current product surfaces: Enterprise Data Core, Enterprise AI, VAFOX Enterprise Brain
 
 ## 1. Positioning
 
-FoxBrain Enterprise OS is the enterprise second brain and AI operating system for Huohu Fox.
+VAFOX Enterprise OS is the enterprise second brain and AI operating system for Huohu Fox.
 
 It is not an ERP replacement, a normal website, a BI dashboard, or only an AI chat page.
 
-FoxBrain connects enterprise data, files, objects, knowledge, memory, graph relationships, rules, decisions, workflows and AI agents into one operating system.
+VAFOX connects enterprise data, files, objects, knowledge, memory, graph relationships, rules, decisions, workflows and AI agents into one operating system.
 
 Current operating boundary:
 
@@ -26,7 +26,7 @@ AI suggestions must carry evidence and receive human confirmation before they be
 
 SAP Business One remains the core business data source and system of record.
 
-FoxBrain is the system of intelligence:
+VAFOX is the system of intelligence:
 
 - Reads SAP exports or read-only synchronized SAP data.
 - Stores raw data and import history.
@@ -40,7 +40,7 @@ High-risk actions must go through human approval.
 ## 3. System Architecture
 
 ```text
-FoxBrain Enterprise OS
+VAFOX Enterprise OS
 
 |-- Enterprise Drive
 |-- Enterprise Data Lake
@@ -303,7 +303,7 @@ The CEO homepage must show visible business value immediately.
 
 Required visible sections:
 
-- FoxBrain CEO Brain
+- VAFOX Enterprise Brain
 - Business Health
 - Decision Insights
 - Inventory Intelligence

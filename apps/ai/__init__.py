@@ -1,1 +1,1 @@
-"""FoxBrain Enterprise AI application."""
+"""VAFOX Enterprise AI Center application."""

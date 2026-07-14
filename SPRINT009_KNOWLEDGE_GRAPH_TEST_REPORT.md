@@ -2,7 +2,7 @@
 
 ## Test Scope
 
-Sprint009 was tested against the local FoxBrain codebase and a temporary SQLite database.
+Sprint009 was tested against the local VAFOX codebase and a temporary SQLite database.
 
 No production SAP connection was made.
 
@@ -91,5 +91,5 @@ Smoke tests include Sprint009 schema, routes, source rules, Dashboard integratio
 
 ## Safety Result
 
-No production SAP connection was made. The graph builder reads only existing FoxBrain local tables and does not create unsupported AI conclusions.
+No production SAP connection was made. The graph builder reads only existing VAFOX local tables and does not create unsupported AI conclusions.
 

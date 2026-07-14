@@ -1,4 +1,4 @@
-# FoxBrain V7.1 Enterprise Kernel + MCP Runbook
+# VAFOX V7.1 Enterprise Kernel + MCP Runbook
 
 ## Scope
 

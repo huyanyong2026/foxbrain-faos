@@ -1,6 +1,6 @@
 # Autopilot Module
 
-FoxBrain OS Enterprise V2.2 autonomous business operation boundary.
+VAFOX Enterprise OS V2.2 autonomous business operation boundary.
 
 - Page route: `/business-autopilot`
 - API: `/api/v2.2`

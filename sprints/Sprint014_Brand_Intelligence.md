@@ -9,7 +9,7 @@ Depends on: Sprint009 Knowledge Graph, Sprint010 Decision Engine, Sprint011 Busi
 
 ## 1. Sprint Goal
 
-Build FoxBrain Brand Intelligence Engine.
+Build VAFOX Brand Intelligence Engine.
 
 Goal:
 
@@ -31,7 +31,7 @@ CEO Decision Support
 
 ## 2. Core Questions
 
-FoxBrain should answer:
+VAFOX should answer:
 
 - 哪个品牌贡献最大？
 - 哪个品牌利润最好？

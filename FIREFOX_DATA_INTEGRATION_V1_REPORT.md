@@ -1,4 +1,4 @@
-# FireFox Enterprise Data Integration Layer V1.0
+# VAFOX Enterprise Data Integration Layer V1.0
 
 项目编号：`FOX-DATA-INTEGRATION-001`
 

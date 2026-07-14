@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.9 knowledge graph and AI permission contracts."""
+"""VAFOX Enterprise OS V1.9 knowledge graph and AI permission contracts."""
 
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -72,7 +72,7 @@ V19_GUARDRAILS = {
 def build_enterprise_knowledge_graph_contract() -> dict[str, Any]:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.9",
+        "version": "VAFOX Enterprise OS V1.9",
         "module": "enterprise_knowledge_graph",
         "positioning": "enterprise relationship understanding and AI permission foundation",
         "entity_models": [asdict(model) for model in ENTERPRISE_ENTITY_MODELS],

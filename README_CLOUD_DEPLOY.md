@@ -1,6 +1,6 @@
-# FoxBrain Cloud Edition 云端部署说明
+# VAFOX Cloud Edition 云端部署说明
 
-这份说明给非技术老板也能看懂：FoxBrain 部署到腾讯云后，系统运行在云服务器上，不依赖你的个人电脑。
+这份说明给非技术老板也能看懂：VAFOX 部署到腾讯云后，系统运行在云服务器上，不依赖你的个人电脑。
 
 ## 1. 什么是云端运行
 
@@ -8,8 +8,8 @@
 用户手机/电脑
   -> https://huyan.vafox.com
   -> Nginx / HTTPS
-  -> FoxBrain Web
-  -> FoxBrain API
+  -> VAFOX Web
+  -> VAFOX API
   -> PostgreSQL / Redis / MinIO / Qdrant
   -> AI Agent / Knowledge Engine / SAP Sync / n8n / Dify / Wiki.js
 ```
@@ -25,7 +25,7 @@
   -> GitHub Actions 自动通知服务器
   -> 腾讯云服务器自动 pull
   -> Docker 自动重建
-  -> FoxBrain 自动升级
+  -> VAFOX 自动升级
 ```
 
 ## 3. 首次部署
@@ -128,7 +128,7 @@ https://huyan.vafox.com
 - Dify：先预留占位，后续按官方部署拆分服务
 - Wiki.js：Docker Compose 已预留 optional profile
 
-优先保证 FoxBrain 云端稳定运行，再逐步接入这些系统。
+优先保证 VAFOX 云端稳定运行，再逐步接入这些系统。
 
 ## 13. 常见故障
 

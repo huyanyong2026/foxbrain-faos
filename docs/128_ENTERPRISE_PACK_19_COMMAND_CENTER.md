@@ -1,6 +1,6 @@
 # Enterprise Pack 19 - Executive Command Center
 
-Pack 19 builds the Executive Command Center as the unified enterprise management entrance for FoxBrain OS.
+Pack 19 builds the Executive Command Center as the unified enterprise management entrance for VAFOX OS.
 
 ## Goal
 

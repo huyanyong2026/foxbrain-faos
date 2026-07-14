@@ -1,6 +1,6 @@
 # SAP B1 Sync Notes
 
-This page records the SAP B1 sync design for FoxBrain.
+This page records the SAP B1 sync design for VAFOX.
 
 Sensitive values are intentionally omitted. Put real hostnames, database names,
 usernames, and passwords in `.env` on the server only.
@@ -9,7 +9,7 @@ usernames, and passwords in `.env` on the server only.
 
 - Source: SAP B1 SQL Server
 - Target: local PostgreSQL snapshot database
-- Consumer: FoxBrain portal, Dify, n8n, and AI reporting jobs
+- Consumer: VAFOX portal, Dify, n8n, and AI reporting jobs
 - Schedule: daily automatic sync at 22:00
 
 ## Synced Data Areas

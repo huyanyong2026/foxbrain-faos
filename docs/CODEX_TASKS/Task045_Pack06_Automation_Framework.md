@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a unified automation framework based on Pack 01 to Pack 06 without breaking existing FoxBrain features.
+Build a unified automation framework based on Pack 01 to Pack 06 without breaking existing VAFOX features.
 
 ## Completed
 

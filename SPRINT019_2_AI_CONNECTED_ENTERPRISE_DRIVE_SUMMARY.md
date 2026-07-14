@@ -2,7 +2,7 @@
 
 ## Scope
 
-Sprint019.2 upgrades the existing FoxBrain Drive upload center into an AI connected enterprise drive on the current `huyan.vafox.com` portal. This is an incremental upgrade only. It does not add SAP write access, does not modify production SAP, and does not develop `ai.vafox.com`.
+Sprint019.2 upgrades the existing VAFOX Drive upload center into an AI connected enterprise drive on the current `huyan.vafox.com` portal. This is an incremental upgrade only. It does not add SAP write access, does not modify production SAP, and does not develop `ai.vafox.com`.
 
 ## Pre-upgrade inventory
 

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the enterprise knowledge platform framework from Pack 03 while preserving existing FoxBrain behavior.
+Build the enterprise knowledge platform framework from Pack 03 while preserving existing VAFOX behavior.
 
 ## Completed
 

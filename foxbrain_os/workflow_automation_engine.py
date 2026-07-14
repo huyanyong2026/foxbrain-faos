@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.8 workflow automation engine contracts."""
+"""VAFOX Enterprise OS V1.8 workflow automation engine contracts."""
 
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -99,7 +99,7 @@ V18_GUARDRAILS = {
 def build_workflow_automation_contract() -> dict[str, Any]:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.8",
+        "version": "VAFOX Enterprise OS V1.8",
         "module": "workflow_automation_engine",
         "positioning": "AI workflow automation center",
         "closed_loop": [
@@ -207,7 +207,7 @@ def build_periodic_report_plan(period: str = "daily") -> dict[str, Any]:
         title = "AI business monthly report"
     else:
         sections = ["yesterday business", "abnormal issues", "AI analysis", "today tasks", "boss focus items"]
-        title = "FireFox daily business report"
+        title = "VAFOX daily business report"
     return {
         "ok": True,
         "period": period,

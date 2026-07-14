@@ -1,8 +1,8 @@
-# 28 FoxBrain Jarvis / Enterprise AI Assistant
+# 28 VAFOX AI Assistant / Enterprise AI Assistant
 
 ## Goal
 
-FoxBrain Jarvis is the unified AI assistant entrance for the company. It connects the existing FoxBrain modules without rewriting them:
+VAFOX AI Assistant is the unified AI assistant entrance for the company. It connects the existing VAFOX modules without rewriting them:
 
 - Business cockpit and SAP B1 summary
 - Knowledge Center

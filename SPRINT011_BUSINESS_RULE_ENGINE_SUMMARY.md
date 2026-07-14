@@ -2,7 +2,7 @@
 
 ## Scope
 
-Sprint011 adds the first FoxBrain Business Rule Engine on top of Sprint010 Decision Engine.
+Sprint011 adds the first VAFOX Business Rule Engine on top of Sprint010 Decision Engine.
 
 This is an incremental upgrade. It does not rebuild the system, does not develop ai.vafox.com, does not connect production SAP, and does not require external AI APIs.
 

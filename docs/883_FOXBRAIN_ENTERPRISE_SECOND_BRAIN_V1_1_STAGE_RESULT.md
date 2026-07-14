@@ -1,4 +1,4 @@
-# FoxBrain Enterprise Second Brain V1.1 Stage Result
+# VAFOX Enterprise Brain V1.1 Stage Result
 
 ## Completed
 
@@ -16,7 +16,7 @@
   - `/api/object-engine`
   - `/api/knowledge-pipeline`
   - `/api/ceo-home`
-- Reworked the root dashboard contract to `FoxBrain CEO Home` while preserving the ten-entry minimal home policy.
+- Reworked the root dashboard contract to `VAFOX Enterprise Brain` while preserving the ten-entry minimal home policy.
 - Added smoke tests for module, routes, imports and documentation.
 
 ## Compatibility
@@ -28,7 +28,7 @@
 
 ## Architecture Review
 
-V1.1 turns FoxBrain from a document/knowledge page into a controlled second-brain pipeline:
+V1.1 turns VAFOX from a document/knowledge page into a controlled second-brain pipeline:
 
 - Drive organizes enterprise files into knowledge domains.
 - Object Engine makes every enterprise item addressable and permissioned.

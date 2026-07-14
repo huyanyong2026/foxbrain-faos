@@ -1,8 +1,8 @@
-# FoxBrain OS 2.0 Unified Data Service
+# VAFOX OS 2.0 Unified Data Service
 
 ## Purpose
 
-The unified data service is the read-first data layer for FoxBrain OS 2.0. It makes SAP B1, local archives, knowledge, memory, tasks and reports available through consistent, permission-aware APIs.
+The unified data service is the read-first data layer for VAFOX OS 2.0. It makes SAP B1, local archives, knowledge, memory, tasks and reports available through consistent, permission-aware APIs.
 
 ## Source Priority
 

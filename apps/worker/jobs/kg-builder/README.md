@@ -1,6 +1,6 @@
 # Knowledge Graph Builder Job
 
-FoxBrain OS Enterprise V1.9 worker job boundary.
+VAFOX Enterprise OS V1.9 worker job boundary.
 
 Schedule: 02:30 daily.
 

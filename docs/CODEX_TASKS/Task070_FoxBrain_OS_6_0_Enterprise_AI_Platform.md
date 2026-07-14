@@ -1,8 +1,8 @@
-# Task070 FoxBrain OS 6.0 Enterprise AI Platform
+# Task070 VAFOX OS 6.0 Enterprise AI Platform
 
 ## Goal
 
-Build the Enterprise AI Platform based on FoxBrain OS 1.0 to 5.0 and the 6.0 upgrade package.
+Build the Enterprise AI Platform based on VAFOX OS 1.0 to 5.0 and the 6.0 upgrade package.
 
 ## Completed
 

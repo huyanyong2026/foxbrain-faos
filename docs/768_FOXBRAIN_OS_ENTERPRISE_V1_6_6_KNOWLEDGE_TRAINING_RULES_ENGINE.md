@@ -1,8 +1,8 @@
-# FoxBrain OS Enterprise V1.6.6 Knowledge Training Rules Engine
+# VAFOX Enterprise OS V1.6.6 Knowledge Training Rules Engine
 
 ## Goal
 
-Continue from FoxBrain OS Enterprise V1.6.5. V1.6.6 establishes the enterprise knowledge training engine and operating rule library so AI decisions follow FireFox operating logic.
+Continue from VAFOX Enterprise OS V1.6.5. V1.6.6 establishes the enterprise knowledge training engine and operating rule library so AI decisions follow VAFOX operating logic.
 
 ## What V1.6.6 Does
 

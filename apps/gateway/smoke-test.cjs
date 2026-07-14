@@ -2,7 +2,7 @@ const baseUrl = (process.env.GATEWAY_URL || "http://127.0.0.1:4173/").replace(/\
 
 const requiredContent = [
   "向外探索",
-  "FireFox Story",
+  "VAFOX Story",
   "Adventure",
   "Brand Universe",
   "Explorer",

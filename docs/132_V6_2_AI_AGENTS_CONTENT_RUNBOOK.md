@@ -1,4 +1,4 @@
-# FoxBrain V6.2 AI Agents + Content Center Runbook
+# VAFOX V6.2 AI Agents + Content Center Runbook
 
 ## Goal
 

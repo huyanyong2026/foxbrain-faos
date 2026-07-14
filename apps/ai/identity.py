@@ -1,4 +1,4 @@
-"""FireFox Identity Center domain model and permission rules."""
+"""VAFOX Identity Center domain model and permission rules."""
 
 from __future__ import annotations
 
@@ -136,7 +136,7 @@ def seed_identity(cur):
             """insert into identity_roles(role_key,name,description,default_scope)
             values(%s,%s,%s,%s) on conflict(role_key) do update set name=excluded.name,
             description=excluded.description,default_scope=excluded.default_scope""",
-            (role_key, definition["name"], "FireFox Identity Center 系统角色", definition["scope"]),
+            (role_key, definition["name"], "VAFOX Identity Center 系统角色", definition["scope"]),
         )
     for permission in permission_catalog():
         category = permission.split(".", 1)[0]

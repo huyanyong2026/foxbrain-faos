@@ -1,6 +1,6 @@
-# Task083 FoxBrain OS Enterprise V1.8 Workflow Automation Engine
+# Task083 VAFOX Enterprise OS V1.8 Workflow Automation Engine
 
-Continue from FoxBrain OS Enterprise V1.7 without rebuilding the system.
+Continue from VAFOX Enterprise OS V1.7 without rebuilding the system.
 
 ## Requirements
 

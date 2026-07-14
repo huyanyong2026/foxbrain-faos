@@ -1,10 +1,10 @@
-# FoxBrain Owner/Enterprise OS 7.9 Planning
+# VAFOX Enterprise OS 7.9 Planning
 
 ## Goal
 
-The 7.9 package clarifies that FoxBrain should not become one mixed system. It should be planned as one private owner system and one enterprise employee system.
+The 7.9 package clarifies that VAFOX should not become one mixed system. It should be planned as one private owner system and one enterprise employee system.
 
-## System 1: FoxBrain Owner OS
+## System 1: VAFOX Enterprise Brain
 
 Domain: `huyan.vafox.com`
 
@@ -23,7 +23,7 @@ Primary use:
 
 This system is not for ordinary employees. It stores owner private knowledge, sensitive enterprise assets and high-permission decision material.
 
-## System 2: FoxBrain Enterprise OS
+## System 2: VAFOX Enterprise OS
 
 Domain: `ai.vafox.com`
 

@@ -1,4 +1,4 @@
-# Sprint008: FoxBrain Data Lake + Business Object Pipeline
+# Sprint008: VAFOX Data Lake + Business Object Pipeline
 
 Status: Ready for Codex  
 Target: huyan.vafox.com  
@@ -9,7 +9,7 @@ Depends on: Sprint001-007
 
 ## 1. Sprint Goal
 
-Build the first end-to-end FoxBrain business data pipeline:
+Build the first end-to-end VAFOX business data pipeline:
 
 ```text
 SAP exported data
@@ -31,7 +31,7 @@ Knowledge base
 CEO Dashboard
 ```
 
-Sprint007 proved that real SAP exported files can be imported safely. Sprint008 turns those imported rows into a governed enterprise data lake and then links them to FoxBrain business objects.
+Sprint007 proved that real SAP exported files can be imported safely. Sprint008 turns those imported rows into a governed enterprise data lake and then links them to VAFOX business objects.
 
 ---
 
@@ -340,7 +340,7 @@ POST /api/object-suggestions/:id/reject
 GET  /api/business-metrics/summary
 ```
 
-Approval endpoints should not modify SAP data. They only create or link local FoxBrain business objects.
+Approval endpoints should not modify SAP data. They only create or link local VAFOX business objects.
 
 ---
 

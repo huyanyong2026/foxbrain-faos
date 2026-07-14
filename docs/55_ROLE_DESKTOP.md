@@ -2,7 +2,7 @@
 
 ## Goal
 
-Role Desktop adapts FoxBrain to boss, manager, employee and admin work.
+Role Desktop adapts VAFOX to boss, manager, employee and admin work.
 
 ## Route
 

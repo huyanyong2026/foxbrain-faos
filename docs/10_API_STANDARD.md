@@ -146,7 +146,7 @@ Graph APIs must not invent relationships, risk values or financial facts.
 
 Agent APIs must not fake conclusions. Business-changing actions require human review.
 
-## Task010 FoxBrain Jarvis API
+## Task010 VAFOX AI Assistant API
 
 - `GET /api/jarvis/status`
 - `GET /api/jarvis/suggestions`

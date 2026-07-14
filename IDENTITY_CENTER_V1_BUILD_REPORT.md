@@ -1,4 +1,4 @@
-# FireFox Identity Center V1.0 Build Report
+# VAFOX Identity Center V1.0 Build Report
 
 ## Architecture
 

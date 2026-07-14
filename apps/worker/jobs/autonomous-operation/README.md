@@ -1,6 +1,6 @@
 # Autonomous Operation Jobs
 
-FoxBrain OS Enterprise V2.2 worker job boundary.
+VAFOX Enterprise OS V2.2 worker job boundary.
 
 Schedule:
 

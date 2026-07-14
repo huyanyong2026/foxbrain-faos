@@ -1,6 +1,6 @@
 # Simulation Jobs
 
-FoxBrain OS Enterprise V2.1 worker job boundary.
+VAFOX Enterprise OS V2.1 worker job boundary.
 
 Planned jobs:
 

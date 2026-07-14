@@ -1,8 +1,8 @@
-# FoxBrain OS 2.0 Master Upgrade
+# VAFOX OS 2.0 Master Upgrade
 
 ## Positioning
 
-FoxBrain OS 2.0 is the compatibility-first upgrade target for the current FoxBrain system. It absorbs the V5 progress package and the Pack 18 to Pack 20 foundation, then turns them into one maintainable operating system plan.
+VAFOX OS 2.0 is the compatibility-first upgrade target for the current VAFOX system. It absorbs the V5 progress package and the Pack 18 to Pack 20 foundation, then turns them into one maintainable operating system plan.
 
 The upgrade must not delete existing capabilities. All changes should preserve current login, permissions, SAP sync, knowledge, Jarvis, dashboard, automation, memory, reporting, growth, command center, deployment and backup behavior unless a replacement has been reviewed, tested and documented.
 

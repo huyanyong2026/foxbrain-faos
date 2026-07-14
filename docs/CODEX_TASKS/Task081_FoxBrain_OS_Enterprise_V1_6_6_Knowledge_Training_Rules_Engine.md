@@ -1,8 +1,8 @@
-# Task081 FoxBrain OS Enterprise V1.6.6 Knowledge Training Rules Engine
+# Task081 VAFOX Enterprise OS V1.6.6 Knowledge Training Rules Engine
 
 ## Request
 
-Based on FoxBrain OS Enterprise V1.6.5, upgrade to V1.6.6. Build the enterprise knowledge training engine and operating rule library. Fuse SAP data, external knowledge and boss operating experience so AI decisions match FireFox real operating logic.
+Based on VAFOX Enterprise OS V1.6.5, upgrade to V1.6.6. Build the enterprise knowledge training engine and operating rule library. Fuse SAP data, external knowledge and boss operating experience so AI decisions match VAFOX real operating logic.
 
 ## Implementation
 

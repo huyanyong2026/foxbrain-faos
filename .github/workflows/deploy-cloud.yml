@@ -1,4 +1,4 @@
-name: Deploy FoxBrain Cloud Edition
+name: Deploy VAFOX Cloud Edition
 
 on:
   push:

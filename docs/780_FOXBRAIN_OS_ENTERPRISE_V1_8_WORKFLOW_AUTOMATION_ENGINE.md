@@ -1,6 +1,6 @@
-# FoxBrain OS Enterprise V1.8 Workflow Automation Engine
+# VAFOX Enterprise OS V1.8 Workflow Automation Engine
 
-V1.8 continues from V1.7 without rebuilding the system. It upgrades FoxBrain from AI business analysis into AI workflow automation.
+V1.8 continues from V1.7 without rebuilding the system. It upgrades VAFOX from AI business analysis into AI workflow automation.
 
 ## Goal
 

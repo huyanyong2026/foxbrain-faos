@@ -2,7 +2,7 @@
 
 ## Goal
 
-Upgrade huyan.vafox.com from a capability-heavy backend portal into a visible FoxBrain CEO Brain experience without rebuilding the system.
+Upgrade huyan.vafox.com from a capability-heavy backend portal into a visible VAFOX Enterprise Brain experience without rebuilding the system.
 
 ## Scope
 

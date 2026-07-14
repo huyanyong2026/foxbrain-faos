@@ -4,7 +4,7 @@
 
 - Python syntax check: passed with bundled Python.
 - Root routing: authenticated `/` now routes to CEO Brain.
-- Direct render check: `App.dashboard()` renders `FoxBrain CEO Brain` and `CEO Experience 2.0`.
+- Direct render check: `App.dashboard()` renders `VAFOX Enterprise Brain` and `CEO Experience 2.0`.
 - Login system: preserved; unauthenticated requests still show login.
 
 ## Smoke Scope

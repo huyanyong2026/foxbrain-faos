@@ -1,8 +1,8 @@
-# FoxBrain OS Enterprise V1.4 SAP Knowledge Engine
+# VAFOX Enterprise OS V1.4 SAP Knowledge Engine
 
 ## Objective
 
-Continue from FoxBrain OS Enterprise V1.0 to V1.3 without rebuilding the system. V1.4 focuses on SAP Knowledge Engine rather than new pages.
+Continue from VAFOX Enterprise OS V1.0 to V1.3 without rebuilding the system. V1.4 focuses on SAP Knowledge Engine rather than new pages.
 
 ## Scope
 

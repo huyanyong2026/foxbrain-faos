@@ -1,4 +1,4 @@
-# Sprint019.1: FoxBrain Usability & Intelligence Polish｜易用性与智能体验完善
+# Sprint019.1: VAFOX Usability & Intelligence Polish｜易用性与智能体验完善
 
 Status: Ready for Codex
 Target: huyan.vafox.com

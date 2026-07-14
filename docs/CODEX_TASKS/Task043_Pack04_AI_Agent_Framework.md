@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a stable enterprise multi-agent framework based on Pack 01 to Pack 04 without breaking existing FoxBrain features.
+Build a stable enterprise multi-agent framework based on Pack 01 to Pack 04 without breaking existing VAFOX features.
 
 ## Completed
 

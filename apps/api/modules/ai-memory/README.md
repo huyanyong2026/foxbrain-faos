@@ -1,6 +1,6 @@
 # AI Memory Module
 
-FoxBrain OS Enterprise V1.7 AI business memory boundary.
+VAFOX Enterprise OS V1.7 AI business memory boundary.
 
 - API: `/api/business-memory`
 - Storage: `business_memory`

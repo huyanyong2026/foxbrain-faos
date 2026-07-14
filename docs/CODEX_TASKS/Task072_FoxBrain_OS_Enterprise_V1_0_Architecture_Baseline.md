@@ -1,4 +1,4 @@
-# Task072 FoxBrain OS Enterprise V1.0 Architecture Baseline
+# Task072 VAFOX Enterprise OS V1.0 Architecture Baseline
 
 ## Goal
 

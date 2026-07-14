@@ -1,8 +1,8 @@
-# FoxBrain OS 3.0 AI Operations Center
+# VAFOX OS 3.0 AI Operations Center
 
 ## Purpose
 
-FoxBrain OS 3.0 adds an AI Operations Center on top of the 1.0 release baseline and the 2.0 unified architecture target. It turns AI suggestions into reviewable operating plans, approval records, safe internal execution and business feedback loops.
+VAFOX OS 3.0 adds an AI Operations Center on top of the 1.0 release baseline and the 2.0 unified architecture target. It turns AI suggestions into reviewable operating plans, approval records, safe internal execution and business feedback loops.
 
 ## Operating Principle
 

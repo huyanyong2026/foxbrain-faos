@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.1 AI Knowledge Brain contracts.
+"""VAFOX Enterprise OS V1.1 AI Knowledge Brain contracts.
 
 This module does not replace the existing portal implementation. It gives the
 current SAP and knowledge features a stable service-shaped contract so they can
@@ -147,7 +147,7 @@ def build_enterprise_knowledge_brain(
         gaps.append("sap_understanding_needs_data_or_review")
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.1",
+        "version": "VAFOX Enterprise OS V1.1",
         "service": "ai_knowledge_brain",
         "positioning": "SAP data understanding + enterprise knowledge retrieval + explainable AI context",
         "knowledge_metrics": {

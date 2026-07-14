@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the enterprise long-term memory system based on Pack 01 to Pack 09 while preserving existing FoxBrain features.
+Build the enterprise long-term memory system based on Pack 01 to Pack 09 while preserving existing VAFOX features.
 
 ## Completed
 

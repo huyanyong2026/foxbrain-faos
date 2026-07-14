@@ -1,4 +1,4 @@
-"""Read-only connectors for FoxBrain enterprise context sources."""
+"""Read-only connectors for VAFOX enterprise context sources."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ class ReadOnlyJSONConnector:
         now = time.monotonic()
         if cached and now - cached[0] <= self.cache_seconds:
             return cached[1]
-        headers = {"Accept": "application/json", "User-Agent": "FoxBrain-AI/1.0"}
+        headers = {"Accept": "application/json", "User-Agent": "VAFOX-AI/1.0"}
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         request = Request(url, headers=headers, method="GET")

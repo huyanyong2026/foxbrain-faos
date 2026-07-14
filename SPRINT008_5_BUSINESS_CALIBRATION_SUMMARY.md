@@ -114,5 +114,5 @@ Detailed calibration data stays behind `/business-calibration` instead of expand
 
 ## Safety
 
-No production SAP connection was made. Sprint008.5 only works with uploaded/exported SAP Excel/CSV-like files and the local FoxBrain database.
+No production SAP connection was made. Sprint008.5 only works with uploaded/exported SAP Excel/CSV-like files and the local VAFOX database.
 

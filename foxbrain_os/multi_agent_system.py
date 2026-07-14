@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.6 multi-agent collaboration contracts."""
+"""VAFOX Enterprise OS V1.6 multi-agent collaboration contracts."""
 
 from dataclasses import asdict, dataclass
 
@@ -149,7 +149,7 @@ COLLABORATION_FLOWS = (
 def build_multi_agent_system_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6",
+        "version": "VAFOX Enterprise OS V1.6",
         "module": "multi_agent_system",
         "strategy": "extend_existing_agent_framework_with_shared_sap_knowledge_context_without_rebuilding",
         "roles": [asdict(role) for role in MULTI_AGENT_ROLES],
@@ -182,7 +182,7 @@ def build_shared_sap_context(sap_engine: dict | None = None, knowledge_quality: 
     quality = knowledge_quality.get("quality_score") or knowledge_quality.get("score") or {}
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6",
+        "version": "VAFOX Enterprise OS V1.6",
         "policy": SHARED_SAP_KNOWLEDGE_POLICY,
         "sap_context_sources": {
             "sap_knowledge_engine": "/api/sap-knowledge-engine",
@@ -209,7 +209,7 @@ def build_agent_collaboration_plan(objective: str, agents: tuple[str, ...] | lis
         selected_roles = [asdict(role) for role in MULTI_AGENT_ROLES]
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6",
+        "version": "VAFOX Enterprise OS V1.6",
         "objective": (objective or "").strip(),
         "agents": selected_roles,
         "execution_mode": "approval_then_execute",

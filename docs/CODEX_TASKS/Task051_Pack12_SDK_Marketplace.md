@@ -2,7 +2,7 @@
 
 ## Objective
 
-Build the foundation for FoxBrain OS as an extensible enterprise platform.
+Build the foundation for VAFOX OS as an extensible enterprise platform.
 
 ## Completed
 

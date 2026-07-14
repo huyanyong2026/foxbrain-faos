@@ -1,4 +1,4 @@
-"""Reviewed SAP export imports for the FireFox Living Enterprise."""
+"""Reviewed SAP export imports for the VAFOX Living Enterprise."""
 
 from __future__ import annotations
 

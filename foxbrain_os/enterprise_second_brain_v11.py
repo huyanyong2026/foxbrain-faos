@@ -1,4 +1,4 @@
-"""FoxBrain Enterprise Second Brain V1.1 execution contract."""
+"""VAFOX Enterprise Brain V1.1 execution contract."""
 
 from dataclasses import asdict, dataclass
 
@@ -82,7 +82,7 @@ V11_ROUTES = {
 def build_drive_2_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain Drive 2.0",
+        "version": "VAFOX Drive 2.0",
         "positioning": "Enterprise Knowledge Drive",
         "domains": [asdict(domain) for domain in DRIVE_2_DOMAINS],
         "rules": {
@@ -126,7 +126,7 @@ def build_ceo_home_v11_contract() -> dict:
 def build_enterprise_second_brain_v11_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain Enterprise Second Brain V1.1",
+        "version": "VAFOX Enterprise Brain V1.1",
         "focus": ["Drive 2.0", "Object Engine", "Knowledge Pipeline", "CEO Home"],
         "drive_2": build_drive_2_contract(),
         "object_engine": build_object_engine_contract(),

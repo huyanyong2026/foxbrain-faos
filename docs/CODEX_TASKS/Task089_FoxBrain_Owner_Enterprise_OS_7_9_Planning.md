@@ -1,4 +1,4 @@
-# Task089 FoxBrain Owner/Enterprise OS 7.9 Planning
+# Task089 VAFOX Enterprise OS 7.9 Planning
 
 ## Objective
 
@@ -14,8 +14,8 @@ Implement the 7.9 planning package as a formal architecture boundary between `hu
 
 ## Rules
 
-- `huyan.vafox.com` is FoxBrain Owner OS.
-- `ai.vafox.com` is FoxBrain Enterprise OS.
+- `huyan.vafox.com` is VAFOX Enterprise Brain.
+- `ai.vafox.com` is VAFOX Enterprise OS.
 - The systems are partially synchronized, not fully merged.
 - Sensitive owner data never syncs to the employee system.
 - SAP stays independent and read-only into the data middle platform.

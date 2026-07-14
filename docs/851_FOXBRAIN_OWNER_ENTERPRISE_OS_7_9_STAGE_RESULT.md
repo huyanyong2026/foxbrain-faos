@@ -1,10 +1,10 @@
-# FoxBrain Owner/Enterprise OS 7.9 Stage Result
+# VAFOX Enterprise OS 7.9 Stage Result
 
 ## Completed
 
 - Added the Owner OS and Enterprise OS boundary planning contract.
-- Defined `huyan.vafox.com` as FoxBrain Owner OS.
-- Defined `ai.vafox.com` as FoxBrain Enterprise OS.
+- Defined `huyan.vafox.com` as VAFOX Enterprise Brain.
+- Defined `ai.vafox.com` as VAFOX Enterprise OS.
 - Added partial sync allow-list and blocked data domains.
 - Added role boundaries for owner, finance, store manager, employee and customer.
 - Added SAP-to-data-middle-platform flow.
@@ -18,4 +18,4 @@ Existing UX 2.0, V1.6.6 to V2.3 modules, SAP read-only rules, approval rules and
 
 ## Result
 
-FoxBrain now has a formal boundary that prevents the boss private system and employee operating system from becoming mixed together.
+VAFOX now has a formal boundary that prevents the boss private system and employee operating system from becoming mixed together.

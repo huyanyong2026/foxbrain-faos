@@ -1,4 +1,4 @@
-"""FoxBrain OS Enterprise V1.6.6 knowledge training and operating rules engine."""
+"""VAFOX Enterprise OS V1.6.6 knowledge training and operating rules engine."""
 
 from dataclasses import asdict, dataclass
 
@@ -156,9 +156,9 @@ DECISION_GUARDRAILS = (
     ),
     DecisionGuardrail(
         "fire_fox_logic_required",
-        "FireFox Operating Logic Required",
+        "VAFOX Operating Logic Required",
         ("all_agents", "decision_engine", "business_radar"),
-        "AI recommendations must follow reviewed FireFox operating rules before being shown as decision support.",
+        "AI recommendations must follow reviewed VAFOX operating rules before being shown as decision support.",
         "rules_matched",
     ),
     DecisionGuardrail(
@@ -174,7 +174,7 @@ DECISION_GUARDRAILS = (
 def build_knowledge_training_engine_contract() -> dict:
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6.6",
+        "version": "VAFOX Enterprise OS V1.6.6",
         "module": "knowledge_training_rules_engine",
         "strategy": "turn_fusion_knowledge_into_reviewed_training_signals_operating_rules_and_decision_guardrails",
         "training_signals": [asdict(signal) for signal in TRAINING_SIGNALS],
@@ -199,7 +199,7 @@ def build_operating_rule_library(domain: str = "") -> dict:
         rules = [rule for rule in rules if rule["domain"] == normalized or normalized in rule["decision_use"]]
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6.6",
+        "version": "VAFOX Enterprise OS V1.6.6",
         "rules": rules,
         "rule_count": len(rules),
         "rule_change_policy": "review_required_before_rule_becomes_active_company_logic",
@@ -212,7 +212,7 @@ def build_training_cycle_plan(fusion_context: dict | None = None, knowledge_qual
     quality = knowledge_quality.get("knowledge_quality") or {}
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6.6",
+        "version": "VAFOX Enterprise OS V1.6.6",
         "cycle": [
             "collect_sap_business_facts",
             "collect_reviewed_external_industry_context",
@@ -237,11 +237,11 @@ def build_ai_decision_logic(fusion_context: dict | None = None, operating_metric
     guardrails = [asdict(guardrail) for guardrail in DECISION_GUARDRAILS]
     return {
         "ok": True,
-        "version": "FoxBrain OS Enterprise V1.6.6",
+        "version": "VAFOX Enterprise OS V1.6.6",
         "decision_logic": {
             "source_priority": [
                 "SAP facts define current company state",
-                "reviewed boss experience defines FireFox operating preference and tradeoff",
+                "reviewed boss experience defines VAFOX operating preference and tradeoff",
                 "reviewed external knowledge adds industry context",
             ],
             "fire_fox_operating_logic": active_rules,

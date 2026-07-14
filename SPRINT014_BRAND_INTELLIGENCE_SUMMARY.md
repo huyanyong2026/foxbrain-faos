@@ -2,7 +2,7 @@
 
 ## Goal
 
-Sprint014 adds FoxBrain Brand Intelligence Engine to the existing huyan.vafox.com system.
+Sprint014 adds VAFOX Brand Intelligence Engine to the existing huyan.vafox.com system.
 
 The implementation is incremental. It does not rebuild the project, does not develop ai.vafox.com, and does not connect to production SAP. It only reads already imported SAP export data in `sap_sales` and `sap_inventory`.
 

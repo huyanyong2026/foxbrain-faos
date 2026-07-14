@@ -9,7 +9,7 @@ Depends on: Sprint009 Knowledge Graph, Sprint010 Decision Engine, Sprint011 Busi
 
 ## 1. Sprint Goal
 
-Build FoxBrain Enterprise Copilot Foundation.
+Build VAFOX Enterprise Copilot Foundation.
 
 The goal is to allow CEO to ask questions about the enterprise and receive evidence-based answers.
 

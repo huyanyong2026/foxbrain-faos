@@ -1,6 +1,6 @@
-# FoxBrain OS 6.0 Enterprise AI Platform
+# VAFOX OS 6.0 Enterprise AI Platform
 
-FoxBrain OS 6.0 builds the Enterprise AI Platform on top of OS 1.0 to OS 5.0. It keeps the existing portal, SAP sync, Jarvis, AI Operations, Digital Workforce and Enterprise Digital Brain stable, then adds a platform layer for plugins, integrations, API governance, multi-company and multi-brand readiness, developer documentation and monitoring.
+VAFOX OS 6.0 builds the Enterprise AI Platform on top of OS 1.0 to OS 5.0. It keeps the existing portal, SAP sync, Jarvis, AI Operations, Digital Workforce and Enterprise Digital Brain stable, then adds a platform layer for plugins, integrations, API governance, multi-company and multi-brand readiness, developer documentation and monitoring.
 
 ## Platform Scope
 

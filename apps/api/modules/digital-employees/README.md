@@ -1,6 +1,6 @@
 # Digital Employees Module
 
-FoxBrain OS Enterprise V1.9 digital employee management boundary.
+VAFOX Enterprise OS V1.9 digital employee management boundary.
 
 - API: `/api/enterprise-knowledge-graph/digital-employees`
 - Storage: `digital_employees`

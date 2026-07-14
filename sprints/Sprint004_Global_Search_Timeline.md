@@ -9,7 +9,7 @@ Depends on: Sprint001 Drive, Sprint002 Object Engine, Sprint003 Knowledge Pipeli
 
 ## 1. Sprint Goal
 
-让 FoxBrain 从“能存文件、能建对象、能生成知识”升级为“能统一搜索企业全部信息，并为每个对象形成时间轴”。
+让 VAFOX 从“能存文件、能建对象、能生成知识”升级为“能统一搜索企业全部信息，并为每个对象形成时间轴”。
 
 Sprint004 完成后，CEO 可以在一个搜索框中搜索：
 
@@ -27,7 +27,7 @@ Sprint004 完成后，CEO 可以在一个搜索框中搜索：
 
 ## 2. Core Principle
 
-> FoxBrain 不是文件柜，而是企业记忆系统。
+> VAFOX 不是文件柜，而是企业记忆系统。
 
 全局搜索解决“找得到”。
 

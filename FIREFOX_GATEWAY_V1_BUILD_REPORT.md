@@ -1,9 +1,9 @@
-# FireFox Gateway V1.0 建设报告
+# VAFOX Gateway V1.0 建设报告
 
 ## 完成内容
 
-- 建成 FireFox Outdoor Growth Platform 独立入口。
-- 完成全屏 Hero、FireFox Story、Adventure、Brand Universe、Explorer、Store 六个首发模块。
+- 建成 VAFOX Outdoor Growth Platform 独立入口。
+- 完成全屏 Hero、VAFOX Story、Adventure、Brand Universe、Explorer、Store 六个首发模块。
 - 预留 Commerce、AI Outdoor、Explorer Life、Dream Community 四个未来入口，未完成前不跳转到空白页面。
 - 增加手机导航、探索方向选择、品牌提示、门店提示和内容弹窗。
 - 使用三张定制户外实景图，全部转为 WebP 并控制总体积。
@@ -54,7 +54,7 @@
 - 桌面端 1440 x 900 线上截图：通过。
 - 手机端 390 x 844 布局、菜单与交互：通过。
 - 安全响应头和静态资源缓存：通过。
-- 旧 FoxBrain 登录页不再接管 Gateway 域名。
+- 旧 VAFOX 登录页不再接管 Gateway 域名。
 
 ## 下一步
 

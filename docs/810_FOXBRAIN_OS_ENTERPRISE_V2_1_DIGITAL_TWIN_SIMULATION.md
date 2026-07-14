@@ -1,6 +1,6 @@
-# FoxBrain OS Enterprise V2.1 Digital Twin Simulation
+# VAFOX Enterprise OS V2.1 Digital Twin Simulation
 
-V2.1 upgrades FoxBrain from AI digital employee teams into enterprise digital twin and business simulation.
+V2.1 upgrades VAFOX from AI digital employee teams into enterprise digital twin and business simulation.
 
 ## Goal
 

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Pack 14 establishes the enterprise digital twin framework for FoxBrain OS. It represents
+Pack 14 establishes the enterprise digital twin framework for VAFOX OS. It represents
 stores, employees, products, customers, suppliers, warehouses and contracts as connected
 digital entities, while keeping simulation separated from production data.
 

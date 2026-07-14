@@ -1,6 +1,6 @@
 # Content Center Module
 
-FoxBrain OS Enterprise V2.3 AI Content Factory boundary.
+VAFOX Enterprise OS V2.3 AI Content Factory boundary.
 
 - API: `/api/v2.3/content-factory`
 - Storage: `content_assets`

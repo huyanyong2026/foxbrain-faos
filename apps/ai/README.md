@@ -1,4 +1,4 @@
-# FoxBrain Enterprise AI
+# VAFOX Enterprise AI Center
 
 `ai.vafox.com` is the enterprise AI collaboration layer. It is separate from the CEO private brain and from the Enterprise Data Core.
 
@@ -38,7 +38,7 @@ CEO Brain can pull only human-approved AI results through `GET /ops-api/exchange
 
 ## Existing platform compatibility
 
-The service is designed to replace the existing `vafox-auth` application on port 5010 while preserving the existing `auth_users` table and login sessions. Dify keeps `/api`, `/console` and `/v1`; FoxBrain business APIs use `/ops-api` to avoid route conflicts. Existing WeCom and n8n services remain independent.
+The service is designed to replace the existing `vafox-auth` application on port 5010 while preserving the existing `auth_users` table and login sessions. Dify keeps `/api`, `/console` and `/v1`; VAFOX business APIs use `/ops-api` to avoid route conflicts. Existing WeCom and n8n services remain independent.
 
 ## Deployment order
 

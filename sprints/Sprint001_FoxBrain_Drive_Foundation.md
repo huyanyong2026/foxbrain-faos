@@ -1,4 +1,4 @@
-# Sprint001: FoxBrain Drive Foundation
+# Sprint001: VAFOX Drive Foundation
 
 Status: Ready for Codex
 Target: huyan.vafox.com
@@ -8,7 +8,7 @@ Priority: P0
 
 ## 1. Goal
 
-Build FoxBrain Drive as the first usable enterprise knowledge entry.
+Build VAFOX Drive as the first usable enterprise knowledge entry.
 
 The CEO should be able to upload documents, Excel files, images, videos and SAP exports. The system should store them safely, show them in a clear file center, and prepare them for AI processing.
 
@@ -16,7 +16,7 @@ The CEO should be able to upload documents, Excel files, images, videos and SAP 
 
 ### 2.1 Drive Home
 
-Create a main entry called **FoxBrain Drive**.
+Create a main entry called **VAFOX Drive**.
 
 It should show:
 
@@ -132,7 +132,7 @@ The interface must be simple. Do not make it look like a complex admin backend.
 Suggested layout:
 
 ```text
-FoxBrain Drive
+VAFOX Drive
 企业所有资料的入口
 
 [Upload Files] [Upload Folder] [Import SAP Export]
@@ -201,7 +201,7 @@ If the project already has a database schema, adapt to existing style and do not
 
 Sprint001 is accepted when:
 
-- CEO can open FoxBrain Drive from homepage.
+- CEO can open VAFOX Drive from homepage.
 - User can upload at least PDF, Excel, image and Word files.
 - Uploaded files appear in list.
 - File metadata is stored.

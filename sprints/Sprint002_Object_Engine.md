@@ -3,15 +3,15 @@
 Status: Ready for Codex
 Target: huyan.vafox.com
 Priority: P0
-Depends on: Sprint001 FoxBrain Drive Foundation
+Depends on: Sprint001 VAFOX Drive Foundation
 
 ---
 
 ## 1. Sprint Goal
 
-建立 FoxBrain 的统一企业对象引擎。
+建立 VAFOX 的统一企业对象引擎。
 
-FoxBrain 不再按零散页面开发，而是把企业中的所有核心实体统一建模为 Object。门店、员工、品牌、产品、供应商、客户、合同、文件、会议、任务都应该遵循同一套对象规范。
+VAFOX 不再按零散页面开发，而是把企业中的所有核心实体统一建模为 Object。门店、员工、品牌、产品、供应商、客户、合同、文件、会议、任务都应该遵循同一套对象规范。
 
 Sprint002 完成后，huyan.vafox.com 必须具备一个可用的「对象中心」，可以创建、查看、编辑、搜索企业核心对象，并能与 Sprint001 的 Documents / Drive 文件建立关联。
 

@@ -1,8 +1,8 @@
-# FoxBrain Enterprise OS Architecture V1
+# VAFOX Enterprise OS Architecture V1
 
 ## Vision
 
-FoxBrain is an Enterprise Second Brain Operating System.
+VAFOX is an Enterprise Second Brain Operating System.
 
 It is not only an AI chat system, ERP replacement, BI dashboard, or document system.
 
@@ -13,7 +13,7 @@ It connects enterprise data, objects, knowledge, memory, rules, workflows, and A
 # Core Architecture
 
 ```text
-FoxBrain Enterprise OS
+VAFOX Enterprise OS
 
 ├── Enterprise Drive
 ├── Enterprise Data Lake
@@ -263,7 +263,7 @@ GitHub manages:
 - Rules
 - Sprint plans
 
-FoxBrain Drive manages:
+VAFOX Drive manages:
 
 - Enterprise assets
 - Real business data
@@ -289,6 +289,6 @@ Epic005: Enterprise Agent Center
 
 Build the operating system that allows a CEO to understand, manage, and improve an enterprise through trusted data, accumulated knowledge, and AI reasoning.
 
-FoxBrain Enterprise OS
+VAFOX Enterprise OS
 
 The Enterprise Second Brain.

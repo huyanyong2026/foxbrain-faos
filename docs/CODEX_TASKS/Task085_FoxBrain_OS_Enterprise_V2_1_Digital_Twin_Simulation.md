@@ -1,6 +1,6 @@
-# Task085 FoxBrain OS Enterprise V2.1 Digital Twin Simulation
+# Task085 VAFOX Enterprise OS V2.1 Digital Twin Simulation
 
-Continue from FoxBrain OS Enterprise V2.0 direction without rebuilding the system.
+Continue from VAFOX Enterprise OS V2.0 direction without rebuilding the system.
 
 ## Requirements
 

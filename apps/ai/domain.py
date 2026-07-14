@@ -1,4 +1,4 @@
-"""Domain rules for the FoxBrain Enterprise AI collaboration layer."""
+"""Domain rules for the VAFOX Enterprise AI Center collaboration layer."""
 
 from __future__ import annotations
 

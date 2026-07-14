@@ -2,7 +2,7 @@
 
 ## Goal
 
-Pack 12 evolves FoxBrain OS from a fixed application into an extensible enterprise platform.
+Pack 12 evolves VAFOX OS from a fixed application into an extensible enterprise platform.
 New capabilities should prefer plugin design, while the core login, permission, audit, SAP,
 knowledge, automation and AI agent framework stays stable.
 

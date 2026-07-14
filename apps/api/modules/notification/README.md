@@ -1,6 +1,6 @@
 # Notification Module
 
-FoxBrain OS Enterprise V1.8 notification center boundary.
+VAFOX Enterprise OS V1.8 notification center boundary.
 
 - API: `/api/workflow-automation/notifications`
 - Storage: `notifications`

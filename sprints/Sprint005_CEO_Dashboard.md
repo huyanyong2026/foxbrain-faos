@@ -31,7 +31,7 @@ Depends on: Sprint001 Drive, Sprint002 Object Engine, Sprint003 Knowledge Pipeli
 
 不要堆满图表。
 
-首页应当清晰、安静、聚焦，体现 FoxBrain CEO Brain 的定位。
+首页应当清晰、安静、聚焦，体现 VAFOX Enterprise Brain 的定位。
 
 ---
 
@@ -40,7 +40,7 @@ Depends on: Sprint001 Drive, Sprint002 Object Engine, Sprint003 Knowledge Pipeli
 建议首页结构：
 
 ```text
-FoxBrain CEO Brain
+VAFOX Enterprise Brain
 早上好，呼总。
 
 [全局搜索框：搜索门店、品牌、产品、合同、文件、知识……]
@@ -53,7 +53,7 @@ FoxBrain CEO Brain
 - 最新时间轴事件
 
 核心入口
-- FoxBrain Drive
+- VAFOX Drive
 - 对象中心
 - 知识中心
 - 全局搜索
@@ -113,7 +113,7 @@ GET /api/dashboard/ceo
 显示：
 
 ```text
-FoxBrain CEO Brain
+VAFOX Enterprise Brain
 企业第二大脑
 ```
 
@@ -133,7 +133,7 @@ FoxBrain CEO Brain
 
 入口必须包含：
 
-- FoxBrain Drive -> /drive
+- VAFOX Drive -> /drive
 - 对象中心 -> /object-center or /objects
 - 知识中心 -> /knowledge
 - 全局搜索 -> /search
@@ -181,7 +181,7 @@ Timeline Engine
 
 Sprint005 验收标准：
 
-- 首页显示 FoxBrain CEO Brain 定位。
+- 首页显示 VAFOX Enterprise Brain 定位。
 - 首页有全局搜索框。
 - 首页展示 Drive / Object / Knowledge / Search / Timeline 核心入口。
 - 首页展示文件、对象、知识、时间轴摘要数据。

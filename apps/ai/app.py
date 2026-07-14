@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FoxBrain Enterprise AI collaboration application."""
+"""VAFOX Enterprise AI Center collaboration application."""
 
 from __future__ import annotations
 
@@ -1131,9 +1131,9 @@ def replenishment_latest_api():
 def health():
     try:
         value = one("select 1 as value")["value"]
-        return jsonify({"ok": value == 1, "service": "FoxBrain Enterprise AI", "sap_write": False})
+        return jsonify({"ok": value == 1, "service": "VAFOX Enterprise AI Center", "sap_write": False})
     except Exception:
-        return jsonify({"ok": False, "service": "FoxBrain Enterprise AI"}), 503
+        return jsonify({"ok": False, "service": "VAFOX Enterprise AI Center"}), 503
 
 
 @app.get("/ops-api/workbench")

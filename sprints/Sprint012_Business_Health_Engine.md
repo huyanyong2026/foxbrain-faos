@@ -9,7 +9,7 @@ Depends on: Sprint010 Decision Engine, Sprint011 Business Rule Engine
 
 ## 1. Sprint Goal
 
-Build FoxBrain Business Health Engine.
+Build VAFOX Business Health Engine.
 
 The goal is to provide a high-level view of enterprise health:
 

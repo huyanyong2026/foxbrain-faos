@@ -1,6 +1,6 @@
 # Forecast Module
 
-FoxBrain OS Enterprise V1.7 sales forecast boundary.
+VAFOX Enterprise OS V1.7 sales forecast boundary.
 
 - API: `/api/forecast/sales`
 - Storage: `sales_forecasts`

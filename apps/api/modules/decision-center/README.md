@@ -1,6 +1,6 @@
 # Decision Center Module
 
-FoxBrain OS Enterprise V1.7 decision center boundary.
+VAFOX Enterprise OS V1.7 decision center boundary.
 
 - Page route: `/ai-business-center`
 - Primary API: `/api/decision/today`

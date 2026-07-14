@@ -2,7 +2,7 @@
 
 ## 目标
 
-Multi-Agent Collaboration Engine 让 FoxBrain 的 AI 智能体以企业角色方式协同工作。AI CEO 接收问题后，可以把子问题分配给 CFO、库存经理、品牌经理、研究员、门店经理等角色，再由 AI CEO 汇总，并交给人审核。
+Multi-Agent Collaboration Engine 让 VAFOX 的 AI 智能体以企业角色方式协同工作。AI CEO 接收问题后，可以把子问题分配给 CFO、库存经理、品牌经理、研究员、门店经理等角色，再由 AI CEO 汇总，并交给人审核。
 
 当前版本是协同框架，不做无监督自主执行。
 
