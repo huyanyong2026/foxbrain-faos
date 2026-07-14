@@ -40,13 +40,6 @@ def run_placeholder(job_name, reason):
     return "placeholder"
 
 
-def run_sap_sync():
-    if os.getenv("SAP_SYNC_ENABLED", "false").lower() != "true":
-        log("SAP sync disabled by SAP_SYNC_ENABLED.")
-        return "disabled"
-    return run_command("SAP nightly sync", ["python", "sync_sap_b1.py", "--trigger", "scheduled"])
-
-
 def run_backup():
     backup_script = os.getenv("BACKUP_SCRIPT", "/app/backup.sh")
     if not os.path.exists(backup_script):
@@ -102,7 +95,6 @@ def should_run_monthly(now, day, last_key):
 
 def main():
     jobs = [
-        ("sap_sync", os.getenv("SAP_SYNC_TIME", "22:00"), run_sap_sync),
         ("knowledge_index", os.getenv("KNOWLEDGE_INDEX_TIME", "02:00"), run_knowledge_index),
         ("backup", os.getenv("BACKUP_TIME", "02:30"), run_backup),
         ("daily_report", os.getenv("DAILY_REPORT_TIME", "08:00"), run_daily_report),

@@ -11,6 +11,33 @@ This service is the only application-facing path to the SAP mirror.
 Secrets belong in `/opt/foxbrain-core/api/core-api.env` on the server and must
 never be committed.
 
+## Business Object API
+
+Applications consume normalized objects instead of SAP tables:
+
+- `GET /api/v1/objects/stores`
+- `GET /api/v1/objects/products`
+- `GET /api/v1/objects/brands`
+- `GET /api/v1/objects/suppliers`
+- `GET /api/v1/objects/customers` (requires `customers:read`)
+- `GET /api/v1/business/summary`
+- `GET /api/v1/data-health`
+- `GET /api/v1/public/stores`
+- `GET /api/v1/public/brands`
+
+Recommended token scopes:
+
+- Huyan CEO Brain: `facts:read`, `objects:read`, `customers:read`, `health:read`
+- AI purchasing service: `objects:read`, `health:read`
+- Store manager: `objects:read`, role `store_manager`, plus explicit `store_ids`
+- Gateway: `public:read` only
+- Core operator compatibility access: `raw:read` (never assign to Huyan, AI, or Gateway)
+
+Public stores and brands are deny-by-default. Copy
+`object-enrichment.example.json` to the server, confirm each public object, and
+set `public` to `true`. The server file is operational configuration and is not
+committed with real business values.
+
 ## Replenishment input
 
 `GET /api/v1/replenishment/input` exposes normalized, read-only store inventory and two 30-day sales
