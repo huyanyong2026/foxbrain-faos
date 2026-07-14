@@ -22,6 +22,7 @@ LIFE_OBJECT_TYPES = {
     "store_life": "门店生命",
     "people_life": "人才生命",
     "brand_life": "品牌生命",
+    "product_life": "产品生命",
     "supplier_life": "供应商生命",
     "explorer_life": "探索者生命",
 }
@@ -32,10 +33,28 @@ ENTERPRISE_OBJECT_TYPE_MAP = {
     "people": "people_life",
     "person": "people_life",
     "brand": "brand_life",
+    "product": "product_life",
     "supplier": "supplier_life",
     "customer": "explorer_life",
     "explorer": "explorer_life",
 }
+
+LIVING_OBJECTS_SCHEMA = """create table if not exists living_objects(
+        id integer primary key autoincrement,
+        life_id text not null unique,
+        object_type text not null check(object_type in ('store_life','people_life','brand_life','product_life','supplier_life','explorer_life')),
+        object_ref_type text not null,
+        object_ref_id text not null,
+        display_name text not null,
+        identity_json text not null default '{}',
+        origin_json text not null default '{}',
+        state_json text not null default '{}',
+        future_json text not null default '{}',
+        status text not null default 'active',
+        version integer not null default 1,
+        created_at integer not null,
+        updated_at integer not null,
+        unique(object_type,object_ref_type,object_ref_id))"""
 
 
 def _now():
@@ -78,24 +97,24 @@ def _table_exists(conn, table_name):
 
 
 def ensure_living_enterprise_schema(conn):
-    conn.execute(
-        """create table if not exists living_objects(
-        id integer primary key autoincrement,
-        life_id text not null unique,
-        object_type text not null check(object_type in ('store_life','people_life','brand_life','supplier_life','explorer_life')),
-        object_ref_type text not null,
-        object_ref_id text not null,
-        display_name text not null,
-        identity_json text not null default '{}',
-        origin_json text not null default '{}',
-        state_json text not null default '{}',
-        future_json text not null default '{}',
-        status text not null default 'active',
-        version integer not null default 1,
-        created_at integer not null,
-        updated_at integer not null,
-        unique(object_type,object_ref_type,object_ref_id))"""
-    )
+    conn.execute(LIVING_OBJECTS_SCHEMA)
+    table_sql = conn.execute(
+        "select sql from sqlite_master where type='table' and name='living_objects'"
+    ).fetchone()[0]
+    if "product_life" not in table_sql:
+        # Existing installations used a restrictive type check. Rebuild only this
+        # registry table so Product Life can be added without touching its data.
+        conn.execute("alter table living_objects rename to living_objects_before_product_life")
+        conn.execute(LIVING_OBJECTS_SCHEMA)
+        conn.execute(
+            """insert into living_objects(
+            id,life_id,object_type,object_ref_type,object_ref_id,display_name,identity_json,origin_json,
+            state_json,future_json,status,version,created_at,updated_at)
+            select id,life_id,object_type,object_ref_type,object_ref_id,display_name,identity_json,origin_json,
+            state_json,future_json,status,version,created_at,updated_at
+            from living_objects_before_product_life"""
+        )
+        conn.execute("drop table living_objects_before_product_life")
     conn.execute(
         """create table if not exists living_object_sources(
         id integer primary key autoincrement,
