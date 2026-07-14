@@ -5,7 +5,7 @@ if (loginForm) {
     const button = loginForm.querySelector('button');
     const message = loginForm.querySelector('[data-form-message]');
     button.disabled = true;
-    message.textContent = '正在登录…';
+    message.textContent = '正在验证身份...';
     try {
       const payload = Object.fromEntries(new FormData(loginForm).entries());
       const response = await fetch('/auth/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});

@@ -7,7 +7,7 @@ import json
 import os
 import secrets
 import hashlib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import urlparse
 
@@ -21,6 +21,10 @@ try:
     from .domain import (
         AGENT_ROLES, CONNECTIONS, DEFAULT_APPROVAL_POLICY, SCHEMA_STATEMENTS, new_id, normalize_evidence,
         require_human_approval, validate_ai_run, validate_feedback, validate_task,
+    )
+    from .identity import (
+        IDENTITY_SCHEMA_STATEMENTS, ROLE_DEFINITIONS, allows, authorize_ai_context,
+        build_identity_context, seed_identity,
     )
     from .replenishment import (
         ALLOWED_STORES, RULE_VERSION, build_excel, business_now, business_today, calculate_batch, new_batch_id,
@@ -40,6 +44,10 @@ except ImportError:
     validate_feedback,
     validate_task,
 )
+    from identity import (
+        IDENTITY_SCHEMA_STATEMENTS, ROLE_DEFINITIONS, allows, authorize_ai_context,
+        build_identity_context, seed_identity,
+    )
     from replenishment import (
         ALLOWED_STORES, RULE_VERSION, build_excel, business_now, business_today, calculate_batch, new_batch_id,
         normalize_input_rows, parse_uploaded_file,
@@ -85,6 +93,53 @@ def init_db():
         status varchar(20) default 'pending',created_at timestamptz default now(),approved_by varchar(64),
         approved_at timestamptz,last_login timestamptz)"""
     )
+    for statement in IDENTITY_SCHEMA_STATEMENTS:
+        cur.execute(statement)
+    seed_identity(cur)
+    cur.execute(
+        """insert into identity_org_units(unit_id,name,unit_type)
+        values('company-firefox','火狐狸公司','company') on conflict(unit_id) do nothing"""
+    )
+    cur.execute(
+        """insert into identity_org_units(unit_id,name,unit_type,parent_id)
+        select 'department-shenzhen-retail','深圳门店','department',id from identity_org_units
+        where unit_id='company-firefox' on conflict(unit_id) do nothing"""
+    )
+    for unit_id, name in (("store-nanshan", "南山店"), ("store-zhenxing", "振兴店"), ("store-hangyuan", "航苑店")):
+        cur.execute(
+            """insert into identity_org_units(unit_id,name,unit_type,parent_id,core_object_id)
+            select %s,%s,'store',id,%s from identity_org_units where unit_id='department-shenzhen-retail'
+            on conflict(unit_id) do update set name=excluded.name,core_object_id=excluded.core_object_id""",
+            (unit_id, name, name),
+        )
+    for role_key, definition in ROLE_DEFINITIONS.items():
+        cur.execute(
+            """insert into identity_positions(position_id,name,default_role)
+            values(%s,%s,%s) on conflict(position_id) do update set name=excluded.name,
+            default_role=excluded.default_role""",
+            ("position-" + role_key, definition["name"], role_key),
+        )
+    legacy_roles = {"boss": ("ceo",), "admin": ("management", "identity_admin"), "manager": ("management",), "user": ("employee",)}
+    cur.execute(
+        """insert into identity_profiles(user_id,real_name,status,verification_status,must_change_password)
+        select id,display_name,'active','pending',false from auth_users
+        on conflict(user_id) do nothing"""
+    )
+    cur.execute("select id,role from auth_users")
+    for legacy in cur.fetchall():
+        for role_key in legacy_roles.get(legacy["role"], ("employee",)):
+            cur.execute(
+                """insert into identity_user_roles(user_id,role_id)
+                select %s,id from identity_roles where role_key=%s on conflict do nothing""",
+                (legacy["id"], role_key),
+            )
+            scope_type = ROLE_DEFINITIONS[role_key]["scope"]
+            scope_value = "*" if scope_type == "company" else str(legacy["id"])
+            cur.execute(
+                """insert into identity_data_scopes(user_id,scope_type,scope_value,source)
+                values(%s,%s,%s,'legacy_role') on conflict do nothing""",
+                (legacy["id"], scope_type if scope_type != "store" else "self", scope_value),
+            )
     for statement in SCHEMA_STATEMENTS:
         cur.execute(statement)
     for agent_type, name, description in AGENT_ROLES:
@@ -121,8 +176,48 @@ def current_user():
     if "user_id" not in session:
         return None
     cur = get_db().cursor()
-    cur.execute("select id,username,display_name,email,role,status,last_login,store_code from auth_users where id=%s", (session["user_id"],))
-    return cur.fetchone()
+    cur.execute(
+        """select a.id,a.username,a.display_name,a.email,a.role,a.status,a.last_login,
+        coalesce(a.store_code,case s.name when '南山店' then 'nanshan' when '振兴店' then 'zhenxing'
+        when '航苑店' then 'hangyuan' end) store_code,
+        p.real_name,p.employee_no,p.mobile,p.wecom_userid,p.department_id,p.store_id,p.position_id,
+        p.verification_status,p.must_change_password
+        from auth_users a left join identity_profiles p on p.user_id=a.id
+        left join identity_org_units s on s.id=p.store_id where a.id=%s""",
+        (session["user_id"],),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    user = dict(row)
+    cur.execute(
+        """select r.role_key from identity_user_roles ur join identity_roles r on r.id=ur.role_id
+        where ur.user_id=%s order by r.id""",
+        (user["id"],),
+    )
+    role_keys = [item["role_key"] for item in cur.fetchall()] or ["employee"]
+    user["identity"] = build_identity_context(
+        user["id"], user.get("real_name") or user["display_name"], user.get("employee_no"),
+        role_keys, user.get("store_id"), user.get("department_id"),
+    )
+    return user
+
+
+def permission_allowed(permission):
+    user = current_user()
+    return bool(user and allows(set(user["identity"]["permissions"]), permission))
+
+
+def record_permission_audit(permission, decision, resource_type="", resource_id="", reason=""):
+    cur = get_db().cursor()
+    cur.execute(
+        """insert into identity_permission_audit(
+        user_id,permission_key,resource_type,resource_id,decision,reason,ip_address)
+        values(%s,%s,%s,%s,%s,%s,%s)""",
+        (session.get("user_id"), permission, resource_type or None, resource_id or None,
+         decision, reason[:240], request.headers.get("X-Forwarded-For", request.remote_addr)),
+    )
+    get_db().commit()
 
 
 def login_required(function):
@@ -140,26 +235,35 @@ def manager_required(function):
     @wraps(function)
     @login_required
     def decorated(*args, **kwargs):
-        if session.get("role") not in ("admin", "manager", "boss"):
+        if not permission_allowed("approvals.manage"):
+            record_permission_audit("approvals.manage", "denied", reason="审批权限不足")
             abort(403)
         return function(*args, **kwargs)
     return decorated
+
+
+def permission_required(permission):
+    def decorator(function):
+        @wraps(function)
+        @login_required
+        def decorated(*args, **kwargs):
+            if not permission_allowed(permission):
+                record_permission_audit(permission, "denied", resource_type=request.endpoint or "route")
+                abort(403)
+            return function(*args, **kwargs)
+        return decorated
+    return decorator
 
 
 def replenishment_required(function):
-    @wraps(function)
-    @login_required
-    def decorated(*args, **kwargs):
-        if session.get("role") not in ("admin", "manager", "boss", "purchaser", "store_manager"):
-            abort(403)
-        return function(*args, **kwargs)
-    return decorated
+    return permission_required("replenishment.read")(function)
 
 
 def can_access_store(user, store_code):
-    if user["role"] in ("admin", "manager", "boss", "purchaser"):
+    scopes = user["identity"]["data_scopes"]
+    if any(item["type"] == "company" for item in scopes):
         return True
-    return user["role"] == "store_manager" and user.get("store_code") == store_code
+    return any(item["type"] == "store" for item in scopes) and user.get("store_code") == store_code
 
 
 def csrf_token():
@@ -280,6 +384,28 @@ def save_evidence(cur, target_type, target_id, evidence):
         )
 
 
+def accessible_agents(user):
+    permissions = set(user["identity"]["permissions"])
+    allowed = []
+    for agent in rows("select * from ai_agents where status='active' order by id"):
+        agent_type = str(agent["agent_type"])
+        required = {"business": "ai.business", "inventory": "ai.inventory", "brand": "ai.brand", "content": "ai.content", "enterprise": "ai.enterprise"}.get(agent_type)
+        if required and allows(permissions, required):
+            allowed.append(agent)
+    return allowed
+
+
+def visible_runs(user, limit=30):
+    scopes = user["identity"]["data_scopes"]
+    if any(item["type"] == "company" for item in scopes):
+        return rows("select * from ai_agent_runs order by updated_at desc limit %s", (limit,))
+    return rows(
+        """select * from ai_agent_runs where created_by=%s
+        or context_json->'identity'->>'user_id'=%s order by updated_at desc limit %s""",
+        (user["id"], str(user["id"]), limit),
+    )
+
+
 @app.route("/")
 def index():
     return redirect("/dashboard" if "user_id" in session else "/auth/login")
@@ -287,38 +413,255 @@ def index():
 
 @app.route("/login")
 def login_page():
-    return render_template("login.html")
+    return render_template("login.html", wecom_enabled=bool(os.environ.get("WECOM_CORP_ID") and os.environ.get("WECOM_AGENT_ID")))
+
+
+def record_login_audit(identifier, result, user_id=None, method="password"):
+    cur = get_db().cursor()
+    cur.execute(
+        """insert into identity_login_audit(user_id,login_identifier,result,auth_method,ip_address,user_agent)
+        values(%s,%s,%s,%s,%s,%s)""",
+        (user_id, str(identifier or "")[:160], result, method,
+         request.headers.get("X-Forwarded-For", request.remote_addr), request.headers.get("User-Agent", "")[:1000]),
+    )
+    get_db().commit()
 
 
 @app.post("/api/login")
-def login_api():
+def identity_login_api():
     data = request.get_json(silent=True) or request.form
-    user = one("select * from auth_users where username=%s", ((data.get("username") or "").strip(),))
+    identifier = (data.get("username") or "").strip()
+    user = one(
+        """select a.*,p.real_name,p.employee_no,p.mobile,p.wecom_userid,p.status profile_status,
+        p.must_change_password from auth_users a left join identity_profiles p on p.user_id=a.id
+        where lower(a.username)=lower(%s) or p.employee_no=%s or p.mobile=%s or p.wecom_userid=%s
+        or (p.real_name=%s and (select count(*) from identity_profiles where real_name=%s and status='active')=1)
+        order by case when lower(a.username)=lower(%s) then 0 else 1 end limit 1""",
+        (identifier, identifier, identifier, identifier, identifier, identifier, identifier),
+    )
     password = data.get("password") or ""
     if not user or not bcrypt.checkpw(password.encode(), user["password_hash"].encode()):
-        return jsonify({"ok": False, "message": "用户名或密码错误"}), 401
-    if user["status"] != "approved":
-        return jsonify({"ok": False, "message": "账号尚未通过审批"}), 403
+        record_login_audit(identifier, "failed", user["id"] if user else None)
+        return jsonify({"ok": False, "message": "姓名、员工编号、手机号或密码不正确"}), 401
+    if user["status"] != "approved" or user.get("profile_status") not in (None, "active"):
+        record_login_audit(identifier, "disabled", user["id"])
+        return jsonify({"ok": False, "message": "账号或员工身份已停用，请联系管理员"}), 403
+    session.clear()
     session.permanent = True
     session.update(user_id=user["id"], username=user["username"], display_name=user["display_name"], role=user["role"])
     csrf_token()
     cur = get_db().cursor()
     cur.execute("update auth_users set last_login=now() where id=%s", (user["id"],))
     get_db().commit()
-    return jsonify({"ok": True, "redirect": "/dashboard"})
+    record_login_audit(identifier, "success", user["id"])
+    return jsonify({"ok": True, "redirect": "/change-password" if user.get("must_change_password") else "/dashboard"})
 
 
 @app.post("/api/logout")
 @login_required
 def logout_api():
     require_csrf()
+    record_login_audit(session.get("username"), "logout", session.get("user_id"))
     session.clear()
     return jsonify({"ok": True, "redirect": "/auth/login"})
 
 
-@app.route("/dashboard")
+@app.route("/change-password")
 @login_required
+def change_password_page():
+    return render_template("change_password.html", user=current_user())
+
+
+@app.post("/ops-api/change-password")
+@login_required
+def change_password():
+    require_csrf()
+    current = request.form.get("current_password") or ""
+    new_password = request.form.get("new_password") or ""
+    confirm = request.form.get("confirm_password") or ""
+    user = one("select password_hash from auth_users where id=%s", (session["user_id"],))
+    if not user or not bcrypt.checkpw(current.encode(), user["password_hash"].encode()):
+        raise ValueError("当前密码不正确")
+    if len(new_password) < 12 or not any(c.isupper() for c in new_password) or not any(c.islower() for c in new_password) or not any(c.isdigit() for c in new_password):
+        raise ValueError("新密码至少12位，并包含大写字母、小写字母和数字")
+    if new_password != confirm:
+        raise ValueError("两次输入的新密码不一致")
+    password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    cur = get_db().cursor()
+    cur.execute("update auth_users set password_hash=%s where id=%s", (password_hash, session["user_id"]))
+    cur.execute("update identity_profiles set must_change_password=false,updated_at=now() where user_id=%s", (session["user_id"],))
+    get_db().commit()
+    session.clear()
+    return render_template("message.html", title="密码已更新", message="请使用新密码重新登录。")
+
+
+@app.get("/auth/wecom/status")
+def wecom_sso_status():
+    configured = bool(os.environ.get("WECOM_CORP_ID") and os.environ.get("WECOM_AGENT_ID"))
+    return jsonify({"ok": True, "configured": configured, "mode": "sso_placeholder"})
+
+
+@app.get("/auth/wecom/start")
+def wecom_sso_start():
+    if not os.environ.get("WECOM_CORP_ID") or not os.environ.get("WECOM_AGENT_ID"):
+        return render_template("message.html", title="企业微信登录尚未启用", message="接口已经预留，待管理员配置企业微信应用后启用。"), 503
+    state = secrets.token_urlsafe(32)
+    session["wecom_sso_state"] = state
+    return jsonify({"ok": True, "state_created": True, "next": "wecom_oauth_authorization"})
+
+
+@app.get("/auth/wecom/callback")
+def wecom_sso_callback():
+    if not os.environ.get("WECOM_CORP_ID") or not os.environ.get("WECOM_AGENT_ID"):
+        return jsonify({"ok": False, "message": "企业微信登录尚未配置"}), 503
+    supplied = request.args.get("state") or ""
+    expected = session.pop("wecom_sso_state", "")
+    if not supplied or not expected or not secrets.compare_digest(supplied, expected):
+        abort(403)
+    return jsonify({"ok": False, "message": "企业微信身份交换将在配置应用凭据后启用"}), 501
+
+
+@app.route("/identity")
+@permission_required("identity.view")
+def identity_center_page():
+    users = rows(
+        """select a.id,a.username,a.status,a.last_login,p.real_name,p.employee_no,p.mobile,
+        p.wecom_userid,p.verification_status,p.must_change_password,s.name store_name,
+        coalesce(string_agg(distinct r.name,'、'),'未分配') role_names
+        from auth_users a left join identity_profiles p on p.user_id=a.id
+        left join identity_org_units s on s.id=p.store_id
+        left join identity_user_roles ur on ur.user_id=a.id left join identity_roles r on r.id=ur.role_id
+        group by a.id,p.id,s.name order by p.real_name nulls last,a.id"""
+    )
+    return render_template(
+        "identity.html", user=current_user(), users=users,
+        roles=rows("select role_key,name from identity_roles order by id"),
+        stores=rows("select id,name from identity_org_units where unit_type='store' and status='active' order by id"),
+        login_audit=rows("select * from identity_login_audit order by occurred_at desc limit 50"),
+        permission_audit=rows("select * from identity_permission_audit order by occurred_at desc limit 50"),
+        can_manage=permission_allowed("identity.manage"),
+    )
+
+
+@app.post("/ops-api/identity/users")
+@permission_required("identity.manage")
+def create_identity_user():
+    require_csrf()
+    form = request.form
+    real_name = str(form.get("real_name") or "").strip()
+    employee_no = str(form.get("employee_no") or "").strip()
+    mobile = str(form.get("mobile") or "").strip()
+    role_key = str(form.get("role_key") or "employee").strip()
+    password = str(form.get("temporary_password") or "")
+    store_id = form.get("store_id") or None
+    if not real_name or not employee_no:
+        raise ValueError("真实姓名和员工编号必须填写")
+    if role_key not in ROLE_DEFINITIONS:
+        raise ValueError("岗位角色无效")
+    if role_key == "store_manager" and not store_id:
+        raise ValueError("店长必须绑定负责门店")
+    if len(password) < 12 or not any(c.isupper() for c in password) or not any(c.islower() for c in password) or not any(c.isdigit() for c in password):
+        raise ValueError("临时密码至少12位，并包含大写字母、小写字母和数字")
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    cur = get_db().cursor()
+    cur.execute(
+        """insert into auth_users(username,password_hash,display_name,role,status,approved_by,approved_at)
+        values(%s,%s,%s,'user','approved',%s,now()) returning id""",
+        (employee_no, password_hash, real_name, session.get("username")),
+    )
+    user_id = cur.fetchone()["id"]
+    cur.execute(
+        """insert into identity_profiles(user_id,real_name,employee_no,mobile,store_id,status,verification_status,must_change_password)
+        values(%s,%s,%s,%s,%s,'active','verified',true)""",
+        (user_id, real_name, employee_no, mobile or None, store_id),
+    )
+    cur.execute(
+        """update identity_profiles set position_id=(select id from identity_positions where default_role=%s order by id limit 1)
+        where user_id=%s""",
+        (role_key, user_id),
+    )
+    cur.execute(
+        """insert into identity_user_roles(user_id,role_id,assigned_by)
+        select %s,id,%s from identity_roles where role_key=%s""",
+        (user_id, session["user_id"], role_key),
+    )
+    scope_type = ROLE_DEFINITIONS[role_key]["scope"]
+    scope_value = "*" if scope_type == "company" else str(store_id if scope_type == "store" else user_id)
+    cur.execute(
+        """insert into identity_data_scopes(user_id,scope_type,scope_value,source)
+        values(%s,%s,%s,'role')""",
+        (user_id, scope_type, scope_value),
+    )
+    get_db().commit()
+    record_permission_audit("identity.manage", "allowed", "identity_user", str(user_id), "创建真实员工身份")
+    return redirect("/identity")
+
+
+@app.post("/ops-api/identity/users/<int:user_id>/role")
+@permission_required("identity.manage")
+def assign_identity_role(user_id):
+    require_csrf()
+    role_key = str(request.form.get("role_key") or "").strip()
+    if role_key not in ROLE_DEFINITIONS:
+        raise ValueError("岗位角色无效")
+    if user_id == session["user_id"] and role_key not in ("ceo", "identity_admin"):
+        raise ValueError("不能移除自己当前的身份管理权限")
+    cur = get_db().cursor()
+    cur.execute("delete from identity_user_roles where user_id=%s", (user_id,))
+    cur.execute("delete from identity_data_scopes where user_id=%s", (user_id,))
+    cur.execute(
+        """insert into identity_user_roles(user_id,role_id,assigned_by)
+        select %s,id,%s from identity_roles where role_key=%s""",
+        (user_id, session["user_id"], role_key),
+    )
+    profile = one("select store_id from identity_profiles where user_id=%s", (user_id,))
+    scope_type = ROLE_DEFINITIONS[role_key]["scope"]
+    if scope_type == "store" and not (profile and profile.get("store_id")):
+        raise ValueError("店长角色必须先绑定负责门店")
+    scope_value = "*" if scope_type == "company" else str(profile["store_id"] if scope_type == "store" else user_id)
+    cur.execute(
+        """insert into identity_data_scopes(user_id,scope_type,scope_value,source)
+        values(%s,%s,%s,'role')""",
+        (user_id, scope_type, scope_value),
+    )
+    cur.execute(
+        """update identity_profiles set position_id=(select id from identity_positions where default_role=%s order by id limit 1),
+        updated_at=now() where user_id=%s""",
+        (role_key, user_id),
+    )
+    get_db().commit()
+    record_permission_audit("identity.manage", "allowed", "identity_user", str(user_id), "调整岗位角色")
+    return redirect("/identity")
+
+
+@app.post("/ops-api/identity/users/<int:user_id>/status")
+@permission_required("identity.manage")
+def update_identity_status(user_id):
+    require_csrf()
+    status = request.form.get("status")
+    if status not in ("active", "disabled"):
+        raise ValueError("身份状态无效")
+    if user_id == session["user_id"] and status == "disabled":
+        raise ValueError("不能停用当前登录账号")
+    cur = get_db().cursor()
+    cur.execute("update identity_profiles set status=%s,updated_at=now() where user_id=%s", (status, user_id))
+    cur.execute("update auth_users set status=%s where id=%s", ("approved" if status == "active" else "disabled", user_id))
+    get_db().commit()
+    record_permission_audit("identity.manage", "allowed", "identity_user", str(user_id), "更新账号状态")
+    return redirect("/identity")
+
+
+@app.get("/ops-api/identity/me")
+@login_required
+def identity_me_api():
+    user = current_user()
+    return jsonify({"ok": True, "identity": user["identity"], "real_name": user.get("real_name") or user["display_name"]})
+
+
+@app.route("/dashboard")
+@permission_required("ai.use")
 def dashboard():
+    user = current_user()
     latest_batch = latest_replenishment_batch()
     metrics = {
         "agents": one("select count(*) as value from ai_agents where status='active'")["value"],
@@ -326,33 +669,42 @@ def dashboard():
         "pending_tasks": one("select count(*) as value from ai_tasks where approval_status='pending'")["value"],
         "knowledge": one("select count(*) as value from ai_knowledge_items where status='approved'")["value"],
     }
-    return render_template("dashboard.html", user=current_user(), metrics=metrics,
+    return render_template("dashboard.html", user=user, metrics=metrics,
                            connections=rows("select * from enterprise_connections order by id"),
-                           runs=rows("select * from ai_agent_runs order by updated_at desc limit 8"),
+                           runs=visible_runs(user, 8),
                            replenishment_batch=latest_batch,
                            replenishment_summary=replenishment_summary(latest_batch["batch_id"] if latest_batch else None))
 
 
 @app.route("/workbench")
-@login_required
+@permission_required("ai.use")
 def workbench():
-    return render_template("workbench.html", user=current_user(), agents=rows("select * from ai_agents where status='active' order by id"),
-                           runs=rows("select * from ai_agent_runs order by updated_at desc limit 30"))
+    user = current_user()
+    return render_template("workbench.html", user=user, agents=accessible_agents(user), runs=visible_runs(user, 30))
 
 
 @app.post("/ops-api/runs")
-@login_required
+@permission_required("ai.use")
 def create_run():
     require_csrf()
     form = request.form
     evidence = evidence_from_form(form)
     validate_ai_run(form.get("question"), evidence)
+    user = current_user()
+    agent = one("select agent_type from ai_agents where agent_id=%s and status='active'", (form.get("agent_id"),))
+    if not agent:
+        raise ValueError("AI助手不存在或未启用")
+    permission_context = authorize_ai_context(user["identity"], agent["agent_type"], form.get("store_id"))
     run_id = new_id("RUN")
     cur = get_db().cursor()
     cur.execute(
         """insert into ai_agent_runs(run_id,agent_id,question,context_json,evidence_json,created_by)
         values(%s,%s,%s,%s::jsonb,%s::jsonb,%s)""",
-        (run_id, form.get("agent_id"), form.get("question").strip(), json.dumps({"object_type": form.get("object_type"), "object_id": form.get("object_id")}, ensure_ascii=False), json.dumps(evidence, ensure_ascii=False), session["user_id"]),
+        (run_id, form.get("agent_id"), form.get("question").strip(), json.dumps({
+            "object_type": form.get("object_type"), "object_id": form.get("object_id"),
+            "identity": permission_context["identity"], "effective_store_id": permission_context["effective_store_id"],
+            "core_access": "read_only",
+        }, ensure_ascii=False), json.dumps(evidence, ensure_ascii=False), session["user_id"]),
     )
     save_evidence(cur, "agent_run", run_id, evidence)
     get_db().commit()
@@ -400,25 +752,25 @@ def review_run(run_id):
 
 
 @app.route("/agents")
-@login_required
+@permission_required("ai.use")
 def agents_page():
     return render_template("agents.html", user=current_user(), agents=rows("select * from ai_agents order by id"))
 
 
 @app.route("/wecom")
-@login_required
+@permission_required("identity.view")
 def wecom_page():
     return render_template("wecom.html", user=current_user(), connections=rows("select * from wecom_connections order by id"))
 
 
 @app.route("/knowledge")
-@login_required
+@permission_required("knowledge.read")
 def knowledge_page():
     return render_template("knowledge.html", user=current_user(), items=rows("select * from ai_knowledge_items order by updated_at desc limit 100"))
 
 
 @app.post("/ops-api/knowledge")
-@login_required
+@permission_required("knowledge.write")
 def create_knowledge():
     require_csrf()
     form = request.form
@@ -458,14 +810,14 @@ def review_knowledge(knowledge_id):
 
 
 @app.route("/tasks")
-@login_required
+@permission_required("tasks.read")
 def tasks_page():
     return render_template("tasks.html", user=current_user(), tasks=rows("select * from ai_tasks order by updated_at desc limit 100"),
                            approved_runs=rows("select run_id,question,evidence_json from ai_agent_runs where approval_status='approved' order by reviewed_at desc limit 50"))
 
 
 @app.post("/ops-api/tasks")
-@login_required
+@permission_required("tasks.create")
 def create_task():
     require_csrf()
     form = request.form
@@ -505,14 +857,14 @@ def review_task(task_id):
 
 
 @app.route("/feedback")
-@login_required
+@permission_required("ai.use")
 def feedback_page():
     return render_template("feedback.html", user=current_user(), feedback=rows("select f.*,r.question from ai_feedback f join ai_agent_runs r on r.run_id=f.run_id order by f.created_at desc limit 100"),
                            runs=rows("select run_id,question from ai_agent_runs where approval_status in ('approved','rejected') order by reviewed_at desc limit 50"))
 
 
 @app.post("/ops-api/feedback")
-@login_required
+@permission_required("ai.use")
 def create_feedback():
     require_csrf()
     form = request.form
@@ -806,6 +1158,21 @@ def invalid_business_input(exc):
 @app.errorhandler(500)
 def internal_error(_exc):
     return render_template("message.html", title="暂时无法完成", message="服务暂时不可用，请稍后重试。"), 500
+
+
+@app.errorhandler(PermissionError)
+def identity_permission_error(exc):
+    return render_template("message.html", title="没有访问权限", message=str(exc)), 403
+
+
+@app.errorhandler(403)
+def identity_forbidden(_exc):
+    return render_template("message.html", title="没有访问权限", message="当前岗位或数据范围不允许执行此操作。"), 403
+
+
+@app.errorhandler(ValueError)
+def identity_invalid_input(exc):
+    return render_template("message.html", title="请检查填写内容", message=str(exc)), 400
 
 
 if __name__ == "__main__":

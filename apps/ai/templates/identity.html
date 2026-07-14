@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}身份与权限 | FireFox{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">FireFox Identity Center</p><h1>企业身份与权限</h1><p>每个账号绑定真实员工、岗位和数据范围。AI能力自动继承员工权限。</p></section>
+
+{% if can_manage %}
+<section class="split identity-create">
+  <form class="panel" method="post" action="/ops-api/identity/users">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>创建员工身份</h2>
+    <div class="two"><label>真实姓名<input name="real_name" required></label><label>员工编号<input name="employee_no" required></label></div>
+    <div class="two"><label>手机号<input name="mobile" inputmode="tel"></label><label>岗位角色<select name="role_key" required>{% for role in roles %}<option value="{{ role.role_key }}">{{ role.name }}</option>{% endfor %}</select></label></div>
+    <label>负责门店<select name="store_id"><option value="">不限定门店</option>{% for store in stores %}<option value="{{ store.id }}">{{ store.name }}</option>{% endfor %}</select></label>
+    <label>一次性临时密码<input type="password" name="temporary_password" minlength="12" required><small>员工首次登录后必须修改。</small></label>
+    <button type="submit">创建员工账号</button>
+  </form>
+  <div class="panel"><h2>身份规则</h2><ul class="plain-list"><li>禁止共用账号和匿名账号</li><li>新员工首次登录必须修改临时密码</li><li>店长只能查看自己负责的门店</li><li>AI回答自动继承当前用户权限</li><li>所有登录和权限拒绝均保留审计记录</li></ul></div>
+</section>
+{% endif %}
+
+<section class="section-head"><h2>员工身份</h2><span>{{ users|length }} 人</span></section>
+<div class="identity-table">
+  {% for item in users %}<article class="identity-row">
+    <div><strong>{{ item.real_name or item.username }}</strong><p>{{ item.employee_no or '待补员工编号' }} · {{ item.role_names }}{% if item.store_name %} · {{ item.store_name }}{% endif %}</p></div>
+    <div><span class="status {{ 'active' if item.status == 'approved' else 'unavailable' }}">{{ '正常' if item.status == 'approved' else '已停用' }}</span><small>{{ '已核验' if item.verification_status == 'verified' else '待核验身份' }}</small></div>
+    {% if can_manage %}<div class="identity-actions">
+      <form method="post" action="/ops-api/identity/users/{{ item.id }}/role"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><select name="role_key">{% for role in roles %}<option value="{{ role.role_key }}">{{ role.name }}</option>{% endfor %}</select><button class="secondary">调整岗位</button></form>
+      <form method="post" action="/ops-api/identity/users/{{ item.id }}/status"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="{{ 'disabled' if item.status == 'approved' else 'active' }}"><button class="secondary">{{ '停用' if item.status == 'approved' else '启用' }}</button></form>
+    </div>{% endif %}
+  </article>{% endfor %}
+</div>
+
+<section class="split audit-panels">
+  <div class="panel"><h2>最近登录记录</h2>{% for item in login_audit[:15] %}<div class="audit-line"><span>{{ item.login_identifier }}</span><strong>{{ item.result }}</strong><small>{{ item.occurred_at }}</small></div>{% else %}<p class="empty-note">尚无登录记录。</p>{% endfor %}</div>
+  <div class="panel"><h2>最近权限审计</h2>{% for item in permission_audit[:15] %}<div class="audit-line"><span>{{ item.permission_key }}</span><strong>{{ item.decision }}</strong><small>{{ item.occurred_at }}</small></div>{% else %}<p class="empty-note">尚无权限审计记录。</p>{% endfor %}</div>
+</section>
+{% endblock %}
