@@ -16,6 +16,7 @@ ROLE_DEFINITIONS = {
         "permissions": [
             "ai.use", "ai.business", "ai.inventory", "ai.brand", "ai.enterprise",
             "business.read", "brand.read", "store.read", "inventory.read",
+            "replenishment.read",
             "knowledge.read", "knowledge.write", "tasks.read", "tasks.create",
             "approvals.manage", "identity.view",
         ],

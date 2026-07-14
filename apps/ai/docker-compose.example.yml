@@ -7,6 +7,8 @@ services:
       - .env
     ports:
       - "127.0.0.1:5010:5010"
+    volumes:
+      - /opt/ai-vafox/operation-exports:/data/operation_exports
     networks:
       - vafox-platform
   replenishment-worker:

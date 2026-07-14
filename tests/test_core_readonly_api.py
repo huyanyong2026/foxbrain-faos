@@ -19,6 +19,9 @@ class FakeService:
     def rows(self, schema, table, limit, offset):
         return {"table": schema + "." + table, "rows": [{"ItemCode": "A1"}]}
 
+    def operation_snapshot(self, store, as_of):
+        return {"as_of": as_of, "warehouse": {"WhsCode": "NS", "WhsName": store}, "products": [], "sales": []}
+
     def replenishment_input(self):
         return {"batch_id": "core-1", "business_date": "2026-07-13", "items": [{"sku_code": "A1"}]}
 
@@ -51,6 +54,9 @@ class CoreApiTests(unittest.TestCase):
     def test_facts_token_reads_health_and_rows(self):
         self.assertEqual(self.request("/api/health", "facts-token")[0], 200)
         self.assertEqual(self.request("/api/v1/tables/dbo/OITM/rows", "facts-token")[0], 200)
+        status, snapshot = self.request("/api/v1/operation/snapshot?store=%E5%8D%97%E5%B1%B1%E5%BA%97&as_of=2026-07-13", "facts-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(snapshot["warehouse"]["WhsCode"], "NS")
         status, payload = self.request("/api/v1/replenishment/input", "facts-token")
         self.assertEqual(status, 200)
         self.assertEqual(payload["batch_id"], "core-1")

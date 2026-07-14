@@ -29,3 +29,12 @@ if (logoutButton) {
     window.location.href = result.redirect || '/auth/login';
   });
 }
+
+document.querySelectorAll('[data-busy-form]').forEach((form) => {
+  form.addEventListener('submit', () => {
+    const button = form.querySelector('button[type="submit"], button:not([type])');
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    button.textContent = '正在读取企业数据...';
+  });
+});
