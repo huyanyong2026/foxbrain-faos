@@ -79,7 +79,6 @@ jobs:
           key: ${{ secrets.CORE_SERVER_SSH_KEY }}
           port: ${{ secrets.CORE_SERVER_PORT || 22 }}
           envs: CORE_STORE_MAP_JSON
-          script_stop: true
           command_timeout: 10m
           script: |
             set -eu
@@ -155,7 +154,6 @@ jobs:
           key: ${{ secrets.AI_SERVER_SSH_KEY }}
           port: ${{ secrets.AI_SERVER_PORT || 22 }}
           envs: CORE_API_TOKEN
-          script_stop: true
           command_timeout: 20m
           script: |
             set -eu
