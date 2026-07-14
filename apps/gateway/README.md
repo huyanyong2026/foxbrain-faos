@@ -1,6 +1,6 @@
 # FireFox Gateway V1.0
 
-FireFox Outdoor Growth Platform 的独立对外入口。
+FireFox Outdoor Growth Platform 的唯一公众首页。首页保持一页、极简、有温度，只保留“开始探索”“发现装备”“了解火狐狸”三个入口。
 
 ## 本地预览
 
@@ -19,7 +19,7 @@ node smoke-test.cjs
 ## 发布边界
 
 - 这是纯静态站点，不连接 SAP、FoxBrain 数据库或 CEO 系统。
-- `commerce.vafox.com`、`ai.vafox.com`、Explorer Life 和 Dream Community 仅保留入口，未完成前不会跳转。
+- 公众首页不展示内部 AI、CEO 或数据系统入口。
 - Nginx 站点根目录建议使用 `/var/www/firefox-gateway/current`。
 - 发布前必须为 `gateway.vafox.com` 签发并验证独立 TLS 证书。
 
