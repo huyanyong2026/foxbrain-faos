@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ store_name }}补货建议｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">AI补货中心</p><h1>{{ store_name }}</h1>{% if batch %}<p>业务日期 {{ batch.business_date }} · {{ batch.rule_version }} · 来源：{{ 'core.vafox.com' if batch.source_type == 'core_api' else batch.source_name }}</p>{% endif %}</section>
+{% if batch %}
+<form class="filters" method="get">
+  <input type="hidden" name="batch" value="{{ batch.batch_id }}"><input name="q" value="{{ filters.get('q','') }}" placeholder="搜索商品编码或名称">
+  <select name="brand"><option value="">全部品牌</option>{% for item in brands %}<option {% if filters.get('brand') == item.brand_name %}selected{% endif %}>{{ item.brand_name }}</option>{% endfor %}</select>
+  <select name="category"><option value="">全部类别</option>{% for item in categories %}<option {% if filters.get('category') == item.category_name %}selected{% endif %}>{{ item.category_name }}</option>{% endfor %}</select>
+  <select name="priority"><option value="">全部优先级</option>{% for value in ['紧急','高','普通','不补'] %}<option {% if filters.get('priority') == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+  <select name="sort"><option value="stock_days">预计售罄优先</option><option value="sales" {% if filters.get('sort') == 'sales' %}selected{% endif %}>近30天销售</option><option value="quantity" {% if filters.get('sort') == 'quantity' %}selected{% endif %}>建议数量</option></select>
+  <button>筛选</button><a class="secondary primary" href="/ops-api/replenishment/export/{{ batch.batch_id }}/{{ store_code }}.xlsx">下载Excel</a>
+</form>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>商品</th><th>品牌/类别</th><th>当前库存</th><th>30天销售</th><th>60天销售</th><th>可售天数</th><th>安全库存</th><th>建议数量</th><th>优先级</th><th>AI建议原因</th></tr></thead><tbody>
+{% for item in items %}<tr><td><strong>{{ item.product_name }}</strong><small>{{ item.sku_code }} · {{ item.color }} {{ item.size }}</small></td><td>{{ item.brand_name }}<small>{{ item.category_name }}</small></td><td>{{ item.available_stock }}</td><td>{{ item.sales_30d }}</td><td>{{ item.sales_60d }}</td><td>{{ item.stock_days if item.stock_days is not none else '—' }}</td><td>{{ item.safety_stock }}</td><td><strong>{{ item.suggested_qty }}</strong></td><td><span class="priority p-{{ item.priority }}">{{ item.priority }}</span></td><td class="reason">{{ item.reason }}{% if item.warning %}<small class="warning">{{ item.warning }}</small>{% endif %}</td></tr>
+{% else %}<tr><td colspan="10" class="empty-cell">当前筛选条件下没有商品。</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="empty"><h3>等待真实数据</h3><p>当前没有可用的补货批次。</p></div>{% endif %}
+{% endblock %}

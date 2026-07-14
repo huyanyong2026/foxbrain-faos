@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}补货批次详情｜FoxBrain{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">历史批次</p><h1>{{ batch.business_date }} 补货建议</h1><p>{{ batch.batch_id }}</p></section>
+<section class="batch-meta"><div><span>数据来源</span><strong>{{ batch.source_name }}</strong></div><div><span>规则版本</span><strong>{{ batch.rule_version }}</strong></div><div><span>生成时间</span><strong>{{ batch.completed_at }}</strong></div><div><span>状态</span><strong>{{ batch.status }}</strong></div></section>
+<section class="store-cards large">{% for item in summaries %}<article><p>{{ item.store_name }}</p><strong>{{ item.suggested_skus }} 个SKU</strong><span>{{ item.urgent_skus }} 个紧急 · 建议 {{ item.suggested_units or 0 }} 件</span><div class="actions"><a class="primary" href="/replenishment/stores/{{ item.store_code }}?batch={{ batch.batch_id }}">查看快照</a><a class="secondary primary" href="/ops-api/replenishment/export/{{ batch.batch_id }}/{{ item.store_code }}.xlsx">下载Excel</a></div></article>{% endfor %}</section>
+{% endblock %}

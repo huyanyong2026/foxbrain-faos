@@ -9,6 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUD_HOST: ${{ secrets.CLOUD_HOST }}
+      CLOUD_USER: ${{ secrets.CLOUD_USER }}
+      CLOUD_SSH_KEY: ${{ secrets.CLOUD_SSH_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,7 +24,7 @@ jobs:
         run: docker compose config
 
       - name: Deploy to Tencent Cloud
-        if: ${{ secrets.CLOUD_HOST != '' && secrets.CLOUD_USER != '' && secrets.CLOUD_SSH_KEY != '' }}
+        if: ${{ env.CLOUD_HOST != '' && env.CLOUD_USER != '' && env.CLOUD_SSH_KEY != '' }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.CLOUD_HOST }}
@@ -43,3 +47,7 @@ jobs:
             sudo mkdir -p logs
             sudo docker compose up -d --build
             sudo docker compose ps
+
+      - name: Report skipped cloud deployment
+        if: ${{ env.CLOUD_HOST == '' || env.CLOUD_USER == '' || env.CLOUD_SSH_KEY == '' }}
+        run: echo "Legacy cloud deployment skipped because CLOUD_* secrets are not configured."

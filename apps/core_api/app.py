@@ -17,6 +17,7 @@ from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from zoneinfo import ZoneInfo
 
 
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_@$#]*$")
@@ -26,6 +27,7 @@ DEFAULT_TABLES = {
     "dbo.RIN1", "dbo.OPCH", "dbo.PCH1", "dbo.OPOR", "dbo.POR1",
     "dbo.ORDR", "dbo.RDR1", "dbo.OHEM", "dbo.OSLP",
 }
+BUSINESS_TZ = ZoneInfo(os.environ.get("CORE_TIMEZONE", "Asia/Shanghai"))
 
 
 def utc_now() -> str:
@@ -214,6 +216,67 @@ class CoreService:
         finally:
             connection.close()
 
+    def replenishment_input(self):
+        """Return normalized 60-day sales and available stock for approved stores."""
+        try:
+            store_mapping = json.loads(os.environ.get("CORE_STORE_MAP_JSON", "{}"))
+        except json.JSONDecodeError as exc:
+            raise ValueError("CORE_STORE_MAP_JSON is invalid") from exc
+        if not isinstance(store_mapping, dict) or not store_mapping:
+            raise ValueError("CORE_STORE_MAP_JSON is not configured")
+        placeholders = ",".join("%s" for _value in store_mapping)
+        sql = """
+        with movements as (
+          select l.WhsCode,l.ItemCode,h.DocDate,cast(l.Quantity as decimal(19,4)) as Qty
+          from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry
+          where h.CANCELED='N' and h.DocDate>=dateadd(day,-59,cast(getdate() as date))
+          union all
+          select l.WhsCode,l.ItemCode,h.DocDate,-cast(l.Quantity as decimal(19,4)) as Qty
+          from dbo.ORIN h join dbo.RIN1 l on l.DocEntry=h.DocEntry
+          where h.CANCELED='N' and h.DocDate>=dateadd(day,-59,cast(getdate() as date))
+        ), sales as (
+          select WhsCode,ItemCode,
+            sum(case when DocDate>=dateadd(day,-29,cast(getdate() as date)) then Qty else 0 end) as Sales30,
+            sum(case when DocDate<dateadd(day,-29,cast(getdate() as date)) then Qty else 0 end) as SalesPrev30
+          from movements group by WhsCode,ItemCode
+        )
+        select w.WhsCode,wh.WhsName,i.ItemCode,i.ItemName,i.ItmsGrpCod,
+          cast(w.OnHand-w.IsCommited as decimal(19,4)) as AvailableQty,
+          coalesce(s.Sales30,0) as Sales30,coalesce(s.SalesPrev30,0) as SalesPrev30
+        from dbo.OITW w
+        join dbo.OITM i on i.ItemCode=w.ItemCode
+        left join dbo.OWHS wh on wh.WhsCode=w.WhsCode
+        left join sales s on s.WhsCode=w.WhsCode and s.ItemCode=w.ItemCode
+        where w.WhsCode in ({}) and coalesce(i.frozenFor,'N')<>'Y'
+        order by w.WhsCode,i.ItemCode
+        """.format(placeholders)
+        connection = self.connector()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(sql, tuple(store_mapping.keys()))
+            columns = [item[0] for item in cursor.description]
+            items = []
+            for values in cursor.fetchall():
+                row = dict(zip(columns, values))
+                mapping = store_mapping[str(row["WhsCode"])]
+                if isinstance(mapping, str):
+                    mapping = {"store_code": mapping, "store_name": mapping}
+                items.append({
+                    "store_code": mapping.get("store_code"), "store_name": mapping.get("store_name"),
+                    "sku_code": str(row["ItemCode"]), "product_name": str(row["ItemName"] or ""),
+                    "brand_name": "", "category_name": str(row["ItmsGrpCod"] or ""), "color": "", "size": "",
+                    "available_stock": int(Decimal(str(row["AvailableQty"] or 0))),
+                    "sales_30d": int(Decimal(str(row["Sales30"] or 0))),
+                    "sales_prev_30d": int(Decimal(str(row["SalesPrev30"] or 0))),
+                })
+            return {
+                "batch_id": "core-{}".format(datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")),
+                "business_date": datetime.now(BUSINESS_TZ).date().isoformat(), "data_as_of": utc_now(),
+                "source": "SAP mirror", "rule_input_version": "replenishment-input-v1", "items": items,
+            }
+        finally:
+            connection.close()
+
 
 class CoreApiHandler(BaseHTTPRequestHandler):
     server_version = "FoxBrainCore/1.0"
@@ -279,6 +342,10 @@ class CoreApiHandler(BaseHTTPRequestHandler):
                 return self._reply(200, self.server.service.operation_snapshot(
                     query.get("store", [""])[0], query.get("as_of", [utc_now()[:10]])[0]
                 ))
+            if parsed.path == "/api/v1/replenishment/input":
+                if not self._authorized("facts:read"):
+                    return
+                return self._reply(200, self.server.service.replenishment_input())
             match = re.fullmatch(r"/api/v1/tables/([^/]+)/([^/]+)/rows", parsed.path)
             if match:
                 if not self._authorized("facts:read"):

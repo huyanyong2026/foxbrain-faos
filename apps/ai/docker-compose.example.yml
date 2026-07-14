@@ -11,6 +11,17 @@ services:
       - /opt/ai-vafox/operation-exports:/data/operation_exports
     networks:
       - vafox-platform
+  replenishment-worker:
+    build: .
+    container_name: foxbrain-replenishment-worker
+    restart: always
+    env_file:
+      - .env
+    command: ["python", "replenishment_worker.py"]
+    depends_on:
+      - enterprise-ai
+    networks:
+      - vafox-platform
 
 networks:
   vafox-platform:
