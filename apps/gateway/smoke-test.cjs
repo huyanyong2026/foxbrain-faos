@@ -17,6 +17,7 @@ const assets = [
   "/assets/images/gateway-hero.webp",
   "/assets/images/adventure-lake.webp",
   "/assets/images/firefox-store.webp",
+  "/assets/images/firefox-brand-logo.jpeg",
 ];
 
 (async () => {

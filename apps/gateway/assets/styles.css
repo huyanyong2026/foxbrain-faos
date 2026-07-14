@@ -43,7 +43,7 @@ img { display: block; max-width: 100%; }
 }
 .site-header.scrolled { height: 60px; background: rgba(248,249,246,.96); color: var(--ink); border-bottom: 1px solid var(--line); }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
-.wordmark-mark { width: 27px; height: 27px; display: grid; place-items: center; background: var(--red); color: var(--white); font-size: 15px; }
+.wordmark-logo { width: 28px; height: 36px; flex: 0 0 auto; object-fit: contain; background: var(--white); border-radius: 2px; }
 .desktop-nav { display: flex; gap: 30px; font-size: 14px; }
 .desktop-nav a { text-decoration: none; opacity: .86; }
 .desktop-nav a:hover, .desktop-nav a:focus-visible { opacity: 1; text-decoration: underline; text-underline-offset: 6px; }
@@ -154,6 +154,7 @@ footer small { grid-column: 1 / -1; align-self: end; color: #93a098; }
 
 @media (max-width: 800px) {
   .site-header { height: 62px; padding: 0 18px; }
+  .wordmark-logo { width: 25px; height: 32px; }
   .desktop-nav { display: none; }
   .menu-button { display: block; }
   .hero { min-height: 84svh; }
