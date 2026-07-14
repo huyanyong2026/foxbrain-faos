@@ -1,0 +1,24 @@
+name: Workflow Script Guard
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/scripts/check_workflow_scripts.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/scripts/check_workflow_scripts.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject contaminated deployment scripts
+        run: python3 .github/scripts/check_workflow_scripts.py
