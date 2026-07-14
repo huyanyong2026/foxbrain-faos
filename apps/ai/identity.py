@@ -34,7 +34,7 @@ ROLE_DEFINITIONS = {
         "name": "采购员",
         "permissions": [
             "ai.use", "ai.inventory", "inventory.read", "purchase.read",
-            "product.read", "brand.read", "business.trend.read", "knowledge.read",
+            "replenishment.read", "product.read", "brand.read", "business.trend.read", "knowledge.read",
             "tasks.read", "tasks.create",
         ],
         "scope": "company",
