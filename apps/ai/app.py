@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import bcrypt
 import psycopg2
 import psycopg2.extras
-from flask import Flask, abort, g, jsonify, redirect, render_template, request, session
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_file, session
 
 try:
     from .connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
@@ -24,6 +24,10 @@ try:
     from .identity import (
         IDENTITY_SCHEMA_STATEMENTS, ROLE_DEFINITIONS, allows, authorize_ai_context,
         build_identity_context, seed_identity,
+    )
+    from .operation import (
+        OPERATION_SCHEMA_STATEMENTS, CoreSnapshotClient, export_inventory_health,
+        export_replenishment, export_root, inventory_health_analysis, replenishment_analysis,
     )
 except ImportError:
     from connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
@@ -42,6 +46,10 @@ except ImportError:
     from identity import (
         IDENTITY_SCHEMA_STATEMENTS, ROLE_DEFINITIONS, allows, authorize_ai_context,
         build_identity_context, seed_identity,
+    )
+    from operation import (
+        OPERATION_SCHEMA_STATEMENTS, CoreSnapshotClient, export_inventory_health,
+        export_replenishment, export_root, inventory_health_analysis, replenishment_analysis,
     )
 
 
@@ -132,6 +140,8 @@ def init_db():
                 (legacy["id"], scope_type if scope_type != "store" else "self", scope_value),
             )
     for statement in SCHEMA_STATEMENTS:
+        cur.execute(statement)
+    for statement in OPERATION_SCHEMA_STATEMENTS:
         cur.execute(statement)
     for agent_type, name, description in AGENT_ROLES:
         cur.execute(
@@ -846,6 +856,213 @@ def health():
 def workbench_api():
     return jsonify({"ok": True, "agents": rows("select agent_id,name,status from ai_agents order by id"),
                     "connections": rows("select connection_type,name,status,last_success_at from enterprise_connections order by id")})
+
+
+def operation_stores(user):
+    scopes = user["identity"]["data_scopes"]
+    if any(item["type"] == "company" for item in scopes):
+        return rows(
+            """select id,name,core_object_id from identity_org_units
+            where unit_type='store' and status='active' order by id"""
+        )
+    store_ids = [int(item["value"]) for item in scopes if item["type"] == "store" and str(item["value"]).isdigit()]
+    if not store_ids:
+        return []
+    return rows(
+        """select id,name,core_object_id from identity_org_units
+        where unit_type='store' and status='active' and id=any(%s) order by id""",
+        (store_ids,),
+    )
+
+
+def operation_store(user, store_id):
+    if not str(store_id or "").isdigit():
+        raise ValueError("请选择有效门店")
+    for store in operation_stores(user):
+        if int(store["id"]) == int(store_id):
+            return store
+    record_permission_audit("store.read", "denied", "store", str(store_id), "门店超出当前身份数据范围")
+    raise PermissionError("只能分析当前岗位有权查看的门店")
+
+
+def visible_operation_runs(user, analysis_type, limit=30):
+    allowed_ids = [int(store["id"]) for store in operation_stores(user)]
+    if not allowed_ids:
+        return []
+    return rows(
+        """select run_id,analysis_type,store_id,store_name,source_updated_at,summary_json,
+        excel_path,status,created_at from operation_analysis_runs
+        where analysis_type=%s and store_id=any(%s) order by created_at desc limit %s""",
+        (analysis_type, allowed_ids, limit),
+    )
+
+
+def selected_operation_run(user, analysis_type):
+    run_id = str(request.args.get("run") or "").strip()
+    if not run_id:
+        return None
+    result = one("select * from operation_analysis_runs where run_id=%s and analysis_type=%s", (run_id, analysis_type))
+    if not result:
+        abort(404)
+    operation_store(user, result["store_id"])
+    return result
+
+
+def operation_connector():
+    return data_core_connector(
+        os.environ.get("CORE_BASE_URL", "https://core.vafox.com"),
+        os.environ.get("CORE_API_TOKEN", ""),
+    )
+
+
+def create_operation_run(analysis_type):
+    require_csrf()
+    user = current_user()
+    store = operation_store(user, request.form.get("store_id"))
+    core_reference = store.get("core_object_id") or store["name"]
+    client = CoreSnapshotClient(operation_connector())
+    source_status = client.source_status()
+    snapshot = client.operation_snapshot(core_reference)
+    if analysis_type == "replenishment":
+        result = replenishment_analysis(snapshot, core_reference)
+        summary = {
+            "商品数量": len(result["items"]),
+            "建议补货商品": sum(1 for item in result["items"] if item["suggested_quantity"] > 0),
+            "建议补货总量": sum(item["suggested_quantity"] for item in result["items"]),
+        }
+    else:
+        result = inventory_health_analysis(snapshot, core_reference)
+        summary = {
+            "商品数量": len(result["items"]),
+            "库存金额": result["inventory_amount"],
+            "风险商品": sum(value for key, value in result["levels"].items() if key != "健康"),
+            "风险等级": result["levels"],
+        }
+    run_id = new_id("OP")
+    day_text = result["as_of"].replace("-", "")
+    safe_store_name = "".join(character for character in store["name"] if character.isalnum() or character in "-_ ").strip() or "门店"
+    filename = "{}_{}_{}_{}.xlsx".format(
+        safe_store_name,
+        "智能补货建议" if analysis_type == "replenishment" else "积压库存分析",
+        day_text,
+        run_id,
+    )
+    path = export_root() / filename
+    if analysis_type == "replenishment":
+        export_replenishment(result, path)
+    else:
+        export_inventory_health(result, path)
+    mirror = source_status.get("mirror") or {}
+    source_updated_at = mirror.get("finished_at") or source_status.get("checked_at")
+    source_ref = json.dumps({
+        "service": "core.vafox.com", "mode": source_status.get("mode", "read_only"),
+        "mirror_status": mirror.get("status"), "tables": result["source_tables"],
+    }, ensure_ascii=False)
+    cur = get_db().cursor()
+    cur.execute(
+        """insert into operation_analysis_runs(
+        run_id,analysis_type,store_id,store_name,source_ref,source_updated_at,result_json,
+        summary_json,excel_path,status,created_by)
+        values(%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s,'pending_review',%s)""",
+        (run_id, analysis_type, store["id"], store["name"], source_ref, source_updated_at,
+         json.dumps(result, ensure_ascii=False), json.dumps(summary, ensure_ascii=False), str(path), user["id"]),
+    )
+    cur.execute(
+        "insert into operation_analysis_audit(run_id,action,user_id,note) values(%s,'created',%s,%s)",
+        (run_id, user["id"], "通过core.vafox.com只读数据生成，等待人工确认"),
+    )
+    get_db().commit()
+    return run_id
+
+
+@app.get("/operation")
+@login_required
+def operation_home():
+    if not (permission_allowed("replenishment.read") or permission_allowed("inventory.read")):
+        abort(403)
+    return render_template("operation_home.html", user=current_user())
+
+
+@app.get("/operation/replenishment")
+@permission_required("replenishment.read")
+def operation_replenishment_page():
+    user = current_user()
+    return render_template(
+        "operation_replenishment.html", user=user, stores=operation_stores(user),
+        runs=visible_operation_runs(user, "replenishment"),
+        selected=selected_operation_run(user, "replenishment"),
+        can_approve=permission_allowed("approvals.manage"),
+    )
+
+
+@app.post("/ops-api/operation/replenishment/run")
+@permission_required("replenishment.read")
+def operation_replenishment_run():
+    return redirect("/operation/replenishment?run=" + create_operation_run("replenishment"))
+
+
+@app.get("/operation/inventory-health")
+@permission_required("inventory.read")
+def operation_inventory_health_page():
+    user = current_user()
+    return render_template(
+        "operation_inventory_health.html", user=user, stores=operation_stores(user),
+        runs=visible_operation_runs(user, "inventory_health"),
+        selected=selected_operation_run(user, "inventory_health"),
+        can_approve=permission_allowed("approvals.manage"),
+    )
+
+
+@app.post("/ops-api/operation/inventory-health/run")
+@permission_required("inventory.read")
+def operation_inventory_health_run():
+    return redirect("/operation/inventory-health?run=" + create_operation_run("inventory_health"))
+
+
+@app.get("/ops-api/operation/exports/<run_id>")
+@login_required
+def operation_export(run_id):
+    run = one("select * from operation_analysis_runs where run_id=%s", (run_id,))
+    if not run:
+        abort(404)
+    required = "replenishment.read" if run["analysis_type"] == "replenishment" else "inventory.read"
+    if not permission_allowed(required):
+        abort(403)
+    operation_store(current_user(), run["store_id"])
+    root = export_root().resolve()
+    path = os.path.realpath(run["excel_path"] or "")
+    if os.path.commonpath((str(root), path)) != str(root) or not os.path.isfile(path):
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+
+
+@app.post("/ops-api/operation/runs/<run_id>/review")
+@manager_required
+def operation_review(run_id):
+    require_csrf()
+    action = request.form.get("action")
+    status = "approved" if action == "approve" else "rejected" if action == "reject" else None
+    if not status:
+        raise ValueError("请选择确认或拒绝")
+    run = one("select store_id,analysis_type from operation_analysis_runs where run_id=%s", (run_id,))
+    if not run:
+        abort(404)
+    operation_store(current_user(), run["store_id"])
+    cur = get_db().cursor()
+    cur.execute(
+        """update operation_analysis_runs set status=%s,approved_by=%s,approved_at=now()
+        where run_id=%s and status='pending_review'""",
+        (status, session["user_id"], run_id),
+    )
+    if cur.rowcount != 1:
+        raise ValueError("该分析已经完成审核")
+    cur.execute(
+        "insert into operation_analysis_audit(run_id,action,user_id,note) values(%s,%s,%s,%s)",
+        (run_id, status, session["user_id"], "人工审核经营建议；系统未执行采购或库存变更"),
+    )
+    get_db().commit()
+    target = "/operation/replenishment" if run["analysis_type"] == "replenishment" else "/operation/inventory-health"
+    return redirect(target + "?run=" + run_id)
 
 
 @app.get("/ops-api/exchange/approved-runs")

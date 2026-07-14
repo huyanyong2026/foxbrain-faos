@@ -22,7 +22,7 @@ from urllib.parse import parse_qs, urlparse
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_@$#]*$")
 DEFAULT_TABLES = {
     "dbo.OADM", "dbo.OITM", "dbo.OITB", "dbo.OITW", "dbo.OWHS",
-    "dbo.OCRD", "dbo.OCRG", "dbo.OINV", "dbo.INV1", "dbo.ORIN",
+    "dbo.OCRD", "dbo.OCRG", "dbo.OMRC", "dbo.OINV", "dbo.INV1", "dbo.ORIN",
     "dbo.RIN1", "dbo.OPCH", "dbo.PCH1", "dbo.OPOR", "dbo.POR1",
     "dbo.ORDR", "dbo.RDR1", "dbo.OHEM", "dbo.OSLP",
 }
@@ -155,6 +155,65 @@ class CoreService:
         finally:
             connection.close()
 
+    def operation_snapshot(self, store_reference: str, as_of: str):
+        """Return a bounded, read-only store snapshot for the operation center."""
+        reference = str(store_reference or "").strip()
+        if not reference or len(reference) > 160:
+            raise ValueError("store reference is required")
+        try:
+            datetime.strptime(as_of, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError("invalid as_of date") from exc
+        connection = self.connector()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                """select top 2 WhsCode,WhsName from dbo.OWHS
+                where lower(WhsCode)=lower(%s) or lower(WhsName)=lower(%s)
+                or lower(WhsName) like lower(%s) order by
+                case when lower(WhsCode)=lower(%s) or lower(WhsName)=lower(%s) then 0 else 1 end""",
+                (reference, reference, "%" + reference + "%", reference, reference),
+            )
+            warehouses = [dict(zip([item[0] for item in cursor.description], row)) for row in cursor.fetchall()]
+            if len(warehouses) != 1:
+                raise ValueError("store reference is not unique")
+            warehouse = {key: json_value(value) for key, value in warehouses[0].items()}
+            code = warehouse["WhsCode"]
+            cursor.execute(
+                """select i.ItemCode,i.ItemName,g.ItmsGrpNam,m.FirmName,
+                w.OnHand,w.IsCommited,w.OnOrder,w.AvgPrice
+                from dbo.OITW w join dbo.OITM i on i.ItemCode=w.ItemCode
+                left join dbo.OITB g on g.ItmsGrpCod=i.ItmsGrpCod
+                left join dbo.OMRC m on m.FirmCode=i.FirmCode
+                where w.WhsCode=%s""",
+                (code,),
+            )
+            columns = [item[0] for item in cursor.description]
+            products = [dict(zip(columns, (json_value(value) for value in row))) for row in cursor.fetchall()]
+            cursor.execute(
+                """select sales.ItemCode,
+                sum(case when sales.DocDate>=dateadd(day,-30,cast(%s as date)) then sales.Quantity else 0 end) Sales30,
+                sum(case when sales.DocDate>=dateadd(day,-60,cast(%s as date)) then sales.Quantity else 0 end) Sales60,
+                sum(case when sales.DocDate>=dateadd(day,-90,cast(%s as date)) then sales.Quantity else 0 end) Sales90,
+                sum(sales.Quantity) Sales180,
+                max(case when sales.Quantity>0 then sales.DocDate end) LastSaleDate
+                from (
+                  select l.ItemCode,h.DocDate,cast(l.Quantity as decimal(19,6)) Quantity
+                  from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry
+                  where h.CANCELED='N' and l.WhsCode=%s and h.DocDate>=dateadd(day,-180,cast(%s as date))
+                  union all
+                  select l.ItemCode,h.DocDate,-cast(l.Quantity as decimal(19,6)) Quantity
+                  from dbo.ORIN h join dbo.RIN1 l on l.DocEntry=h.DocEntry
+                  where h.CANCELED='N' and l.WhsCode=%s and h.DocDate>=dateadd(day,-180,cast(%s as date))
+                ) sales group by sales.ItemCode""",
+                (as_of, as_of, as_of, code, as_of, code, as_of),
+            )
+            columns = [item[0] for item in cursor.description]
+            sales = [dict(zip(columns, (json_value(value) for value in row))) for row in cursor.fetchall()]
+            return {"as_of": as_of, "warehouse": warehouse, "products": products, "sales": sales}
+        finally:
+            connection.close()
+
 
 class CoreApiHandler(BaseHTTPRequestHandler):
     server_version = "FoxBrainCore/1.0"
@@ -213,6 +272,13 @@ class CoreApiHandler(BaseHTTPRequestHandler):
                 if not self._authorized("facts:read"):
                     return
                 return self._reply(200, {"tables": self.server.service.tables()})
+            if parsed.path == "/api/v1/operation/snapshot":
+                if not self._authorized("facts:read"):
+                    return
+                query = parse_qs(parsed.query)
+                return self._reply(200, self.server.service.operation_snapshot(
+                    query.get("store", [""])[0], query.get("as_of", [utc_now()[:10]])[0]
+                ))
             match = re.fullmatch(r"/api/v1/tables/([^/]+)/([^/]+)/rows", parsed.path)
             if match:
                 if not self._authorized("facts:read"):

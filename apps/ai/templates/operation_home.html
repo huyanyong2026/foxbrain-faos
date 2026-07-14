@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}AI经营助手｜FireFox{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">真实经营数据 · 人工确认执行</p><h1>AI经营助手</h1><p>经营事实只从 core.vafox.com 读取，分析结果不会写入 SAP，也不会自动执行采购或库存操作。</p></section>
+<section class="operation-entries">
+  {% if '*' in user.identity.permissions or 'replenishment.read' in user.identity.permissions %}
+  <a href="/operation/replenishment"><span class="entry-mark">补</span><div><h2>AI智能补货</h2><p>按门店查看30、60、90天销量与当前库存，生成待人工确认的补货建议表。</p></div><strong>进入</strong></a>
+  {% endif %}
+  {% if '*' in user.identity.permissions or 'inventory.read' in user.identity.permissions %}
+  <a href="/operation/inventory-health"><span class="entry-mark risk">库</span><div><h2>AI库存健康</h2><p>按库存年龄识别积压风险，生成可下载的门店库存健康分析表。</p></div><strong>进入</strong></a>
+  {% endif %}
+</section>
+{% endblock %}

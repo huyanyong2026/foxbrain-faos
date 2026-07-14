@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}AI智能补货｜FireFox{% endblock %}
+{% block content %}
+<section class="page-title"><p class="eyebrow">AI经营助手</p><h1>AI智能补货</h1><p>目标库存按近30天实际销量计算；建议数量扣除可售库存和在途库存，最终由负责人确认。</p></section>
+<section class="operation-toolbar">
+  <form method="post" action="/ops-api/operation/replenishment/run" data-busy-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>选择门店<select name="store_id" required>{% for store in stores %}<option value="{{ store.id }}">{{ store.name }}</option>{% endfor %}</select></label>
+    <button {% if not stores %}disabled{% endif %}>生成补货建议</button>
+  </form>
+  <p>只读来源：企业数据核心。每次分析保留来源时间和 Excel 历史。</p>
+</section>
+{% if not stores %}<section class="empty"><h2>当前没有可分析的门店</h2><p>身份尚未绑定门店，或组织架构中没有有效门店。请联系身份管理员完成岗位与门店设置。</p><a class="primary" href="/identity">查看身份与权限</a></section>{% endif %}
+{% if selected %}
+<section class="operation-summary">
+  <div><span>门店</span><strong>{{ selected.store_name }}</strong></div>
+  <div><span>商品数量</span><strong>{{ selected.summary_json['商品数量'] }}</strong></div>
+  <div><span>建议补货商品</span><strong>{{ selected.summary_json['建议补货商品'] }}</strong></div>
+  <div><span>建议补货总量</span><strong>{{ selected.summary_json['建议补货总量'] }}</strong></div>
+</section>
+<section class="source-note"><strong>数据更新时间</strong><span>{{ selected.source_updated_at or 'Core暂未提供更新时间' }}</span><span class="status">{{ {'pending_review':'待人工确认','approved':'已确认','rejected':'已拒绝'}.get(selected.status, selected.status) }}</span></section>
+<div class="operation-actions"><a class="primary" href="/ops-api/operation/exports/{{ selected.run_id }}">下载 Excel</a>{% if can_approve and selected.status == 'pending_review' %}<form method="post" action="/ops-api/operation/runs/{{ selected.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button name="action" value="approve">确认建议</button><button class="secondary" name="action" value="reject">拒绝建议</button></form>{% endif %}</div>
+<div class="table-scroll"><table><thead><tr><th>商品</th><th>品牌</th><th>库存</th><th>30天销量</th><th>60天销量</th><th>90天销量</th><th>趋势</th><th>建议补货</th><th>原因</th></tr></thead><tbody>{% for item in selected.result_json['items'] %}<tr><td><strong>{{ item.product_name }}</strong><small>{{ item.product_code }}</small></td><td>{{ item.brand }}</td><td>{{ item.current_inventory }}</td><td>{{ item.sales_30 }}</td><td>{{ item.sales_60 }}</td><td>{{ item.sales_90 }}</td><td>{{ item.sales_trend }}</td><td><strong>{{ item.suggested_quantity }}</strong></td><td>{{ item.ai_reason }}</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
+<section class="section-head"><div><p class="eyebrow">历史记录</p><h2>补货分析</h2></div></section>
+<section class="list">{% for run in runs %}<a class="row" href="/operation/replenishment?run={{ run.run_id }}"><div><strong>{{ run.store_name }} · {{ run.created_at.strftime('%Y-%m-%d %H:%M') }}</strong><p>建议补货商品 {{ run.summary_json['建议补货商品'] }} 个，建议总量 {{ run.summary_json['建议补货总量'] }} 件</p></div><span class="status">{{ {'pending_review':'待人工确认','approved':'已确认','rejected':'已拒绝'}.get(run.status, run.status) }}</span></a>{% else %}<div class="empty"><h3>还没有补货分析</h3><p>选择门店生成第一份建议，系统会保留 Core 数据来源与 Excel 文件。</p></div>{% endfor %}</section>
+{% endblock %}
