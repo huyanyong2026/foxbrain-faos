@@ -1,4 +1,6 @@
 import json
+import hashlib
+import hmac
 import tempfile
 import threading
 import unittest
@@ -34,13 +36,35 @@ class FakeService:
             "products": [{"id": "A1", "name": "冲锋衣"}],
             "brands": [{"id": "1", "name": "KAILAS", "sales_amount_90d": 300}],
             "suppliers": [{"id": "S1", "name": "供应商"}],
-            "customers": [{"id": "C1", "name": "顾客"}],
+            "customers": [{"id": "C1", "name": "顾客", "phone": "13800138000", "mobile": ""}],
         }[object_type]
         if object_id:
             items = [item for item in items if item["id"] == object_id]
         if object_type == "stores" and allowed_store_ids:
             items = [item for item in items if item["id"] in allowed_store_ids]
         return {"object_type": object_type, "items": items, "returned": len(items)}
+
+    def customer_purchases(self, customer_id, limit=200):
+        return {
+            "customer_id": customer_id,
+            "returned": 1,
+            "data_as_of": "2026-07-14T00:00:00+00:00",
+            "source": {"system": "core.vafox.com", "mode": "read_only"},
+            "items": [{
+                "purchase_key": "OINV:1:0", "sku": "A1", "product_name": "冲锋衣",
+                "brand_name": "KAILAS", "purchase_date": "2026-07-01",
+                "quantity": 1, "amount": 999, "source_document": "invoice",
+            }],
+        }
+
+    def explorer_customer_match(self, phone_hash, hmac_secret, limit=500):
+        expected = hmac.new(hmac_secret.encode(), b"13800138000", hashlib.sha256).hexdigest()
+        return {
+            "matched": hmac.compare_digest(phone_hash, expected),
+            "customer": {"id": "C1", "name": "顾客"} if phone_hash == expected else None,
+            "items": self.customer_purchases("C1", limit)["items"] if phone_hash == expected else [],
+            "source": {"system": "core.vafox.com", "mode": "read_only"},
+        }
 
     def public_objects(self, object_type):
         values = self.business_objects(object_type)["items"]
@@ -62,6 +86,7 @@ class CoreApiTests(unittest.TestCase):
             "ai": {"token": "ai-token", "role": "purchasing", "scopes": ["objects:read", "health:read"]},
             "operator": {"token": "raw-token", "role": "core_operator", "scopes": ["raw:read"]},
             "gateway": {"token": "public-token", "scopes": ["public:read"]},
+            "explorer": {"token": "explorer-token", "role": "explorer_service", "scopes": ["explorer:match"]},
         }))
         cls.server = create_server("127.0.0.1", 0, FakeService(), policy)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -116,6 +141,24 @@ class CoreApiTests(unittest.TestCase):
     def test_customer_objects_require_sensitive_scope(self):
         self.assertEqual(self.request("/api/v1/objects/customers", "ai-token")[0], 401)
         self.assertEqual(self.request("/api/v1/objects/customers", "facts-token")[0], 200)
+
+    def test_customer_purchases_require_sensitive_scope(self):
+        path = "/api/v1/objects/customers/C1/purchases"
+        self.assertEqual(self.request(path, "public-token")[0], 401)
+        self.assertEqual(self.request(path, "ai-token")[0], 401)
+        status, payload = self.request(path, "facts-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["items"][0]["brand_name"], "KAILAS")
+
+    def test_explorer_match_is_hash_only_and_uses_dedicated_scope(self):
+        phone_hash = hmac.new(b"explorer-token", b"13800138000", hashlib.sha256).hexdigest()
+        path = "/api/v1/explorer/customer-match?phone_hash=" + phone_hash
+        self.assertEqual(self.request(path, "public-token")[0], 401)
+        self.assertEqual(self.request(path, "facts-token")[0], 401)
+        status, payload = self.request(path, "explorer-token")
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["matched"])
+        self.assertNotIn("phone", payload["customer"])
 
     def test_missing_token_and_writes_are_rejected(self):
         self.assertEqual(self.request("/api/health")[0], 401)

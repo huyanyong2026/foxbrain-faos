@@ -7,6 +7,7 @@ mutating HTTP methods.  SAP credentials are never loaded by this process.
 from __future__ import annotations
 
 import hmac
+import hashlib
 import json
 import os
 import re
@@ -18,7 +19,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 from zoneinfo import ZoneInfo
 
 
@@ -494,6 +495,78 @@ class CoreService:
         ttl = self.reference_ttl if object_type in {"brands", "suppliers"} else self.metrics_ttl
         return self.cache.get_or_build(cache_key, ttl, build)
 
+    def customer_purchases(self, customer_id, limit=200):
+        """Return one customer's purchases from the read-only mirror."""
+        customer_id = str(customer_id or "").strip()
+        if not customer_id or len(customer_id) > 100:
+            raise ValueError("customer id is required")
+        limit = max(1, min(int(limit), 500))
+        rows = self._query(
+            """with purchases as (
+              select concat('OINV:',h.DocEntry,':',l.LineNum) purchase_key,
+              l.ItemCode sku,i.ItemName product_name,m.FirmName brand_name,
+              h.DocDate purchase_date,cast(l.Quantity as decimal(19,4)) quantity,
+              cast(l.LineTotal as decimal(19,4)) amount,'invoice' source_document
+              from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry
+              left join dbo.OITM i on i.ItemCode=l.ItemCode
+              left join dbo.OMRC m on m.FirmCode=i.FirmCode
+              where h.CANCELED='N' and h.CardCode=%s
+              union all
+              select concat('ORIN:',h.DocEntry,':',l.LineNum),
+              l.ItemCode,i.ItemName,m.FirmName,h.DocDate,
+              -cast(l.Quantity as decimal(19,4)),-cast(l.LineTotal as decimal(19,4)),'return'
+              from dbo.ORIN h join dbo.RIN1 l on l.DocEntry=h.DocEntry
+              left join dbo.OITM i on i.ItemCode=l.ItemCode
+              left join dbo.OMRC m on m.FirmCode=i.FirmCode
+              where h.CANCELED='N' and h.CardCode=%s
+            ) select purchase_key,sku,product_name,brand_name,purchase_date,quantity,amount,source_document
+            from purchases order by purchase_date desc,purchase_key
+            offset 0 rows fetch next %s rows only""",
+            (customer_id, customer_id, limit),
+        )
+        return {
+            "customer_id": customer_id,
+            "returned": len(rows),
+            "data_as_of": self.status().get("mirror", {}).get("finished_at"),
+            "source": {"system": "core.vafox.com", "dataset": "SAP Mirror", "mode": "read_only"},
+            "items": rows,
+        }
+
+    def explorer_customer_match(self, phone_hash, hmac_secret, limit=500):
+        """Match one verified phone without returning a customer directory."""
+        phone_hash = str(phone_hash or "").strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{64}", phone_hash):
+            raise ValueError("invalid phone hash")
+        secret = str(hmac_secret or "").encode("utf-8")
+        if len(secret) < 16:
+            raise ValueError("invalid service credential")
+        rows = self._query(
+            """select CardCode id,CardName name,Phone1 phone,Cellular mobile
+            from dbo.OCRD where CardType='C'"""
+        )
+        for row in rows:
+            for field in ("phone", "mobile"):
+                digits = "".join(character for character in str(row.get(field) or "") if character.isdigit())
+                if digits.startswith("86") and len(digits) == 13:
+                    digits = digits[2:]
+                if len(digits) != 11 or not digits.startswith("1"):
+                    continue
+                candidate = hmac.new(secret, digits.encode("utf-8"), hashlib.sha256).hexdigest()
+                if hmac.compare_digest(candidate, phone_hash):
+                    purchases = self.customer_purchases(str(row["id"]), limit)
+                    return {
+                        "matched": True,
+                        "customer": {"id": row["id"], "name": row.get("name") or ""},
+                        "data_as_of": purchases["data_as_of"],
+                        "source": purchases["source"],
+                        "items": purchases["items"],
+                    }
+        return {
+            "matched": False, "customer": None, "items": [],
+            "data_as_of": self.status().get("mirror", {}).get("finished_at"),
+            "source": {"system": "core.vafox.com", "dataset": "SAP Mirror", "mode": "read_only"},
+        }
+
     def public_objects(self, object_type):
         enrichment = self._enrichment().get(object_type, {})
         if object_type not in {"stores", "brands"}:
@@ -643,6 +716,22 @@ class CoreApiHandler(BaseHTTPRequestHandler):
                 if not self._authorized_any("objects:read", "facts:read"):
                     return
                 return self._reply(200, self.server.service.business_summary())
+            if parsed.path == "/api/v1/explorer/customer-match":
+                if not self._authorized("explorer:match"):
+                    return
+                query = parse_qs(parsed.query)
+                return self._reply(200, self.server.service.explorer_customer_match(
+                    query.get("phone_hash", [""])[0], self._token(),
+                    int(query.get("limit", [500])[0]),
+                ))
+            match = re.fullmatch(r"/api/v1/objects/customers/([^/]+)/purchases", parsed.path)
+            if match:
+                if not self._authorized("customers:read"):
+                    return
+                query = parse_qs(parsed.query)
+                return self._reply(200, self.server.service.customer_purchases(
+                    unquote(match.group(1)), int(query.get("limit", [200])[0])
+                ))
             match = re.fullmatch(r"/api/v1/objects/(stores|products|brands|suppliers|customers)", parsed.path)
             if match:
                 object_type = match.group(1)

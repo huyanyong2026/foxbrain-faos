@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
 import ssl
 import time
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import quote, urlencode, urljoin, urlparse
 from urllib.request import Request, urlopen
 
 
@@ -66,6 +68,27 @@ class EnterpriseDataClient:
         return self.get(
             "api/v1/objects/{}".format(object_type),
             {"limit": int(limit), "offset": int(offset)},
+        )
+
+    def customer_purchases(self, customer_id, limit=200):
+        customer_id = str(customer_id or "").strip()
+        if not customer_id:
+            raise ValueError("customer id is required")
+        return self.get(
+            "api/v1/objects/customers/{}/purchases".format(quote(customer_id, safe="")),
+            {"limit": int(limit)},
+        )
+
+    def explorer_customer_match(self, phone, limit=500):
+        digits = "".join(character for character in str(phone or "") if character.isdigit())
+        if digits.startswith("86") and len(digits) == 13:
+            digits = digits[2:]
+        if len(digits) != 11 or not digits.startswith("1"):
+            raise ValueError("valid phone is required")
+        phone_hash = hmac.new(self.token.encode("utf-8"), digits.encode("utf-8"), hashlib.sha256).hexdigest()
+        return self.get(
+            "api/v1/explorer/customer-match",
+            {"phone_hash": phone_hash, "limit": int(limit)},
         )
 
 

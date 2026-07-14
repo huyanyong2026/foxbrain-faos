@@ -20,6 +20,8 @@ Applications consume normalized objects instead of SAP tables:
 - `GET /api/v1/objects/brands`
 - `GET /api/v1/objects/suppliers`
 - `GET /api/v1/objects/customers` (requires `customers:read`)
+- `GET /api/v1/objects/customers/{customer_id}/purchases` (requires `customers:read`)
+- `GET /api/v1/explorer/customer-match?phone_hash=...` (requires `explorer:match`; returns one match only)
 - `GET /api/v1/business/summary`
 - `GET /api/v1/data-health`
 - `GET /api/v1/public/stores`

@@ -1,4 +1,6 @@
 import json
+import hashlib
+import hmac
 import threading
 import unittest
 import urllib.error
@@ -53,6 +55,17 @@ class EnterpriseDataClientTests(unittest.TestCase):
         request = mocked_urlopen.call_args.args[0]
         self.assertEqual(request.get_method(), "GET")
         self.assertEqual(request.get_header("Authorization"), "Bearer secret")
+
+    @mock.patch("foxbrain_os.enterprise_data_service.urlopen")
+    def test_explorer_match_sends_phone_hmac_not_plain_phone(self, mocked_urlopen):
+        mocked_urlopen.return_value = FakeResponse({"matched": False, "items": []})
+        client = EnterpriseDataClient("https://core.vafox.com", "explorer-token", cache_seconds=0)
+        result = client.explorer_customer_match("13800138000")
+        self.assertTrue(result["ok"])
+        request = mocked_urlopen.call_args.args[0]
+        expected = hmac.new(b"explorer-token", b"13800138000", hashlib.sha256).hexdigest()
+        self.assertIn(expected, request.full_url)
+        self.assertNotIn("13800138000", request.full_url)
 
 
 class GatewayPublicProxyTests(unittest.TestCase):
