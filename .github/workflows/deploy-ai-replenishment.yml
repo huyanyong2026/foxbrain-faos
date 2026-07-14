@@ -1,5 +1,12 @@
 name: Deploy AI Replenishment Center
 
+permissions:
+  contents: read
+
+concurrency:
+  group: foxbrain-ai-core-production
+  cancel-in-progress: false
+
 on:
   push:
     branches: [main]
@@ -63,6 +70,19 @@ jobs:
             set -eu
             SOURCE_DIR=/opt/foxbrain-core/source
             API_DIR=/opt/foxbrain-core/api
+            if ! command -v git >/dev/null 2>&1; then
+              if command -v dnf >/dev/null 2>&1; then
+                sudo dnf install -y git
+              elif command -v yum >/dev/null 2>&1; then
+                sudo yum install -y git
+              elif command -v apt-get >/dev/null 2>&1; then
+                sudo apt-get update
+                sudo apt-get install -y git
+              else
+                echo "No supported package manager found for Git installation" >&2
+                exit 1
+              fi
+            fi
             if [ ! -d "$SOURCE_DIR/.git" ]; then
               sudo mkdir -p "$SOURCE_DIR"
               sudo git clone https://github.com/${{ github.repository }}.git "$SOURCE_DIR"
@@ -85,8 +105,12 @@ jobs:
             path.write_text('\n'.join(kept + [f'{key}={value}' for key, value in values.items()]) + '\n')
             PY
             sudo systemctl restart foxbrain-core-api.service
-            sleep 3
-            curl -fsS http://127.0.0.1:8090/healthz
+            healthy=0
+            for attempt in $(seq 1 20); do
+              if curl -fsS http://127.0.0.1:8090/healthz; then healthy=1; break; fi
+              sleep 2
+            done
+            test "$healthy" -eq 1
 
   deploy-ai:
     needs: [test, deploy-core-api]
@@ -147,6 +171,10 @@ jobs:
             sudo ln -sfn "$SHARED_ENV" apps/ai/.env
             sudo docker compose -f apps/ai/docker-compose.example.yml build
             sudo docker compose -f apps/ai/docker-compose.example.yml up -d
-            sleep 8
-            curl -fsS http://127.0.0.1:5010/ops-api/health
+            healthy=0
+            for attempt in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:5010/ops-api/health; then healthy=1; break; fi
+              sleep 2
+            done
+            test "$healthy" -eq 1
             sudo docker compose -f apps/ai/docker-compose.example.yml ps
