@@ -639,7 +639,7 @@ class ExplorerHandler(BaseHTTPRequestHandler):
         if parsed.path == "/explorer/register":
             return self.register_page()
         if parsed.path == "/explorer/privacy":
-            return self.html(200, page("Explorer 隐私说明", """<h1>你的身份，只服务于你的探索人生。</h1><section class="panel"><p>我们只在你明确授权并完成短信验证后建立身份。手机号以不可逆摘要保存，页面只显示末四位；购买记录只从 core.vafox.com 只读匹配，不连接或修改 SAP。</p><p>你只能看到自己的数据。未经授权，不会用于营销、社群邀请或对外分享。</p><a class="button secondary" href="/explorer/register">返回登录</a></section>"""))
+            return self.html(200, page("Explorer 隐私说明", """<h1>你的身份，只服务于你的探索人生。</h1><section class="panel"><p>我们只在你明确授权并完成短信验证后建立身份。手机号以不可逆摘要保存，以及查询购买记录与积分。</p><p>你只能看到自己的数据。未经授权，不会用于营销、社群邀请或对外分享。</p><a class="button secondary" href="/explorer/register">返回登录</a></section>"""))
         if parsed.path == "/explorer/auth/wechat/callback":
             return self.redirect("/explorer/register")
         identity = self.identity()
