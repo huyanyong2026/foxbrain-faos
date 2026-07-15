@@ -5801,7 +5801,7 @@ a,button,.btn,input,select,textarea{{touch-action:manipulation}}img,video,canvas
 .panel,.card{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.panel{{padding:18px;margin:14px 0}}.form{{max-width:520px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}}.card{{padding:18px;min-height:154px;display:flex;flex-direction:column;justify-content:space-between}}
 .metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}}.metric{{background:#fff;border:1px solid #ddd7cc;border-radius:8px;padding:14px;min-height:92px}}.metric strong{{display:block;font-size:22px;margin-top:7px;line-height:1.15}}.metric span{{font-size:13px;color:#666}}.metric.good{{border-color:#b9dfc8;background:#f4fbf6}}.metric.warn{{border-color:#efd19a;background:#fff9ed}}.metric.risk{{border-color:#edb0aa;background:#fff5f4}}
-.ceo-hero{{background:#fff;border:1px solid #d8d0c2;border-radius:8px;padding:20px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.ceo-hero.compact{{padding:18px;margin-top:8px}}.ceo-hero h1{{font-size:32px;margin:0 0 8px}}.ceo-ask{{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}}.compact-panel{{padding:15px;margin:10px 0;box-shadow:none}}.compact-split{{gap:10px}}.focus-list{{display:grid;gap:10px}}.focus-item{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fbfaf7}}.focus-item strong{{display:block;margin-bottom:5px}}.status-tag{{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4ff;color:#1849a9;font-weight:800;font-size:12px}}.danger-note{{border-left:4px solid #b45f06;padding:10px 12px;background:#fff8ed;border-radius:8px}}.nav-groups{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}.nav-group{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fff}}.nav-group a{{display:inline-block;margin:4px 6px 4px 0}}
+.ceo-hero{{background:#fff;border:1px solid #d8d0c2;border-radius:8px;padding:20px;margin:14px 0;box-shadow:0 8px 22px rgba(0,0,0,.05)}}.executive-hero{{padding:34px;border-radius:18px;background:linear-gradient(135deg,#111827,#1f4f8f);color:#fff;border:0}}.executive-hero .lead,.executive-hero label{{color:#e5eefc}}.executive-hero .status-tag{{background:rgba(255,255,255,.16);color:#fff}}.executive-hero input{{border-color:rgba(255,255,255,.45)}}.executive-metrics .metric,.executive-health .metric{{border-radius:16px;box-shadow:0 12px 28px rgba(20,35,60,.08)}}.ceo-hero.compact{{padding:18px;margin-top:8px}}.ceo-hero h1{{font-size:32px;margin:0 0 8px}}.ceo-ask{{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}}.compact-panel{{padding:15px;margin:10px 0;box-shadow:none}}.compact-split{{gap:10px}}.focus-list{{display:grid;gap:10px}}.focus-item{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fbfaf7}}.focus-item strong{{display:block;margin-bottom:5px}}.status-tag{{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4ff;color:#1849a9;font-weight:800;font-size:12px}}.danger-note{{border-left:4px solid #b45f06;padding:10px 12px;background:#fff8ed;border-radius:8px}}.nav-groups{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}.nav-group{{border:1px solid #e5ded2;border-radius:8px;padding:12px;background:#fff}}.nav-group a{{display:inline-block;margin:4px 6px 4px 0}}
 .split{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}}.list{{margin:0;padding-left:20px;line-height:1.85}}.pill{{display:inline-flex;align-items:center;max-width:100%;border:1px solid #ddd7cc;border-radius:999px;padding:7px 10px;margin:3px 5px 3px 0;background:#fff;font-weight:700;color:#333;text-decoration:none}}
 .store-row{{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:8px;border-top:1px solid #eee;padding:10px 0}}.store-row:first-child{{border-top:0}}
 .card h2{{margin-bottom:4px}}.card p{{color:#555;margin:0 0 18px}}.disabled{{opacity:.55}}
@@ -10331,89 +10331,79 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             self.card(U(r"\u95e8\u5e97\u667a\u80fd"), U(r"\u95e8\u5e97\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u538b\u529b\u548c\u7ecf\u8425\u673a\u4f1a\u3002"), "/store-intelligence", "btn", True),
             self.card(U(r"\u6570\u636e\u540c\u6b65\u4e2d\u5fc3"), U(r"\u67e5\u770b\u6570\u636e\u65b0\u9c9c\u5ea6\u3001\u5bf9\u8d26\u7ed3\u679c\u4e0e\u4eba\u5de5\u53d1\u5e03\u72b6\u6001\u3002"), "/sync-center", "btn", True),
         ])
+
+        snapshot_metrics = "".join([
+            self.metric(U(r"\u4eca\u65e5\u9500\u552e"), U(r"\u5f85\u63a5\u5165\u4eca\u65e5\u53e3\u5f84"), U(r"\u5f53\u524d\u53ef\u67e5\u5df2\u5f52\u4e00\u9500\u552e\uff1a") + money(summary["sales_amount"])),
+            self.metric(U(r"\u6bdb\u5229\u7387"), ("{:.1%}".format(summary["gross_margin"]) if summary.get("gross_margin") else U(r"\u5f85\u63a5\u5165\u4eca\u65e5\u53e3\u5f84")), U(r"\u7ecf\u8425\u53e3\u5f84\u6bdb\u5229\uff1a") + money(summary.get("gross_profit", 0))),
+            self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u9ad8\u98ce\u9669 / \u4e25\u91cd\u98ce\u9669")),
+            self.metric(U(r"\u73b0\u91d1\u6d41"), U(r"\u5f85\u63a5\u5165\u8d22\u52a1\u73b0\u91d1\u6d41"), U(r"\u53ef\u5148\u67e5\u770b\u5229\u6da6\u548c\u8d39\u7528\u53e3\u5f84")),
+            self.metric(U(r"\u5f85\u5904\u7406\u4efb\u52a1"), summary["decision_high_severity"], U(r"\u9ad8\u4f18\u5148\u7ea7\u51b3\u7b56\u63d0\u9192")),
+        ])
+        ai_insight_items = [
+            U(r"\u4eca\u65e5\u9500\u552e\u8fd8\u672a\u63a5\u5165\u72ec\u7acb\u65e5\u53e3\u5f84\uff0c\u5df2\u5c55\u793a\u7d2f\u8ba1\u7ecf\u8425\u6570\u636e\u4f5c\u4e3a\u53c2\u8003\u3002"),
+            U(r"\u5e93\u5b58\u98ce\u9669\u5df2\u6309\u9ad8\u98ce\u9669\u548c\u4e25\u91cd\u98ce\u9669\u5206\u5c42\uff0c\u5efa\u8bae\u5148\u6253\u5f00\u5e93\u5b58\u667a\u80fd\u67e5\u770b\u8bc1\u636e\u3002"),
+            U(r"\u54c1\u724c\u4e0e\u95e8\u5e97\u5065\u5eb7\u5df2\u6709\u5206\u6790\u7ed3\u679c\uff0c\u53ef\u4ece\u54c1\u724c\u4e2d\u5fc3\u548c\u95e8\u5e97\u9a7e\u9a76\u8231\u8fdb\u5165\u660e\u7ec6\u3002"),
+            U(r"\u73b0\u91d1\u6d41\u548c\u4eca\u65e5\u9500\u552e\u5982\u65e0\u53ef\u7528\u6570\u636e\uff0c\u9996\u9875\u4ec5\u663e\u793a\u667a\u80fd\u5360\u4f4d\uff0c\u4e0d\u751f\u6210\u5047\u6570\u5b57\u3002"),
+        ]
+        ai_summary = self.bullets(ai_insight_items[:5])
+        operating_modules = [
+            (U(r"\u7ecf\u8425\u603b\u89c8"), "/business-overview"), (U(r"\u95e8\u5e97\u9a7e\u9a76\u8231"), "/store-intelligence"),
+            (U(r"\u54c1\u724c\u4e2d\u5fc3"), "/brand-intelligence"), (U(r"\u4f9b\u5e94\u94fe\u4e2d\u5fc3"), "/inventory-intelligence"),
+            (U(r"\u5546\u54c1\u4e2d\u5fc3"), "/products"), (U(r"\u4f1a\u5458\u4e2d\u5fc3"), "/members"),
+            (U(r"\u5458\u5de5\u4e2d\u5fc3"), "/employees"), (U(r"\u5185\u5bb9\u4e2d\u5fc3"), "/content"),
+            (U(r"AI\u667a\u80fd\u4f53"), "/agents/runtime"),
+        ]
+        module_cards = "".join(self.card(title, U(r"\u8fdb\u5165\u6a21\u5757\u67e5\u770b\u8be6\u7ec6\u6570\u636e\u4e0e\u4e1a\u52a1\u52a8\u4f5c\u3002"), url, "btn dark", True) for title, url in operating_modules)
+        copilot_questions = [U(r"\u4eca\u5929\u9500\u552e\u600e\u4e48\u6837\uff1f"), U(r"\u5e93\u5b58\u98ce\u9669\u6709\u54ea\u4e9b\uff1f"), U(r"\u54ea\u4e2a\u95e8\u5e97\u6700\u597d\uff1f"), U(r"\u6709\u54ea\u4e9b\u5f02\u5e38\uff1f")]
+        copilot_panel = "<div class='chipbar'>" + "".join("<a class='pill' href='/copilot?q={}'>{}</a>".format(quote(q), esc(q)) for q in copilot_questions) + "</div><p><a class='btn dark' href='/ai-assistant'>{}</a> <a class='btn' href='/copilot'>{}</a></p>".format(U(r"\u8fdb\u5165 AI Assistant"), U(r"\u6253\u5f00 CEO Copilot"))
+        health_cards = "".join([
+            self.metric("Business Health", U(r"\u5df2\u8fde\u63a5"), self.status_label(summary["business_health_status"])),
+            self.metric("Financial Health", U(r"\u5f85\u8d22\u52a1\u5065\u5eb7\u660e\u7ec6"), U(r"\u4e0d\u751f\u6210\u5047\u8bc4\u5206")),
+            self.metric("Inventory Health", "H{} / C{}".format(summary["inventory_intelligence_high_risk"], summary["inventory_intelligence_critical"]), U(r"\u4f7f\u7528\u5e93\u5b58\u667a\u80fd\u8bc1\u636e")),
+            self.metric("Growth Health", U(r"\u5f85\u589e\u957f\u53e3\u5f84"), U(r"\u8bf7\u8fdb\u5165\u7ecf\u8425\u603b\u89c8")),
+            self.metric("Team Health", U(r"\u5f85\u56e2\u961f\u53e3\u5f84"), U(r"\u8bf7\u8fdb\u5165\u5458\u5de5\u4e2d\u5fc3")),
+        ])
+        knowledge_entries = [(U(r"\u4f01\u4e1a\u6863\u6848"), "/enterprise"), (U(r"Founder\u8bb0\u5fc6"), "/enterprise-brain"), (U(r"\u4f1a\u8bae\u7eaa\u8981"), "/knowledge?category=meeting"), (U(r"\u5236\u5ea6"), "/knowledge?category=policy"), (U(r"\u6d41\u7a0b"), "/knowledge?category=process"), (U(r"SAP\u77e5\u8bc6"), "/sap-knowledge")]
+        knowledge_cards = "".join(self.card(title, U(r"\u5feb\u901f\u8fdb\u5165\u4f01\u4e1a\u77e5\u8bc6\u8d44\u4ea7\u3002"), url, "btn", True) for title, url in knowledge_entries)
         body = """
-<div class="panel hero" data-home-contract="{}" data-legacy-title="VAFOX Enterprise Brain">
-  <h1>VAFOX 企业大脑</h1>
+<div class="ceo-hero executive-hero" data-home-contract="{}" data-legacy-title="VAFOX Enterprise Brain">
+  <span class="status-tag">CEO Dashboard V2.0</span>
+  <h1>VAFOX CEO Operating Center</h1>
   <p class="lead">{}</p>
-  <form method="get" action="/copilot">
-    <label>{}</label>
-    <input name="q" placeholder="{}">
-    <p><button>{}</button> <a class="btn" href="/ceo-workbench">{}</a></p>
+  <form class="ceo-ask" method="get" action="/copilot">
+    <div><label>{}</label><input name="q" placeholder="{}"></div>
+    <button>{}</button>
   </form>
 </div>
-<div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
+<div class="panel"><h2>{}</h2><div class="metrics executive-metrics">{}</div></div>
+<div class="split">
+  <div class="panel"><h2>{}</h2>{}</div>
+  <div class="panel"><h2>{}</h2>{}</div>
+</div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
-<div class="split">
-  <div class="panel"><h2>{}</h2>{}<p><a class="btn dark" href="/business-health">{}</a></p></div>
-  <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
-</div>
-<div class="split">
-  <div class="panel"><h2>{}</h2>{}<p><a class="btn" href="/inventory-intelligence">{}</a></p></div>
-  <div class="panel"><h2>{}</h2>{}<p><a class="btn" href="/brand-intelligence">{}</a> <a class="btn" href="/store-intelligence">{}</a></p></div>
-</div>
-<div class="panel"><h2>{}</h2><div class="inline">{}</div><p class="small">{}</p></div>
-<div class="split">
-  <div class="panel"><h2>{}</h2>{}</div>
-  <div class="panel"><h2>{}</h2>{}</div>
-</div>
-<div class="split">
-  <div class="panel"><h2>{}</h2>{}</div>
-  <div class="panel"><h2>{}</h2>{}</div>
-</div>
-<div class="panel"><h2>{}</h2>{}</div>
-<div class="split">
-  <div class="panel"><h2>{}</h2>{}</div>
-  <div class="panel"><h2>{}</h2>{}</div>
-</div>
-<div class="panel"><h2>{}</h2>{}</div>
-<div class="panel"><h2>{}</h2><div class="metrics">{}</div></div>
+<div class="panel"><h2>{}</h2><div class="metrics executive-health">{}</div></div>
 <div class="panel"><h2>{}</h2><div class="grid">{}</div></div>
+<div class="panel"><h2>{}</h2><p class="small">{}</p></div>
 """.format(
             esc(ceo_home.get("homepage_policy", "root_home_keeps_ten_entries_only_details_after_click")),
-            esc(payload["subtitle"]),
-            U(r"AI \u95ee\u4f01\u4e1a"),
-            U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u4ec0\u4e48\uff1f\u5e93\u5b58\u6700\u5927\u98ce\u9669\u5728\u54ea\uff1f"),
-            U(r"\u5f00\u59cb\u5206\u6790"),
-            U(r"\u6253\u5f00\u5de5\u4f5c\u53f0"),
-            U(r"\u8001\u677f\u4eca\u65e5\u5fc5\u770b"),
-            ceo_metrics,
-            U(r"\u4eca\u65e5\u52a8\u4f5c"),
-            ceo_action_cards,
-            U(r"\u4f01\u4e1a\u5065\u5eb7\u7126\u70b9"),
-            health_focus,
-            U(r"\u67e5\u770b\u5065\u5eb7\u8bc1\u636e"),
-            U(r"\u51b3\u7b56\u63d0\u9192"),
-            decision_cards,
-            U(r"\u5e93\u5b58\u667a\u80fd\u6458\u8981"),
-            inventory_items,
-            U(r"\u67e5\u770b\u5e93\u5b58\u667a\u80fd"),
-            U(r"\u54c1\u724c / \u95e8\u5e97\u667a\u80fd"),
-            brand_items + store_items,
-            U(r"\u67e5\u770b\u54c1\u724c\u667a\u80fd"),
-            U(r"\u67e5\u770b\u95e8\u5e97\u667a\u80fd"),
-            U(r"\u91cd\u65b0\u8ba1\u7b97"),
-            recalculation_forms,
-            U(r"\u4ec5\u4f7f\u7528\u5df2\u6709\u672c\u5730\u6570\u636e\u548c\u5df2\u5bfc\u5165 SAP \u6570\u636e\uff0c\u4e0d\u8fde\u63a5\u751f\u4ea7 SAP\uff0c\u4e0d\u81ea\u52a8\u6267\u884c\u9ad8\u98ce\u9669\u64cd\u4f5c\u3002"),
-            U(r"\u6700\u8fd1\u6587\u4ef6"),
-            recent_docs,
-            U(r"\u6700\u8fd1\u5bf9\u8c61"),
-            recent_objects,
-            U(r"\u6700\u8fd1\u77e5\u8bc6"),
-            recent_knowledge,
-            U(r"\u6700\u8fd1\u65f6\u95f4\u8f74"),
-            recent_timeline,
-            U(r"\u6700\u8fd1\u4f01\u4e1a\u8bb0\u5fc6"),
-            recent_memories,
-            U(r"\u95e8\u5e97\u6392\u884c"),
-            top_store_sales,
-            U(r"\u54c1\u724c\u6392\u884c"),
-            top_brand_sales,
-            U(r"\u5f02\u5e38\u63d0\u9192"),
-            business_alerts,
-            U(r"\u7cfb\u7edf\u72b6\u6001"),
-            status_html,
-            U(r"\u5341\u5927\u5165\u53e3"),
-            buttons,
+            U(r"\u4e00\u5c4f\u67e5\u770b\u4eca\u65e5\u7ecf\u8425\u72b6\u6001\u3001AI\u7ba1\u7406\u6458\u8981\u3001\u4e1a\u52a1\u6a21\u5757\u4e0e\u4f01\u4e1a\u77e5\u8bc6\uff1b\u65e0\u6570\u636e\u65f6\u663e\u793a\u667a\u80fd\u5360\u4f4d\uff0c\u4e0d\u751f\u6210\u5047\u6570\u5b57\u3002"),
+            U(r"CEO Copilot"),
+            U(r"\u4f8b\u5982\uff1a\u4eca\u5929\u9500\u552e\u600e\u4e48\u6837\uff1f"),
+            U(r"\u76f4\u63a5\u8fdb\u5165 AI Assistant"),
+            U(r"Today's Business Snapshot"),
+            snapshot_metrics,
+            U(r"AI Executive Summary"),
+            ai_summary,
+            U(r"AI Executive Copilot"),
+            copilot_panel,
+            U(r"Operating Modules"),
+            module_cards,
+            U(r"Business Health"),
+            health_cards,
+            U(r"Enterprise Knowledge"),
+            knowledge_cards,
+            U(r"\u6570\u636e\u8fb9\u754c"),
+            U(r"\u9996\u9875\u4ec5\u4f5c CEO \u6307\u6325\u4e2d\u5fc3\uff1b\u8be6\u7ec6\u6570\u636e\u4fdd\u7559\u5728\u5404\u6a21\u5757\u5185\u3002\u672c\u6b21\u672a\u4fee\u6539 Docker\u3001Nginx\u3001\u90e8\u7f72\u6216\u6570\u636e\u5e93 schema\u3002"),
         )
         return self.out(layout(T["brand"], body, user=user, wide=False))
 
