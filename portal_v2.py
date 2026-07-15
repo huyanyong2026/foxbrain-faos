@@ -8095,13 +8095,15 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             "POST /api/ai/classify",
             "GET /api/dashboard/summary",
         ]
+        reserved_text = U(r"\u5df2\u9884\u7559\u63a5\u53e3")
+        home_text = U(r"\u8fd4\u56de\u9996\u9875")
         body = f"""
 <div class="panel">
   <h2>{esc(title)}</h2>
   <p>{esc(text)}</p>
-  <h2>{U(r'\u5df2\u9884\u7559\u63a5\u53e3')}</h2>
+  <h2>{reserved_text}</h2>
   {self.bullets(api_list)}
-  <p><a class="btn" href="/">{U(r'\u8fd4\u56de\u9996\u9875')}</a></p>
+  <p><a class="btn" href="/">{home_text}</a></p>
 </div>"""
         self.out(layout(title, body, user=user))
 
