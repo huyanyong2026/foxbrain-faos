@@ -363,7 +363,7 @@ def baidu_drive_share_url():
     return share_url
 
 T = {
-    "brand": "VAFOX \u8001\u677f\u7ecf\u8425\u7cfb\u7edf",
+    "brand": "VAFOX CEO AI Operating Center",
     "subtitle": "",
     "login": U(r"\u767b\u5f55"),
     "register": U(r"\u65b0\u5458\u5de5\u6ce8\u518c"),
@@ -6838,6 +6838,11 @@ class App(BaseHTTPRequestHandler):
 
     def login(self, msg=""):
         body = f"""
+<div class="ceo-hero compact">
+  <span class="status-tag">VAFOX CEO</span>
+  <h1>VAFOX CEO AI Operating Center</h1>
+  <p class="lead">CEO Dashboard is the root operating entry for huyan.vafox.com. Sign in to open today's business dashboard, action center, AI assistant, and enterprise brain.</p>
+</div>
 <div class="panel form">
   <form method="post" action="/login">
     <label>{T['email']}</label><input name="email" type="email" autocomplete="username" required>
@@ -6846,7 +6851,7 @@ class App(BaseHTTPRequestHandler):
   </form>
   <p><a href="/register">{T['register']}</a></p>
 </div>"""
-        self.out(layout(T["brand"], body, msg=msg))
+        self.out(layout("VAFOX CEO AI Operating Center", body, msg=msg))
 
     def login_post(self):
         form = self.form()
