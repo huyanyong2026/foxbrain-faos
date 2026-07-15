@@ -5935,7 +5935,7 @@ class App(BaseHTTPRequestHandler):
         if path in ("/health", "/api/health"):
             return self.api_health()
         if path == "/":
-            return self.dashboard(user) if user else self.login()
+            return self.ceo_home_v11_page(user) if user else self.login()
         if path == "/logout":
             return self.redir("/login", "fp_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
         if path == "/login":
@@ -6391,7 +6391,7 @@ class App(BaseHTTPRequestHandler):
         if path.startswith("/api/sap/"):
             return self.sap_api_placeholder(user, path)
         if path == "/":
-            return self.dashboard(user) if user else self.login()
+            return self.ceo_home_v11_page(user) if user else self.login()
         if path == "/daily":
             return self.redir("/wiki/firefox-hq/daily")
         if path.startswith("/api/"):
@@ -11630,6 +11630,11 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             for item in contract.get("sections", [])
         ]
         body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">CEO Home V1.1</span>
+  <h1>VAFOX CEO AI Operating Center</h1>
+  <p class="lead">CEO Home V1.1 is now the authenticated root operating entry for huyan.vafox.com.</p>
+</div>
 <div class="panel">
   <h2>CEO Home V1.1</h2>
   <div class="metrics">{}</div>
@@ -11645,7 +11650,7 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             U(r"\u4fe1\u53f7\u5206\u533a"),
             self.bullets(sections),
         )
-        self.out(layout("CEO Home V1.1", body, user=user, wide=True))
+        self.out(layout("VAFOX CEO AI Operating Center", body, user=user, wide=True))
 
     def api_second_brain_v11_get(self, user, path):
         if not user:
