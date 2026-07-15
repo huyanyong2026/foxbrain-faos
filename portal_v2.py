@@ -11616,39 +11616,68 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
             return
         if not self.can_open(user, ("boss", "admin", "finance")):
             return self.dashboard(user)
-        contract = build_ceo_home_v11_contract()
-        summary = load_summary()
-        metrics = "".join(
-            [
-                self.metric(U(r"\u6628\u65e5\u9500\u552e"), U(r"\uffe5") + money(summary.get("yesterday_sales")), U(r"\u6570\u636e\u65e5\u671f ") + esc(summary.get("data_date"))),
-                self.metric(U(r"\u672c\u6708\u9500\u552e"), U(r"\uffe5") + money(summary.get("month_sales")), U(r"\u5b8c\u6210\u7387 ") + pct(summary.get("completion_rate"))),
-                self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), money(summary.get("risk_count")), U(r"\u5e93\u5b58 ") + U(r"\uffe5") + money(summary.get("inventory_amount"))),
-            ]
-        )
-        sections = [
-            item.get("name", "") + ": " + ", ".join(item.get("signals", []))
-            for item in contract.get("sections", [])
+        payload = self.ceo_dashboard_payload(user)
+        summary = payload["summary"]
+        daily = payload.get("daily_intelligence") or {}
+        daily_items = daily.get("items") or []
+        risk_items = [i for i in daily_items if i.get("item_type") == "risk"]
+        suggestion_items = [i for i in daily_items if i.get("recommended_action")]
+        trend_text = U(r"\u9500\u552e\u989d ") + U(r"\uffe5") + money(summary.get("sales_amount"))
+        if summary.get("gross_margin"):
+            trend_text += U(r"\uff0c\u6bdb\u5229\u7387 ") + "{:.1%}".format(float(summary.get("gross_margin") or 0))
+        risk_text = U(r"AI \u98ce\u9669\u63d0\u9192 ") + str(summary.get("daily_intelligence_risks") or summary.get("decision_high_severity") or 0)
+        suggestion_text = U(r"AI \u5efa\u8bae ") + str(summary.get("daily_intelligence_items") or summary.get("decision_pending_actions") or 0)
+        hero_metrics = "".join([
+            self.metric(U(r"\u4eca\u65e5\u7ecf\u8425\u72b6\u6001"), self.status_label(summary.get("business_health_status")), "{:.1f}/100".format(float(summary.get("business_health_score") or 0))),
+            self.metric(U(r"AI\u98ce\u9669\u63d0\u9192"), summary.get("daily_intelligence_risks") or summary.get("decision_high_severity") or 0, U(r"\u98ce\u9669 / \u9ad8\u4f18\u5148\u7ea7")),
+            self.metric(U(r"AI\u5efa\u8bae\u6570\u91cf"), summary.get("daily_intelligence_items") or summary.get("decision_pending_actions") or 0, U(r"\u6765\u81ea\u73b0\u6709 AI \u7ecf\u8425\u5f15\u64ce")),
+        ])
+        dashboard_cards = [
+            (U(r"\u7ecf\u8425\u603b\u89c8"), U(r"\u9500\u552e / \u5229\u6da6 / \u5e93\u5b58 / \u73b0\u91d1\u6d41 / \u7ecf\u8425\u5206\u6790"), "/business-overview"),
+            (U(r"\u95e8\u5e97\u9a7e\u9a76\u8231"), U(r"\u95e8\u5e97\u6392\u540d / \u9500\u552e\u76ee\u6807 / \u576a\u6548 / \u5458\u5de5\u8868\u73b0"), "/store-intelligence"),
+            (U(r"\u4f9b\u5e94\u94fe\u4e2d\u5fc3"), U(r"\u91c7\u8d2d / \u5e93\u5b58 / \u4f9b\u5e94\u5546 / \u7f3a\u8d27\u98ce\u9669"), "/inventory-intelligence"),
+            (U(r"\u54c1\u724c\u4e2d\u5fc3"), U(r"\u54c1\u724c\u9500\u552e / \u54c1\u7c7b\u5206\u6790 / \u4ef7\u683c\u7b56\u7565"), "/brand-intelligence"),
+            (U(r"\u5458\u5de5\u4e2d\u5fc3"), U(r"\u5458\u5de5\u6863\u6848 / \u9500\u552e\u8d21\u732e / \u57f9\u8bad / \u6fc0\u52b1"), "/employees"),
+            (U(r"\u5ba2\u6237\u4e2d\u5fc3"), U(r"\u4f1a\u5458 / \u793e\u7fa4 / \u590d\u8d2d / \u5ba2\u6237\u753b\u50cf"), "/members"),
+            (U(r"AI\u667a\u80fd\u4f53\u4e2d\u5fc3"), U(r"AI\u603b\u7ecf\u7406 / AI\u8865\u8d27\u52a9\u624b / AI\u6570\u636e\u5206\u6790"), "/agents"),
         ]
+        core_cards = "".join(self.card(title, desc, href, "btn dark" if i == 0 else "btn", True) for i, (title, desc, href) in enumerate(dashboard_cards))
+        ai_summary_items = [trend_text, risk_text, suggestion_text]
+        if daily_items:
+            ai_summary_items.extend([
+                (i.get("title") or "") + (U(r"\uff1a") + i.get("recommended_action") if i.get("recommended_action") else "")
+                for i in (risk_items + suggestion_items)[:3]
+            ])
+        else:
+            ai_summary_items.append(U(r"\u6682\u65e0\u4eca\u65e5 AI \u7ecf\u8425\u6458\u8981\uff0c\u53ef\u8fdb\u5165\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5\u751f\u6210\u3002"))
         body = """
 <div class="ceo-hero compact">
-  <span class="status-tag">CEO Home V1.1</span>
+  <span class="status-tag">CEO Dashboard V2.0</span>
   <h1>VAFOX CEO AI Operating Center</h1>
-  <p class="lead">CEO Home V1.1 is now the authenticated root operating entry for huyan.vafox.com.</p>
+  <p class="lead">{subtitle}</p>
+  <div class="metrics">{hero_metrics}</div>
 </div>
 <div class="panel">
-  <h2>CEO Home V1.1</h2>
-  <div class="metrics">{}</div>
+  <h2>{core_title}</h2>
+  <p class="small">{core_note}</p>
+  <div class="grid">{core_cards}</div>
 </div>
-<div class="split">
-  <div class="panel"><h2>{}</h2>{}</div>
-  <div class="panel"><h2>{}</h2>{}</div>
+<div class="panel">
+  <h2>{ai_title}</h2>
+  {ai_summary}
+  <p><a class="btn dark" href="/daily-intelligence">{open_daily}</a> <a class="btn" href="/decision">{open_decision}</a> <a class="btn" href="/copilot">{ask_ai}</a></p>
 </div>
-<div class="panel"><p><a class="btn dark" href="/api/ceo-home">API</a> <a class="btn" href="/drive">Drive 2.0</a> <a class="btn" href="/knowledge-pipeline">Knowledge Pipeline</a></p></div>""".format(
-            metrics,
-            U(r"\u9996\u9875\u7b56\u7565"),
-            self.bullets([contract.get("homepage_policy", "")]),
-            U(r"\u4fe1\u53f7\u5206\u533a"),
-            self.bullets(sections),
+""".format(
+            subtitle=U(r"\u4f01\u4e1a\u7ecf\u8425\u7b2c\u4e8c\u5927\u8111"),
+            hero_metrics=hero_metrics,
+            core_title=U(r"\u8001\u677f\u6838\u5fc3\u5165\u53e3"),
+            core_note=U(r"\u9996\u9875\u4fdd\u6301\u7b80\u6d01\uff0c\u4ec5\u4f5c\u4e3a CEO \u8fdb\u5165\u7ecf\u8425\u7cfb\u7edf\u7684\u5165\u53e3\u3002"),
+            core_cards=core_cards,
+            ai_title=U(r"\u4eca\u65e5AI\u7ecf\u8425\u6458\u8981"),
+            ai_summary=self.bullets(ai_summary_items),
+            open_daily=U(r"\u6bcf\u65e5\u7ecf\u8425\u7b80\u62a5"),
+            open_decision=U(r"\u51b3\u7b56\u4e2d\u5fc3"),
+            ask_ai=U(r"\u95eeAI"),
         )
         self.out(layout("VAFOX CEO AI Operating Center", body, user=user, wide=True))
 
