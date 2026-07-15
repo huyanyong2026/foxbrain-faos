@@ -1,0 +1,93 @@
+name: Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy FoxBrain FAOS production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/production_deploy_key
+          chmod 600 ~/.ssh/production_deploy_key
+          ssh-keyscan -H 140.143.207.194 >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy on production server
+        env:
+          PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          quoted_deploy_path="$(printf '%q' "$PRODUCTION_DEPLOY_PATH")"
+          ssh -i ~/.ssh/production_deploy_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${PRODUCTION_SSH_USER}@140.143.207.194" \
+            "PRODUCTION_DEPLOY_PATH=${quoted_deploy_path} bash -s" <<'REMOTE_DEPLOY'
+          set -euo pipefail
+
+          cd "$PRODUCTION_DEPLOY_PATH"
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+
+          docker compose up -d --build
+
+          echo "Current Docker Compose status:"
+          docker compose ps
+
+          required_services="foxbrain-web foxbrain-api foxbrain-worker"
+          max_attempts=20
+          sleep_seconds=15
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            all_healthy=true
+
+            for service in $required_services; do
+              container_id="$(docker compose ps -q "$service")"
+              if [ -z "$container_id" ]; then
+                echo "Service $service is not running yet."
+                all_healthy=false
+                continue
+              fi
+
+              health_status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")"
+              echo "$service status: $health_status"
+
+              if [ "$health_status" != "healthy" ]; then
+                all_healthy=false
+              fi
+            done
+
+            if [ "$all_healthy" = true ]; then
+              echo "Verified healthy services: $required_services"
+              exit 0
+            fi
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Waiting for services to become healthy ($attempt/$max_attempts)..."
+              sleep "$sleep_seconds"
+            fi
+          done
+
+          echo "Deployment health check failed. Final Docker Compose status:"
+          docker compose ps
+          exit 1
+          REMOTE_DEPLOY
