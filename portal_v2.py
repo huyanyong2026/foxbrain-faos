@@ -8998,6 +8998,32 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
 
     def dashboard(self, user):
         compact_home = urlparse(getattr(self, "path", "/")).path == "/"
+        if compact_home:
+            entries = [
+                (U(r"\u7ecf\u8425\u603b\u89c8"), U(r"\u6253\u5f00\u7ecf\u8425\u6570\u636e\u3001\u98ce\u9669\u4e0e AI \u5efa\u8bae\u3002"), "/overview", ("boss", "admin", "finance", "purchasing"), "btn dark"),
+                (U(r"\u95e8\u5e97\u6863\u6848"), U(r"\u67e5\u770b\u95e8\u5e97\u6863\u6848\u3001\u7ecf\u8425\u6570\u636e\u548c\u95e8\u5e97 AI \u5206\u6790\u3002"), "/stores", ("boss", "admin", "store_manager", "finance"), "btn green"),
+                (U(r"\u5458\u5de5\u6863\u6848"), U(r"\u67e5\u770b\u5458\u5de5\u6863\u6848\u3001\u7ee9\u6548\u3001\u57f9\u8bad\u548c\u6210\u957f\u8bb0\u5f55\u3002"), "/employees", ("boss", "admin", "store_manager", "finance"), "btn green"),
+                (U(r"\u54c1\u724c\u6863\u6848"), U(r"\u67e5\u770b\u54c1\u724c\u6863\u6848\u3001\u5408\u4f5c\u6587\u4ef6\u3001\u9500\u552e\u548c AI \u7ecf\u8425\u5efa\u8bae\u3002"), "/brands", ("boss", "admin", "purchasing", "store_manager"), "btn"),
+                (U(r"\u4ea7\u54c1\u6863\u6848"), U(r"\u67e5\u770b\u4ea7\u54c1\u6863\u6848\u3001SKU\u3001\u56fe\u7247\u3001\u5e93\u5b58\u548c\u9500\u552e\u8bdd\u672f\u3002"), "/products", ("boss", "admin", "purchasing", "store_manager", "employee"), "btn"),
+                (U(r"\u4f9b\u5e94\u5546\u6863\u6848"), U(r"\u67e5\u770b\u4f9b\u5e94\u5546\u6863\u6848\u3001\u5408\u540c\u3001\u91c7\u8d2d\u548c\u4ed8\u6b3e\u8bb0\u5f55\u3002"), "/suppliers", ("boss", "admin", "purchasing", "finance"), "btn orange"),
+                (U(r"\u987e\u5ba2\u6863\u6848"), U(r"\u67e5\u770b\u987e\u5ba2/\u4f1a\u5458\u6863\u6848\u3001\u8d2d\u4e70\u5386\u53f2\u548c\u7ef4\u62a4\u5efa\u8bae\u3002"), "/members", ("boss", "admin", "store_manager", "employee"), "btn green"),
+                (U(r"\u5185\u5bb9\u53d1\u5e03\u4e2d\u5fc3"), U(r"\u8fdb\u5165\u65b0\u5a92\u4f53\u3001\u95e8\u5e97\u5185\u5bb9\u3001\u4ea7\u54c1\u7d20\u6750\u548c\u53d1\u5e03\u8ba1\u5212\u3002"), "/content", ("boss", "admin", "store_manager", "employee"), "btn orange"),
+                (U(r"AI\u667a\u80fd\u4f53\u67e5\u8be2"), U(r"\u8fdb\u5165 AI \u67e5\u8be2\u5165\u53e3\uff0c\u57fa\u4e8e\u6743\u9650\u8bfb\u53d6\u73b0\u6709\u77e5\u8bc6\u548c\u6570\u636e\u3002"), "/ai-assistant", ("boss", "admin", "store_manager", "employee", "purchasing", "finance"), "btn"),
+            ]
+            cards = "".join(self.card(title, desc, href, cls, self.can_open(user, roles)) for title, desc, href, roles, cls in entries)
+            body = """
+<div class="ceo-hero compact">
+  <span class="status-tag">VAFOX CEO</span>
+  <h1>VAFOX CEO AI Operating Center</h1>
+  <p class="lead">{lead}</p>
+</div>
+<div class="panel compact-panel"><h2>{entry_title}</h2><div class="grid">{cards}</div></div>
+""".format(
+                lead=esc(U(r"\u9996\u9875\u53ea\u4fdd\u7559 CEO \u65e5\u5e38\u7ecf\u8425\u5165\u53e3\uff1b\u767b\u5f55\u3001\u6743\u9650\u3001\u6570\u636e\u5e93\u3001API \u548c AI \u529f\u80fd\u5747\u7ee7\u7eed\u4f7f\u7528\u73b0\u6709\u6a21\u5757\u3002")),
+                entry_title=U(r"\u6838\u5fc3\u5165\u53e3"),
+                cards=cards,
+            )
+            return self.out(layout("VAFOX CEO AI Operating Center", body, user=user, wide=False))
         payload = self.ceo_dashboard_payload(user)
         summary = payload["summary"]
         profit = self.profit_composition_payload()
