@@ -8146,31 +8146,44 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             )
         if not items:
             items = '<tr><td colspan="4" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u6863\u6848\uff0c\u53ef\u4ee5\u5148\u65b0\u5efa\u4e00\u6761\u3002"))
+        __fb_u_1 = U(r'\u65b0\u5efa')
+        __fb_u_2 = U(r'Excel \u5bfc\u51fa')
+        __fb_u_3 = U(r'\u4e0a\u4f20\u9644\u4ef6')
+        __fb_u_4 = U(r'\u641c\u7d22')
+        __fb_u_5 = U(r'\u8f93\u5165\u540d\u79f0\u3001\u6807\u7b7e\u6216\u5185\u5bb9')
+        __fb_u_6 = U(r'\u641c\u7d22')
+        __fb_u_7 = U(r'\u540d\u79f0')
+        __fb_u_8 = U(r'\u6807\u7b7e')
+        __fb_u_9 = U(r'\u66f4\u65b0')
+        __fb_u_10 = U(r'\u901a\u7528\u80fd\u529b')
+        __fb_u_11 = U(r'Excel/CSV \u6279\u91cf\u5bfc\u5165')
+        __fb_u_12 = U(r'\u7c98\u8d34 Excel \u590d\u5236\u7684\u8868\u683c\uff1a\u7b2c\u4e00\u5217\u4e3a\u540d\u79f0\uff0c\u7b2c\u4e8c\u5217\u4e3a\u6807\u7b7e\uff0c\u7b2c\u4e09\u5217\u4e3a\u5907\u6ce8')
+        __fb_u_13 = U(r'\u6279\u91cf\u5bfc\u5165')
         body = f"""
 <div class="panel">
   <h2>{esc(title)}</h2>
   <p>{esc(text)}</p>
   <div class="inline">
-    <a class="btn" href="/records/new?module={esc(module)}">{U(r'\u65b0\u5efa')}</a>
-    <a class="btn green" href="/records/export?module={esc(module)}">{U(r'Excel \u5bfc\u51fa')}</a>
-    <a class="btn orange" href="/upload">{U(r'\u4e0a\u4f20\u9644\u4ef6')}</a>
+    <a class="btn" href="/records/new?module={esc(module)}">{__fb_u_1}</a>
+    <a class="btn green" href="/records/export?module={esc(module)}">{__fb_u_2}</a>
+    <a class="btn orange" href="/upload">{__fb_u_3}</a>
   </div>
 </div>
 <div class="panel">
   <form method="get" action="/{esc(module)}">
-    <label>{U(r'\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u8f93\u5165\u540d\u79f0\u3001\u6807\u7b7e\u6216\u5185\u5bb9')}">
-    <p><button>{U(r'\u641c\u7d22')}</button></p>
+    <label>{__fb_u_4}</label><input name="q" value="{esc(q)}" placeholder="{__fb_u_5}">
+    <p><button>{__fb_u_6}</button></p>
   </form>
-  <table><thead><tr><th>{U(r'\u540d\u79f0')}</th><th>{U(r'\u6807\u7b7e')}</th><th>{U(r'\u66f4\u65b0')}</th><th>{T['action']}</th></tr></thead><tbody>{items}</tbody></table>
+  <table><thead><tr><th>{__fb_u_7}</th><th>{__fb_u_8}</th><th>{__fb_u_9}</th><th>{T['action']}</th></tr></thead><tbody>{items}</tbody></table>
 </div>
 <div class="panel">
-  <h2>{U(r'\u901a\u7528\u80fd\u529b')}</h2>
+  <h2>{__fb_u_10}</h2>
   {self.bullets(abilities)}
   <form method="post" action="/records/import">
     <input type="hidden" name="module" value="{esc(module)}">
-    <label>{U(r'Excel/CSV \u6279\u91cf\u5bfc\u5165')}</label>
-    <textarea name="csv_text" rows="5" placeholder="{U(r'\u7c98\u8d34 Excel \u590d\u5236\u7684\u8868\u683c\uff1a\u7b2c\u4e00\u5217\u4e3a\u540d\u79f0\uff0c\u7b2c\u4e8c\u5217\u4e3a\u6807\u7b7e\uff0c\u7b2c\u4e09\u5217\u4e3a\u5907\u6ce8')}"></textarea>
-    <p><button>{U(r'\u6279\u91cf\u5bfc\u5165')}</button></p>
+    <label>{__fb_u_11}</label>
+    <textarea name="csv_text" rows="5" placeholder="{__fb_u_12}"></textarea>
+    <p><button>{__fb_u_13}</button></p>
   </form>
 </div>"""
         self.out(layout(title, body, user=user))
@@ -8195,17 +8208,24 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         tags = row["tags"] if row else ""
         summary = row["summary"] if row else ""
         data = json.loads(row["data_json"] or "{}") if row else {}
+        __fb_u_14 = U(r'\u540d\u79f0')
+        __fb_u_15 = U(r'\u6807\u7b7e')
+        __fb_u_16 = U(r'\u591a\u4e2a\u6807\u7b7e\u7528\u9017\u53f7\u5206\u9694')
+        __fb_u_17 = U(r'\u6458\u8981')
+        __fb_u_18 = U(r'\u6838\u5fc3\u5b57\u6bb51')
+        __fb_u_19 = U(r'\u6838\u5fc3\u5b57\u6bb52')
+        __fb_u_20 = U(r'\u8be6\u7ec6\u5185\u5bb9')
         body = f"""
 <div class="panel form">
   <form method="post" action="/records/save">
     <input type="hidden" name="id" value="{esc(row['id'] if row else '')}">
     <input type="hidden" name="module" value="{esc(module)}">
-    <label>{U(r'\u540d\u79f0')}</label><input name="title" value="{esc(title)}" required>
-    <label>{U(r'\u6807\u7b7e')}</label><input name="tags" value="{esc(tags)}" placeholder="{U(r'\u591a\u4e2a\u6807\u7b7e\u7528\u9017\u53f7\u5206\u9694')}">
-    <label>{U(r'\u6458\u8981')}</label><textarea name="summary">{esc(summary)}</textarea>
-    <label>{U(r'\u6838\u5fc3\u5b57\u6bb51')}</label><input name="field1" value="{esc(data.get('field1',''))}">
-    <label>{U(r'\u6838\u5fc3\u5b57\u6bb52')}</label><input name="field2" value="{esc(data.get('field2',''))}">
-    <label>{U(r'\u8be6\u7ec6\u5185\u5bb9')}</label><textarea name="body">{esc(data.get('body',''))}</textarea>
+    <label>{__fb_u_14}</label><input name="title" value="{esc(title)}" required>
+    <label>{__fb_u_15}</label><input name="tags" value="{esc(tags)}" placeholder="{__fb_u_16}">
+    <label>{__fb_u_17}</label><textarea name="summary">{esc(summary)}</textarea>
+    <label>{__fb_u_18}</label><input name="field1" value="{esc(data.get('field1',''))}">
+    <label>{__fb_u_19}</label><input name="field2" value="{esc(data.get('field2',''))}">
+    <label>{__fb_u_20}</label><textarea name="body">{esc(data.get('body',''))}</textarea>
     <p><button>{T['save']}</button></p>
   </form>
 </div>"""
@@ -8259,20 +8279,31 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         data = json.loads(row["data_json"] or "{}")
         event_html = self.bullets([dt(e["created_at"]) + " " + e["title"] for e in events]) if events else "<p class='small'>暂无时间线。</p>"
         log_html = self.bullets([dt(l["created_at"]) + " " + l["action"] for l in logs]) if logs else "<p class='small'>暂无操作日志。</p>"
+        __fb_u_21 = U(r'\u6807\u7b7e')
+        __fb_u_22 = U(r'\u66f4\u65b0')
+        __fb_u_23 = U(r'\u8be6\u7ec6\u5185\u5bb9')
+        __fb_u_24 = U(r'AI \u5efa\u8bae')
+        __fb_u_25 = U(r'\u5b8c\u5584\u56fe\u7247\u3001\u9644\u4ef6\u548c\u5173\u8054\u5173\u7cfb\u3002')
+        __fb_u_26 = U(r'\u8865\u5145\u9500\u552e\u6570\u636e\u548c\u5386\u53f2\u8bb0\u5f55\uff0c\u4fbf\u4e8e\u540e\u7eed AI \u5206\u6790\u3002')
+        __fb_u_27 = U(r'\u7f16\u8f91')
+        __fb_u_28 = U(r'\u8fd4\u56de')
+        __fb_u_29 = U(r'\u5220\u9664')
+        __fb_u_30 = U(r'\u65f6\u95f4\u8f74')
+        __fb_u_31 = U(r'\u64cd\u4f5c\u65e5\u5fd7')
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
-  <p class="small">{module_title(row['module'])} · {U(r'\u6807\u7b7e')}：{esc(row['tags'])} · {U(r'\u66f4\u65b0')}：{esc(dt(row['updated_at']))}</p>
+  <p class="small">{module_title(row['module'])} · {__fb_u_21}：{esc(row['tags'])} · {__fb_u_22}：{esc(dt(row['updated_at']))}</p>
   <p>{esc(row['summary'])}</p>
   <div class="split">
-    <div><h2>{U(r'\u8be6\u7ec6\u5185\u5bb9')}</h2><p>{esc(data.get('body',''))}</p></div>
-    <div><h2>{U(r'AI \u5efa\u8bae')}</h2>{self.bullets([U(r'\u5b8c\u5584\u56fe\u7247\u3001\u9644\u4ef6\u548c\u5173\u8054\u5173\u7cfb\u3002'), U(r'\u8865\u5145\u9500\u552e\u6570\u636e\u548c\u5386\u53f2\u8bb0\u5f55\uff0c\u4fbf\u4e8e\u540e\u7eed AI \u5206\u6790\u3002')])}</div>
+    <div><h2>{__fb_u_23}</h2><p>{esc(data.get('body',''))}</p></div>
+    <div><h2>{__fb_u_24}</h2>{self.bullets([__fb_u_25, __fb_u_26])}</div>
   </div>
-  <div class="inline"><a class="btn" href="/records/edit?id={row['id']}">{U(r'\u7f16\u8f91')}</a><a class="btn gray" href="/{esc(row['module'])}">{U(r'\u8fd4\u56de')}</a><form method="post" action="/records/delete"><input type="hidden" name="id" value="{row['id']}"><button class="red">{U(r'\u5220\u9664')}</button></form></div>
+  <div class="inline"><a class="btn" href="/records/edit?id={row['id']}">{__fb_u_27}</a><a class="btn gray" href="/{esc(row['module'])}">{__fb_u_28}</a><form method="post" action="/records/delete"><input type="hidden" name="id" value="{row['id']}"><button class="red">{__fb_u_29}</button></form></div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u65f6\u95f4\u8f74')}</h2>{event_html}</div>
-  <div class="panel"><h2>{U(r'\u64cd\u4f5c\u65e5\u5fd7')}</h2>{log_html}</div>
+  <div class="panel"><h2>{__fb_u_30}</h2>{event_html}</div>
+  <div class="panel"><h2>{__fb_u_31}</h2>{log_html}</div>
 </div>"""
         self.out(layout(row["title"], body, user=user, wide=True))
 
@@ -8342,18 +8373,35 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return
         module_opts = "".join('<option value="{}">{}</option>'.format(module_key(k), esc(v[0])) for k, v in MODULES.items())
         object_opts = "".join('<option value="{}">{}</option>'.format(module_key(k), esc(v[0])) for k, v in MODULES.items())
+        __fb_u_32 = U(r'\u6587\u4ef6\u4e0a\u4f20\u4e0e\u81ea\u52a8\u5f52\u6863')
+        __fb_u_33 = U(r'\u6587\u4ef6')
+        __fb_u_34 = U(r'\u5f52\u5c5e\u6a21\u5757')
+        __fb_u_35 = U(r'\u77e5\u8bc6\u4e2d\u5fc3')
+        __fb_u_36 = U(r'\u5173\u8054\u5bf9\u8c61\u7c7b\u578b')
+        __fb_u_37 = U(r'\u6682\u4e0d\u5173\u8054')
+        __fb_u_38 = U(r'\u5173\u8054\u5bf9\u8c61 ID')
+        __fb_u_39 = U(r'\u53ef\u9009\uff1a\u6863\u6848 ID')
+        __fb_u_40 = U(r'\u53ef\u89c1\u8303\u56f4')
+        __fb_u_41 = U(r'\u516c\u53f8\u5185\u90e8')
+        __fb_u_42 = U(r'\u7ba1\u7406\u5c42')
+        __fb_u_43 = U(r'\u8d22\u52a1')
+        __fb_u_44 = U(r'\u4ec5\u521b\u5efa\u4eba')
+        __fb_u_45 = U(r'\u8001\u677f/\u7ba1\u7406\u5458')
+        __fb_u_46 = U(r'\u6240\u5c5e\u5206\u7c7b')
+        __fb_u_47 = U(r'\u8865\u5145\u8bf4\u660e')
+        __fb_u_48 = U(r'\u4e0a\u4f20\u5e76\u81ea\u52a8\u5165\u5e93')
         body = f"""
 <div class="panel form">
-  <h2>{U(r'\u6587\u4ef6\u4e0a\u4f20\u4e0e\u81ea\u52a8\u5f52\u6863')}</h2>
+  <h2>{__fb_u_32}</h2>
   <form method="post" action="/upload" enctype="multipart/form-data">
-    <label>{U(r'\u6587\u4ef6')}</label><input name="file" type="file" required>
-    <label>{U(r'\u5f52\u5c5e\u6a21\u5757')}</label><select name="module"><option value="knowledge">{U(r'\u77e5\u8bc6\u4e2d\u5fc3')}</option>{module_opts}</select>
-    <label>{U(r'\u5173\u8054\u5bf9\u8c61\u7c7b\u578b')}</label><select name="object_type"><option value="">{U(r'\u6682\u4e0d\u5173\u8054')}</option>{object_opts}</select>
-    <label>{U(r'\u5173\u8054\u5bf9\u8c61 ID')}</label><input name="object_id" placeholder="{U(r'\u53ef\u9009\uff1a\u6863\u6848 ID')}">
-    <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="public_internal">{U(r'\u516c\u53f8\u5185\u90e8')}</option><option value="manager_only">{U(r'\u7ba1\u7406\u5c42')}</option><option value="finance_only">{U(r'\u8d22\u52a1')}</option><option value="owner_only">{U(r'\u4ec5\u521b\u5efa\u4eba')}</option><option value="restricted">{U(r'\u8001\u677f/\u7ba1\u7406\u5458')}</option></select>
-    <label>{U(r'\u6240\u5c5e\u5206\u7c7b')}</label><input name="category" placeholder="01_鍏徃鍒跺害 / 02_浜у搧璧勬枡 / 07_搴撳瓨閲囪喘">
-    <label>{U(r'\u8865\u5145\u8bf4\u660e')}</label><textarea name="description"></textarea>
-    <p><button>{U(r'\u4e0a\u4f20\u5e76\u81ea\u52a8\u5165\u5e93')}</button></p>
+    <label>{__fb_u_33}</label><input name="file" type="file" required>
+    <label>{__fb_u_34}</label><select name="module"><option value="knowledge">{__fb_u_35}</option>{module_opts}</select>
+    <label>{__fb_u_36}</label><select name="object_type"><option value="">{__fb_u_37}</option>{object_opts}</select>
+    <label>{__fb_u_38}</label><input name="object_id" placeholder="{__fb_u_39}">
+    <label>{__fb_u_40}</label><select name="visibility"><option value="public_internal">{__fb_u_41}</option><option value="manager_only">{__fb_u_42}</option><option value="finance_only">{__fb_u_43}</option><option value="owner_only">{__fb_u_44}</option><option value="restricted">{__fb_u_45}</option></select>
+    <label>{__fb_u_46}</label><input name="category" placeholder="01_鍏徃鍒跺害 / 02_浜у搧璧勬枡 / 07_搴撳瓨閲囪喘">
+    <label>{__fb_u_47}</label><textarea name="description"></textarea>
+    <p><button>{__fb_u_48}</button></p>
   </form>
 </div>"""
         self.out(layout(U(r"\u6587\u4ef6\u4e0a\u4f20"), body, user=user))
@@ -8364,7 +8412,10 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return self.redir("/login")
         content_length = int(self.headers.get("Content-Length", "0") or 0)
         if content_length > MAX_UPLOAD_BYTES:
-            return self.out(layout(U(r"\u6587\u4ef6\u4e0a\u4f20"), f"<div class='alert'>{U(r'\u6587\u4ef6\u592a\u5927\uff0c\u8bf7\u63a7\u5236\u5728 20MB \u4ee5\u5185\u540e\u91cd\u8bd5\u3002')}</div><p><a class='btn' href='/upload'>{U(r'\u8fd4\u56de\u4e0a\u4f20')}</a></p>", user=user), code=413)
+            __fb_u_49 = U(r"\u6587\u4ef6\u4e0a\u4f20")
+            __fb_u_50 = U(r'\u6587\u4ef6\u592a\u5927\uff0c\u8bf7\u63a7\u5236\u5728 20MB \u4ee5\u5185\u540e\u91cd\u8bd5\u3002')
+            __fb_u_51 = U(r'\u8fd4\u56de\u4e0a\u4f20')
+            return self.out(layout(__fb_u_49, f"<div class='alert'>{__fb_u_50}</div><p><a class='btn' href='/upload'>{__fb_u_51}</a></p>", user=user), code=413)
         form = self.multipart()
         item = form["file"] if "file" in form else None
         if item is None or not getattr(item, "filename", ""):
@@ -8442,17 +8493,32 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         if not user:
             return
         object_opts = "".join('<option value="{}">{}</option>'.format(module_key(k), esc(v[0])) for k, v in MODULES.items())
+        __fb_u_52 = U(r'\u65b0\u5efa\u77e5\u8bc6')
+        __fb_u_53 = U(r'\u6807\u9898')
+        __fb_u_54 = U(r'\u5206\u7c7b')
+        __fb_u_55 = U(r'\u6807\u7b7e')
+        __fb_u_56 = U(r'\u53ef\u89c1\u8303\u56f4')
+        __fb_u_57 = U(r'\u516c\u53f8\u5185\u90e8')
+        __fb_u_58 = U(r'\u7ba1\u7406\u5c42')
+        __fb_u_59 = U(r'\u8d22\u52a1')
+        __fb_u_60 = U(r'\u4ec5\u521b\u5efa\u4eba')
+        __fb_u_61 = U(r'\u8001\u677f/\u7ba1\u7406\u5458')
+        __fb_u_62 = U(r'\u5173\u8054\u5bf9\u8c61')
+        __fb_u_63 = U(r'\u6682\u4e0d\u5173\u8054')
+        __fb_u_64 = U(r'\u5173\u8054\u5bf9\u8c61 ID')
+        __fb_u_65 = U(r'\u53ef\u9009\uff1a\u6863\u6848 ID')
+        __fb_u_66 = U(r'\u6b63\u6587')
         body = f"""
 <div class="panel form">
-  <h2>{U(r'\u65b0\u5efa\u77e5\u8bc6')}</h2>
+  <h2>{__fb_u_52}</h2>
   <form method="post" action="/knowledge/save">
-    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
-    <label>{U(r'\u5206\u7c7b')}</label><input name="category" placeholder="01_鍏徃鍒跺害">
-    <label>{U(r'\u6807\u7b7e')}</label><input name="tags">
-    <label>{U(r'\u53ef\u89c1\u8303\u56f4')}</label><select name="visibility"><option value="public_internal">{U(r'\u516c\u53f8\u5185\u90e8')}</option><option value="manager_only">{U(r'\u7ba1\u7406\u5c42')}</option><option value="finance_only">{U(r'\u8d22\u52a1')}</option><option value="owner_only">{U(r'\u4ec5\u521b\u5efa\u4eba')}</option><option value="restricted">{U(r'\u8001\u677f/\u7ba1\u7406\u5458')}</option></select>
-    <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><select name="object_type"><option value="">{U(r'\u6682\u4e0d\u5173\u8054')}</option>{object_opts}</select>
-    <label>{U(r'\u5173\u8054\u5bf9\u8c61 ID')}</label><input name="object_id" placeholder="{U(r'\u53ef\u9009\uff1a\u6863\u6848 ID')}">
-    <label>{U(r'\u6b63\u6587')}</label><textarea name="body" required></textarea>
+    <label>{__fb_u_53}</label><input name="title" required>
+    <label>{__fb_u_54}</label><input name="category" placeholder="01_鍏徃鍒跺害">
+    <label>{__fb_u_55}</label><input name="tags">
+    <label>{__fb_u_56}</label><select name="visibility"><option value="public_internal">{__fb_u_57}</option><option value="manager_only">{__fb_u_58}</option><option value="finance_only">{__fb_u_59}</option><option value="owner_only">{__fb_u_60}</option><option value="restricted">{__fb_u_61}</option></select>
+    <label>{__fb_u_62}</label><select name="object_type"><option value="">{__fb_u_63}</option>{object_opts}</select>
+    <label>{__fb_u_64}</label><input name="object_id" placeholder="{__fb_u_65}">
+    <label>{__fb_u_66}</label><textarea name="body" required></textarea>
     <p><button>{T['save']}</button></p>
   </form>
 </div>"""
@@ -8517,13 +8583,17 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             row = conn.execute("select * from knowledge_items where id=?", (kid,)).fetchone()
         if not row:
             return self.redir("/knowledge")
+        __fb_u_67 = U(r'AI \u6458\u8981')
+        __fb_u_68 = U(r'\u6b63\u6587')
+        __fb_u_69 = U(r'\u7528 AI \u67e5\u8be2')
+        __fb_u_70 = U(r'\u8fd4\u56de')
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
   <p class="small">{esc(row['category'])} · {esc(row['tags'])} · {esc(row['source_type'])}：{esc(row['source_ref'])}</p>
-  <h2>{U(r'AI \u6458\u8981')}</h2><p>{esc(row['ai_summary'])}</p>
-  <h2>{U(r'\u6b63\u6587')}</h2><p>{esc(row['body'])}</p>
-  <p><a class="btn" href="/ai-query">{U(r'\u7528 AI \u67e5\u8be2')}</a> <a class="btn gray" href="/knowledge">{U(r'\u8fd4\u56de')}</a></p>
+  <h2>{__fb_u_67}</h2><p>{esc(row['ai_summary'])}</p>
+  <h2>{__fb_u_68}</h2><p>{esc(row['body'])}</p>
+  <p><a class="btn" href="/ai-query">{__fb_u_69}</a> <a class="btn gray" href="/knowledge">{__fb_u_70}</a></p>
 </div>"""
         self.out(layout(row["title"], body, user=user, wide=True))
 
@@ -8533,16 +8603,27 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             return
         refs = refs or []
         ref_html = self.bullets(refs) if refs else "<p class='small'>暂无引用，提问后会显示来源。</p>"
+        __fb_u_71 = U(r'AI \u667a\u80fd\u4f53\u67e5\u8be2')
+        __fb_u_72 = U(r'\u95ee\u9898')
+        __fb_u_73 = U(r'\u8303\u56f4')
+        __fb_u_74 = U(r'\u5168\u516c\u53f8')
+        __fb_u_75 = U(r'\u95e8\u5e97')
+        __fb_u_76 = U(r'\u4ea7\u54c1')
+        __fb_u_77 = U(r'\u8d22\u52a1')
+        __fb_u_78 = U(r'\u67e5\u8be2')
+        __fb_u_79 = U(r'AI \u56de\u7b54')
+        __fb_u_80 = U(r'\u8bf7\u8f93\u5165\u95ee\u9898\uff0c\u7cfb\u7edf\u4f1a\u5148\u67e5\u5185\u90e8\u77e5\u8bc6\u5e93\u3002')
+        __fb_u_81 = U(r'\u5f15\u7528\u6765\u6e90')
         body = f"""
 <div class="panel form">
-  <h2>{U(r'AI \u667a\u80fd\u4f53\u67e5\u8be2')}</h2>
+  <h2>{__fb_u_71}</h2>
   <form method="post" action="/ai-query">
-    <label>{U(r'\u95ee\u9898')}</label><textarea name="question" required>{esc(question)}</textarea>
-    <label>{U(r'\u8303\u56f4')}</label><select name="scope"><option value="all">{U(r'\u5168\u516c\u53f8')}</option><option value="stores">{U(r'\u95e8\u5e97')}</option><option value="products">{U(r'\u4ea7\u54c1')}</option><option value="finance">{U(r'\u8d22\u52a1')}</option></select>
-    <p><button>{U(r'\u67e5\u8be2')}</button></p>
+    <label>{__fb_u_72}</label><textarea name="question" required>{esc(question)}</textarea>
+    <label>{__fb_u_73}</label><select name="scope"><option value="all">{__fb_u_74}</option><option value="stores">{__fb_u_75}</option><option value="products">{__fb_u_76}</option><option value="finance">{__fb_u_77}</option></select>
+    <p><button>{__fb_u_78}</button></p>
   </form>
 </div>
-<div class="panel"><h2>{U(r'AI \u56de\u7b54')}</h2><p>{esc(answer or U(r'\u8bf7\u8f93\u5165\u95ee\u9898\uff0c\u7cfb\u7edf\u4f1a\u5148\u67e5\u5185\u90e8\u77e5\u8bc6\u5e93\u3002'))}</p><h2>{U(r'\u5f15\u7528\u6765\u6e90')}</h2>{ref_html}</div>"""
+<div class="panel"><h2>{__fb_u_79}</h2><p>{esc(answer or __fb_u_80)}</p><h2>{__fb_u_81}</h2>{ref_html}</div>"""
         self.out(layout(U(r"AI \u667a\u80fd\u4f53\u67e5\u8be2"), body, user=user, wide=True))
 
     def ai_assistant_post(self):
@@ -8579,14 +8660,18 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         user = self.require_login(user)
         if not user:
             return
+        __fb_u_82 = U(r'\u5916\u7f51\u8d44\u6599\u4fdd\u5b58\u5230\u77e5\u8bc6\u5e93')
+        __fb_u_83 = U(r'\u7b2c\u4e00\u7248\u652f\u6301\u7c98\u8d34\u7f51\u9875 URL \u6293\u53d6\u6b63\u6587\uff0c\u540e\u7eed\u518d\u63a5 Bing/SerpAPI/Tavily\u3002')
+        __fb_u_84 = U(r'\u6807\u9898')
+        __fb_u_85 = U(r'\u6293\u53d6\u5e76\u4fdd\u5b58')
         body = f"""
 <div class="panel form">
-  <h2>{U(r'\u5916\u7f51\u8d44\u6599\u4fdd\u5b58\u5230\u77e5\u8bc6\u5e93')}</h2>
-  <p class="small">{U(r'\u7b2c\u4e00\u7248\u652f\u6301\u7c98\u8d34\u7f51\u9875 URL \u6293\u53d6\u6b63\u6587\uff0c\u540e\u7eed\u518d\u63a5 Bing/SerpAPI/Tavily\u3002')}</p>
+  <h2>{__fb_u_82}</h2>
+  <p class="small">{__fb_u_83}</p>
   <form method="post" action="/web-search">
     <label>URL</label><input name="url" placeholder="https://...">
-    <label>{U(r'\u6807\u9898')}</label><input name="title">
-    <p><button>{U(r'\u6293\u53d6\u5e76\u4fdd\u5b58')}</button></p>
+    <label>{__fb_u_84}</label><input name="title">
+    <p><button>{__fb_u_85}</button></p>
   </form>
 </div>"""
         self.out(layout(U(r"\u5916\u7f51\u641c\u7d22"), body, user=user, msg=msg))
@@ -8631,16 +8716,21 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             self.metric(U(r"\u5e93\u5b58\u91d1\u989d"), U(r"\uffe5") + money(s.get("inventory_amount")), U(r"\u98ce\u9669 ") + money(s.get("risk_count"))),
             self.metric(U(r"\u6570\u636e\u65e5\u671f"), s.get("data_date") or "-", s.get("_source") or "SAP"),
         ])
+        __fb_u_86 = U(r'\u7ecf\u8425\u603b\u89c8')
+        __fb_u_87 = U(r'\u95e8\u5e97\u6392\u884c')
+        __fb_u_88 = U(r'AI \u7ecf\u8425\u5efa\u8bae')
+        __fb_u_89 = U(r'\u4eca\u65e5\u52a8\u4f5c')
+        __fb_u_90 = U(r'\u6570\u636e\u4f9d\u636e')
         body = f"""
-<div class='panel'><h2>{U(r'\u7ecf\u8425\u603b\u89c8')}</h2><div class='metrics'>{metrics}</div></div>
+<div class='panel'><h2>{__fb_u_86}</h2><div class='metrics'>{metrics}</div></div>
 {self.insight_cards(smart['insights'][:4])}
 <div class='split'>
-  <div class='panel'><h2>{U(r'\u95e8\u5e97\u6392\u884c')}</h2>{self.store_score_table(s.get('top_stores', []))}</div>
-  <div class='panel'><h2>{U(r'AI \u7ecf\u8425\u5efa\u8bae')}</h2>{self.bullets((s.get('ai_suggestions', []) or [])[:6])}</div>
+  <div class='panel'><h2>{__fb_u_87}</h2>{self.store_score_table(s.get('top_stores', []))}</div>
+  <div class='panel'><h2>{__fb_u_88}</h2>{self.bullets((s.get('ai_suggestions', []) or [])[:6])}</div>
 </div>
 <div class='split'>
-  <div class='panel'><h2>{U(r'\u4eca\u65e5\u52a8\u4f5c')}</h2>{self.bullets(smart['actions'])}</div>
-  <div class='panel'><h2>{U(r'\u6570\u636e\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}</div>
+  <div class='panel'><h2>{__fb_u_89}</h2>{self.bullets(smart['actions'])}</div>
+  <div class='panel'><h2>{__fb_u_90}</h2>{self.bullets(smart['evidence'])}</div>
 </div>"""
         self.out(layout(U(r"\u7ecf\u8425\u603b\u89c8"), body, user=user, wide=True))
 
@@ -8654,27 +8744,43 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         status = self.sap_sync_status_payload()
         smart = self.smart_business_insights()
         history_items = [h["sync_id"] + " 路 " + h["trigger_type"] + " 路 " + h["status"] for h in status["history"][:10]] or [U(r"\u6682\u65e0 SAP \u540c\u6b65\u5386\u53f2\u3002")]
+        __fb_u_91 = U(r'\u540c\u6b65\u72b6\u6001')
+        __fb_u_92 = U(r'\u6570\u636e\u65e5\u671f')
+        __fb_u_93 = U(r'\u6628\u65e5\u9500\u552e')
+        __fb_u_94 = U(r'\uffe5')
+        __fb_u_95 = U(r'SAP B1')
+        __fb_u_96 = U(r'\u5e93\u5b58\u91d1\u989d')
+        __fb_u_97 = U(r'\uffe5')
+        __fb_u_98 = U(r'\u5df2\u540c\u6b65')
+        __fb_u_99 = U(r'\u4e0a\u6b21\u540c\u6b65')
+        __fb_u_100 = U(r'\u4e0b\u6b21\u540c\u6b65')
+        __fb_u_101 = U(r'\u6bcf\u665a 22:00')
+        __fb_u_102 = U(r'\u7acb\u5373\u540c\u6b65 SAP \u6570\u636e')
+        __fb_u_103 = U(r'\u540c\u6b65\u540e\u5efa\u8bae')
+        __fb_u_104 = U(r'\u6570\u636e\u6838\u5bf9\u4f9d\u636e')
+        __fb_u_105 = U(r'\u540c\u6b65\u5386\u53f2')
+        __fb_u_106 = U(r'\u914d\u7f6e\u72b6\u6001')
         body = f"""
 <div class="panel">
-  <h2>SAP B1 {U(r'\u540c\u6b65\u72b6\u6001')}</h2>
+  <h2>SAP B1 {__fb_u_91}</h2>
   <div class="metrics">
-    {self.metric(U(r'\u6570\u636e\u65e5\u671f'), s.get('data_date'), status['freshness'])}
-    {self.metric(U(r'\u6628\u65e5\u9500\u552e'), U(r'\uffe5') + money(s.get('yesterday_sales')), U(r'SAP B1'))}
-    {self.metric(U(r'\u5e93\u5b58\u91d1\u989d'), U(r'\uffe5') + money(s.get('inventory_amount')), U(r'\u5df2\u540c\u6b65'))}
-    {self.metric(U(r'\u4e0a\u6b21\u540c\u6b65'), status['last_sync_time'], status['last_status'])}
-    {self.metric(U(r'\u4e0b\u6b21\u540c\u6b65'), status['next_run_time'], U(r'\u6bcf\u665a 22:00'))}
+    {self.metric(__fb_u_92, s.get('data_date'), status['freshness'])}
+    {self.metric(__fb_u_93, __fb_u_94 + money(s.get('yesterday_sales')), __fb_u_95)}
+    {self.metric(__fb_u_96, __fb_u_97 + money(s.get('inventory_amount')), __fb_u_98)}
+    {self.metric(__fb_u_99, status['last_sync_time'], status['last_status'])}
+    {self.metric(__fb_u_100, status['next_run_time'], __fb_u_101)}
   </div>
   <p class="small">{status['warning']}</p>
-  <form method="post" action="/api/sap/sync/run"><button>{U(r'\u7acb\u5373\u540c\u6b65 SAP \u6570\u636e')}</button></form>
+  <form method="post" action="/api/sap/sync/run"><button>{__fb_u_102}</button></form>
 </div>
 {self.insight_cards(smart['insights'][:4])}
 <div class="split">
-  <div class="panel"><h2>{U(r'\u540c\u6b65\u540e\u5efa\u8bae')}</h2>{self.bullets(smart['actions'])}</div>
-  <div class="panel"><h2>{U(r'\u6570\u636e\u6838\u5bf9\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}</div>
+  <div class="panel"><h2>{__fb_u_103}</h2>{self.bullets(smart['actions'])}</div>
+  <div class="panel"><h2>{__fb_u_104}</h2>{self.bullets(smart['evidence'])}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u540c\u6b65\u5386\u53f2')}</h2>{self.bullets(history_items)}</div>
-  <div class="panel"><h2>{U(r'\u914d\u7f6e\u72b6\u6001')}</h2>{self.bullets(status['config_status'])}</div>
+  <div class="panel"><h2>{__fb_u_105}</h2>{self.bullets(history_items)}</div>
+  <div class="panel"><h2>{__fb_u_106}</h2>{self.bullets(status['config_status'])}</div>
 </div>"""
         self.out(layout(U(r"SAP B1 \u540c\u6b65"), body, user=user, wide=True))
 
@@ -8834,10 +8940,15 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
         can_admin = role == "admin"
         summary = load_summary()
+        __fb_u_107 = U(r'\u5feb\u901f\u7ecf\u8425\u63d0\u793a')
+        __fb_u_108 = U(r'\u6628\u65e5\u9500\u552e')
+        __fb_u_109 = U(r'\uffe5')
+        __fb_u_110 = U(r'\u672c\u6708\u5b8c\u6210\u7387')
+        __fb_u_111 = U(r'\u6570\u636e\u65e5\u671f')
         quick = f"""
 <div class="panel">
-  <h2>{U(r'\u5feb\u901f\u7ecf\u8425\u63d0\u793a')}</h2>
-  <p class="small">{U(r'\u6628\u65e5\u9500\u552e')}：{U(r'\uffe5') + money(summary.get("yesterday_sales"))} · {U(r'\u672c\u6708\u5b8c\u6210\u7387')}：{pct(summary.get("completion_rate"))} · {U(r'\u6570\u636e\u65e5\u671f')}：{esc(summary.get("data_date"))}</p>
+  <h2>{__fb_u_107}</h2>
+  <p class="small">{__fb_u_108}：{__fb_u_109 + money(summary.get("yesterday_sales"))} · {__fb_u_110}：{pct(summary.get("completion_rate"))} · {__fb_u_111}：{esc(summary.get("data_date"))}</p>
 </div>"""
         cards = [
             self.card(U(r"\u6bcf\u65e5\u884c\u52a8\u677f"), U(r"\u4eca\u5929\u8981\u51b3\u7b56\u3001\u8981\u6267\u884c\u3001\u8981\u590d\u76d8\u7684\u4e8b\u9879\u3002"), "/action/today", "btn dark", True),
@@ -9028,15 +9139,19 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
                 self.metric(U(r"\u6570\u636e\u65e5\u671f"), summary.get("data_date"), U(r"\u6bcf\u665a 22:00 \u81ea\u52a8\u540c\u6b65")),
             ]
         )
+        __fb_u_112 = U(r'AI \u603b\u7ecf\u7406\u6668\u62a5')
+        __fb_u_113 = U(r'\u7ecf\u8425\u5224\u65ad')
+        __fb_u_114 = U(r'\u4eca\u65e5\u52a8\u4f5c')
+        __fb_u_115 = U(r'\u7ee7\u7eed\u548c AI \u804a\u5929')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI \u603b\u7ecf\u7406\u6668\u62a5')}</h2>
+  <h2>{__fb_u_112}</h2>
   <div class="metrics">{metrics}</div>
   <div class="split">
-    <div><h2>{U(r'\u7ecf\u8425\u5224\u65ad')}</h2>{self.bullets(summary.get("ai_suggestions", [])[:5])}</div>
-    <div><h2>{U(r'\u4eca\u65e5\u52a8\u4f5c')}</h2>{self.bullets(summary.get("todos", []))}</div>
+    <div><h2>{__fb_u_113}</h2>{self.bullets(summary.get("ai_suggestions", [])[:5])}</div>
+    <div><h2>{__fb_u_114}</h2>{self.bullets(summary.get("todos", []))}</div>
   </div>
-  <p><a class="btn" href="https://dify.huyan.vafox.com">{U(r'\u7ee7\u7eed\u548c AI \u804a\u5929')}</a></p>
+  <p><a class="btn" href="https://dify.huyan.vafox.com">{__fb_u_115}</a></p>
 </div>"""
         self.out(layout(U(r"AI \u603b\u7ecf\u7406"), body, user=user, wide=True))
 
@@ -9062,15 +9177,24 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
             )
         if not store_rows:
             store_rows = '<p class="small">{}</p>'.format(U(r"\u6682\u65e0\u95e8\u5e97\u6570\u636e\uff0c\u5148\u663e\u793a\u6d4b\u8bd5\u6a21\u677f\u3002"))
+        __fb_u_116 = U(r'AI \u5e97\u957f')
+        __fb_u_117 = U(r'\u5e97\u957f\u53ea\u770b\u81ea\u5df1\u6709\u6743\u9650\u7684\u95e8\u5e97\uff1b\u8001\u677f\u548c\u7ba1\u7406\u5458\u53ef\u770b\u5168\u90e8\u95e8\u5e97\u3002')
+        __fb_u_118 = U(r'\u4eca\u65e5\u4efb\u52a1')
+        __fb_u_119 = U(r'\u68c0\u67e5\u672c\u5e97\u65e5\u76ee\u6807\u5dee\u989d\u3002')
+        __fb_u_120 = U(r'\u8ddf\u8fdb\u91cd\u70b9\u4f1a\u5458\u56de\u8bbf\u3002')
+        __fb_u_121 = U(r'\u76d8\u70b9\u9ad8\u5e93\u5b58\u548c\u4f4e\u9500\u552e\u5546\u54c1\u3002')
+        __fb_u_122 = U(r'\u5e93\u5b58\u63d0\u9192')
+        __fb_u_123 = U(r'\u6ede\u9500\u548c\u5c3a\u7801\u7ed3\u6784\u5206\u6790\u5c06\u4ece SAP B1 \u7ee7\u7eed\u8865\u5145\u3002')
+        __fb_u_124 = U(r'\u5f53\u524d\u5148\u7528\u5e93\u5b58\u91d1\u989d\u548c\u98ce\u9669\u6570\u91cf\u505a\u95e8\u5e97\u9884\u8b66\u3002')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI \u5e97\u957f')}</h2>
-  <p class="small">{U(r'\u5e97\u957f\u53ea\u770b\u81ea\u5df1\u6709\u6743\u9650\u7684\u95e8\u5e97\uff1b\u8001\u677f\u548c\u7ba1\u7406\u5458\u53ef\u770b\u5168\u90e8\u95e8\u5e97\u3002')}</p>
+  <h2>{__fb_u_116}</h2>
+  <p class="small">{__fb_u_117}</p>
   {store_rows}
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u4efb\u52a1')}</h2>{self.bullets([U(r'\u68c0\u67e5\u672c\u5e97\u65e5\u76ee\u6807\u5dee\u989d\u3002'), U(r'\u8ddf\u8fdb\u91cd\u70b9\u4f1a\u5458\u56de\u8bbf\u3002'), U(r'\u76d8\u70b9\u9ad8\u5e93\u5b58\u548c\u4f4e\u9500\u552e\u5546\u54c1\u3002')])}</div>
-  <div class="panel"><h2>{U(r'\u5e93\u5b58\u63d0\u9192')}</h2>{self.bullets([U(r'\u6ede\u9500\u548c\u5c3a\u7801\u7ed3\u6784\u5206\u6790\u5c06\u4ece SAP B1 \u7ee7\u7eed\u8865\u5145\u3002'), U(r'\u5f53\u524d\u5148\u7528\u5e93\u5b58\u91d1\u989d\u548c\u98ce\u9669\u6570\u91cf\u505a\u95e8\u5e97\u9884\u8b66\u3002')])}</div>
+  <div class="panel"><h2>{__fb_u_118}</h2>{self.bullets([__fb_u_119, __fb_u_120, __fb_u_121])}</div>
+  <div class="panel"><h2>{__fb_u_122}</h2>{self.bullets([__fb_u_123, __fb_u_124])}</div>
 </div>"""
         self.out(layout(U(r"AI \u5e97\u957f"), body, user=user, wide=True))
 
@@ -9126,25 +9250,43 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         source_pills = "".join('<span class="pill">{} {}</span>'.format(esc(r["name"]), r["c"]) for r in by_source)
         object_pills = "".join('<a class="pill" href="/knowledge?object_type={}">{} {}</a>'.format(esc(r["name"]), esc(self.object_type_label(r["name"]) or r["name"]), r["c"]) for r in object_counts)
         category_pills = "".join('<a class="pill" href="/knowledge?category={}">{} {}</a>'.format(esc(r["name"]), esc(r["name"]), r["c"]) for r in category_counts)
+        __fb_u_125 = U(r'Drive \u4e0a\u4f20')
+        __fb_u_126 = U(r'\u65b0\u5efa\u77e5\u8bc6')
+        __fb_u_127 = U(r'\u5bf9\u8c61\u4e2d\u5fc3')
+        __fb_u_128 = U(r'\u77e5\u8bc6\u603b\u6570')
+        __fb_u_129 = U(r'\u5168\u90e8\u6761\u76ee')
+        __fb_u_130 = U(r'\u5df2\u5904\u7406\u6587\u4ef6')
+        __fb_u_131 = U(r'indexed')
+        __fb_u_132 = U(r'\u5207\u7247\u6570')
+        __fb_u_133 = U(r'document_chunks')
+        __fb_u_134 = U(r'\u5904\u7406\u5931\u8d25')
+        __fb_u_135 = U(r'\u9700\u590d\u6838')
+        __fb_u_136 = U(r'\u641c\u7d22')
+        __fb_u_137 = U(r'\u641c\u7d22\u6587\u4ef6\u540d\u3001\u6b63\u6587\u3001\u6458\u8981\u3001\u6807\u7b7e')
+        __fb_u_138 = U(r'\u6765\u6e90')
+        __fb_u_139 = U(r'\u5bf9\u8c61\u7c7b\u578b')
+        __fb_u_140 = U(r'\u5168\u90e8')
+        __fb_u_141 = U(r'\u5206\u7c7b')
+        __fb_u_142 = U(r'\u641c\u7d22')
         body = f"""
 <div class="panel">
   <h2>Knowledge Pipeline</h2>
   <p class="small">Document -> Extract Text -> Chunk -> Summary -> Tags -> Knowledge Records -> Search Index -> Ready for AI Q&A</p>
-  <div class="inline"><a class="btn" href="/drive">{U(r'Drive \u4e0a\u4f20')}</a><a class="btn green" href="/knowledge/new">{U(r'\u65b0\u5efa\u77e5\u8bc6')}</a><a class="btn dark" href="/api/knowledge/items">API</a><a class="btn" href="/object-center">{U(r'\u5bf9\u8c61\u4e2d\u5fc3')}</a></div>
+  <div class="inline"><a class="btn" href="/drive">{__fb_u_125}</a><a class="btn green" href="/knowledge/new">{__fb_u_126}</a><a class="btn dark" href="/api/knowledge/items">API</a><a class="btn" href="/object-center">{__fb_u_127}</a></div>
 </div>
 <div class="metrics">
-  {self.metric(U(r'\u77e5\u8bc6\u603b\u6570'), total, U(r'\u5168\u90e8\u6761\u76ee'))}
-  {self.metric(U(r'\u5df2\u5904\u7406\u6587\u4ef6'), processed_docs, U(r'indexed'))}
-  {self.metric(U(r'\u5207\u7247\u6570'), chunk_count, U(r'document_chunks'))}
-  {self.metric(U(r'\u5904\u7406\u5931\u8d25'), failed_docs, U(r'\u9700\u590d\u6838'))}
+  {self.metric(__fb_u_128, total, __fb_u_129)}
+  {self.metric(__fb_u_130, processed_docs, __fb_u_131)}
+  {self.metric(__fb_u_132, chunk_count, __fb_u_133)}
+  {self.metric(__fb_u_134, failed_docs, __fb_u_135)}
 </div>
 <div class="panel">
   <form method="get" action="/knowledge">
-    <label>{U(r'\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u6587\u4ef6\u540d\u3001\u6b63\u6587\u3001\u6458\u8981\u3001\u6807\u7b7e')}">
-    <label>{U(r'\u6765\u6e90')}</label><input name="source_type" value="{esc(source_type)}" placeholder="document_pipeline / note / sap_knowledge">
-    <label>{U(r'\u5bf9\u8c61\u7c7b\u578b')}</label><select name="object_type"><option value="">{U(r'\u5168\u90e8')}</option>{object_type_options}</select>
-    <label>{U(r'\u5206\u7c7b')}</label><input name="category" value="{esc(category)}">
-    <p><button>{U(r'\u641c\u7d22')}</button></p>
+    <label>{__fb_u_136}</label><input name="q" value="{esc(q)}" placeholder="{__fb_u_137}">
+    <label>{__fb_u_138}</label><input name="source_type" value="{esc(source_type)}" placeholder="document_pipeline / note / sap_knowledge">
+    <label>{__fb_u_139}</label><select name="object_type"><option value="">{__fb_u_140}</option>{object_type_options}</select>
+    <label>{__fb_u_141}</label><input name="category" value="{esc(category)}">
+    <p><button>{__fb_u_142}</button></p>
   </form>
   <div>{source_pills}</div>
   <div>{object_pills}</div>
@@ -9160,25 +9302,35 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         if not self.can_open(user, ("boss", "admin", "store_manager", "purchasing", "finance")):
             return self.dashboard(user)
         summary = load_summary()
+        __fb_u_143 = U(r'\u5e93\u5b58\u5206\u6790')
+        __fb_u_144 = U(r'\u5e93\u5b58\u91d1\u989d')
+        __fb_u_145 = U(r'\uffe5')
+        __fb_u_146 = U(r'SAP B1')
+        __fb_u_147 = U(r'\u98ce\u9669\u6570\u91cf')
+        __fb_u_148 = U(r'\u9700\u8ddf\u8fdb')
+        __fb_u_149 = U(r'\u6570\u636e\u65e5\u671f')
+        __fb_u_150 = U(r'\u6bcf\u665a 22:00')
+        __fb_u_151 = U(r'\u67e5\u770b SAP B1 \u540c\u6b65\u8bf4\u660e')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u5e93\u5b58\u5206\u6790')}</h2>
+  <h2>{__fb_u_143}</h2>
   <div class="metrics">
-    {self.metric(U(r'\u5e93\u5b58\u91d1\u989d'), U(r'\uffe5') + money(summary.get('inventory_amount')), U(r'SAP B1'))}
-    {self.metric(U(r'\u98ce\u9669\u6570\u91cf'), money(summary.get('risk_count')), U(r'\u9700\u8ddf\u8fdb'))}
-    {self.metric(U(r'\u6570\u636e\u65e5\u671f'), summary.get('data_date'), U(r'\u6bcf\u665a 22:00'))}
+    {self.metric(__fb_u_144, __fb_u_145 + money(summary.get('inventory_amount')), __fb_u_146)}
+    {self.metric(__fb_u_147, money(summary.get('risk_count')), __fb_u_148)}
+    {self.metric(__fb_u_149, summary.get('data_date'), __fb_u_150)}
   </div>
-  <p><a class="btn dark" href="/wiki/firefox-hq/sap-b1">{U(r'\u67e5\u770b SAP B1 \u540c\u6b65\u8bf4\u660e')}</a></p>
+  <p><a class="btn dark" href="/wiki/firefox-hq/sap-b1">{__fb_u_151}</a></p>
 </div>"""
         self.out(layout(U(r"\u5e93\u5b58\u5206\u6790"), body, user=user, wide=True))
 
     def change_password(self, user, msg=""):
         if not user:
             return self.redir("/login")
+        __fb_u_152 = U(r'\u539f\u5bc6\u7801')
         body = f"""
 <div class="panel form">
   <form method="post" action="/change-password">
-    <label>{U(r'\u539f\u5bc6\u7801')}</label><input name="old_password" type="password" required>
+    <label>{__fb_u_152}</label><input name="old_password" type="password" required>
     <label>{T['new_password']}</label><input name="new_password" type="password" required>
     <p><button>{T['save']}</button></p>
   </form>
@@ -9216,7 +9368,8 @@ order by coalesce(occurred_at, created_at) desc limit ?""",
         with db() as conn:
             rows = conn.execute("select * from users order by status='pending' desc, created_at desc").fetchall()
         body = '<div class="panel"><h2>企业资料导入</h2><p>先预览、检查和人工确认，再建立供应商、产品和人才生命对象。</p><a class="btn" href="/admin/import">打开生命资料导入中心</a></div>'
-        body += f'<div class="panel"><h2>{T["users"]}</h2><p class="small">{U(r"\u65b0\u5458\u5de5\u6ce8\u518c\u540e\u9ed8\u8ba4\u4e3a\u5f85\u5ba1\u6838\u3002\u7ba1\u7406\u5458\u53ef\u4ee5\u5ba1\u6838\u901a\u8fc7\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002")}</p><table><thead><tr><th>{T["name"]}</th><th>{T["email"]}</th><th>{T["phone"]}</th><th>{T["store"]}</th><th>{T["role"]}</th><th>{T["status"]}</th><th>{T["action"]}</th></tr></thead><tbody>'
+        __fb_u_153 = U(r"\u65b0\u5458\u5de5\u6ce8\u518c\u540e\u9ed8\u8ba4\u4e3a\u5f85\u5ba1\u6838\u3002\u7ba1\u7406\u5458\u53ef\u4ee5\u5ba1\u6838\u901a\u8fc7\u3001\u7981\u7528\u8d26\u53f7\u3001\u4fee\u6539\u89d2\u8272\u548c\u91cd\u7f6e\u5bc6\u7801\u3002")
+        body += f'<div class="panel"><h2>{T["users"]}</h2><p class="small">{__fb_u_153}</p><table><thead><tr><th>{T["name"]}</th><th>{T["email"]}</th><th>{T["phone"]}</th><th>{T["store"]}</th><th>{T["role"]}</th><th>{T["status"]}</th><th>{T["action"]}</th></tr></thead><tbody>'
         for row in rows:
             update = (
                 '<form method="post" action="/admin/update">'
@@ -12169,15 +12322,20 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
                 self.metric(U(r"\u5e93\u5b58\u98ce\u9669"), money(m["risk_count"]), U(r"\u5e93\u5b58 \uffe5") + money(m["inventory_amount"])),
             ]
         )
+        __fb_u_154 = U(r'\u7ecf\u8425\u96f7\u8fbe')
+        __fb_u_155 = U(r'\u4eca\u65e5\u52a8\u4f5c')
+        __fb_u_156 = U(r'AI \u603b\u7ecf\u7406')
+        __fb_u_157 = U(r'\u6570\u636e\u4f9d\u636e')
+        __fb_u_158 = U(r'\u7ecf\u8425\u603b\u89c8')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u7ecf\u8425\u96f7\u8fbe')}</h2>
+  <h2>{__fb_u_154}</h2>
   <div class="metrics">{metrics}</div>
 </div>
 {self.insight_cards(payload['insights'][:3])}
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u52a8\u4f5c')}</h2>{self.bullets(payload['actions'][:3])}<p><a class="btn dark" href="/ai-ceo">{U(r'AI \u603b\u7ecf\u7406')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u6570\u636e\u4f9d\u636e')}</h2>{self.bullets(payload['evidence'][:4])}<p><a class="btn" href="/business-overview">{U(r'\u7ecf\u8425\u603b\u89c8')}</a></p></div>
+  <div class="panel"><h2>{__fb_u_155}</h2>{self.bullets(payload['actions'][:3])}<p><a class="btn dark" href="/ai-ceo">{__fb_u_156}</a></p></div>
+  <div class="panel"><h2>{__fb_u_157}</h2>{self.bullets(payload['evidence'][:4])}<p><a class="btn" href="/business-overview">{__fb_u_158}</a></p></div>
 </div>"""
         self.out(layout(U(r"\u7ecf\u8425\u96f7\u8fbe"), body, user=user, wide=True))
 
@@ -12334,25 +12492,40 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
             self.metric(U(r"\u5e93\u5b58\u5065\u5eb7"), money(inventory.get("health_score", 0)), esc(inventory.get("risk_level", ""))),
             self.metric(U(r"\u6bdb\u5229\u7387"), pct(profit.get("gross_margin", 0)), U(r"\u5229\u6da6\u4f18\u5148")),
         ])
+        __fb_u_159 = U(r'AI\u7ecf\u8425\u4e2d\u5fc3')
+        __fb_u_160 = U(r'\u4eca\u65e5\u7ecf\u8425\u62a5\u544a')
+        __fb_u_161 = U(r'\u9500\u552e\u9884\u6d4b')
+        __fb_u_162 = U(r'\u5357\u5c71\u5e97\u9884\u8ba1 +15% \uff0c\u539f\u56e0\uff1a\u5468\u672b\u6d3b\u52a8')
+        __fb_u_163 = U(r'\u5e93\u5b58\u5206\u6790')
+        __fb_u_164 = U(r'\u6ede\u9500\u5546\u54c1\u9700\u4ece SAP \u5e93\u5b58\u5e74\u9f84\u590d\u6838')
+        __fb_u_165 = U(r'\u91c7\u8d2d\u5efa\u8bae')
+        __fb_u_166 = U(r'\u5229\u6da6\u5206\u6790')
+        __fb_u_167 = U(r'AI\u5efa\u8bae')
+        __fb_u_168 = U(r'\u53bb\u5ba1\u6279')
+        __fb_u_169 = U(r'\u98ce\u9669\u9884\u8b66')
+        __fb_u_170 = U(r'AI\u4efb\u52a1\u4e2d\u5fc3')
+        __fb_u_171 = U(r'\u8f93\u5165\u7ecf\u8425\u95ee\u9898')
+        __fb_u_172 = U(r'\u5206\u6790\u4e00\u4e0b\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u60c5\u51b5')
+        __fb_u_173 = U(r'\u751f\u6210\u5ba1\u6279\u4efb\u52a1')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI\u7ecf\u8425\u4e2d\u5fc3')}</h2>
+  <h2>{__fb_u_159}</h2>
   <div class="metrics">{metrics}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u7ecf\u8425\u62a5\u544a')}</h2>{self.bullets(report.get('ai_advice', []))}<p class="small">{esc(payload['approval_policy'])}</p></div>
-  <div class="panel"><h2>{U(r'\u9500\u552e\u9884\u6d4b')}</h2>{self.bullets([forecast.get('recommendation', ''), U(r'\u5357\u5c71\u5e97\u9884\u8ba1 +15% \uff0c\u539f\u56e0\uff1a\u5468\u672b\u6d3b\u52a8')])}</div>
+  <div class="panel"><h2>{__fb_u_160}</h2>{self.bullets(report.get('ai_advice', []))}<p class="small">{esc(payload['approval_policy'])}</p></div>
+  <div class="panel"><h2>{__fb_u_161}</h2>{self.bullets([forecast.get('recommendation', ''), __fb_u_162])}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5e93\u5b58\u5206\u6790')}</h2>{self.bullets([inventory.get('recommendation', ''), U(r'\u6ede\u9500\u5546\u54c1\u9700\u4ece SAP \u5e93\u5b58\u5e74\u9f84\u590d\u6838')])}</div>
-  <div class="panel"><h2>{U(r'\u91c7\u8d2d\u5efa\u8bae')}</h2>{self.bullets([r['brand'] + ': ' + r['action'] for r in payload['purchase_recommendation'].get('recommendations', [])])}</div>
+  <div class="panel"><h2>{__fb_u_163}</h2>{self.bullets([inventory.get('recommendation', ''), __fb_u_164])}</div>
+  <div class="panel"><h2>{__fb_u_165}</h2>{self.bullets([r['brand'] + ': ' + r['action'] for r in payload['purchase_recommendation'].get('recommendations', [])])}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5229\u6da6\u5206\u6790')}</h2>{self.bullets([r['brand'] + ': ' + r['basis'] for r in profit.get('real_profit_contribution_ranking', [])])}</div>
-  <div class="panel"><h2>{U(r'AI\u5efa\u8bae')}</h2>{self.bullets([s['title'] + ' - ' + s['status'] for s in payload['ai_suggestions']])}<p><a class="btn" href="/approvals">{U(r'\u53bb\u5ba1\u6279')}</a></p></div>
+  <div class="panel"><h2>{__fb_u_166}</h2>{self.bullets([r['brand'] + ': ' + r['basis'] for r in profit.get('real_profit_contribution_ranking', [])])}</div>
+  <div class="panel"><h2>{__fb_u_167}</h2>{self.bullets([s['title'] + ' - ' + s['status'] for s in payload['ai_suggestions']])}<p><a class="btn" href="/approvals">{__fb_u_168}</a></p></div>
 </div>
-<div class="panel"><h2>{U(r'\u98ce\u9669\u9884\u8b66')}</h2><table><thead><tr><th>Type</th><th>Level</th><th>Description</th><th>Suggestion</th></tr></thead><tbody>{risk_rows}</tbody></table></div>
-<div class="panel form"><h2>{U(r'AI\u4efb\u52a1\u4e2d\u5fc3')}</h2><form method="post" action="/api/ai/task/create"><label>{U(r'\u8f93\u5165\u7ecf\u8425\u95ee\u9898')}</label><textarea name="question" rows="4" placeholder="{U(r'\u5206\u6790\u4e00\u4e0b\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u60c5\u51b5')}"></textarea><p><button>{U(r'\u751f\u6210\u5ba1\u6279\u4efb\u52a1')}</button></p></form></div>
+<div class="panel"><h2>{__fb_u_169}</h2><table><thead><tr><th>Type</th><th>Level</th><th>Description</th><th>Suggestion</th></tr></thead><tbody>{risk_rows}</tbody></table></div>
+<div class="panel form"><h2>{__fb_u_170}</h2><form method="post" action="/api/ai/task/create"><label>{__fb_u_171}</label><textarea name="question" rows="4" placeholder="{__fb_u_172}"></textarea><p><button>{__fb_u_173}</button></p></form></div>
 """
         self.out(layout(U(r"AI\u7ecf\u8425\u4e2d\u5fc3"), body, user=user, wide=True))
 
@@ -12533,24 +12706,41 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         nodes = [n["name"] + " / " + n["type"] for n in workflow.get("nodes", [])]
         employees = [e["name"] + " / " + ", ".join(e["responsibilities"][:2]) for e in payload["digital_employees"]]
         reports = [r["title"] + " / " + r["schedule"] for r in payload["periodic_reports"]]
+        __fb_u_174 = U(r'AI\u81ea\u52a8\u8fd0\u8425')
+        __fb_u_175 = U(r'\u5de5\u4f5c\u6d41\u4e2d\u5fc3')
+        __fb_u_176 = U(r'Workflow Builder API')
+        __fb_u_177 = U(r'\u81ea\u52a8\u4efb\u52a1')
+        __fb_u_178 = U(r'\u7ecf\u8425\u6307\u4ee4')
+        __fb_u_179 = U(r'\u68c0\u67e5\u6700\u8fd1\u5e93\u5b58\u98ce\u9669')
+        __fb_u_180 = U(r'\u751f\u6210\u5f85\u5ba1\u6279\u5de5\u4f5c\u6d41')
+        __fb_u_181 = U(r'AI\u6570\u5b57\u5458\u5de5')
+        __fb_u_182 = U(r'\u81ea\u52a8\u65e5\u62a5/\u5468\u62a5/\u6708\u62a5')
+        __fb_u_183 = U(r'\u5ba1\u6279\u4e2d\u5fc3')
+        __fb_u_184 = U(r'\u6682\u65e0\u5f85\u5ba1\u6279\u9879')
+        __fb_u_185 = U(r'\u53bb\u5ba1\u6279')
+        __fb_u_186 = U(r'\u901a\u77e5\u4e2d\u5fc3')
+        __fb_u_187 = U(r'\u6682\u65e0\u901a\u77e5')
+        __fb_u_188 = U(r'\u67e5\u770b\u901a\u77e5')
+        __fb_u_189 = U(r'\u7ecf\u8425\u95ed\u73af\u5b66\u4e60')
+        __fb_u_190 = U(r'AI\u5efa\u8bae -> \u8001\u677f\u51b3\u5b9a -> \u5b9e\u9645\u7ed3\u679c -> AI\u51c6\u786e\u7387\u590d\u76d8')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI\u81ea\u52a8\u8fd0\u8425')}</h2>
+  <h2>{__fb_u_174}</h2>
   <div class="metrics">{metrics}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5de5\u4f5c\u6d41\u4e2d\u5fc3')}</h2>{self.bullets(nodes)}<p><a class="btn" href="/api/workflow-automation/builder">{U(r'Workflow Builder API')}</a></p></div>
-  <div class="panel form"><h2>{U(r'\u81ea\u52a8\u4efb\u52a1')}</h2><form method="post" action="/api/workflow/run-inventory-risk"><label>{U(r'\u7ecf\u8425\u6307\u4ee4')}</label><textarea name="request_text" rows="4">{U(r'\u68c0\u67e5\u6700\u8fd1\u5e93\u5b58\u98ce\u9669')}</textarea><p><button>{U(r'\u751f\u6210\u5f85\u5ba1\u6279\u5de5\u4f5c\u6d41')}</button></p></form></div>
+  <div class="panel"><h2>{__fb_u_175}</h2>{self.bullets(nodes)}<p><a class="btn" href="/api/workflow-automation/builder">{__fb_u_176}</a></p></div>
+  <div class="panel form"><h2>{__fb_u_177}</h2><form method="post" action="/api/workflow/run-inventory-risk"><label>{__fb_u_178}</label><textarea name="request_text" rows="4">{__fb_u_179}</textarea><p><button>{__fb_u_180}</button></p></form></div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'AI\u6570\u5b57\u5458\u5de5')}</h2>{self.bullets(employees)}</div>
-  <div class="panel"><h2>{U(r'\u81ea\u52a8\u65e5\u62a5/\u5468\u62a5/\u6708\u62a5')}</h2>{self.bullets(reports)}</div>
+  <div class="panel"><h2>{__fb_u_181}</h2>{self.bullets(employees)}</div>
+  <div class="panel"><h2>{__fb_u_182}</h2>{self.bullets(reports)}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</h2>{self.bullets([a.get('title','') + ' / ' + a.get('status','') for a in payload['approval_center']['approvals'][:8]] or [U(r'\u6682\u65e0\u5f85\u5ba1\u6279\u9879')])}<p><a class="btn" href="/approvals">{U(r'\u53bb\u5ba1\u6279')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u901a\u77e5\u4e2d\u5fc3')}</h2>{self.bullets([n.get('title','') + ' / ' + n.get('status','') for n in payload['notification_center']['notifications'][:8]] or [U(r'\u6682\u65e0\u901a\u77e5')])}<p><a class="btn" href="/notifications">{U(r'\u67e5\u770b\u901a\u77e5')}</a></p></div>
+  <div class="panel"><h2>{__fb_u_183}</h2>{self.bullets([a.get('title','') + ' / ' + a.get('status','') for a in payload['approval_center']['approvals'][:8]] or [__fb_u_184])}<p><a class="btn" href="/approvals">{__fb_u_185}</a></p></div>
+  <div class="panel"><h2>{__fb_u_186}</h2>{self.bullets([n.get('title','') + ' / ' + n.get('status','') for n in payload['notification_center']['notifications'][:8]] or [__fb_u_187])}<p><a class="btn" href="/notifications">{__fb_u_188}</a></p></div>
 </div>
-<div class="panel"><h2>{U(r'\u7ecf\u8425\u95ed\u73af\u5b66\u4e60')}</h2>{self.bullets([payload['guardrail'], U(r'AI\u5efa\u8bae -> \u8001\u677f\u51b3\u5b9a -> \u5b9e\u9645\u7ed3\u679c -> AI\u51c6\u786e\u7387\u590d\u76d8')])}</div>
+<div class="panel"><h2>{__fb_u_189}</h2>{self.bullets([payload['guardrail'], __fb_u_190])}</div>
 """
         self.out(layout(U(r"AI\u81ea\u52a8\u8fd0\u8425"), body, user=user, wide=True))
 
@@ -12673,19 +12863,30 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         ])
         models = [m["name"] + " / " + ", ".join(m["relations"][:3]) for m in payload["contract"].get("entity_models", [])]
         roles = [r.get("name", "") + " / " + r.get("approval_rule", "") for r in payload["contract"].get("permission_roles", [])[:6]]
+        __fb_u_191 = U(r'\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31')
+        __fb_u_192 = U(r'\u4f01\u4e1a\u5b9e\u4f53\u4e2d\u5fc3')
+        __fb_u_193 = U(r'\u521d\u59cb\u5316\u56fe\u8c31')
+        __fb_u_194 = U(r'AI\u6743\u9650\u7cfb\u7edf')
+        __fb_u_195 = U(r'\u5458\u5de5AI\u52a9\u624b')
+        __fb_u_196 = U(r'\u987e\u5ba2AI\u52a9\u624b')
+        __fb_u_197 = U(r'\u7ecf\u8425\u9a7e\u9a76\u8231\u5730\u56fe')
+        __fb_u_198 = U(r'\u5173\u7cfb\u5206\u6790')
+        __fb_u_199 = U(r'\u95ee\u9898')
+        __fb_u_200 = U(r'\u4e3a\u4ec0\u4e48\u5357\u5c71\u5e97Kailas\u9500\u552e\u589e\u957f\uff1f')
+        __fb_u_201 = U(r'\u5206\u6790')
         body = f"""
-<div class="panel"><h2>{U(r'\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31')}</h2><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_191}</h2><div class="metrics">{metrics}</div></div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4f01\u4e1a\u5b9e\u4f53\u4e2d\u5fc3')}</h2>{self.bullets(models)}<p><a class="btn" href="/api/enterprise-knowledge-graph/seed">{U(r'\u521d\u59cb\u5316\u56fe\u8c31')}</a></p></div>
-  <div class="panel"><h2>{U(r'AI\u6743\u9650\u7cfb\u7edf')}</h2>{self.bullets(roles)}<p class="small">{esc(payload['guardrail'])}</p></div>
+  <div class="panel"><h2>{__fb_u_192}</h2>{self.bullets(models)}<p><a class="btn" href="/api/enterprise-knowledge-graph/seed">{__fb_u_193}</a></p></div>
+  <div class="panel"><h2>{__fb_u_194}</h2>{self.bullets(roles)}<p class="small">{esc(payload['guardrail'])}</p></div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5458\u5de5AI\u52a9\u624b')}</h2>{self.bullets(payload['employee_ai_assistant'].get('connected_data', []))}</div>
-  <div class="panel"><h2>{U(r'\u987e\u5ba2AI\u52a9\u624b')}</h2>{self.bullets(payload['customer_ai_assistant'].get('supported_questions', []))}</div>
+  <div class="panel"><h2>{__fb_u_195}</h2>{self.bullets(payload['employee_ai_assistant'].get('connected_data', []))}</div>
+  <div class="panel"><h2>{__fb_u_196}</h2>{self.bullets(payload['customer_ai_assistant'].get('supported_questions', []))}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u7ecf\u8425\u9a7e\u9a76\u8231\u5730\u56fe')}</h2>{self.bullets([i['store'] + ' / ' + i['trend'] for i in payload['business_map'].get('example', [])])}</div>
-  <div class="panel form"><h2>{U(r'\u5173\u7cfb\u5206\u6790')}</h2><form method="get" action="/api/enterprise-knowledge-graph/query"><label>{U(r'\u95ee\u9898')}</label><input name="q" value="{U(r'\u4e3a\u4ec0\u4e48\u5357\u5c71\u5e97Kailas\u9500\u552e\u589e\u957f\uff1f')}"><p><button>{U(r'\u5206\u6790')}</button></p></form></div>
+  <div class="panel"><h2>{__fb_u_197}</h2>{self.bullets([i['store'] + ' / ' + i['trend'] for i in payload['business_map'].get('example', [])])}</div>
+  <div class="panel form"><h2>{__fb_u_198}</h2><form method="get" action="/api/enterprise-knowledge-graph/query"><label>{__fb_u_199}</label><input name="q" value="{__fb_u_200}"><p><button>{__fb_u_201}</button></p></form></div>
 </div>
 """
         self.out(layout(U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31"), body, user=user, wide=True))
@@ -12791,22 +12992,37 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         ])
         scenarios = [s["name"] + " / " + ", ".join(s["outputs"][:3]) for s in payload["contract"].get("scenario_types", [])]
         board = payload["board_assistant"]
+        __fb_u_202 = U(r'AI\u6218\u7565\u4e2d\u5fc3')
+        __fb_u_203 = U(r'\u4f01\u4e1a\u6570\u5b57\u5b6a\u751f')
+        __fb_u_204 = U(r'\u7ecf\u8425\u6a21\u62df\u6c99\u76d8')
+        __fb_u_205 = U(r'Osprey\u6298\u6263\u6a21\u62df')
+        __fb_u_206 = U(r'\u73b0\u91d1\u6d41\u9884\u6d4b')
+        __fb_u_207 = U(r'\u5e93\u5b58\u6570\u5b57\u5b6a\u751f')
+        __fb_u_208 = U(r'\u5458\u5de5\u7ecf\u8425\u6a21\u578b')
+        __fb_u_209 = U(r'AI\u8463\u4e8b\u4f1a\u52a9\u624b')
+        __fb_u_210 = U(r'AI\u6218\u7565\u987e\u95ee')
+        __fb_u_211 = U(r'\u95ee\u9898')
+        __fb_u_212 = U(r'\u4eca\u5e74300\u4e07Osprey\u671f\u8d27\u662f\u5426\u5e94\u8be5\u5168\u90e8\u63d0\u8d27\uff1f')
+        __fb_u_213 = U(r'\u751f\u6210\u51b3\u7b56\u62a5\u544a')
+        __fb_u_214 = U(r'\u5b89\u5168\u8fb9\u754c')
+        __fb_u_215 = U(r'\u6a21\u62df\u4e0d\u4fee\u6539 SAP \u548c\u4efb\u4f55\u751f\u4ea7\u6570\u636e')
+        __fb_u_216 = U(r'\u6267\u884c\u65b9\u6848\u5fc5\u987b\u8fdb\u5165\u4eba\u5de5\u5ba1\u6279')
         body = f"""
-<div class="panel"><h2>{U(r'AI\u6218\u7565\u4e2d\u5fc3')}</h2><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_202}</h2><div class="metrics">{metrics}</div></div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4f01\u4e1a\u6570\u5b57\u5b6a\u751f')}</h2>{self.bullets(payload['company_twin'].get('company_structure', []))}</div>
-  <div class="panel"><h2>{U(r'\u7ecf\u8425\u6a21\u62df\u6c99\u76d8')}</h2>{self.bullets(scenarios)}<p><a class="btn" href="/api/v2.1/scenario/osprey-discount">{U(r'Osprey\u6298\u6263\u6a21\u62df')}</a></p></div>
+  <div class="panel"><h2>{__fb_u_203}</h2>{self.bullets(payload['company_twin'].get('company_structure', []))}</div>
+  <div class="panel"><h2>{__fb_u_204}</h2>{self.bullets(scenarios)}<p><a class="btn" href="/api/v2.1/scenario/osprey-discount">{__fb_u_205}</a></p></div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u73b0\u91d1\u6d41\u9884\u6d4b')}</h2>{self.bullets([payload['cashflow_forecast'].get('warning',''), payload['cashflow_forecast'].get('suggestion','')])}</div>
-  <div class="panel"><h2>{U(r'\u5e93\u5b58\u6570\u5b57\u5b6a\u751f')}</h2>{self.bullets(payload['inventory_twin'].get('flow', []))}</div>
+  <div class="panel"><h2>{__fb_u_206}</h2>{self.bullets([payload['cashflow_forecast'].get('warning',''), payload['cashflow_forecast'].get('suggestion','')])}</div>
+  <div class="panel"><h2>{__fb_u_207}</h2>{self.bullets(payload['inventory_twin'].get('flow', []))}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5458\u5de5\u7ecf\u8425\u6a21\u578b')}</h2>{self.bullets(payload['employee_twin'].get('dimensions', []))}</div>
-  <div class="panel"><h2>{U(r'AI\u8463\u4e8b\u4f1a\u52a9\u624b')}</h2>{self.bullets(board.get('materials', []))}</div>
+  <div class="panel"><h2>{__fb_u_208}</h2>{self.bullets(payload['employee_twin'].get('dimensions', []))}</div>
+  <div class="panel"><h2>{__fb_u_209}</h2>{self.bullets(board.get('materials', []))}</div>
 </div>
-<div class="panel form"><h2>{U(r'AI\u6218\u7565\u987e\u95ee')}</h2><form method="get" action="/api/v2.1/strategy/report"><label>{U(r'\u95ee\u9898')}</label><input name="q" value="{U(r'\u4eca\u5e74300\u4e07Osprey\u671f\u8d27\u662f\u5426\u5e94\u8be5\u5168\u90e8\u63d0\u8d27\uff1f')}"><p><button>{U(r'\u751f\u6210\u51b3\u7b56\u62a5\u544a')}</button></p></form></div>
-<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([payload['guardrail'], U(r'\u6a21\u62df\u4e0d\u4fee\u6539 SAP \u548c\u4efb\u4f55\u751f\u4ea7\u6570\u636e'), U(r'\u6267\u884c\u65b9\u6848\u5fc5\u987b\u8fdb\u5165\u4eba\u5de5\u5ba1\u6279')])}</div>
+<div class="panel form"><h2>{__fb_u_210}</h2><form method="get" action="/api/v2.1/strategy/report"><label>{__fb_u_211}</label><input name="q" value="{__fb_u_212}"><p><button>{__fb_u_213}</button></p></form></div>
+<div class="panel"><h2>{__fb_u_214}</h2>{self.bullets([payload['guardrail'], __fb_u_215, __fb_u_216])}</div>
 """
         self.out(layout(U(r"AI\u6218\u7565\u4e2d\u5fc3"), body, user=user, wide=True))
 
@@ -12935,21 +13151,28 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         top10 = payload["ceo_dashboard"].get("top_10_metrics", [])
         jobs = [j["schedule"] + " / " + j["name"] for j in payload["contract"].get("autopilot_jobs", [])]
         focus = payload["chairman_agent"].get("top_focus", [])
+        __fb_u_217 = U(r'AI\u81ea\u52a8\u9a7e\u9a76')
+        __fb_u_218 = U(r'\u4f01\u4e1a\u5065\u5eb7\u76d1\u63a7')
+        __fb_u_219 = U(r'AI\u6bcf\u65e5\u5de1\u68c0')
+        __fb_u_220 = U(r'\u5f02\u5e38\u9884\u6d4b')
+        __fb_u_221 = U(r'\u6700\u5927\u7ecf\u8425\u98ce\u9669')
+        __fb_u_222 = U(r'\u68c0\u67e5\u706b\u72d0\u72f8\u76ee\u524d\u6700\u5927\u7ecf\u8425\u98ce\u9669')
+        __fb_u_223 = U(r'\u5b66\u4e60\u4e2d\u5fc3')
         body = f"""
-<div class="panel"><h2>{U(r'AI\u81ea\u52a8\u9a7e\u9a76')}</h2><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_217}</h2><div class="metrics">{metrics}</div></div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4f01\u4e1a\u5065\u5eb7\u76d1\u63a7')}</h2>{self.bullets(health.get('suggestions', []))}</div>
+  <div class="panel"><h2>{__fb_u_218}</h2>{self.bullets(health.get('suggestions', []))}</div>
   <div class="panel"><h2>CEO Dashboard</h2>{self.bullets(top10)}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'AI\u6bcf\u65e5\u5de1\u68c0')}</h2>{self.bullets(jobs)}</div>
+  <div class="panel"><h2>{__fb_u_219}</h2>{self.bullets(jobs)}</div>
   <div class="panel"><h2>Chairman Agent</h2>{self.bullets(focus)}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5f02\u5e38\u9884\u6d4b')}</h2>{self.bullets([r['type'] + ' / ' + r['prediction'] for r in payload['early_warning'].get('risks', [])])}</div>
-  <div class="panel form"><h2>{U(r'\u6700\u5927\u7ecf\u8425\u98ce\u9669')}</h2><form method="get" action="/api/v2.2/risk/biggest"><p><button>{U(r'\u68c0\u67e5\u706b\u72d0\u72f8\u76ee\u524d\u6700\u5927\u7ecf\u8425\u98ce\u9669')}</button></p></form></div>
+  <div class="panel"><h2>{__fb_u_220}</h2>{self.bullets([r['type'] + ' / ' + r['prediction'] for r in payload['early_warning'].get('risks', [])])}</div>
+  <div class="panel form"><h2>{__fb_u_221}</h2><form method="get" action="/api/v2.2/risk/biggest"><p><button>{__fb_u_222}</button></p></form></div>
 </div>
-<div class="panel"><h2>{U(r'\u5b66\u4e60\u4e2d\u5fc3')}</h2>{self.bullets(payload['learning_center'].get('case_library', []))}</div>
+<div class="panel"><h2>{__fb_u_223}</h2>{self.bullets(payload['learning_center'].get('case_library', []))}</div>
 """
         self.out(layout(U(r"AI\u81ea\u52a8\u9a7e\u9a76"), body, user=user, wide=True))
 
@@ -13057,25 +13280,37 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         ])
         connectors = [c["name"] + " / " + c["sync_schedule"] for c in payload["contract"].get("connectors", [])]
         sync_jobs = [j["time"] + " / " + j["job"] for j in payload["data_lake"].get("sync_jobs", [])]
+        __fb_u_224 = U(r'AI\u751f\u6001\u4e2d\u5fc3')
+        __fb_u_225 = U(r'\u6570\u636e\u8fde\u63a5\u4e2d\u5fc3')
+        __fb_u_226 = U(r'\u521d\u59cb\u5316\u8fde\u63a5')
+        __fb_u_227 = U(r'\u81ea\u52a8\u540c\u6b65')
+        __fb_u_228 = U(r'\u4f01\u5faeCRM')
+        __fb_u_229 = U(r'\u4f1a\u5458CRM')
+        __fb_u_230 = U(r'\u7535\u5546\u6570\u636e')
+        __fb_u_231 = U(r'\u6d41\u5931\u5ba2\u6237\u53ec\u56de')
+        __fb_u_232 = U(r'\u751f\u6210\u53ec\u56de\u65b9\u6848')
+        __fb_u_233 = U(r'\u5b89\u5168\u8fb9\u754c')
+        __fb_u_234 = U(r'\u5916\u90e8\u6e20\u9053\u53d1\u9001\u5fc5\u987b\u4eba\u5de5\u786e\u8ba4')
+        __fb_u_235 = U(r'\u6240\u6709\u63a5\u53e3\u8c03\u7528\u9700\u8bb0\u5f55\u65e5\u5fd7')
         body = f"""
-<div class="panel"><h2>{U(r'AI\u751f\u6001\u4e2d\u5fc3')}</h2><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_224}</h2><div class="metrics">{metrics}</div></div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u6570\u636e\u8fde\u63a5\u4e2d\u5fc3')}</h2>{self.bullets(connectors)}<p><a class="btn" href="/api/v2.3/seed">{U(r'\u521d\u59cb\u5316\u8fde\u63a5')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u81ea\u52a8\u540c\u6b65')}</h2>{self.bullets(sync_jobs)}</div>
+  <div class="panel"><h2>{__fb_u_225}</h2>{self.bullets(connectors)}<p><a class="btn" href="/api/v2.3/seed">{__fb_u_226}</a></p></div>
+  <div class="panel"><h2>{__fb_u_227}</h2>{self.bullets(sync_jobs)}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4f01\u5faeCRM')}</h2>{self.bullets(payload['wecom_crm'].get('connections', []))}</div>
-  <div class="panel"><h2>{U(r'\u4f1a\u5458CRM')}</h2>{self.bullets(payload['crm_manager'].get('segments', []))}</div>
+  <div class="panel"><h2>{__fb_u_228}</h2>{self.bullets(payload['wecom_crm'].get('connections', []))}</div>
+  <div class="panel"><h2>{__fb_u_229}</h2>{self.bullets(payload['crm_manager'].get('segments', []))}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u7535\u5546\u6570\u636e')}</h2>{self.bullets(payload['ecommerce'].get('platforms', []))}</div>
+  <div class="panel"><h2>{__fb_u_230}</h2>{self.bullets(payload['ecommerce'].get('platforms', []))}</div>
   <div class="panel"><h2>AI Content Factory</h2>{self.bullets(list(payload['content_factory'].get('outputs', {}).keys()))}</div>
 </div>
 <div class="split">
   <div class="panel"><h2>API Gateway</h2>{self.bullets(payload['api_gateway'].get('managed_apis', []))}</div>
-  <div class="panel form"><h2>{U(r'\u6d41\u5931\u5ba2\u6237\u53ec\u56de')}</h2><form method="get" action="/api/v2.3/churn-recall"><p><button>{U(r'\u751f\u6210\u53ec\u56de\u65b9\u6848')}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_231}</h2><form method="get" action="/api/v2.3/churn-recall"><p><button>{__fb_u_232}</button></p></form></div>
 </div>
-<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([payload['guardrail'], U(r'\u5916\u90e8\u6e20\u9053\u53d1\u9001\u5fc5\u987b\u4eba\u5de5\u786e\u8ba4'), U(r'\u6240\u6709\u63a5\u53e3\u8c03\u7528\u9700\u8bb0\u5f55\u65e5\u5fd7')])}</div>
+<div class="panel"><h2>{__fb_u_233}</h2>{self.bullets([payload['guardrail'], __fb_u_234, __fb_u_235])}</div>
 """
         self.out(layout(U(r"AI\u751f\u6001\u4e2d\u5fc3"), body, user=user, wide=True))
 
@@ -13116,9 +13351,10 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         can_boss = role in ("boss", "admin", "finance", "purchasing")
         can_manager = role in ("boss", "admin", "store_manager", "purchasing", "finance")
         can_admin = role == "admin"
+        __fb_u_236 = U(r'\u5de5\u4f5c\u53f0')
         command_panel = f"""
 <div class="panel">
-  <h2>{U(r'\u5de5\u4f5c\u53f0')}</h2>
+  <h2>{__fb_u_236}</h2>
 </div>"""
         cards = [
             self.card("Jarvis", U(r"\u76f4\u63a5\u95ee\u7ecf\u8425\u3002"), "/jarvis", "btn", True),
@@ -13185,17 +13421,29 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         if not row_html:
             row_html = '<tr><td colspan="4" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u6863\u6848\uff0c\u53ef\u4ee5\u5148\u65b0\u5efa\u4e00\u6761\u3002"))
         abilities = [U(r"\u65b0\u5efa"), U(r"\u7f16\u8f91"), U(r"\u5220\u9664"), U(r"\u8be6\u60c5\u9875"), U(r"\u641c\u7d22"), U(r"\u6807\u7b7e"), U(r"\u5907\u6ce8"), U(r"\u65f6\u95f4\u8f74"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u9644\u4ef6"), U(r"\u56fe\u7247/PDF/Word/Excel/\u89c6\u9891\u4e0a\u4f20"), U(r"AI \u67e5\u8be2\u9884\u7559")]
+        __fb_u_237 = U(r'\u65b0\u5efa')
+        __fb_u_238 = U(r'Excel \u5bfc\u51fa')
+        __fb_u_239 = U(r'\u4e0a\u4f20\u9644\u4ef6')
+        __fb_u_240 = U(r'AI \u67e5\u8be2')
+        __fb_u_241 = U(r'\u5b57\u6bb5\u89c4\u5212')
+        __fb_u_242 = U(r'\u641c\u7d22')
+        __fb_u_243 = U(r'\u641c\u7d22\u540d\u79f0\u3001\u6807\u7b7e\u3001\u5185\u5bb9')
+        __fb_u_244 = U(r'\u641c\u7d22')
+        __fb_u_245 = U(r'\u540d\u79f0')
+        __fb_u_246 = U(r'\u6807\u7b7e')
+        __fb_u_247 = U(r'\u66f4\u65b0')
+        __fb_u_248 = U(r'\u7edf\u4e00\u6863\u6848\u80fd\u529b')
         body = f"""
 <div class="panel">
   <h2>{esc(title)}</h2><p>{esc(text)}</p>
-  <div class="inline"><a class="btn" href="/records/new?module={esc(module)}">{U(r'\u65b0\u5efa')}</a><a class="btn green" href="/records/export?module={esc(module)}">{U(r'Excel \u5bfc\u51fa')}</a><a class="btn orange" href="/upload">{U(r'\u4e0a\u4f20\u9644\u4ef6')}</a><a class="btn gray" href="/ai-query">{U(r'AI \u67e5\u8be2')}</a></div>
+  <div class="inline"><a class="btn" href="/records/new?module={esc(module)}">{__fb_u_237}</a><a class="btn green" href="/records/export?module={esc(module)}">{__fb_u_238}</a><a class="btn orange" href="/upload">{__fb_u_239}</a><a class="btn gray" href="/ai-query">{__fb_u_240}</a></div>
 </div>
-<div class="panel"><h2>{U(r'\u5b57\u6bb5\u89c4\u5212')}</h2><div>{field_html}</div></div>
+<div class="panel"><h2>{__fb_u_241}</h2><div>{field_html}</div></div>
 <div class="panel">
-  <form method="get" action="/{esc(module)}"><label>{U(r'\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u540d\u79f0\u3001\u6807\u7b7e\u3001\u5185\u5bb9')}"><p><button>{U(r'\u641c\u7d22')}</button></p></form>
-  <table><thead><tr><th>{U(r'\u540d\u79f0')}</th><th>{U(r'\u6807\u7b7e')}</th><th>{U(r'\u66f4\u65b0')}</th><th>{T['action']}</th></tr></thead><tbody>{row_html}</tbody></table>
+  <form method="get" action="/{esc(module)}"><label>{__fb_u_242}</label><input name="q" value="{esc(q)}" placeholder="{__fb_u_243}"><p><button>{__fb_u_244}</button></p></form>
+  <table><thead><tr><th>{__fb_u_245}</th><th>{__fb_u_246}</th><th>{__fb_u_247}</th><th>{T['action']}</th></tr></thead><tbody>{row_html}</tbody></table>
 </div>
-<div class="panel"><h2>{U(r'\u7edf\u4e00\u6863\u6848\u80fd\u529b')}</h2>{self.bullets(abilities)}</div>"""
+<div class="panel"><h2>{__fb_u_248}</h2>{self.bullets(abilities)}</div>"""
         self.out(layout(title, body, user=user, wide=True))
 
     def document_center(self, user):
@@ -13208,7 +13456,13 @@ on conflict(source_type,source_id,target_object_type,target_object_id,relation_t
         if not rows:
             rows = '<tr><td colspan="4" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0\u6587\u4ef6\uff0c\u8bf7\u5148\u4e0a\u4f20\u3002"))
         features = [U(r"\u4e0a\u4f20"), U(r"\u6587\u4ef6\u5217\u8868"), U(r"\u6587\u4ef6\u8be6\u60c5"), U(r"\u5173\u8054\u5bf9\u8c61"), U(r"\u6807\u7b7e"), U(r"OCR \u9884\u7559"), U(r"\u81ea\u52a8\u6458\u8981"), U(r"\u5411\u91cf\u5316\u9884\u7559"), U(r"AI Q&A")]
-        body = f"<div class='panel'><h2>{U(r'\u7edf\u4e00\u6587\u4ef6\u4e2d\u5fc3')}</h2><p><a class='btn' href='/upload'>{U(r'\u4e0a\u4f20\u6587\u4ef6')}</a></p>{self.bullets(features)}</div><div class='panel'><table><thead><tr><th>{U(r'\u6587\u4ef6')}</th><th>{U(r'\u5206\u7c7b')}</th><th>{U(r'\u7c7b\u578b')}</th><th>{U(r'\u65f6\u95f4')}</th></tr></thead><tbody>{rows}</tbody></table></div>"
+        __fb_u_249 = U(r'\u7edf\u4e00\u6587\u4ef6\u4e2d\u5fc3')
+        __fb_u_250 = U(r'\u4e0a\u4f20\u6587\u4ef6')
+        __fb_u_251 = U(r'\u6587\u4ef6')
+        __fb_u_252 = U(r'\u5206\u7c7b')
+        __fb_u_253 = U(r'\u7c7b\u578b')
+        __fb_u_254 = U(r'\u65f6\u95f4')
+        body = f"<div class='panel'><h2>{__fb_u_249}</h2><p><a class='btn' href='/upload'>{__fb_u_250}</a></p>{self.bullets(features)}</div><div class='panel'><table><thead><tr><th>{__fb_u_251}</th><th>{__fb_u_252}</th><th>{__fb_u_253}</th><th>{__fb_u_254}</th></tr></thead><tbody>{rows}</tbody></table></div>"
         self.out(layout(U(r"\u7edf\u4e00\u6587\u4ef6\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def workflow_center(self, user):
@@ -13364,23 +13618,43 @@ limit 200
         if not cards:
             cards = "<div class='panel'><p class='small'>{}</p></div>".format(U(r"\u6682\u65e0\u77e5\u8bc6\u6761\u76ee\uff0c\u53ef\u4ee5\u5148\u4e0a\u4f20\u6587\u4ef6\u6216\u65b0\u5efa\u77e5\u8bc6\u3002"))
         source_pills = "".join('<span class="pill">{} {}</span>'.format(esc(r["name"]), r["c"]) for r in by_source)
+        __fb_u_255 = U(r'\u77e5\u8bc6\u5f15\u64ce\u4e2d\u5fc3')
+        __fb_u_256 = U(r'\u8fd9\u91cc\u662f VAFOX \u7684\u4f01\u4e1a\u957f\u671f\u8bb0\u5fc6\uff1a\u6587\u6863\u3001\u5236\u5ea6\u3001\u5408\u540c\u3001SAP \u6458\u8981\u3001\u57f9\u8bad\u548c AI \u95ee\u7b54\u90fd\u4f1a\u6c89\u6dc0\u5230\u8fd9\u91cc\u3002')
+        __fb_u_257 = U(r'\u4e0a\u4f20\u6587\u4ef6')
+        __fb_u_258 = U(r'\u65b0\u5efa\u77e5\u8bc6')
+        __fb_u_259 = U(r'AI \u67e5\u8be2')
+        __fb_u_260 = U(r'SAP \u77e5\u8bc6\u5316')
+        __fb_u_261 = U(r'AI \u77e5\u8bc6\u5927\u8111')
+        __fb_u_262 = U(r'\u5916\u7f51\u4fdd\u5b58')
+        __fb_u_263 = U(r'\u77e5\u8bc6\u603b\u6570')
+        __fb_u_264 = U(r'\u5168\u90e8\u6761\u76ee')
+        __fb_u_265 = U(r'\u7b49\u5f85\u5904\u7406')
+        __fb_u_266 = U(r'\u89e3\u6790/\u6458\u8981/\u5411\u91cf')
+        __fb_u_267 = U(r'\u53ef AI \u67e5\u8be2')
+        __fb_u_268 = U(r'\u5df2\u89e3\u6790\u6216\u5c31\u7eea')
+        __fb_u_269 = U(r'\u5904\u7406\u5931\u8d25')
+        __fb_u_270 = U(r'\u9700\u4eba\u5de5\u590d\u6838')
+        __fb_u_271 = U(r'\u77e5\u8bc6\u641c\u7d22')
+        __fb_u_272 = U(r'\u641c\u7d22\u6807\u9898\u3001\u6b63\u6587\u3001\u6458\u8981\u3001\u5173\u952e\u8bcd\u3001\u6807\u7b7e')
+        __fb_u_273 = U(r'\u6765\u6e90\u7c7b\u578b')
+        __fb_u_274 = U(r'\u641c\u7d22')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u77e5\u8bc6\u5f15\u64ce\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u8fd9\u91cc\u662f VAFOX \u7684\u4f01\u4e1a\u957f\u671f\u8bb0\u5fc6\uff1a\u6587\u6863\u3001\u5236\u5ea6\u3001\u5408\u540c\u3001SAP \u6458\u8981\u3001\u57f9\u8bad\u548c AI \u95ee\u7b54\u90fd\u4f1a\u6c89\u6dc0\u5230\u8fd9\u91cc\u3002')}</p>
-  <div class="inline"><a class="btn" href="/upload">{U(r'\u4e0a\u4f20\u6587\u4ef6')}</a><a class="btn green" href="/knowledge/new">{U(r'\u65b0\u5efa\u77e5\u8bc6')}</a><a class="btn dark" href="/ai-query">{U(r'AI \u67e5\u8be2')}</a><a class="btn orange" href="/knowledge/sap">{U(r'SAP \u77e5\u8bc6\u5316')}</a><a class="btn" href="/knowledge/brain">{U(r'AI \u77e5\u8bc6\u5927\u8111')}</a><a class="btn gray" href="/web-search">{U(r'\u5916\u7f51\u4fdd\u5b58')}</a></div>
+  <h2>{__fb_u_255}</h2>
+  <p class="small">{__fb_u_256}</p>
+  <div class="inline"><a class="btn" href="/upload">{__fb_u_257}</a><a class="btn green" href="/knowledge/new">{__fb_u_258}</a><a class="btn dark" href="/ai-query">{__fb_u_259}</a><a class="btn orange" href="/knowledge/sap">{__fb_u_260}</a><a class="btn" href="/knowledge/brain">{__fb_u_261}</a><a class="btn gray" href="/web-search">{__fb_u_262}</a></div>
 </div>
 <div class="metrics">
-  {self.metric(U(r'\u77e5\u8bc6\u603b\u6570'), total, U(r'\u5168\u90e8\u6761\u76ee'))}
-  {self.metric(U(r'\u7b49\u5f85\u5904\u7406'), waiting, U(r'\u89e3\u6790/\u6458\u8981/\u5411\u91cf'))}
-  {self.metric(U(r'\u53ef AI \u67e5\u8be2'), ready, U(r'\u5df2\u89e3\u6790\u6216\u5c31\u7eea'))}
-  {self.metric(U(r'\u5904\u7406\u5931\u8d25'), failed, U(r'\u9700\u4eba\u5de5\u590d\u6838'))}
+  {self.metric(__fb_u_263, total, __fb_u_264)}
+  {self.metric(__fb_u_265, waiting, __fb_u_266)}
+  {self.metric(__fb_u_267, ready, __fb_u_268)}
+  {self.metric(__fb_u_269, failed, __fb_u_270)}
 </div>
 <div class="panel">
   <form method="get" action="/knowledge">
-    <label>{U(r'\u77e5\u8bc6\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u6807\u9898\u3001\u6b63\u6587\u3001\u6458\u8981\u3001\u5173\u952e\u8bcd\u3001\u6807\u7b7e')}">
-    <label>{U(r'\u6765\u6e90\u7c7b\u578b')}</label><input name="source_type" value="{esc(source_type)}" placeholder="document / note / web / sap_report">
-    <p><button>{U(r'\u641c\u7d22')}</button></p>
+    <label>{__fb_u_271}</label><input name="q" value="{esc(q)}" placeholder="{__fb_u_272}">
+    <label>{__fb_u_273}</label><input name="source_type" value="{esc(source_type)}" placeholder="document / note / web / sap_report">
+    <p><button>{__fb_u_274}</button></p>
   </form>
   <div>{source_pills}</div>
 </div>
@@ -13670,16 +13944,34 @@ limit 200
         mapping_items = [m["entity_type"] + " <- " + m["sap_table"] for m in payload["mappings"]]
         job_items = [j["job_id"] + " / " + j["status"] + " / +" + str(j["generated_count"]) + " / =" + str(j["matched_count"]) for j in payload["jobs"]]
         candidate_items = [c["entity_type"] + " / " + str(c["name"]) + " / " + str(c["source_table"]) for c in payload["candidate_preview"]]
+        __fb_u_275 = U(r'\u667a\u80fd\u77e5\u8bc6\u5e93')
+        __fb_u_276 = U(r'\u4ece SAP/\u672c\u5730\u540c\u6b65\u6570\u636e\u6574\u7406\u54c1\u724c\u3001\u5546\u54c1\u3001\u95e8\u5e97\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001\u4f9b\u5e94\u5546\u77e5\u8bc6\u5361\uff0c\u4f9b Jarvis \u548c AI \u67e5\u8be2\u5f15\u7528\u3002')
+        __fb_u_277 = U(r'SAP \u77e5\u8bc6')
+        __fb_u_278 = U(r'\u5df2\u5165\u5e93')
+        __fb_u_279 = U(r'\u5019\u9009\u6570\u636e')
+        __fb_u_280 = U(r'\u53ef\u751f\u6210')
+        __fb_u_281 = U(r'\u6620\u5c04')
+        __fb_u_282 = U(r'\u7c7b\u578b')
+        __fb_u_283 = U(r'\u751f\u6210/\u66f4\u65b0 SAP \u77e5\u8bc6\u5361')
+        __fb_u_284 = U(r'\u6620\u5c04\u6a21\u677f')
+        __fb_u_285 = U(r'\u6700\u8fd1\u4efb\u52a1')
+        __fb_u_286 = U(r'\u6682\u65e0\u751f\u6210\u4efb\u52a1')
+        __fb_u_287 = U(r'\u5019\u9009\u6570\u636e\u9884\u89c8')
+        __fb_u_288 = U(r'\u6682\u65e0 SAP/\u672c\u5730\u540c\u6b65\u5019\u9009\u6570\u636e')
+        __fb_u_289 = U(r'\u5b89\u5168\u8fb9\u754c')
+        __fb_u_290 = U(r'\u53ea\u8bfb\u751f\u6210\u77e5\u8bc6\uff0c\u4e0d\u56de\u5199 SAP')
+        __fb_u_291 = U(r'\u9ad8\u98ce\u9669\u52a8\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279')
+        __fb_u_292 = U(r'\u77e5\u8bc6\u6761\u76ee\u4fdd\u7559\u6765\u6e90\u3001\u6458\u8981\u3001\u5207\u7247\u548c\u5ba1\u8ba1\u65e5\u5fd7')
         body = f"""
 <div class="panel">
-  <h2>VAFOX OS 6.1 SAP {U(r'\u667a\u80fd\u77e5\u8bc6\u5e93')}</h2>
-  <p class="small">{U(r'\u4ece SAP/\u672c\u5730\u540c\u6b65\u6570\u636e\u6574\u7406\u54c1\u724c\u3001\u5546\u54c1\u3001\u95e8\u5e97\u3001\u5458\u5de5\u3001\u987e\u5ba2\u3001\u4f9b\u5e94\u5546\u77e5\u8bc6\u5361\uff0c\u4f9b Jarvis \u548c AI \u67e5\u8be2\u5f15\u7528\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'SAP \u77e5\u8bc6'), payload['metrics']['sap_knowledge_items'], U(r'\u5df2\u5165\u5e93'))}{self.metric(U(r'\u5019\u9009\u6570\u636e'), payload['metrics']['candidate_count'], U(r'\u53ef\u751f\u6210'))}{self.metric(U(r'\u6620\u5c04'), payload['metrics']['mapping_count'], U(r'\u7c7b\u578b'))}</div>
-  <form method="post" action="/api/knowledge/sap-generate"><input type="hidden" name="scope" value="all"><button>{U(r'\u751f\u6210/\u66f4\u65b0 SAP \u77e5\u8bc6\u5361')}</button></form>
+  <h2>VAFOX OS 6.1 SAP {__fb_u_275}</h2>
+  <p class="small">{__fb_u_276}</p>
+  <div class="metrics">{self.metric(__fb_u_277, payload['metrics']['sap_knowledge_items'], __fb_u_278)}{self.metric(__fb_u_279, payload['metrics']['candidate_count'], __fb_u_280)}{self.metric(__fb_u_281, payload['metrics']['mapping_count'], __fb_u_282)}</div>
+  <form method="post" action="/api/knowledge/sap-generate"><input type="hidden" name="scope" value="all"><button>{__fb_u_283}</button></form>
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u6620\u5c04\u6a21\u677f')}</h2>{self.bullets(mapping_items)}</div><div class="panel"><h2>{U(r'\u6700\u8fd1\u4efb\u52a1')}</h2>{self.bullets(job_items or [U(r'\u6682\u65e0\u751f\u6210\u4efb\u52a1')])}</div></div>
-<div class="panel"><h2>{U(r'\u5019\u9009\u6570\u636e\u9884\u89c8')}</h2>{self.bullets(candidate_items or [U(r'\u6682\u65e0 SAP/\u672c\u5730\u540c\u6b65\u5019\u9009\u6570\u636e')])}</div>
-<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([U(r'\u53ea\u8bfb\u751f\u6210\u77e5\u8bc6\uff0c\u4e0d\u56de\u5199 SAP'), U(r'\u9ad8\u98ce\u9669\u52a8\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279'), U(r'\u77e5\u8bc6\u6761\u76ee\u4fdd\u7559\u6765\u6e90\u3001\u6458\u8981\u3001\u5207\u7247\u548c\u5ba1\u8ba1\u65e5\u5fd7')])}</div>
+<div class="split"><div class="panel"><h2>{__fb_u_284}</h2>{self.bullets(mapping_items)}</div><div class="panel"><h2>{__fb_u_285}</h2>{self.bullets(job_items or [__fb_u_286])}</div></div>
+<div class="panel"><h2>{__fb_u_287}</h2>{self.bullets(candidate_items or [__fb_u_288])}</div>
+<div class="panel"><h2>{__fb_u_289}</h2>{self.bullets([__fb_u_290, __fb_u_291, __fb_u_292])}</div>
 """
         self.out(layout("VAFOX OS 6.1 SAP Knowledge", body, user=user, wide=True))
 
@@ -13696,15 +13988,30 @@ limit 200
         gap_items = payload.get("knowledge_gaps", []) or [U(r"\u6682\u65e0\u7ed3\u6784\u6027\u7f3a\u53e3")]
         flow_items = payload.get("query_flow", [])
         guardrail_items = [k + " = " + str(v) for k, v in payload.get("guardrails", {}).items()]
+        __fb_u_293 = U(r'\u77e5\u8bc6\u5927\u8111')
+        __fb_u_294 = U(r'\u628a SAP \u6570\u636e\u7406\u89e3\u3001\u4f01\u4e1a\u77e5\u8bc6\u5e93\u3001\u6743\u9650\u8fc7\u6ee4\u3001\u5f15\u7528\u548c\u9ad8\u98ce\u9669\u5ba1\u6279\u8fde\u6210\u7edf\u4e00 AI \u4e0a\u4e0b\u6587\u3002')
+        __fb_u_295 = U(r'\u77e5\u8bc6')
+        __fb_u_296 = U(r'\u6761\u76ee')
+        __fb_u_297 = U(r'\u5207\u7247')
+        __fb_u_298 = U(r'AI \u68c0\u7d22')
+        __fb_u_299 = U(r'\u5f85\u590d\u6838')
+        __fb_u_300 = U(r'\u77e5\u8bc6')
+        __fb_u_301 = U(r'\u6570\u636e\u7406\u89e3')
+        __fb_u_302 = U(r'\u77e5\u8bc6\u7f3a\u53e3')
+        __fb_u_303 = U(r'\u67e5\u8be2\u6d41\u7a0b')
+        __fb_u_304 = U(r'\u62a4\u680f')
+        __fb_u_305 = U(r'\u5feb\u6377\u5165\u53e3')
+        __fb_u_306 = U(r'\u77e5\u8bc6\u5316')
+        __fb_u_307 = U(r'\u67e5\u8be2')
         body = f"""
 <div class="panel">
-  <h2>VAFOX Enterprise OS V1.1 AI {U(r'\u77e5\u8bc6\u5927\u8111')}</h2>
-  <p class="small">{U(r'\u628a SAP \u6570\u636e\u7406\u89e3\u3001\u4f01\u4e1a\u77e5\u8bc6\u5e93\u3001\u6743\u9650\u8fc7\u6ee4\u3001\u5f15\u7528\u548c\u9ad8\u98ce\u9669\u5ba1\u6279\u8fde\u6210\u7edf\u4e00 AI \u4e0a\u4e0b\u6587\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u77e5\u8bc6'), payload['knowledge_metrics']['knowledge_items'], U(r'\u6761\u76ee'))}{self.metric(U(r'\u5207\u7247'), payload['knowledge_metrics']['chunks'], U(r'AI \u68c0\u7d22'))}{self.metric(U(r'\u5f85\u590d\u6838'), payload['knowledge_metrics']['pending_review'], U(r'\u77e5\u8bc6'))}</div>
+  <h2>VAFOX Enterprise OS V1.1 AI {__fb_u_293}</h2>
+  <p class="small">{__fb_u_294}</p>
+  <div class="metrics">{self.metric(__fb_u_295, payload['knowledge_metrics']['knowledge_items'], __fb_u_296)}{self.metric(__fb_u_297, payload['knowledge_metrics']['chunks'], __fb_u_298)}{self.metric(__fb_u_299, payload['knowledge_metrics']['pending_review'], __fb_u_300)}</div>
 </div>
-<div class="split"><div class="panel"><h2>SAP {U(r'\u6570\u636e\u7406\u89e3')}</h2>{self.bullets(signal_items)}</div><div class="panel"><h2>{U(r'\u77e5\u8bc6\u7f3a\u53e3')}</h2>{self.bullets(gap_items)}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u67e5\u8be2\u6d41\u7a0b')}</h2>{self.bullets(flow_items)}</div><div class="panel"><h2>{U(r'\u62a4\u680f')}</h2>{self.bullets(guardrail_items)}</div></div>
-<div class="panel"><h2>{U(r'\u5feb\u6377\u5165\u53e3')}</h2><div class="inline"><a class="btn" href="/api/knowledge/brain">API</a><a class="btn orange" href="/knowledge/sap">SAP {U(r'\u77e5\u8bc6\u5316')}</a><a class="btn dark" href="/ai-query">AI {U(r'\u67e5\u8be2')}</a></div></div>
+<div class="split"><div class="panel"><h2>SAP {__fb_u_301}</h2>{self.bullets(signal_items)}</div><div class="panel"><h2>{__fb_u_302}</h2>{self.bullets(gap_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_303}</h2>{self.bullets(flow_items)}</div><div class="panel"><h2>{__fb_u_304}</h2>{self.bullets(guardrail_items)}</div></div>
+<div class="panel"><h2>{__fb_u_305}</h2><div class="inline"><a class="btn" href="/api/knowledge/brain">API</a><a class="btn orange" href="/knowledge/sap">SAP {__fb_u_306}</a><a class="btn dark" href="/ai-query">AI {__fb_u_307}</a></div></div>
 """
         self.out(layout("VAFOX Enterprise OS V1.1 AI Knowledge Brain", body, user=user, wide=True))
 
@@ -13748,18 +14055,28 @@ limit 200
         )
         if not doc_chunk_rows:
             doc_chunk_rows = '<tr><td colspan="3" class="small">{}</td></tr>'.format(U(r"\u6682\u65e0 document_chunks\u3002"))
+        __fb_u_308 = U(r'\u6458\u8981')
+        __fb_u_309 = U(r'\u77e5\u8bc6\u7ba1\u7ebf')
+        __fb_u_310 = U(r'\u5173\u8054\u5bf9\u8c61')
+        __fb_u_311 = U(r'\u6682\u65e0\u5173\u8054\u5bf9\u8c61')
+        __fb_u_312 = U(r'\u6b63\u6587')
+        __fb_u_313 = U(r'\u7528 AI \u67e5\u8be2')
+        __fb_u_314 = U(r'\u8fd4\u56de')
+        __fb_u_315 = U(r'\u6587\u6863\u5207\u7247')
+        __fb_u_316 = U(r'\u5411\u91cf\u72b6\u6001')
+        __fb_u_317 = U(r'\u7247\u6bb5')
         body = f"""
 <div class="panel">
   <h2>{esc(row['title'])}</h2>
   <p class="small">{esc(row['knowledge_id'] or ('KB-' + str(row['id'])))} 路 {esc(row['category'])} 路 {esc(row['source_type'])} 路 {esc(row['source_ref'])}</p>
   <div class="inline"><span class="pill">{esc(self.knowledge_status_text(row))}</span><span class="pill">{esc(row['visibility'])}</span><span class="pill">{esc(row['embedding_status'])}</span></div>
-  <h2>{U(r'\u6458\u8981')}</h2><p>{esc(summary_text)}</p>
-  <h2>{U(r'\u77e5\u8bc6\u7ba1\u7ebf')}</h2>{self.bullets(pipeline)}
-  <h2>{U(r'\u5173\u8054\u5bf9\u8c61')}</h2><p>{esc(relation_text or U(r'\u6682\u65e0\u5173\u8054\u5bf9\u8c61'))}</p>
-  <h2>{U(r'\u6b63\u6587')}</h2><p>{esc(row['body'])}</p>
-  <p><a class="btn" href="/ai-query">{U(r'\u7528 AI \u67e5\u8be2')}</a> <a class="btn gray" href="/knowledge">{U(r'\u8fd4\u56de')}</a></p>
+  <h2>{__fb_u_308}</h2><p>{esc(summary_text)}</p>
+  <h2>{__fb_u_309}</h2>{self.bullets(pipeline)}
+  <h2>{__fb_u_310}</h2><p>{esc(relation_text or __fb_u_311)}</p>
+  <h2>{__fb_u_312}</h2><p>{esc(row['body'])}</p>
+  <p><a class="btn" href="/ai-query">{__fb_u_313}</a> <a class="btn gray" href="/knowledge">{__fb_u_314}</a></p>
 </div>
-<div class="panel"><h2>{U(r'\u6587\u6863\u5207\u7247')}</h2><table><thead><tr><th>#</th><th>{U(r'\u5411\u91cf\u72b6\u6001')}</th><th>{U(r'\u7247\u6bb5')}</th></tr></thead><tbody>{chunk_rows}</tbody></table></div>"""
+<div class="panel"><h2>{__fb_u_315}</h2><table><thead><tr><th>#</th><th>{__fb_u_316}</th><th>{__fb_u_317}</th></tr></thead><tbody>{chunk_rows}</tbody></table></div>"""
         self.out(layout(row["title"], body, user=user, wide=True))
 
     def ai_assistant(self, user, answer_data=None, question="", refs=None):
@@ -13792,23 +14109,35 @@ limit 200
             "documents": U(r"\u6587\u4ef6"),
             "sap": "SAP",
         }.items())
+        __fb_u_318 = U(r'AI \u67e5\u8be2\u4e2d\u5fc3 V1')
+        __fb_u_319 = U(r'\u5f53\u524d\u7248\u672c\u5148\u505a\u77e5\u8bc6\u68c0\u7d22\u3001\u5f15\u7528\u7ed3\u6784\u548c\u5386\u53f2\u7559\u75d5\uff0c\u4e0d\u7f16\u9020\u7ecf\u8425\u7ed3\u8bba\u3002')
+        __fb_u_320 = U(r'\u95ee\u9898')
+        __fb_u_321 = U(r'\u8303\u56f4')
+        __fb_u_322 = U(r'\u5173\u8054\u5bf9\u8c61')
+        __fb_u_323 = U(r'\u63d0\u95ee')
+        __fb_u_324 = U(r'\u793a\u4f8b\u95ee\u9898')
+        __fb_u_325 = U(r'AI \u56de\u7b54')
+        __fb_u_326 = U(r'\u7f6e\u4fe1\u72b6\u6001')
+        __fb_u_327 = U(r'\u6a21\u578b')
+        __fb_u_328 = U(r'\u5f15\u7528\u6765\u6e90')
+        __fb_u_329 = U(r'\u5c40\u9650\u8bf4\u660e')
         body = f"""
 <div class="panel form">
-  <h2>{U(r'AI \u67e5\u8be2\u4e2d\u5fc3 V1')}</h2>
-  <p class="small">{U(r'\u5f53\u524d\u7248\u672c\u5148\u505a\u77e5\u8bc6\u68c0\u7d22\u3001\u5f15\u7528\u7ed3\u6784\u548c\u5386\u53f2\u7559\u75d5\uff0c\u4e0d\u7f16\u9020\u7ecf\u8425\u7ed3\u8bba\u3002')}</p>
+  <h2>{__fb_u_318}</h2>
+  <p class="small">{__fb_u_319}</p>
   <form method="post" action="/ai-query">
-    <label>{U(r'\u95ee\u9898')}</label><textarea name="question" required>{esc(question)}</textarea>
-    <label>{U(r'\u8303\u56f4')}</label><select name="scope">{scope_opts}</select>
-    <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><input name="related_object" placeholder="stores:1 / brands:2 / documents">
-    <p><button>{U(r'\u63d0\u95ee')}</button></p>
+    <label>{__fb_u_320}</label><textarea name="question" required>{esc(question)}</textarea>
+    <label>{__fb_u_321}</label><select name="scope">{scope_opts}</select>
+    <label>{__fb_u_322}</label><input name="related_object" placeholder="stores:1 / brands:2 / documents">
+    <p><button>{__fb_u_323}</button></p>
   </form>
-  <h2>{U(r'\u793a\u4f8b\u95ee\u9898')}</h2>{self.bullets(examples)}
+  <h2>{__fb_u_324}</h2>{self.bullets(examples)}
 </div>
 <div class="panel">
-  <h2>{U(r'AI \u56de\u7b54')}</h2><p>{esc(answer_data.get('answer'))}</p>
-  <p class="small">{U(r'\u7f6e\u4fe1\u72b6\u6001')}：{esc(answer_data.get('confidence'))} · {U(r'\u6a21\u578b')}：{esc(answer_data.get('model_name'))}</p>
-  <h2>{U(r'\u5f15\u7528\u6765\u6e90')}</h2><ul class="list">{citation_html}</ul>
-  <h2>{U(r'\u5c40\u9650\u8bf4\u660e')}</h2>{limits}
+  <h2>{__fb_u_325}</h2><p>{esc(answer_data.get('answer'))}</p>
+  <p class="small">{__fb_u_326}：{esc(answer_data.get('confidence'))} · {__fb_u_327}：{esc(answer_data.get('model_name'))}</p>
+  <h2>{__fb_u_328}</h2><ul class="list">{citation_html}</ul>
+  <h2>{__fb_u_329}</h2>{limits}
 </div>"""
         self.out(layout(U(r"AI \u67e5\u8be2\u4e2d\u5fc3"), body, user=user, wide=True))
 
@@ -14901,26 +15230,40 @@ where ki.deleted_at is null"""
         risk_items = [(i.get("title", "") + U(r"\uff1a") + i.get("text", "")) for i in smart["insights"]]
         if not risk_items:
             risk_items = [data["empty_message"]]
+        __fb_u_330 = U(r'AI \u603b\u7ecf\u7406\u65e5\u62a5')
+        __fb_u_331 = U(r'\u8001\u677f\u6bcf\u5929\u6253\u5f00 VAFOX\uff0c\u5148\u770b\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\u3002')
+        __fb_u_332 = U(r'\u4eca\u65e5\u7ecf\u8425\u6458\u8981')
+        __fb_u_333 = U(r'\u4eca\u65e5\u98ce\u9669\u63d0\u9192')
+        __fb_u_334 = U(r'\u4eca\u65e5\u91cd\u70b9\u4efb\u52a1')
+        __fb_u_335 = U(r'\u53ef\u4ece AI \u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u5e76\u5206\u914d\u8d23\u4efb\u4eba\u3002')
+        __fb_u_336 = U(r'\u8fdb\u5165\u4efb\u52a1\u4e2d\u5fc3')
+        __fb_u_337 = U(r'\u5224\u65ad\u4f9d\u636e')
+        __fb_u_338 = U(r'\u95e8\u5e97\u6bdb\u5229\u6392\u67e5')
+        __fb_u_339 = U(r'AI \u603b\u7ecf\u7406\u53c2\u8003\u8bb0\u5fc6')
+        __fb_u_340 = U(r'\u8fdb\u5165\u8bb0\u5fc6\u4e2d\u5fc3')
+        __fb_u_341 = U(r'AI \u5efa\u8bae')
+        __fb_u_342 = U(r'\u628a\u91cd\u70b9\u7ecf\u8425\u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u907f\u514d\u53ea\u770b\u4e0d\u505a\u3002')
+        __fb_u_343 = U(r'\u6253\u5f00\u7ecf\u8425\u9a7e\u9a76\u8231')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI \u603b\u7ecf\u7406\u65e5\u62a5')}</h2>
-  <p class="small">{U(r'\u8001\u677f\u6bcf\u5929\u6253\u5f00 VAFOX\uff0c\u5148\u770b\u4eca\u5929\u6700\u9700\u8981\u5173\u6ce8\u7684\u4e8b\u3002')}</p>
+  <h2>{__fb_u_330}</h2>
+  <p class="small">{__fb_u_331}</p>
   <div class="metrics">{metrics}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u7ecf\u8425\u6458\u8981')}</h2>{self.bullets(data['ai_suggestions'][:5] or default_wait)}</div>
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u98ce\u9669\u63d0\u9192')}</h2>{self.bullets(risk_items)}</div>
+  <div class="panel"><h2>{__fb_u_332}</h2>{self.bullets(data['ai_suggestions'][:5] or default_wait)}</div>
+  <div class="panel"><h2>{__fb_u_333}</h2>{self.bullets(risk_items)}</div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u91cd\u70b9\u4efb\u52a1')}</h2>{self.bullets(smart['actions'] or data['todos'] or [U(r'\u53ef\u4ece AI \u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u5e76\u5206\u914d\u8d23\u4efb\u4eba\u3002')])}<p><a class="btn" href="/tasks">{U(r'\u8fdb\u5165\u4efb\u52a1\u4e2d\u5fc3')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u5224\u65ad\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}</div>
+  <div class="panel"><h2>{__fb_u_334}</h2>{self.bullets(smart['actions'] or data['todos'] or [__fb_u_335])}<p><a class="btn" href="/tasks">{__fb_u_336}</a></p></div>
+  <div class="panel"><h2>{__fb_u_337}</h2>{self.bullets(smart['evidence'])}</div>
 </div>
-<div class="panel"><h2>{U(r'\u95e8\u5e97\u6bdb\u5229\u6392\u67e5')}</h2>{self.store_score_table(data['top_stores'])}</div>
-<div class="panel"><h2>{U(r'AI \u603b\u7ecf\u7406\u53c2\u8003\u8bb0\u5fc6')}</h2>{self.bullets(memory_refs)}<p><a class="btn" href="/memory">{U(r'\u8fdb\u5165\u8bb0\u5fc6\u4e2d\u5fc3')}</a></p></div>
+<div class="panel"><h2>{__fb_u_338}</h2>{self.store_score_table(data['top_stores'])}</div>
+<div class="panel"><h2>{__fb_u_339}</h2>{self.bullets(memory_refs)}<p><a class="btn" href="/memory">{__fb_u_340}</a></p></div>
 <div class="panel">
-  <h2>{U(r'AI \u5efa\u8bae')}</h2>
-  {self.bullets(smart['actions'][:3] + [U(r'\u628a\u91cd\u70b9\u7ecf\u8425\u5efa\u8bae\u8f6c\u6210\u4efb\u52a1\uff0c\u907f\u514d\u53ea\u770b\u4e0d\u505a\u3002')])}
-  <p><a class="btn dark" href="/business-overview">{U(r'\u6253\u5f00\u7ecf\u8425\u9a7e\u9a76\u8231')}</a></p>
+  <h2>{__fb_u_341}</h2>
+  {self.bullets(smart['actions'][:3] + [__fb_u_342])}
+  <p><a class="btn dark" href="/business-overview">{__fb_u_343}</a></p>
 </div>"""
         self.out(layout(U(r"AI \u603b\u7ecf\u7406\u65e5\u62a5"), body, user=user, wide=True))
 
@@ -14944,17 +15287,27 @@ where ki.deleted_at is null"""
         )
         store_cards = "".join(self.card(str(s.get("store", "")), U(r"\u7b49\u5f85\u95e8\u5e97\u8be6\u7ec6\u5206\u6790\u63a5\u5165\u3002"), "/stores/operations", "btn green", True) for s in data["top_stores"][:4])
         brand_cards = "".join(self.card(str(b.get("brand", "")), U(r"\u7b49\u5f85\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u548c\u5e93\u5b58\u5206\u6790\u3002"), "/brands/operations", "btn", True) for b in data["top_brands"][:4])
+        __fb_u_344 = U(r'\u7ecf\u8425\u9a7e\u9a76\u8231 V1')
+        __fb_u_345 = U(r'\u4e0d\u505a\u5bc6\u96c6 ERP \u62a5\u8868\uff0c\u53ea\u628a\u8001\u677f\u4eca\u5929\u9700\u8981\u770b\u7684\u4e8b\u653e\u5728\u4e00\u5c4f\u3002')
+        __fb_u_346 = U(r'\u95e8\u5e97\u6bdb\u5229\u4f53\u68c0')
+        __fb_u_347 = U(r'\u95e8\u5e97\u6392\u540d')
+        __fb_u_348 = U(r'\u95e8\u5e97\u7ecf\u8425')
+        __fb_u_349 = U(r'\u54c1\u724c\u6392\u540d')
+        __fb_u_350 = U(r'\u54c1\u724c\u7ecf\u8425')
+        __fb_u_351 = U(r'\u4eca\u65e5\u5efa\u8bae\u52a8\u4f5c')
+        __fb_u_352 = U(r'\u5224\u65ad\u4f9d\u636e')
+        __fb_u_353 = U(r'\u67e5\u770b AI \u603b\u7ecf\u7406\u65e5\u62a5')
         body = f"""
-<div class="panel"><h2>{U(r'\u7ecf\u8425\u9a7e\u9a76\u8231 V1')}</h2><p class="small">{U(r'\u4e0d\u505a\u5bc6\u96c6 ERP \u62a5\u8868\uff0c\u53ea\u628a\u8001\u677f\u4eca\u5929\u9700\u8981\u770b\u7684\u4e8b\u653e\u5728\u4e00\u5c4f\u3002')}</p><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_344}</h2><p class="small">{__fb_u_345}</p><div class="metrics">{metrics}</div></div>
 {self.insight_cards(smart['insights'])}
-<div class="panel"><h2>{U(r'\u95e8\u5e97\u6bdb\u5229\u4f53\u68c0')}</h2>{self.store_score_table(data['top_stores'])}</div>
+<div class="panel"><h2>{__fb_u_346}</h2>{self.store_score_table(data['top_stores'])}</div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u95e8\u5e97\u6392\u540d')}</h2>{('<div class="grid">' + store_cards + '</div>') if store_cards else self.empty_state(empty)}<p><a class="btn" href="/stores/operations">{U(r'\u95e8\u5e97\u7ecf\u8425')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u54c1\u724c\u6392\u540d')}</h2>{('<div class="grid">' + brand_cards + '</div>') if brand_cards else self.empty_state(empty)}<p><a class="btn" href="/brands/operations">{U(r'\u54c1\u724c\u7ecf\u8425')}</a></p></div>
+  <div class="panel"><h2>{__fb_u_347}</h2>{('<div class="grid">' + store_cards + '</div>') if store_cards else self.empty_state(empty)}<p><a class="btn" href="/stores/operations">{__fb_u_348}</a></p></div>
+  <div class="panel"><h2>{__fb_u_349}</h2>{('<div class="grid">' + brand_cards + '</div>') if brand_cards else self.empty_state(empty)}<p><a class="btn" href="/brands/operations">{__fb_u_350}</a></p></div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u5efa\u8bae\u52a8\u4f5c')}</h2>{self.bullets(smart['actions'])}</div>
-  <div class="panel"><h2>{U(r'\u5224\u65ad\u4f9d\u636e')}</h2>{self.bullets(smart['evidence'])}<p><a class="btn dark" href="/ai-ceo">{U(r'\u67e5\u770b AI \u603b\u7ecf\u7406\u65e5\u62a5')}</a></p></div>
+  <div class="panel"><h2>{__fb_u_351}</h2>{self.bullets(smart['actions'])}</div>
+  <div class="panel"><h2>{__fb_u_352}</h2>{self.bullets(smart['evidence'])}<p><a class="btn dark" href="/ai-ceo">{__fb_u_353}</a></p></div>
 </div>"""
         self.out(layout(U(r"\u7ecf\u8425\u9a7e\u9a76\u8231"), body, user=user, wide=True))
 
@@ -15008,18 +15361,45 @@ where ki.deleted_at is null"""
         profit_items = [r["object_type"] + " 路 " + str(r["object_id"]) + " 路 " + money(r["net_profit"]) for r in data["profit_records"]] or [self.finance_empty()]
         expense_items = [r["expense_type"] + " 路 " + money(r["amount"]) + " 路 " + (r["period"] or "") for r in data["expenses"]] or [U(r"\u6682\u65e0\u8d39\u7528\u8bb0\u5f55\u3002")]
         rebate_items = [r["brand_id"] + " 路 " + money(r["expected_rebate"]) + " 路 " + r["status"] for r in data["rebates"]] or [U(r"\u6682\u65e0\u8fd4\u70b9\u8bb0\u5f55\u3002")]
+        __fb_u_354 = U(r'\u8d22\u52a1\u4e0e\u5229\u6da6\u51b3\u7b56\u4e2d\u5fc3')
+        __fb_u_355 = U(r'\u5e2e\u8001\u677f\u770b\u6e05\u5229\u6da6\u3001\u8d39\u7528\u3001\u73b0\u91d1\u6d41\u3001\u8fd4\u70b9\u548c\u6298\u6263\u98ce\u9669\u3002\u65e0\u6570\u636e\u65f6\u53ea\u663e\u793a\u6a21\u677f\uff0c\u4e0d\u7f16\u9020\u8d22\u52a1\u7ed3\u8bba\u3002')
+        __fb_u_356 = U(r'\u95e8\u5e97\u5229\u6da6')
+        __fb_u_357 = U(r'\u6536\u5165\u3001\u6bdb\u5229\u3001\u79df\u91d1\u3001\u5de5\u8d44\u3001\u5e93\u5b58\u5360\u7528\u548c\u51c0\u5229\u6a21\u677f\u3002')
+        __fb_u_358 = U(r'\u54c1\u724c\u5229\u6da6')
+        __fb_u_359 = U(r'\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u6298\u6263\u3001\u8fd4\u70b9\u3001\u5e93\u5b58\u548c\u964d\u4ef7\u98ce\u9669\u3002')
+        __fb_u_360 = U(r'Osprey \u8fd4\u70b9\u98ce\u9669')
+        __fb_u_361 = U(r'59/60/62/65 \u6298\u3001\u8fd4\u70b9\u4f9d\u8d56\u548c\u5229\u6da6\u8bd5\u7b97\u3002')
+        __fb_u_362 = U(r'\u5229\u6da6\u5206\u6790')
+        __fb_u_363 = U(r'\u8d39\u7528\u5206\u6790')
+        __fb_u_364 = U(r'\u73b0\u91d1\u6d41\u89c2\u5bdf')
+        __fb_u_365 = U(r'\u5173\u6ce8\u5e93\u5b58\u5360\u7528\u3001\u671f\u8d27\u4ed8\u6b3e\u3001\u4f9b\u5e94\u5546\u4ed8\u6b3e\u3001\u79df\u91d1\u548c\u5de5\u8d44\u538b\u529b\u3002')
+        __fb_u_366 = U(r'\u8fd4\u70b9\u5206\u6790')
+        __fb_u_367 = U(r'\u65b0\u5efa\u5229\u6da6\u8bb0\u5f55')
+        __fb_u_368 = U(r'\u5bf9\u8c61\u7c7b\u578b')
+        __fb_u_369 = U(r'\u5bf9\u8c61 ID')
+        __fb_u_370 = U(r'\u6536\u5165')
+        __fb_u_371 = U(r'\u6210\u672c')
+        __fb_u_372 = U(r'\u8d39\u7528')
+        __fb_u_373 = U(r'\u8fd4\u70b9')
+        __fb_u_374 = U(r'\u4fdd\u5b58\u5229\u6da6\u8bb0\u5f55')
+        __fb_u_375 = U(r'\u65b0\u5efa\u8d39\u7528')
+        __fb_u_376 = U(r'\u8d39\u7528\u7c7b\u578b')
+        __fb_u_377 = U(r'\u91d1\u989d')
+        __fb_u_378 = U(r'\u671f\u95f4')
+        __fb_u_379 = U(r'\u8bf4\u660e')
+        __fb_u_380 = U(r'\u4fdd\u5b58\u8d39\u7528')
         body = f"""
-<div class="panel"><h2>{U(r'\u8d22\u52a1\u4e0e\u5229\u6da6\u51b3\u7b56\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u5e2e\u8001\u677f\u770b\u6e05\u5229\u6da6\u3001\u8d39\u7528\u3001\u73b0\u91d1\u6d41\u3001\u8fd4\u70b9\u548c\u6298\u6263\u98ce\u9669\u3002\u65e0\u6570\u636e\u65f6\u53ea\u663e\u793a\u6a21\u677f\uff0c\u4e0d\u7f16\u9020\u8d22\u52a1\u7ed3\u8bba\u3002')}</p><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_354}</h2><p class="small">{__fb_u_355}</p><div class="metrics">{metrics}</div></div>
 <div class="grid">
-  {self.card(U(r'\u95e8\u5e97\u5229\u6da6'), U(r'\u6536\u5165\u3001\u6bdb\u5229\u3001\u79df\u91d1\u3001\u5de5\u8d44\u3001\u5e93\u5b58\u5360\u7528\u548c\u51c0\u5229\u6a21\u677f\u3002'), '/finance/store-profit', 'btn green', True)}
-  {self.card(U(r'\u54c1\u724c\u5229\u6da6'), U(r'\u54c1\u724c\u9500\u552e\u3001\u6bdb\u5229\u3001\u6298\u6263\u3001\u8fd4\u70b9\u3001\u5e93\u5b58\u548c\u964d\u4ef7\u98ce\u9669\u3002'), '/finance/brand-profit', 'btn', True)}
-  {self.card(U(r'Osprey \u8fd4\u70b9\u98ce\u9669'), U(r'59/60/62/65 \u6298\u3001\u8fd4\u70b9\u4f9d\u8d56\u548c\u5229\u6da6\u8bd5\u7b97\u3002'), '/brands/osprey-risk', 'btn orange', True)}
+  {self.card(__fb_u_356, __fb_u_357, '/finance/store-profit', 'btn green', True)}
+  {self.card(__fb_u_358, __fb_u_359, '/finance/brand-profit', 'btn', True)}
+  {self.card(__fb_u_360, __fb_u_361, '/brands/osprey-risk', 'btn orange', True)}
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u5229\u6da6\u5206\u6790')}</h2>{self.bullets(profit_items)}</div><div class="panel"><h2>{U(r'\u8d39\u7528\u5206\u6790')}</h2>{self.bullets(expense_items)}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u73b0\u91d1\u6d41\u89c2\u5bdf')}</h2>{self.bullets([self.finance_empty(), U(r'\u5173\u6ce8\u5e93\u5b58\u5360\u7528\u3001\u671f\u8d27\u4ed8\u6b3e\u3001\u4f9b\u5e94\u5546\u4ed8\u6b3e\u3001\u79df\u91d1\u548c\u5de5\u8d44\u538b\u529b\u3002')])}</div><div class="panel"><h2>{U(r'\u8fd4\u70b9\u5206\u6790')}</h2>{self.bullets(rebate_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_362}</h2>{self.bullets(profit_items)}</div><div class="panel"><h2>{__fb_u_363}</h2>{self.bullets(expense_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_364}</h2>{self.bullets([self.finance_empty(), __fb_u_365])}</div><div class="panel"><h2>{__fb_u_366}</h2>{self.bullets(rebate_items)}</div></div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u5229\u6da6\u8bb0\u5f55')}</h2><form method="post" action="/finance/profit/save"><label>{U(r'\u5bf9\u8c61\u7c7b\u578b')}</label><input name="object_type" placeholder="company / store / brand / product"><label>{U(r'\u5bf9\u8c61 ID')}</label><input name="object_id"><label>{U(r'\u6536\u5165')}</label><input name="revenue"><label>{U(r'\u6210\u672c')}</label><input name="cost"><label>{U(r'\u8d39\u7528')}</label><input name="expenses"><label>{U(r'\u8fd4\u70b9')}</label><input name="rebate_amount"><p><button>{U(r'\u4fdd\u5b58\u5229\u6da6\u8bb0\u5f55')}</button></p></form></div>
-  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u8d39\u7528')}</h2><form method="post" action="/finance/expenses/save"><label>{U(r'\u8d39\u7528\u7c7b\u578b')}</label><input name="expense_type" placeholder="rent / salary / marketing"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u91d1\u989d')}</label><input name="amount"><label>{U(r'\u671f\u95f4')}</label><input name="period" placeholder="2026-07"><label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea><p><button>{U(r'\u4fdd\u5b58\u8d39\u7528')}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_367}</h2><form method="post" action="/finance/profit/save"><label>{__fb_u_368}</label><input name="object_type" placeholder="company / store / brand / product"><label>{__fb_u_369}</label><input name="object_id"><label>{__fb_u_370}</label><input name="revenue"><label>{__fb_u_371}</label><input name="cost"><label>{__fb_u_372}</label><input name="expenses"><label>{__fb_u_373}</label><input name="rebate_amount"><p><button>{__fb_u_374}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_375}</h2><form method="post" action="/finance/expenses/save"><label>{__fb_u_376}</label><input name="expense_type" placeholder="rent / salary / marketing"><label>{T['store']}</label><input name="store_id"><label>{__fb_u_377}</label><input name="amount"><label>{__fb_u_378}</label><input name="period" placeholder="2026-07"><label>{__fb_u_379}</label><textarea name="description"></textarea><p><button>{__fb_u_380}</button></p></form></div>
 </div>"""
         self.out(layout(U(r"\u8d22\u52a1\u5229\u6da6\u51b3\u7b56"), body, user=user, wide=True))
 
@@ -15031,7 +15411,8 @@ where ki.deleted_at is null"""
             return self.dashboard(user)
         stores = [U(r"\u5357\u5c71\u5e97"), U(r"\u632f\u5174\u5e97"), U(r"\u822a\u82d1\u5e97"), U(r"\u91d1\u6c99\u5e97"), U(r"\u7f51\u5e97")]
         cards = "".join(self.card(store, U(r"\u6536\u5165\u3001\u6bdb\u5229\u3001\u79df\u91d1\u3001\u6c34\u7535\u3001\u5de5\u8d44\u3001\u5e93\u5b58\u5360\u7528\u548c\u51c0\u5229\u7b49\u5f85\u6570\u636e\u63a5\u5165\u3002"), "/finance", "btn green", True) for store in stores)
-        body = f"<div class='panel'><h2>{U(r'\u95e8\u5e97\u5229\u6da6\u5206\u6790')}</h2>{self.empty_state(self.finance_empty())}</div><div class='grid'>{cards}</div>"
+        __fb_u_381 = U(r'\u95e8\u5e97\u5229\u6da6\u5206\u6790')
+        body = f"<div class='panel'><h2>{__fb_u_381}</h2>{self.empty_state(self.finance_empty())}</div><div class='grid'>{cards}</div>"
         self.out(layout(U(r"\u95e8\u5e97\u5229\u6da6"), body, user=user, wide=True))
 
     def finance_brand_profit(self, user):
@@ -15042,7 +15423,8 @@ where ki.deleted_at is null"""
             return self.dashboard(user)
         brands = ["KAILAS", "Osprey", "Mammut", "Salomon", "Deuter", "Gregory", "VAFOX"]
         cards = "".join(self.card(brand, U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u6298\u6263\u3001\u8fd4\u70b9\u3001\u5e93\u5b58\u5360\u7528\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u6a21\u677f\u3002"), "/brands/osprey-risk" if brand == "Osprey" else "/finance", "btn", True) for brand in brands)
-        body = f"<div class='panel'><h2>{U(r'\u54c1\u724c\u5229\u6da6\u5206\u6790')}</h2>{self.empty_state(self.finance_empty())}</div><div class='grid'>{cards}</div>"
+        __fb_u_382 = U(r'\u54c1\u724c\u5229\u6da6\u5206\u6790')
+        body = f"<div class='panel'><h2>{__fb_u_382}</h2>{self.empty_state(self.finance_empty())}</div><div class='grid'>{cards}</div>"
         self.out(layout(U(r"\u54c1\u724c\u5229\u6da6"), body, user=user, wide=True))
 
     def finance_number(self, form, key):
@@ -15238,22 +15620,59 @@ where ki.deleted_at is null"""
         perf_items = [r["employee_id"] + " 路 " + r["store_id"] + " 路 " + money(r["sales_amount"]) for r in data["performance"]] or [self.hr_empty()]
         plan_items = [r["plan_name"] + " 路 " + (r["plan_type"] or "") + " 路 " + r["status"] for r in data["incentive_plans"]] or [U(r"\u6682\u65e0\u6fc0\u52b1\u65b9\u6848\u3002")]
         training_items = [r["employee_id"] + " 路 " + r["training_title"] for r in data["training"]] or [U(r"\u6682\u65e0\u57f9\u8bad\u8bb0\u5f55\u3002")]
+        __fb_u_383 = U(r'\u4eba\u4e8b\u7ee9\u6548\u4e0e\u6fc0\u52b1\u4e2d\u5fc3')
+        __fb_u_384 = U(r'\u7ba1\u7406\u5458\u5de5\u6863\u6848\u3001\u95e8\u5e97\u7ee9\u6548\u3001\u6fc0\u52b1\u65b9\u6848\u3001\u57f9\u8bad\u6210\u957f\u548c\u62db\u8058\u8ddf\u8fdb\u3002\u4e0d\u81ea\u52a8\u751f\u6210\u6700\u7ec8\u4eba\u4e8b\u51b3\u7b56\u3002')
+        __fb_u_385 = U(r'\u5458\u5de5\u7ee9\u6548')
+        __fb_u_386 = U(r'\u9500\u552e\u3001\u6bdb\u5229\u3001\u4efb\u52a1\u3001\u57f9\u8bad\u3001\u5ba2\u6237\u53cd\u9988\u548c AI \u8bc4\u4ef7\u3002')
+        __fb_u_387 = U(r'\u6fc0\u52b1\u65b9\u6848')
+        __fb_u_388 = U(r'\u4e2a\u4eba\u5956\u91d1\u3001\u56e2\u961f\u5956\u91d1\u3001\u95e8\u5e97\u76c8\u4e8f\u5e73\u8861\u6fc0\u52b1\u6a21\u677f\u3002')
+        __fb_u_389 = U(r'\u62db\u8058\u4e0e\u5165\u804c')
+        __fb_u_390 = U(r'\u5019\u9009\u4eba\u3001\u9762\u8bd5\u8bb0\u5f55\u3001offer \u72b6\u6001\u548c\u5165\u804c\u4efb\u52a1\u3002')
+        __fb_u_391 = U(r'\u5458\u5de5\u7ee9\u6548')
+        __fb_u_392 = U(r'\u6fc0\u52b1\u65b9\u6848')
+        __fb_u_393 = U(r'\u57f9\u8bad\u6210\u957f')
+        __fb_u_394 = U(r'AI \u5458\u5de5\u8bc4\u4ef7')
+        __fb_u_395 = U(r'\u4ec5\u751f\u6210\u53d1\u5c55\u5efa\u8bae\u548c\u98ce\u9669\u63d0\u9192\uff0c\u4e0d\u505a\u6700\u7ec8\u4eba\u4e8b\u51b3\u7b56\u3002')
+        __fb_u_396 = U(r'\u65b0\u5efa\u7ee9\u6548')
+        __fb_u_397 = U(r'\u5458\u5de5 ID')
+        __fb_u_398 = U(r'\u9500\u552e\u989d')
+        __fb_u_399 = U(r'\u6bdb\u5229')
+        __fb_u_400 = U(r'\u5df2\u5b8c\u6210\u4efb\u52a1')
+        __fb_u_401 = U(r'\u7ba1\u7406\u8005\u8bc4\u4ef7')
+        __fb_u_402 = U(r'\u4fdd\u5b58\u7ee9\u6548')
+        __fb_u_403 = U(r'\u65b0\u5efa\u6fc0\u52b1\u65b9\u6848')
+        __fb_u_404 = U(r'\u65b9\u6848\u540d\u79f0')
+        __fb_u_405 = U(r'\u65b9\u6848\u7c7b\u578b')
+        __fb_u_406 = U(r'\u5956\u91d1\u6c60\u6bd4\u7387')
+        __fb_u_407 = U(r'\u89c4\u5219\u8bf4\u660e')
+        __fb_u_408 = U(r'\u4fdd\u5b58\u65b9\u6848')
+        __fb_u_409 = U(r'\u57f9\u8bad\u8bb0\u5f55')
+        __fb_u_410 = U(r'\u5458\u5de5 ID')
+        __fb_u_411 = U(r'\u57f9\u8bad\u6807\u9898')
+        __fb_u_412 = U(r'\u7ed3\u679c')
+        __fb_u_413 = U(r'\u4fdd\u5b58\u57f9\u8bad')
+        __fb_u_414 = U(r'\u5019\u9009\u4eba')
+        __fb_u_415 = U(r'\u59d3\u540d')
+        __fb_u_416 = U(r'\u624b\u673a')
+        __fb_u_417 = U(r'\u76ee\u6807\u5c97\u4f4d')
+        __fb_u_418 = U(r'\u4e0b\u4e00\u6b65')
+        __fb_u_419 = U(r'\u4fdd\u5b58\u5019\u9009\u4eba')
         body = f"""
-<div class="panel"><h2>{U(r'\u4eba\u4e8b\u7ee9\u6548\u4e0e\u6fc0\u52b1\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ba1\u7406\u5458\u5de5\u6863\u6848\u3001\u95e8\u5e97\u7ee9\u6548\u3001\u6fc0\u52b1\u65b9\u6848\u3001\u57f9\u8bad\u6210\u957f\u548c\u62db\u8058\u8ddf\u8fdb\u3002\u4e0d\u81ea\u52a8\u751f\u6210\u6700\u7ec8\u4eba\u4e8b\u51b3\u7b56\u3002')}</p><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_383}</h2><p class="small">{__fb_u_384}</p><div class="metrics">{metrics}</div></div>
 <div class="grid">
-  {self.card(U(r'\u5458\u5de5\u7ee9\u6548'), U(r'\u9500\u552e\u3001\u6bdb\u5229\u3001\u4efb\u52a1\u3001\u57f9\u8bad\u3001\u5ba2\u6237\u53cd\u9988\u548c AI \u8bc4\u4ef7\u3002'), '#performance-form', 'btn', True)}
-  {self.card(U(r'\u6fc0\u52b1\u65b9\u6848'), U(r'\u4e2a\u4eba\u5956\u91d1\u3001\u56e2\u961f\u5956\u91d1\u3001\u95e8\u5e97\u76c8\u4e8f\u5e73\u8861\u6fc0\u52b1\u6a21\u677f\u3002'), '#plan-form', 'btn green', True)}
-  {self.card(U(r'\u62db\u8058\u4e0e\u5165\u804c'), U(r'\u5019\u9009\u4eba\u3001\u9762\u8bd5\u8bb0\u5f55\u3001offer \u72b6\u6001\u548c\u5165\u804c\u4efb\u52a1\u3002'), '#candidate-form', 'btn orange', True)}
+  {self.card(__fb_u_385, __fb_u_386, '#performance-form', 'btn', True)}
+  {self.card(__fb_u_387, __fb_u_388, '#plan-form', 'btn green', True)}
+  {self.card(__fb_u_389, __fb_u_390, '#candidate-form', 'btn orange', True)}
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u5458\u5de5\u7ee9\u6548')}</h2>{self.bullets(perf_items)}</div><div class="panel"><h2>{U(r'\u6fc0\u52b1\u65b9\u6848')}</h2>{self.bullets(plan_items)}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u57f9\u8bad\u6210\u957f')}</h2>{self.bullets(training_items)}</div><div class="panel"><h2>{U(r'AI \u5458\u5de5\u8bc4\u4ef7')}</h2>{self.empty_state(U(r'\u4ec5\u751f\u6210\u53d1\u5c55\u5efa\u8bae\u548c\u98ce\u9669\u63d0\u9192\uff0c\u4e0d\u505a\u6700\u7ec8\u4eba\u4e8b\u51b3\u7b56\u3002'))}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_391}</h2>{self.bullets(perf_items)}</div><div class="panel"><h2>{__fb_u_392}</h2>{self.bullets(plan_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_393}</h2>{self.bullets(training_items)}</div><div class="panel"><h2>{__fb_u_394}</h2>{self.empty_state(__fb_u_395)}</div></div>
 <div class="split">
-  <div id="performance-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u7ee9\u6548')}</h2><form method="post" action="/hr/performance/save"><label>{U(r'\u5458\u5de5 ID')}</label><input name="employee_id"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u9500\u552e\u989d')}</label><input name="sales_amount"><label>{U(r'\u6bdb\u5229')}</label><input name="gross_profit"><label>{U(r'\u5df2\u5b8c\u6210\u4efb\u52a1')}</label><input name="tasks_completed"><label>{U(r'\u7ba1\u7406\u8005\u8bc4\u4ef7')}</label><textarea name="manager_review"></textarea><p><button>{U(r'\u4fdd\u5b58\u7ee9\u6548')}</button></p></form></div>
-  <div id="plan-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u6fc0\u52b1\u65b9\u6848')}</h2><form method="post" action="/hr/incentive-plans/save"><label>{U(r'\u65b9\u6848\u540d\u79f0')}</label><input name="plan_name"><label>{U(r'\u65b9\u6848\u7c7b\u578b')}</label><input name="plan_type" placeholder="team_sales_bonus"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u5956\u91d1\u6c60\u6bd4\u7387')}</label><input name="bonus_pool_rate" placeholder="0.30"><label>{U(r'\u89c4\u5219\u8bf4\u660e')}</label><textarea name="rule_description"></textarea><p><button>{U(r'\u4fdd\u5b58\u65b9\u6848')}</button></p></form></div>
+  <div id="performance-form" class="panel form"><h2>{__fb_u_396}</h2><form method="post" action="/hr/performance/save"><label>{__fb_u_397}</label><input name="employee_id"><label>{T['store']}</label><input name="store_id"><label>{__fb_u_398}</label><input name="sales_amount"><label>{__fb_u_399}</label><input name="gross_profit"><label>{__fb_u_400}</label><input name="tasks_completed"><label>{__fb_u_401}</label><textarea name="manager_review"></textarea><p><button>{__fb_u_402}</button></p></form></div>
+  <div id="plan-form" class="panel form"><h2>{__fb_u_403}</h2><form method="post" action="/hr/incentive-plans/save"><label>{__fb_u_404}</label><input name="plan_name"><label>{__fb_u_405}</label><input name="plan_type" placeholder="team_sales_bonus"><label>{T['store']}</label><input name="store_id"><label>{__fb_u_406}</label><input name="bonus_pool_rate" placeholder="0.30"><label>{__fb_u_407}</label><textarea name="rule_description"></textarea><p><button>{__fb_u_408}</button></p></form></div>
 </div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u57f9\u8bad\u8bb0\u5f55')}</h2><form method="post" action="/hr/training/save"><label>{U(r'\u5458\u5de5 ID')}</label><input name="employee_id"><label>{U(r'\u57f9\u8bad\u6807\u9898')}</label><input name="training_title"><label>{U(r'\u7ed3\u679c')}</label><input name="result"><p><button>{U(r'\u4fdd\u5b58\u57f9\u8bad')}</button></p></form></div>
-  <div id="candidate-form" class="panel form"><h2>{U(r'\u5019\u9009\u4eba')}</h2><form method="post" action="/hr/candidates/save"><label>{U(r'\u59d3\u540d')}</label><input name="name"><label>{U(r'\u624b\u673a')}</label><input name="phone"><label>{U(r'\u76ee\u6807\u5c97\u4f4d')}</label><input name="target_position"><label>{U(r'\u4e0b\u4e00\u6b65')}</label><textarea name="next_step"></textarea><p><button>{U(r'\u4fdd\u5b58\u5019\u9009\u4eba')}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_409}</h2><form method="post" action="/hr/training/save"><label>{__fb_u_410}</label><input name="employee_id"><label>{__fb_u_411}</label><input name="training_title"><label>{__fb_u_412}</label><input name="result"><p><button>{__fb_u_413}</button></p></form></div>
+  <div id="candidate-form" class="panel form"><h2>{__fb_u_414}</h2><form method="post" action="/hr/candidates/save"><label>{__fb_u_415}</label><input name="name"><label>{__fb_u_416}</label><input name="phone"><label>{__fb_u_417}</label><input name="target_position"><label>{__fb_u_418}</label><textarea name="next_step"></textarea><p><button>{__fb_u_419}</button></p></form></div>
 </div>"""
         self.out(layout(U(r"\u4eba\u4e8b\u7ee9\u6548\u6fc0\u52b1"), body, user=user, wide=True))
 
@@ -15426,24 +15845,62 @@ where ki.deleted_at is null"""
         segment_items = [r["segment_name"] + " 路 " + r["priority"] + " 路 " + r["status"] for r in data["segments"]] or [self.customer_growth_empty()]
         group_items = [r["group_name"] + " 路 " + (r["platform"] or "") + " 路 " + r["status"] for r in data["groups"]] or [U(r"\u6682\u65e0\u79c1\u57df\u7fa4\u3002")]
         follow_items = [r["customer_id"] + " 路 " + (r["followup_type"] or "") + " 路 " + r["status"] for r in data["followups"]] or [U(r"\u6682\u65e0\u987e\u5ba2\u8ddf\u8fdb\u3002")]
+        __fb_u_420 = U(r'\u987e\u5ba2\u4f1a\u5458\u4e0e\u79c1\u57df\u589e\u957f\u4e2d\u5fc3')
+        __fb_u_421 = U(r'\u7ba1\u7406\u4f1a\u5458\u5206\u5c42\u3001\u987e\u5ba2\u6807\u7b7e\u3001\u79c1\u57df\u7fa4\u3001\u8ddf\u8fdb\u4efb\u52a1\u548c\u6d3b\u52a8\u9080\u7ea6\u3002\u987e\u5ba2\u9690\u79c1\u4f18\u5148\u3002')
+        __fb_u_422 = U(r'\u4f1a\u5458\u5206\u5c42')
+        __fb_u_423 = U(r'\u65b0\u5ba2\u3001\u8001\u5ba2\u3001VIP\u3001\u9ad8\u4ef7\u503c\u3001\u6c89\u7761\u3001\u5174\u8da3\u7fa4\u4f53\u3002')
+        __fb_u_424 = U(r'\u79c1\u57df\u7fa4')
+        __fb_u_425 = U(r'\u95e8\u5e97\u7fa4\u3001\u54c1\u724c\u7fa4\u3001\u5f92\u6b65\u7fa4\u3001\u9732\u8425\u7fa4\u3001VIP \u7fa4\u3002')
+        __fb_u_426 = U(r'\u6d3b\u52a8\u9080\u7ea6')
+        __fb_u_427 = U(r'\u5f92\u6b65\u6d3b\u52a8\u3001\u88c5\u5907\u8bfe\u5802\u3001\u65b0\u54c1\u4f53\u9a8c\u548c\u4f1a\u5458\u65e5\u3002')
+        __fb_u_428 = U(r'\u4f1a\u5458\u5206\u5c42')
+        __fb_u_429 = U(r'\u79c1\u57df\u7fa4')
+        __fb_u_430 = U(r'\u987e\u5ba2\u8ddf\u8fdb')
+        __fb_u_431 = U(r'AI \u987e\u5ba2\u5efa\u8bae')
+        __fb_u_432 = U(r'\u9884\u7559\uff1a\u8ddf\u8fdb\u5ba2\u6237\u3001\u6d3b\u52a8\u9080\u8bf7\u3001\u5185\u5bb9\u63a8\u8350\u3001\u4ea7\u54c1\u63a8\u8350\u548c\u6c89\u7761\u6fc0\u6d3b\u3002')
+        __fb_u_433 = U(r'\u65b0\u5efa\u5206\u5c42')
+        __fb_u_434 = U(r'\u5206\u5c42\u540d\u79f0')
+        __fb_u_435 = U(r'\u89c4\u5219')
+        __fb_u_436 = U(r'\u4f18\u5148\u7ea7')
+        __fb_u_437 = U(r'\u4fdd\u5b58\u5206\u5c42')
+        __fb_u_438 = U(r'\u65b0\u5efa\u6807\u7b7e')
+        __fb_u_439 = U(r'\u6807\u7b7e\u540d')
+        __fb_u_440 = U(r'\u7c7b\u578b')
+        __fb_u_441 = U(r'\u4fdd\u5b58\u6807\u7b7e')
+        __fb_u_442 = U(r'\u65b0\u5efa\u79c1\u57df\u7fa4')
+        __fb_u_443 = U(r'\u7fa4\u540d')
+        __fb_u_444 = U(r'\u5e73\u53f0')
+        __fb_u_445 = U(r'\u4e3b\u9898')
+        __fb_u_446 = U(r'\u4fdd\u5b58\u7fa4')
+        __fb_u_447 = U(r'\u65b0\u5efa\u8ddf\u8fdb')
+        __fb_u_448 = U(r'\u987e\u5ba2 ID')
+        __fb_u_449 = U(r'\u8ddf\u8fdb\u7c7b\u578b')
+        __fb_u_450 = U(r'\u4e0b\u4e00\u6b65')
+        __fb_u_451 = U(r'\u622a\u6b62\u65e5\u671f')
+        __fb_u_452 = U(r'\u4fdd\u5b58\u8ddf\u8fdb')
+        __fb_u_453 = U(r'\u6d3b\u52a8\u9080\u7ea6')
+        __fb_u_454 = U(r'\u6d3b\u52a8\u6807\u9898')
+        __fb_u_455 = U(r'\u76ee\u6807\u5206\u5c42')
+        __fb_u_456 = U(r'\u9080\u7ea6\u6587\u6848')
+        __fb_u_457 = U(r'\u4fdd\u5b58\u6d3b\u52a8')
         body = f"""
-<div class="panel"><h2>{U(r'\u987e\u5ba2\u4f1a\u5458\u4e0e\u79c1\u57df\u589e\u957f\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ba1\u7406\u4f1a\u5458\u5206\u5c42\u3001\u987e\u5ba2\u6807\u7b7e\u3001\u79c1\u57df\u7fa4\u3001\u8ddf\u8fdb\u4efb\u52a1\u548c\u6d3b\u52a8\u9080\u7ea6\u3002\u987e\u5ba2\u9690\u79c1\u4f18\u5148\u3002')}</p><div class="metrics">{metrics}</div></div>
+<div class="panel"><h2>{__fb_u_420}</h2><p class="small">{__fb_u_421}</p><div class="metrics">{metrics}</div></div>
 <div class="grid">
-  {self.card(U(r'\u4f1a\u5458\u5206\u5c42'), U(r'\u65b0\u5ba2\u3001\u8001\u5ba2\u3001VIP\u3001\u9ad8\u4ef7\u503c\u3001\u6c89\u7761\u3001\u5174\u8da3\u7fa4\u4f53\u3002'), '#segment-form', 'btn', True)}
-  {self.card(U(r'\u79c1\u57df\u7fa4'), U(r'\u95e8\u5e97\u7fa4\u3001\u54c1\u724c\u7fa4\u3001\u5f92\u6b65\u7fa4\u3001\u9732\u8425\u7fa4\u3001VIP \u7fa4\u3002'), '#group-form', 'btn green', True)}
-  {self.card(U(r'\u6d3b\u52a8\u9080\u7ea6'), U(r'\u5f92\u6b65\u6d3b\u52a8\u3001\u88c5\u5907\u8bfe\u5802\u3001\u65b0\u54c1\u4f53\u9a8c\u548c\u4f1a\u5458\u65e5\u3002'), '#event-form', 'btn orange', True)}
+  {self.card(__fb_u_422, __fb_u_423, '#segment-form', 'btn', True)}
+  {self.card(__fb_u_424, __fb_u_425, '#group-form', 'btn green', True)}
+  {self.card(__fb_u_426, __fb_u_427, '#event-form', 'btn orange', True)}
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u4f1a\u5458\u5206\u5c42')}</h2>{self.bullets(segment_items)}</div><div class="panel"><h2>{U(r'\u79c1\u57df\u7fa4')}</h2>{self.bullets(group_items)}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u987e\u5ba2\u8ddf\u8fdb')}</h2>{self.bullets(follow_items)}</div><div class="panel"><h2>{U(r'AI \u987e\u5ba2\u5efa\u8bae')}</h2>{self.empty_state(U(r'\u9884\u7559\uff1a\u8ddf\u8fdb\u5ba2\u6237\u3001\u6d3b\u52a8\u9080\u8bf7\u3001\u5185\u5bb9\u63a8\u8350\u3001\u4ea7\u54c1\u63a8\u8350\u548c\u6c89\u7761\u6fc0\u6d3b\u3002'))}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_428}</h2>{self.bullets(segment_items)}</div><div class="panel"><h2>{__fb_u_429}</h2>{self.bullets(group_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_430}</h2>{self.bullets(follow_items)}</div><div class="panel"><h2>{__fb_u_431}</h2>{self.empty_state(__fb_u_432)}</div></div>
 <div class="split">
-  <div id="segment-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u5206\u5c42')}</h2><form method="post" action="/customer-growth/segments/save"><label>{U(r'\u5206\u5c42\u540d\u79f0')}</label><input name="segment_name"><label>{U(r'\u89c4\u5219')}</label><textarea name="rules"></textarea><label>{U(r'\u4f18\u5148\u7ea7')}</label><input name="priority"><p><button>{U(r'\u4fdd\u5b58\u5206\u5c42')}</button></p></form></div>
-  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u6807\u7b7e')}</h2><form method="post" action="/customer-growth/tags/save"><label>{U(r'\u6807\u7b7e\u540d')}</label><input name="tag_name"><label>{U(r'\u7c7b\u578b')}</label><input name="tag_type" placeholder="interest / brand / value"><p><button>{U(r'\u4fdd\u5b58\u6807\u7b7e')}</button></p></form></div>
+  <div id="segment-form" class="panel form"><h2>{__fb_u_433}</h2><form method="post" action="/customer-growth/segments/save"><label>{__fb_u_434}</label><input name="segment_name"><label>{__fb_u_435}</label><textarea name="rules"></textarea><label>{__fb_u_436}</label><input name="priority"><p><button>{__fb_u_437}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_438}</h2><form method="post" action="/customer-growth/tags/save"><label>{__fb_u_439}</label><input name="tag_name"><label>{__fb_u_440}</label><input name="tag_type" placeholder="interest / brand / value"><p><button>{__fb_u_441}</button></p></form></div>
 </div>
 <div class="split">
-  <div id="group-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u79c1\u57df\u7fa4')}</h2><form method="post" action="/customer-growth/groups/save"><label>{U(r'\u7fa4\u540d')}</label><input name="group_name"><label>{U(r'\u5e73\u53f0')}</label><input name="platform" placeholder="enterprise_wechat_placeholder"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u4e3b\u9898')}</label><input name="topic"><p><button>{U(r'\u4fdd\u5b58\u7fa4')}</button></p></form></div>
-  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u8ddf\u8fdb')}</h2><form method="post" action="/customer-growth/followups/save"><label>{U(r'\u987e\u5ba2 ID')}</label><input name="customer_id"><label>{U(r'\u8ddf\u8fdb\u7c7b\u578b')}</label><input name="followup_type"><label>{U(r'\u4e0b\u4e00\u6b65')}</label><textarea name="next_action"></textarea><label>{U(r'\u622a\u6b62\u65e5\u671f')}</label><input name="due_date"><p><button>{U(r'\u4fdd\u5b58\u8ddf\u8fdb')}</button></p></form></div>
+  <div id="group-form" class="panel form"><h2>{__fb_u_442}</h2><form method="post" action="/customer-growth/groups/save"><label>{__fb_u_443}</label><input name="group_name"><label>{__fb_u_444}</label><input name="platform" placeholder="enterprise_wechat_placeholder"><label>{T['store']}</label><input name="store_id"><label>{__fb_u_445}</label><input name="topic"><p><button>{__fb_u_446}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_447}</h2><form method="post" action="/customer-growth/followups/save"><label>{__fb_u_448}</label><input name="customer_id"><label>{__fb_u_449}</label><input name="followup_type"><label>{__fb_u_450}</label><textarea name="next_action"></textarea><label>{__fb_u_451}</label><input name="due_date"><p><button>{__fb_u_452}</button></p></form></div>
 </div>
-<div id="event-form" class="panel form"><h2>{U(r'\u6d3b\u52a8\u9080\u7ea6')}</h2><form method="post" action="/customer-growth/events/save"><label>{U(r'\u6d3b\u52a8\u6807\u9898')}</label><input name="title"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u76ee\u6807\u5206\u5c42')}</label><input name="target_segments"><label>{U(r'\u9080\u7ea6\u6587\u6848')}</label><textarea name="invitation_message"></textarea><p><button>{U(r'\u4fdd\u5b58\u6d3b\u52a8')}</button></p></form></div>"""
+<div id="event-form" class="panel form"><h2>{__fb_u_453}</h2><form method="post" action="/customer-growth/events/save"><label>{__fb_u_454}</label><input name="title"><label>{T['store']}</label><input name="store_id"><label>{__fb_u_455}</label><input name="target_segments"><label>{__fb_u_456}</label><textarea name="invitation_message"></textarea><p><button>{__fb_u_457}</button></p></form></div>"""
         self.out(layout(U(r"\u987e\u5ba2\u79c1\u57df\u589e\u957f"), body, user=user, wide=True))
 
     def customer_insert(self, table, cols, defaults, action, target_type):
@@ -15572,7 +16029,12 @@ where ki.deleted_at is null"""
         if not user:
             return
         data = self.workspace_payload(user)
-        body = f"<div class='panel'><h2>{U(r'\u6211\u7684\u5de5\u4f5c\u53f0')}</h2><p class='small'>{U(r'\u6c47\u603b\u6211\u7684\u4efb\u52a1\u3001\u901a\u77e5\u3001\u62a5\u544a\u3001AI \u5bf9\u8bdd\u548c\u5f85\u5ba1\u4e8b\u9879\u3002')}</p></div><div class='split'><div class='panel'><h2>{U(r'\u6211\u7684\u4efb\u52a1')}</h2>{self.bullets([t['title'] for t in data['tasks']] or [data['empty_message']])}</div><div class='panel'><h2>{U(r'\u6211\u7684\u901a\u77e5')}</h2>{self.bullets([n['title'] for n in data['notifications']] or [U(r'\u6682\u65e0\u901a\u77e5\u3002')])}</div></div>"
+        __fb_u_458 = U(r'\u6211\u7684\u5de5\u4f5c\u53f0')
+        __fb_u_459 = U(r'\u6c47\u603b\u6211\u7684\u4efb\u52a1\u3001\u901a\u77e5\u3001\u62a5\u544a\u3001AI \u5bf9\u8bdd\u548c\u5f85\u5ba1\u4e8b\u9879\u3002')
+        __fb_u_460 = U(r'\u6211\u7684\u4efb\u52a1')
+        __fb_u_461 = U(r'\u6211\u7684\u901a\u77e5')
+        __fb_u_462 = U(r'\u6682\u65e0\u901a\u77e5\u3002')
+        body = f"<div class='panel'><h2>{__fb_u_458}</h2><p class='small'>{__fb_u_459}</p></div><div class='split'><div class='panel'><h2>{__fb_u_460}</h2>{self.bullets([t['title'] for t in data['tasks']] or [data['empty_message']])}</div><div class='panel'><h2>{__fb_u_461}</h2>{self.bullets([n['title'] for n in data['notifications']] or [__fb_u_462])}</div></div>"
         self.out(layout(U(r"\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
 
     def boss_workspace(self, user):
@@ -15582,14 +16044,33 @@ where ki.deleted_at is null"""
         if user["role"] not in ("boss", "admin", "finance"):
             return self.dashboard(user)
         data = self.cockpit_data()
-        body = f"<div class='panel'><h2>{U(r'\u8001\u677f\u5de5\u4f5c\u53f0')}</h2><p class='small'>{U(r'AI CEO\u3001\u91cd\u70b9\u98ce\u9669\u3001\u5f85\u51b3\u7b56\u3001\u4eca\u65e5\u4efb\u52a1\u548c\u7814\u7a76\u7b80\u62a5\u3002')}</p></div><div class='split'><div class='panel'><h2>{U(r'AI CEO')}</h2>{self.bullets(data['ai_suggestions'][:5] or [data['empty_message']])}<p><a class='btn dark' href='/ai-ceo'>AI CEO</a></p></div><div class='panel'><h2>{U(r'\u98ce\u9669')}</h2>{self.bullets([U(r'\u5e93\u5b58\u3001\u8d22\u52a1\u3001\u54c1\u724c\u3001HR \u548c\u7cfb\u7edf\u98ce\u9669\u7edf\u4e00\u8fdb\u5165\u98ce\u9669\u4e2d\u5fc3\u3002')])}<p><a class='btn' href='/risks'>{U(r'\u98ce\u9669\u4e2d\u5fc3')}</a></p></div></div>"
+        __fb_u_463 = U(r'\u8001\u677f\u5de5\u4f5c\u53f0')
+        __fb_u_464 = U(r'AI CEO\u3001\u91cd\u70b9\u98ce\u9669\u3001\u5f85\u51b3\u7b56\u3001\u4eca\u65e5\u4efb\u52a1\u548c\u7814\u7a76\u7b80\u62a5\u3002')
+        __fb_u_465 = U(r'AI CEO')
+        __fb_u_466 = U(r'\u98ce\u9669')
+        __fb_u_467 = U(r'\u5e93\u5b58\u3001\u8d22\u52a1\u3001\u54c1\u724c\u3001HR \u548c\u7cfb\u7edf\u98ce\u9669\u7edf\u4e00\u8fdb\u5165\u98ce\u9669\u4e2d\u5fc3\u3002')
+        __fb_u_468 = U(r'\u98ce\u9669\u4e2d\u5fc3')
+        body = f"<div class='panel'><h2>{__fb_u_463}</h2><p class='small'>{__fb_u_464}</p></div><div class='split'><div class='panel'><h2>{__fb_u_465}</h2>{self.bullets(data['ai_suggestions'][:5] or [data['empty_message']])}<p><a class='btn dark' href='/ai-ceo'>AI CEO</a></p></div><div class='panel'><h2>{__fb_u_466}</h2>{self.bullets([__fb_u_467])}<p><a class='btn' href='/risks'>{__fb_u_468}</a></p></div></div>"
         self.out(layout(U(r"\u8001\u677f\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
 
     def employee_workspace(self, user):
         user = self.require_login(user)
         if not user:
             return
-        body = f"<div class='panel'><h2>{U(r'\u5458\u5de5\u5de5\u4f5c\u53f0')}</h2>{self.bullets([U(r'\u4eca\u65e5\u4efb\u52a1'), U(r'\u79fb\u52a8\u63d0\u4ea4'), U(r'\u57f9\u8bad'), U(r'\u987e\u5ba2\u8ddf\u8fdb'), U(r'\u4e0a\u4f20\u77e5\u8bc6'), U(r'\u95ee AI')])}</div><div class='grid'>{self.card(U(r'\u4efb\u52a1'), U(r'\u67e5\u770b\u4eca\u65e5\u5f85\u529e'), '/tasks', 'btn', True)}{self.card(U(r'\u79fb\u52a8\u5916\u52e4'), U(r'\u4e0a\u4f20\u95e8\u5e97\u7b14\u8bb0\u548c\u56fe\u7247'), '/mobile', 'btn green', True)}{self.card(U(r'\u987e\u5ba2\u8ddf\u8fdb'), U(r'\u4f1a\u5458\u548c\u79c1\u57df\u8ddf\u8fdb'), '/customer-growth', 'btn orange', True)}</div>"
+        __fb_u_469 = U(r'\u5458\u5de5\u5de5\u4f5c\u53f0')
+        __fb_u_470 = U(r'\u4eca\u65e5\u4efb\u52a1')
+        __fb_u_471 = U(r'\u79fb\u52a8\u63d0\u4ea4')
+        __fb_u_472 = U(r'\u57f9\u8bad')
+        __fb_u_473 = U(r'\u987e\u5ba2\u8ddf\u8fdb')
+        __fb_u_474 = U(r'\u4e0a\u4f20\u77e5\u8bc6')
+        __fb_u_475 = U(r'\u95ee AI')
+        __fb_u_476 = U(r'\u4efb\u52a1')
+        __fb_u_477 = U(r'\u67e5\u770b\u4eca\u65e5\u5f85\u529e')
+        __fb_u_478 = U(r'\u79fb\u52a8\u5916\u52e4')
+        __fb_u_479 = U(r'\u4e0a\u4f20\u95e8\u5e97\u7b14\u8bb0\u548c\u56fe\u7247')
+        __fb_u_480 = U(r'\u987e\u5ba2\u8ddf\u8fdb')
+        __fb_u_481 = U(r'\u4f1a\u5458\u548c\u79c1\u57df\u8ddf\u8fdb')
+        body = f"<div class='panel'><h2>{__fb_u_469}</h2>{self.bullets([__fb_u_470, __fb_u_471, __fb_u_472, __fb_u_473, __fb_u_474, __fb_u_475])}</div><div class='grid'>{self.card(__fb_u_476, __fb_u_477, '/tasks', 'btn', True)}{self.card(__fb_u_478, __fb_u_479, '/mobile', 'btn green', True)}{self.card(__fb_u_480, __fb_u_481, '/customer-growth', 'btn orange', True)}</div>"
         self.out(layout(U(r"\u5458\u5de5\u5de5\u4f5c\u53f0"), body, user=user, wide=True))
 
     def settings_center(self, user):
@@ -15598,7 +16079,15 @@ where ki.deleted_at is null"""
             return
         if user["role"] != "admin":
             return self.dashboard(user)
-        body = f"<div class='panel'><h2>{U(r'\u7cfb\u7edf\u8bbe\u7f6e')}</h2>{self.bullets([U(r'\u516c\u53f8\u8bbe\u7f6e'), U(r'\u6a21\u5757\u8bbe\u7f6e'), U(r'AI \u8bbe\u7f6e\u5360\u4f4d'), U(r'\u641c\u7d22\u8bbe\u7f6e'), U(r'\u901a\u77e5\u8bbe\u7f6e'), U(r'\u5b89\u5168\u8bbe\u7f6e'), U(r'\u96c6\u6210\u8bbe\u7f6e')])}</div>"
+        __fb_u_482 = U(r'\u7cfb\u7edf\u8bbe\u7f6e')
+        __fb_u_483 = U(r'\u516c\u53f8\u8bbe\u7f6e')
+        __fb_u_484 = U(r'\u6a21\u5757\u8bbe\u7f6e')
+        __fb_u_485 = U(r'AI \u8bbe\u7f6e\u5360\u4f4d')
+        __fb_u_486 = U(r'\u641c\u7d22\u8bbe\u7f6e')
+        __fb_u_487 = U(r'\u901a\u77e5\u8bbe\u7f6e')
+        __fb_u_488 = U(r'\u5b89\u5168\u8bbe\u7f6e')
+        __fb_u_489 = U(r'\u96c6\u6210\u8bbe\u7f6e')
+        body = f"<div class='panel'><h2>{__fb_u_482}</h2>{self.bullets([__fb_u_483, __fb_u_484, __fb_u_485, __fb_u_486, __fb_u_487, __fb_u_488, __fb_u_489])}</div>"
         self.out(layout(U(r"\u7cfb\u7edf\u8bbe\u7f6e"), body, user=user, wide=True))
 
     def system_modules_page(self, user):
@@ -15608,7 +16097,8 @@ where ki.deleted_at is null"""
         if not self.can_view_system(user):
             return self.dashboard(user)
         cards = "".join(self.card(name, key + " 路 healthy", route, "btn", True) for key, name, route, cat, perm in self.platform_modules())
-        self.out(layout(U(r"\u6a21\u5757\u5065\u5eb7"), f"<div class='grid'>{cards}</div>", user=user, wide=True))
+        __fb_u_490 = U(r"\u6a21\u5757\u5065\u5eb7")
+        self.out(layout(__fb_u_490, f"<div class='grid'>{cards}</div>", user=user, wide=True))
 
     def data_readiness_payload(self):
         areas = ["sap_data","store_archives","employee_archives","brand_archives","product_archives","supplier_archives","customer_archives","documents","knowledge","research","memory","tasks","reports"]
@@ -15640,7 +16130,13 @@ where ki.deleted_at is null"""
         with db() as conn:
             rows = conn.execute("select * from system_risks order by updated_at desc limit 80").fetchall()
         items = [r["title"] + " 路 " + r["level"] + " 路 " + r["status"] for r in rows] or [U(r"\u6682\u65e0\u7edf\u4e00\u98ce\u9669\u8bb0\u5f55\u3002")]
-        form = f"<div class='panel form'><h2>{U(r'\u65b0\u5efa\u98ce\u9669')}</h2><form method='post' action='/risks/save'><label>{U(r'\u6807\u9898')}</label><input name='title'><label>{U(r'\u7c7b\u578b')}</label><input name='risk_type'><label>{U(r'\u7b49\u7ea7')}</label><input name='level'><label>{U(r'\u5efa\u8bae')}</label><textarea name='recommended_action'></textarea><p><button>{U(r'\u4fdd\u5b58')}</button></p></form></div>"
+        __fb_u_491 = U(r'\u65b0\u5efa\u98ce\u9669')
+        __fb_u_492 = U(r'\u6807\u9898')
+        __fb_u_493 = U(r'\u7c7b\u578b')
+        __fb_u_494 = U(r'\u7b49\u7ea7')
+        __fb_u_495 = U(r'\u5efa\u8bae')
+        __fb_u_496 = U(r'\u4fdd\u5b58')
+        form = f"<div class='panel form'><h2>{__fb_u_491}</h2><form method='post' action='/risks/save'><label>{__fb_u_492}</label><input name='title'><label>{__fb_u_493}</label><input name='risk_type'><label>{__fb_u_494}</label><input name='level'><label>{__fb_u_495}</label><textarea name='recommended_action'></textarea><p><button>{__fb_u_496}</button></p></form></div>"
         self.out(layout(U(r"\u98ce\u9669\u4e2d\u5fc3"), "<div class='panel'>" + self.bullets(items) + "</div>" + form, user=user, wide=True))
 
     def timeline_center(self, user):
@@ -15972,23 +16468,33 @@ where ki.deleted_at is null"""
         ])
         rec_items = [r["title"] + " 路 " + r["risk_level"] + " 路 " + ("approval" if r["approval_required"] else "no approval") for r in data["recommendation_engine"]["recommendations"]]
         stored_items = [r["recommendation_id"] + " 路 " + r["title"] + " 路 " + r["approval_status"] for r in data["stored_recommendations"][:10]]
+        __fb_u_497 = U(r'\u53ef\u89e3\u91ca AI \u5efa\u8bae')
+        __fb_u_498 = U(r'\u8bc1\u636e\u94fe')
+        __fb_u_499 = U(r'\u8bb0\u5f55\u6570\u5b57\u5927\u8111\u5efa\u8bae')
+        __fb_u_500 = U(r'\u6807\u9898')
+        __fb_u_501 = U(r'\u4e1a\u52a1\u9886\u57df')
+        __fb_u_502 = U(r'\u6458\u8981')
+        __fb_u_503 = U(r'\u89e3\u91ca')
+        __fb_u_504 = U(r'\u4fdd\u5b58\u4e3a\u5f85\u5ba1\u6279\u5efa\u8bae')
+        __fb_u_505 = U(r'\u5df2\u8bb0\u5f55\u5efa\u8bae')
+        __fb_u_506 = U(r'\u6682\u65e0\u5df2\u8bb0\u5f55\u5efa\u8bae\u3002')
         body = f"""
 <div class="panel"><h2>Enterprise Digital Brain</h2><div class="metrics">{cards}</div>{self.bullets(data['principles'])}</div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u53ef\u89e3\u91ca AI \u5efa\u8bae')}</h2>{self.bullets(rec_items)}</div>
-  <div class="panel"><h2>{U(r'\u8bc1\u636e\u94fe')}</h2>{self.bullets([x['source'] + ' 路 ' + x['endpoint'] for x in data['evidence_packet']['lineage']])}</div>
+  <div class="panel"><h2>{__fb_u_497}</h2>{self.bullets(rec_items)}</div>
+  <div class="panel"><h2>{__fb_u_498}</h2>{self.bullets([x['source'] + ' 路 ' + x['endpoint'] for x in data['evidence_packet']['lineage']])}</div>
 </div>
 <div class="panel form">
-  <h2>{U(r'\u8bb0\u5f55\u6570\u5b57\u5927\u8111\u5efa\u8bae')}</h2>
+  <h2>{__fb_u_499}</h2>
   <form method="post" action="/api/digital-brain/recommendations">
-    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
-    <label>{U(r'\u4e1a\u52a1\u9886\u57df')}</label><input name="business_area" value="sales_inventory">
-    <label>{U(r'\u6458\u8981')}</label><textarea name="summary"></textarea>
-    <label>{U(r'\u89e3\u91ca')}</label><textarea name="explanation"></textarea>
-    <button>{U(r'\u4fdd\u5b58\u4e3a\u5f85\u5ba1\u6279\u5efa\u8bae')}</button>
+    <label>{__fb_u_500}</label><input name="title" required>
+    <label>{__fb_u_501}</label><input name="business_area" value="sales_inventory">
+    <label>{__fb_u_502}</label><textarea name="summary"></textarea>
+    <label>{__fb_u_503}</label><textarea name="explanation"></textarea>
+    <button>{__fb_u_504}</button>
   </form>
 </div>
-<div class="panel"><h2>{U(r'\u5df2\u8bb0\u5f55\u5efa\u8bae')}</h2>{self.bullets(stored_items or [U(r'\u6682\u65e0\u5df2\u8bb0\u5f55\u5efa\u8bae\u3002')])}</div>"""
+<div class="panel"><h2>{__fb_u_505}</h2>{self.bullets(stored_items or [__fb_u_506])}</div>"""
         self.out(layout("Enterprise Digital Brain", body, user=user, wide=True))
 
     def api_digital_brain_get(self, user, path):
@@ -17453,16 +17959,29 @@ where ki.deleted_at is null"""
         messages = data["message_center"]
         tasks = data["task_center"]
         app_cards = "".join(self.card(n["label"], n["category"], n["route"], "btn", True) for n in nav)
+        __fb_u_507 = U(r'\u7edf\u4e00\u4f01\u4e1a\u95e8\u6237')
+        __fb_u_508 = U(r'\u4e00\u6b21\u767b\u5f55\uff0c\u6309\u89d2\u8272\u8fdb\u5165\u8001\u677f\u3001\u5e97\u957f\u3001\u5458\u5de5\u3001\u7ba1\u7406\u5458\u7b49\u95e8\u6237\u3002\u624b\u673a\u3001\u5e73\u677f\u3001\u7535\u8111\u5171\u7528\u540c\u4e00\u5957\u7ec4\u4ef6\u548c\u5bfc\u822a\u3002')
+        __fb_u_509 = U(r'\u6d88\u606f')
+        __fb_u_510 = U(r'\u901a\u77e5')
+        __fb_u_511 = U(r'\u5f85\u529e')
+        __fb_u_512 = U(r'\u4efb\u52a1')
+        __fb_u_513 = U(r'\u5ba1\u6279')
+        __fb_u_514 = U(r'\u5f85\u5904\u7406')
+        __fb_u_515 = U(r'\u6d88\u606f\u4e2d\u5fc3')
+        __fb_u_516 = U(r'\u6682\u65e0\u901a\u77e5\u3002')
+        __fb_u_517 = U(r'\u6253\u5f00\u6d88\u606f')
+        __fb_u_518 = U(r'\u4efb\u52a1\u4e2d\u5fc3')
+        __fb_u_519 = U(r'\u6253\u5f00\u4efb\u52a1')
         body = f"""
 <div class="panel">
-  <h2>VAFOX {U(r'\u7edf\u4e00\u4f01\u4e1a\u95e8\u6237')}</h2>
-  <p class="small">{U(r'\u4e00\u6b21\u767b\u5f55\uff0c\u6309\u89d2\u8272\u8fdb\u5165\u8001\u677f\u3001\u5e97\u957f\u3001\u5458\u5de5\u3001\u7ba1\u7406\u5458\u7b49\u95e8\u6237\u3002\u624b\u673a\u3001\u5e73\u677f\u3001\u7535\u8111\u5171\u7528\u540c\u4e00\u5957\u7ec4\u4ef6\u548c\u5bfc\u822a\u3002')}</p>
-  <div class="metrics">{self.metric('Portal', data['role_profile']['portal'], data['role_profile']['role'])}{self.metric('SSO', data['sso']['status'], data['sso']['provider'])}{self.metric(U(r'\u6d88\u606f'), len(messages['notifications']), U(r'\u901a\u77e5'))}{self.metric(U(r'\u5f85\u529e'), len(tasks['assigned_tasks']), U(r'\u4efb\u52a1'))}{self.metric(U(r'\u5ba1\u6279'), len(tasks['pending_approvals']), U(r'\u5f85\u5904\u7406'))}</div>
+  <h2>VAFOX {__fb_u_507}</h2>
+  <p class="small">{__fb_u_508}</p>
+  <div class="metrics">{self.metric('Portal', data['role_profile']['portal'], data['role_profile']['role'])}{self.metric('SSO', data['sso']['status'], data['sso']['provider'])}{self.metric(__fb_u_509, len(messages['notifications']), __fb_u_510)}{self.metric(__fb_u_511, len(tasks['assigned_tasks']), __fb_u_512)}{self.metric(__fb_u_513, len(tasks['pending_approvals']), __fb_u_514)}</div>
 </div>
 <div class="grid">{app_cards}</div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u6d88\u606f\u4e2d\u5fc3')}</h2>{self.bullets([n.get('title','') for n in messages['notifications'][:6]] or [U(r'\u6682\u65e0\u901a\u77e5\u3002')])}<p><a class="btn" href="/notifications">{U(r'\u6253\u5f00\u6d88\u606f')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u4efb\u52a1\u4e2d\u5fc3')}</h2>{self.bullets([t.get('title','') for t in tasks['assigned_tasks'][:6]] or [self.cockpit_data()['empty_message']])}<p><a class="btn green" href="/tasks">{U(r'\u6253\u5f00\u4efb\u52a1')}</a></p></div>
+  <div class="panel"><h2>{__fb_u_515}</h2>{self.bullets([n.get('title','') for n in messages['notifications'][:6]] or [__fb_u_516])}<p><a class="btn" href="/notifications">{__fb_u_517}</a></p></div>
+  <div class="panel"><h2>{__fb_u_518}</h2>{self.bullets([t.get('title','') for t in tasks['assigned_tasks'][:6]] or [self.cockpit_data()['empty_message']])}<p><a class="btn green" href="/tasks">{__fb_u_519}</a></p></div>
 </div>"""
         self.out(layout(U(r"\u7edf\u4e00\u4f01\u4e1a\u95e8\u6237"), body, user=user, wide=True))
 
@@ -17525,7 +18044,14 @@ where ki.deleted_at is null"""
         if role == "employee":
             return self.employee_workspace(user)
         data = self.os_work_queue_payload(user)
-        body = f"<div class='panel'><h2>{U(r'\u7ecf\u7406\u684c\u9762')}</h2>{self.bullets([i['title'] for i in data['items'][:8]] or [data['empty_message']])}</div><div class='grid'>{self.card(U(r'\u95e8\u5e97\u589e\u957f'), U(r'\u95e8\u5e97\u4efb\u52a1\u3001\u987e\u5ba2\u8ddf\u8fdb\u3001\u5e93\u5b58\u95ee\u9898\u3002'), '/store-growth', 'btn green', True)}{self.card(U(r'\u5de5\u4f5c\u961f\u5217'), U(r'\u8de8\u6a21\u5757\u9700\u5904\u7406\u4e8b\u9879\u3002'), '/work-queue', 'btn', True)}{self.card(U(r'\u5ba1\u6279'), U(r'\u7edf\u4e00\u5ba1\u6279\u6536\u4ef6\u7bb1\u3002'), '/approvals', 'btn orange', True)}</div>"
+        __fb_u_520 = U(r'\u7ecf\u7406\u684c\u9762')
+        __fb_u_521 = U(r'\u95e8\u5e97\u589e\u957f')
+        __fb_u_522 = U(r'\u95e8\u5e97\u4efb\u52a1\u3001\u987e\u5ba2\u8ddf\u8fdb\u3001\u5e93\u5b58\u95ee\u9898\u3002')
+        __fb_u_523 = U(r'\u5de5\u4f5c\u961f\u5217')
+        __fb_u_524 = U(r'\u8de8\u6a21\u5757\u9700\u5904\u7406\u4e8b\u9879\u3002')
+        __fb_u_525 = U(r'\u5ba1\u6279')
+        __fb_u_526 = U(r'\u7edf\u4e00\u5ba1\u6279\u6536\u4ef6\u7bb1\u3002')
+        body = f"<div class='panel'><h2>{__fb_u_520}</h2>{self.bullets([i['title'] for i in data['items'][:8]] or [data['empty_message']])}</div><div class='grid'>{self.card(__fb_u_521, __fb_u_522, '/store-growth', 'btn green', True)}{self.card(__fb_u_523, __fb_u_524, '/work-queue', 'btn', True)}{self.card(__fb_u_525, __fb_u_526, '/approvals', 'btn orange', True)}</div>"
         self.out(layout(U(r"\u89d2\u8272\u684c\u9762"), body, user=user, wide=True))
 
     def command_center(self, user):
@@ -17534,7 +18060,17 @@ where ki.deleted_at is null"""
             return
         queue = self.os_work_queue_payload(user)["items"]
         sap = self.sap_sync_status_payload()
-        body = f"<div class='panel'><h2>{U(r'\u7edf\u4e00\u547d\u4ee4\u4e2d\u5fc3')}</h2><div class='metrics'>{self.metric(U(r'\u6570\u636e\u65b0\u9c9c\u5ea6'), sap['freshness'], sap['next_run_time'])}{self.metric(U(r'\u5f85\u5904\u7406'), money(len(queue)), U(r'\u5de5\u4f5c\u961f\u5217'))}{self.metric(U(r'\u7cfb\u7edf\u72b6\u6001'), self.health_payload()['status'], self.health_payload()['app_version'])}</div></div><div class='split'><div class='panel'><h2>{U(r'\u5efa\u8bae\u52a8\u4f5c')}</h2>{self.bullets([U(r'\u67e5\u770b\u98ce\u9669\u4e2d\u5fc3'), U(r'\u68c0\u67e5 SAP \u540c\u6b65'), U(r'\u5904\u7406\u5ba1\u6279\u6536\u4ef6\u7bb1')])}</div><div class='panel'><h2>{U(r'\u5f85\u5904\u7406')}</h2>{self.bullets([i['title'] for i in queue[:8]] or [self.cockpit_data()['empty_message']])}</div></div>"
+        __fb_u_527 = U(r'\u7edf\u4e00\u547d\u4ee4\u4e2d\u5fc3')
+        __fb_u_528 = U(r'\u6570\u636e\u65b0\u9c9c\u5ea6')
+        __fb_u_529 = U(r'\u5f85\u5904\u7406')
+        __fb_u_530 = U(r'\u5de5\u4f5c\u961f\u5217')
+        __fb_u_531 = U(r'\u7cfb\u7edf\u72b6\u6001')
+        __fb_u_532 = U(r'\u5efa\u8bae\u52a8\u4f5c')
+        __fb_u_533 = U(r'\u67e5\u770b\u98ce\u9669\u4e2d\u5fc3')
+        __fb_u_534 = U(r'\u68c0\u67e5 SAP \u540c\u6b65')
+        __fb_u_535 = U(r'\u5904\u7406\u5ba1\u6279\u6536\u4ef6\u7bb1')
+        __fb_u_536 = U(r'\u5f85\u5904\u7406')
+        body = f"<div class='panel'><h2>{__fb_u_527}</h2><div class='metrics'>{self.metric(__fb_u_528, sap['freshness'], sap['next_run_time'])}{self.metric(__fb_u_529, money(len(queue)), __fb_u_530)}{self.metric(__fb_u_531, self.health_payload()['status'], self.health_payload()['app_version'])}</div></div><div class='split'><div class='panel'><h2>{__fb_u_532}</h2>{self.bullets([__fb_u_533, __fb_u_534, __fb_u_535])}</div><div class='panel'><h2>{__fb_u_536}</h2>{self.bullets([i['title'] for i in queue[:8]] or [self.cockpit_data()['empty_message']])}</div></div>"
         self.out(layout(U(r"\u547d\u4ee4\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def ai_operation_is_high_risk(self, text):
@@ -17696,7 +18232,11 @@ where ki.deleted_at is null"""
             self.metric(U(r"\u53cd\u9988"), data["summary"]["feedback_items"], U(r"\u95ed\u73af")),
         ])
         plans = [p["plan_id"] + " 路 " + p["title"] + " 路 " + p["risk_level"] + " 路 " + p["approval_status"] + " 路 " + p["execution_status"] for p in data["plans"][:12]]
-        body = f"<div class='panel'><h2>AI Operations Center</h2><div class='metrics'>{metrics}</div>{self.bullets([data['safety_rule']])}</div><div class='split'><div class='panel'><h2>{U(r'\u8fd0\u8425\u8ba1\u5212')}</h2>{self.bullets(plans or [U(r'\u6682\u65e0 AI \u8fd0\u8425\u8ba1\u5212\u3002')])}<p><a class='btn dark' href='/ai-task-planner'>AI Task Planner</a></p></div><div class='panel'><h2>{U(r'\u53cd\u9988\u95ed\u73af')}</h2>{self.bullets([f.get('feedback_id','') + ' 路 ' + f.get('outcome','') for f in data['feedback'][:8]] or [U(r'\u6682\u65e0\u4e1a\u52a1\u53cd\u9988\u3002')])}</div></div>"
+        __fb_u_537 = U(r'\u8fd0\u8425\u8ba1\u5212')
+        __fb_u_538 = U(r'\u6682\u65e0 AI \u8fd0\u8425\u8ba1\u5212\u3002')
+        __fb_u_539 = U(r'\u53cd\u9988\u95ed\u73af')
+        __fb_u_540 = U(r'\u6682\u65e0\u4e1a\u52a1\u53cd\u9988\u3002')
+        body = f"<div class='panel'><h2>AI Operations Center</h2><div class='metrics'>{metrics}</div>{self.bullets([data['safety_rule']])}</div><div class='split'><div class='panel'><h2>{__fb_u_537}</h2>{self.bullets(plans or [__fb_u_538])}<p><a class='btn dark' href='/ai-task-planner'>AI Task Planner</a></p></div><div class='panel'><h2>{__fb_u_539}</h2>{self.bullets([f.get('feedback_id','') + ' 路 ' + f.get('outcome','') for f in data['feedback'][:8]] or [__fb_u_540])}</div></div>"
         self.out(layout("AI Operations Center", body, user=user, wide=True))
 
     def auto_operation_payload(self, user):
@@ -17782,25 +18322,47 @@ where ki.deleted_at is null"""
             )
             for s in stages
         )
+        __fb_u_541 = U(r'SAP \u6bcf\u65e5\u53ea\u8bfb\u540c\u6b65\u3001AI \u5206\u6790\u3001\u8001\u677f\u65e5\u62a5\u3001\u4efb\u52a1\u4e2d\u5fc3\u548c\u5ba1\u6279\u6d41\u7a0b\u7ec4\u6210\u81ea\u52a8\u8fd0\u8425\u95ed\u73af\u3002')
+        __fb_u_542 = U(r'\u53ea\u8bfb\u540c\u6b65')
+        __fb_u_543 = U(r'\u4e0a\u6b21\u540c\u6b65')
+        __fb_u_544 = U(r'\u4e0b\u6b21\u540c\u6b65')
+        __fb_u_545 = U(r'\u751f\u4ea7\u670d\u52a1\u5668\u72ec\u7acb')
+        __fb_u_546 = U(r'\u5f85\u5ba1\u6279')
+        __fb_u_547 = U(r'\u4eba\u5de5\u786e\u8ba4')
+        __fb_u_548 = U(r'\u751f\u6210\u4eca\u65e5\u95ed\u73af\u8ba1\u5212')
+        __fb_u_549 = U(r'\u8be5\u64cd\u4f5c\u53ea\u4f1a\u751f\u6210\u5f85\u5ba1\u6279 AI \u8fd0\u8425\u8ba1\u5212\uff0c\u4e0d\u81ea\u52a8\u5199 SAP\uff0c\u4e0d\u81ea\u52a8\u6267\u884c\u9ad8\u98ce\u9669\u52a8\u4f5c\u3002')
+        __fb_u_550 = U(r'\u751f\u6210\u5f85\u5ba1\u6279\u8ba1\u5212')
+        __fb_u_551 = U(r'\u5b89\u5168\u8fb9\u754c')
+        __fb_u_552 = U(r'SAP \u751f\u4ea7\u670d\u52a1\u5668\u4fdd\u6301\u72ec\u7acb\u3002')
+        __fb_u_553 = U(r'\u540c\u6b65\u4ec5\u8bfb\u53d6\uff0c\u4e0d\u5199\u56de SAP\u3002')
+        __fb_u_554 = U(r'AI \u5206\u6790\u548c\u4efb\u52a1\u751f\u6210\u5148\u8fdb\u5165\u5ba1\u6279\u3002')
+        __fb_u_555 = U(r'\u8001\u677f\u65e5\u62a5\u662f\u53ef\u590d\u6838\u8349\u7a3f\uff0c\u4e0d\u4f2a\u9020 SAP \u4e8b\u5b9e\u3002')
+        __fb_u_556 = U(r'\u95ed\u73af\u9636\u6bb5')
+        __fb_u_557 = U(r'\u8001\u677f\u65e5\u62a5\u8349\u7a3f')
+        __fb_u_558 = U(r'\u6682\u65e0\u65e5\u62a5\u52a8\u4f5c\u3002')
+        __fb_u_559 = U(r'\u6253\u5f00\u8001\u677f\u65e5\u62a5')
+        __fb_u_560 = U(r'\u4efb\u52a1\u4e2d\u5fc3')
+        __fb_u_561 = U(r'\u6253\u5f00\u4efb\u52a1')
+        __fb_u_562 = U(r'\u5ba1\u6279')
         body = f"""
 <div class="panel">
   <h2>VAFOX Enterprise OS V1.3</h2>
-  <p class="small">{U(r'SAP \u6bcf\u65e5\u53ea\u8bfb\u540c\u6b65\u3001AI \u5206\u6790\u3001\u8001\u677f\u65e5\u62a5\u3001\u4efb\u52a1\u4e2d\u5fc3\u548c\u5ba1\u6279\u6d41\u7a0b\u7ec4\u6210\u81ea\u52a8\u8fd0\u8425\u95ed\u73af\u3002')}</p>
-  <div class="metrics">{self.metric("SAP", sap.get("freshness"), U(r'\u53ea\u8bfb\u540c\u6b65'))}{self.metric(U(r'\u4e0a\u6b21\u540c\u6b65'), sap.get("last_sync_time"), sap.get("last_status"))}{self.metric(U(r'\u4e0b\u6b21\u540c\u6b65'), sap.get("next_run_time"), U(r'\u751f\u4ea7\u670d\u52a1\u5668\u72ec\u7acb'))}{self.metric(U(r'\u5f85\u5ba1\u6279'), len(payload['approval_flow']['approvals']), U(r'\u4eba\u5de5\u786e\u8ba4'))}</div>
+  <p class="small">{__fb_u_541}</p>
+  <div class="metrics">{self.metric("SAP", sap.get("freshness"), __fb_u_542)}{self.metric(__fb_u_543, sap.get("last_sync_time"), sap.get("last_status"))}{self.metric(__fb_u_544, sap.get("next_run_time"), __fb_u_545)}{self.metric(__fb_u_546, len(payload['approval_flow']['approvals']), __fb_u_547)}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u751f\u6210\u4eca\u65e5\u95ed\u73af\u8ba1\u5212')}</h2>
+    <h2>{__fb_u_548}</h2>
     <form method="post" action="/api/auto-operation/run-daily-loop">
-      <p class="small">{U(r'\u8be5\u64cd\u4f5c\u53ea\u4f1a\u751f\u6210\u5f85\u5ba1\u6279 AI \u8fd0\u8425\u8ba1\u5212\uff0c\u4e0d\u81ea\u52a8\u5199 SAP\uff0c\u4e0d\u81ea\u52a8\u6267\u884c\u9ad8\u98ce\u9669\u52a8\u4f5c\u3002')}</p>
-      <button>{U(r'\u751f\u6210\u5f85\u5ba1\u6279\u8ba1\u5212')}</button>
+      <p class="small">{__fb_u_549}</p>
+      <button>{__fb_u_550}</button>
     </form>
   </div>
-  <div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([U(r'SAP \u751f\u4ea7\u670d\u52a1\u5668\u4fdd\u6301\u72ec\u7acb\u3002'), U(r'\u540c\u6b65\u4ec5\u8bfb\u53d6\uff0c\u4e0d\u5199\u56de SAP\u3002'), U(r'AI \u5206\u6790\u548c\u4efb\u52a1\u751f\u6210\u5148\u8fdb\u5165\u5ba1\u6279\u3002'), U(r'\u8001\u677f\u65e5\u62a5\u662f\u53ef\u590d\u6838\u8349\u7a3f\uff0c\u4e0d\u4f2a\u9020 SAP \u4e8b\u5b9e\u3002')])}</div>
+  <div class="panel"><h2>{__fb_u_551}</h2>{self.bullets([__fb_u_552, __fb_u_553, __fb_u_554, __fb_u_555])}</div>
 </div>
-<div class="panel"><h2>{U(r'\u95ed\u73af\u9636\u6bb5')}</h2><div class="grid">{stage_cards}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u8001\u677f\u65e5\u62a5\u8349\u7a3f')}</h2>{self.bullets(payload['boss_daily_report']['actions'] or [U(r'\u6682\u65e0\u65e5\u62a5\u52a8\u4f5c\u3002')])}<p><a class="btn" href="/ai-ceo">{U(r'\u6253\u5f00\u8001\u677f\u65e5\u62a5')}</a></p></div><div class="panel"><h2>{U(r'\u4efb\u52a1\u4e2d\u5fc3')}</h2>{self.bullets([i['title'] for i in payload['task_center']['items'][:6]] or [payload['task_center']['empty_message']])}<p><a class="btn green" href="/tasks">{U(r'\u6253\u5f00\u4efb\u52a1')}</a></p></div></div>
-<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/auto-operation">/api/auto-operation</a><a class="button" href="/api/auto-operation/contract">Contract</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279')}</a></div></div>
+<div class="panel"><h2>{__fb_u_556}</h2><div class="grid">{stage_cards}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_557}</h2>{self.bullets(payload['boss_daily_report']['actions'] or [__fb_u_558])}<p><a class="btn" href="/ai-ceo">{__fb_u_559}</a></p></div><div class="panel"><h2>{__fb_u_560}</h2>{self.bullets([i['title'] for i in payload['task_center']['items'][:6]] or [payload['task_center']['empty_message']])}<p><a class="btn green" href="/tasks">{__fb_u_561}</a></p></div></div>
+<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/auto-operation">/api/auto-operation</a><a class="button" href="/api/auto-operation/contract">Contract</a><a class="button dark" href="/approvals">{__fb_u_562}</a></div></div>
 """
         self.out(layout("VAFOX Enterprise OS V1.3", body, user=user, wide=True))
 
@@ -17810,14 +18372,20 @@ where ki.deleted_at is null"""
             return
         data = self.ai_task_planner_payload(user)
         steps = [s["title"] + " 路 " + s["risk_level"] + " 路 " + s["execution_rule"] for s in data["steps"]]
+        __fb_u_563 = U(r'\u76ee\u6807')
+        __fb_u_564 = U(r'\u8ba1\u5212\u6807\u9898')
+        __fb_u_565 = U(r'AI \u4eca\u65e5\u8fd0\u8425\u8ba1\u5212')
+        __fb_u_566 = U(r'\u52a8\u4f5c\u7c7b\u578b')
+        __fb_u_567 = U(r'\u751f\u6210\u5f85\u5ba1\u6279\u8ba1\u5212')
         form = f"""
 <form method="post" action="/api/ai-task-planner/plans">
-  <label>{U(r'\u76ee\u6807')}</label><input name="objective" value="{esc(data['objective'])}">
-  <label>{U(r'\u8ba1\u5212\u6807\u9898')}</label><input name="title" value="{U(r'AI \u4eca\u65e5\u8fd0\u8425\u8ba1\u5212')}">
-  <label>{U(r'\u52a8\u4f5c\u7c7b\u578b')}</label><input name="action_type" value="create_task">
-  <button>{U(r'\u751f\u6210\u5f85\u5ba1\u6279\u8ba1\u5212')}</button>
+  <label>{__fb_u_563}</label><input name="objective" value="{esc(data['objective'])}">
+  <label>{__fb_u_564}</label><input name="title" value="{__fb_u_565}">
+  <label>{__fb_u_566}</label><input name="action_type" value="create_task">
+  <button>{__fb_u_567}</button>
 </form>"""
-        body = f"<div class='panel'><h2>AI Task Planner</h2>{self.bullets([data['rule']])}{form}</div><div class='panel'><h2>{U(r'\u89c4\u5212\u6b65\u9aa4')}</h2>{self.bullets(steps)}</div>"
+        __fb_u_568 = U(r'\u89c4\u5212\u6b65\u9aa4')
+        body = f"<div class='panel'><h2>AI Task Planner</h2>{self.bullets([data['rule']])}{form}</div><div class='panel'><h2>{__fb_u_568}</h2>{self.bullets(steps)}</div>"
         self.out(layout("AI Task Planner", body, user=user, wide=True))
 
     def work_queue_page(self, user):
@@ -17841,7 +18409,10 @@ where ki.deleted_at is null"""
         if user["role"] != "admin":
             return self.dashboard(user)
         completed = [f"Task{n:03d}" for n in range(1, 23)]
-        body = f"<div class='panel'><h2>{U(r'\u7cfb\u7edf\u72b6\u6001\u4e0e\u5347\u7ea7\u4e2d\u5fc3')}</h2>{self.bullets([self.health_payload()['app_version'], U(r'\u5df2\u5b8c\u6210\uff1a') + ', '.join(completed[-8:]), U(r'\u5efa\u8bae\u4e0b\u4e00\u6b65\uff1a\u8fde\u63a5\u771f\u5b9e SAP \u8c03\u5ea6\u548c\u751f\u4ea7\u90e8\u7f72\u9a8c\u8bc1\u3002')])}</div>"
+        __fb_u_569 = U(r'\u7cfb\u7edf\u72b6\u6001\u4e0e\u5347\u7ea7\u4e2d\u5fc3')
+        __fb_u_570 = U(r'\u5df2\u5b8c\u6210\uff1a')
+        __fb_u_571 = U(r'\u5efa\u8bae\u4e0b\u4e00\u6b65\uff1a\u8fde\u63a5\u771f\u5b9e SAP \u8c03\u5ea6\u548c\u751f\u4ea7\u90e8\u7f72\u9a8c\u8bc1\u3002')
+        body = f"<div class='panel'><h2>{__fb_u_569}</h2>{self.bullets([self.health_payload()['app_version'], __fb_u_570 + ', '.join(completed[-8:]), __fb_u_571])}</div>"
         self.out(layout(U(r"\u5347\u7ea7\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def object_actions_payload(self):
@@ -17963,7 +18534,9 @@ where ki.deleted_at is null"""
             return self.dashboard(user)
         stores = [U(r"\u5357\u5c71\u5e97"), U(r"\u632f\u5174\u5e97"), U(r"\u822a\u82d1\u5e97"), U(r"\u91d1\u6c99\u5e97"), U(r"\u7f51\u5e97")]
         cards = "".join(self.card(store, U(r"\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8d39\u7528\u3001\u5458\u5de5\u548c AI \u5efa\u8bae\u7b49\u5f85\u6570\u636e\u63a5\u5165\u3002"), "/tasks", "btn green", True) for store in stores)
-        body = f"<div class='panel'><h2>{U(r'\u95e8\u5e97\u7ecf\u8425')}</h2><p class='small'>{U(r'\u6309\u95e8\u5e97\u67e5\u770b\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8d39\u7528\u3001\u5458\u5de5\u548c\u98ce\u9669\u3002')}</p></div><div class='grid'>{cards}</div>"
+        __fb_u_572 = U(r'\u95e8\u5e97\u7ecf\u8425')
+        __fb_u_573 = U(r'\u6309\u95e8\u5e97\u67e5\u770b\u9500\u552e\u3001\u6bdb\u5229\u3001\u5e93\u5b58\u3001\u8d39\u7528\u3001\u5458\u5de5\u548c\u98ce\u9669\u3002')
+        body = f"<div class='panel'><h2>{__fb_u_572}</h2><p class='small'>{__fb_u_573}</p></div><div class='grid'>{cards}</div>"
         self.out(layout(U(r"\u95e8\u5e97\u7ecf\u8425"), body, user=user, wide=True))
 
     def brand_operations(self, user):
@@ -17974,7 +18547,9 @@ where ki.deleted_at is null"""
             return self.dashboard(user)
         brands = ["KAILAS", "Osprey", "Mammut", "Salomon", "Deuter", "Gregory", "VAFOX"]
         cards = "".join(self.card(brand, U(r"\u9500\u552e\u8d8b\u52bf\u3001\u6bdb\u5229\u8d8b\u52bf\u3001\u5e93\u5b58\u538b\u529b\u3001\u6298\u6263\u98ce\u9669\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u3002"), "/brands/osprey-risk" if brand == "Osprey" else "/tasks", "btn", True) for brand in brands)
-        body = f"<div class='panel'><h2>{U(r'\u54c1\u724c\u7ecf\u8425')}</h2><p class='small'>{U(r'\u4e0d\u4f2a\u9020\u9500\u552e\u6570\u636e\uff0c\u6ca1\u6709 SAP \u7ef4\u5ea6\u65f6\u663e\u793a\u7b49\u5f85\u63a5\u5165\u3002')}</p></div><div class='grid'>{cards}</div>"
+        __fb_u_574 = U(r'\u54c1\u724c\u7ecf\u8425')
+        __fb_u_575 = U(r'\u4e0d\u4f2a\u9020\u9500\u552e\u6570\u636e\uff0c\u6ca1\u6709 SAP \u7ef4\u5ea6\u65f6\u663e\u793a\u7b49\u5f85\u63a5\u5165\u3002')
+        body = f"<div class='panel'><h2>{__fb_u_574}</h2><p class='small'>{__fb_u_575}</p></div><div class='grid'>{cards}</div>"
         self.out(layout(U(r"\u54c1\u724c\u7ecf\u8425"), body, user=user, wide=True))
 
     def inventory_risk(self, user):
@@ -17985,11 +18560,26 @@ where ki.deleted_at is null"""
             return self.dashboard(user)
         data = self.cockpit_data()
         m = data["metrics"]
+        __fb_u_576 = U(r'\u5e93\u5b58\u98ce\u9669')
+        __fb_u_577 = U(r'\u5e93\u5b58\u91d1\u989d')
+        __fb_u_578 = U(r'\uffe5')
+        __fb_u_579 = U(r'SAP B1')
+        __fb_u_580 = U(r'\u98ce\u9669\u6570\u91cf')
+        __fb_u_581 = U(r'\u9700\u8ddf\u8fdb')
+        __fb_u_582 = U(r'\u98ce\u9669\u7c7b\u578b')
+        __fb_u_583 = U(r'\u9ad8\u5e93\u5b58\u54c1\u724c')
+        __fb_u_584 = U(r'\u9ad8\u5e93\u5b58\u4ea7\u54c1')
+        __fb_u_585 = U(r'\u6ede\u9500\u4ea7\u54c1')
+        __fb_u_586 = U(r'\u5b63\u8282\u98ce\u9669')
+        __fb_u_587 = U(r'\u6298\u6263\u98ce\u9669')
+        __fb_u_588 = U(r'\u73b0\u91d1\u6d41\u5360\u7528')
+        __fb_u_589 = U(r'AI \u6e05\u8d27\u5efa\u8bae')
+        __fb_u_590 = U(r'\u540e\u7eed\u6309\u54c1\u724c\u3001SKU\u3001\u5c3a\u7801\u3001\u5e97\u94fa\u751f\u6210\u6e05\u8d27\u52a8\u4f5c\u3002')
         body = f"""
-<div class="panel"><h2>{U(r'\u5e93\u5b58\u98ce\u9669')}</h2><div class="metrics">{self.metric(U(r'\u5e93\u5b58\u91d1\u989d'), U(r'\uffe5') + money(m['inventory_amount']), U(r'SAP B1'))}{self.metric(U(r'\u98ce\u9669\u6570\u91cf'), money(m['risk_count']), U(r'\u9700\u8ddf\u8fdb'))}</div></div>
+<div class="panel"><h2>{__fb_u_576}</h2><div class="metrics">{self.metric(__fb_u_577, __fb_u_578 + money(m['inventory_amount']), __fb_u_579)}{self.metric(__fb_u_580, money(m['risk_count']), __fb_u_581)}</div></div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u98ce\u9669\u7c7b\u578b')}</h2>{self.bullets([U(r'\u9ad8\u5e93\u5b58\u54c1\u724c'), U(r'\u9ad8\u5e93\u5b58\u4ea7\u54c1'), U(r'\u6ede\u9500\u4ea7\u54c1'), U(r'\u5b63\u8282\u98ce\u9669'), U(r'\u6298\u6263\u98ce\u9669'), U(r'\u73b0\u91d1\u6d41\u5360\u7528')])}</div>
-  <div class="panel"><h2>{U(r'AI \u6e05\u8d27\u5efa\u8bae')}</h2>{self.bullets([data['empty_message'], U(r'\u540e\u7eed\u6309\u54c1\u724c\u3001SKU\u3001\u5c3a\u7801\u3001\u5e97\u94fa\u751f\u6210\u6e05\u8d27\u52a8\u4f5c\u3002')])}</div>
+  <div class="panel"><h2>{__fb_u_582}</h2>{self.bullets([__fb_u_583, __fb_u_584, __fb_u_585, __fb_u_586, __fb_u_587, __fb_u_588])}</div>
+  <div class="panel"><h2>{__fb_u_589}</h2>{self.bullets([data['empty_message'], __fb_u_590])}</div>
 </div>"""
         self.out(layout(U(r"\u5e93\u5b58\u98ce\u9669"), body, user=user, wide=True))
 
@@ -17999,25 +18589,48 @@ where ki.deleted_at is null"""
             return
         if not self.role_can_manage(user):
             return self.dashboard(user)
+        __fb_u_591 = U(r'Osprey \u4ef7\u683c\u98ce\u9669\u4e13\u9898')
+        __fb_u_592 = U(r'\u8fd9\u662f\u7ed3\u6784\u5316\u5206\u6790\u6a21\u677f\uff0c\u4e0d\u628a\u8f93\u5165\u5185\u5bb9\u81ea\u52a8\u5f53\u4f5c\u7cfb\u7edf\u4e8b\u5b9e\u3002')
+        __fb_u_593 = U(r'\u5f53\u524d\u95ee\u9898')
+        __fb_u_594 = U(r'\u4f4e\u6298\u6263\u9500\u552e\u53ef\u80fd\u5f71\u54cd\u6bdb\u5229\u548c\u7528\u6237\u4ef7\u683c\u9884\u671f\u3002')
+        __fb_u_595 = U(r'\u8fd4\u70b9\u4e0d\u786e\u5b9a\u4f1a\u5f71\u54cd\u771f\u5b9e\u5229\u6da6\u3002')
+        __fb_u_596 = U(r'\u4ee3\u7406/\u6e20\u9053\u7a33\u5b9a\u6027\u9700\u8981\u6301\u7eed\u89c2\u5bdf\u3002')
+        __fb_u_597 = U(r'\u5bf9\u6bd4\u6a21\u578b')
+        __fb_u_598 = U(r'59 \u6298\u957f\u671f\u9500\u552e\u98ce\u9669')
+        __fb_u_599 = U(r'60 / 62 / 65 \u6298\u5bf9\u6bd4')
+        __fb_u_600 = U(r'\u8fd4\u70b9\u4f9d\u8d56\u98ce\u9669')
+        __fb_u_601 = U(r'\u5e93\u5b58\u63d0\u8d27\u98ce\u9669')
+        __fb_u_602 = U(r'\u7b80\u6613\u8bd5\u7b97\u5668')
+        __fb_u_603 = U(r'\u6210\u672c\u6298\u6263')
+        __fb_u_604 = U(r'\u9500\u552e\u6298\u6263')
+        __fb_u_605 = U(r'\u8fd4\u70b9\u6bd4\u7387')
+        __fb_u_606 = U(r'\u5e93\u5b58\u91d1\u989d')
+        __fb_u_607 = U(r'\u9884\u8ba1\u9500\u552e\u989d')
+        __fb_u_608 = U(r'\u56fa\u5b9a\u8d39\u7528\u5206\u644a')
+        __fb_u_609 = U(r'\u7ed3\u679c\u7531 API \u8fd4\u56de JSON\uff0c\u4e0d\u5199\u6b7b\u8d22\u52a1\u7ed3\u8bba\u3002')
+        __fb_u_610 = U(r'\u76f8\u5173\u6587\u4ef6')
+        __fb_u_611 = U(r'\u53ef\u4ece\u77e5\u8bc6\u5e93\u5173\u8054 Osprey \u6587\u6863\u3002')
+        __fb_u_612 = U(r'\u76f8\u5173\u7814\u7a76')
+        __fb_u_613 = U(r'\u7814\u7a76\u5f15\u64ce\u63a5\u5165\u540e\u663e\u793a\u5916\u90e8\u4ef7\u683c\u89c2\u5bdf\u3002')
         body = f"""
-<div class="panel"><h2>{U(r'Osprey \u4ef7\u683c\u98ce\u9669\u4e13\u9898')}</h2><p class="small">{U(r'\u8fd9\u662f\u7ed3\u6784\u5316\u5206\u6790\u6a21\u677f\uff0c\u4e0d\u628a\u8f93\u5165\u5185\u5bb9\u81ea\u52a8\u5f53\u4f5c\u7cfb\u7edf\u4e8b\u5b9e\u3002')}</p></div>
+<div class="panel"><h2>{__fb_u_591}</h2><p class="small">{__fb_u_592}</p></div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u5f53\u524d\u95ee\u9898')}</h2>{self.bullets([U(r'\u4f4e\u6298\u6263\u9500\u552e\u53ef\u80fd\u5f71\u54cd\u6bdb\u5229\u548c\u7528\u6237\u4ef7\u683c\u9884\u671f\u3002'), U(r'\u8fd4\u70b9\u4e0d\u786e\u5b9a\u4f1a\u5f71\u54cd\u771f\u5b9e\u5229\u6da6\u3002'), U(r'\u4ee3\u7406/\u6e20\u9053\u7a33\u5b9a\u6027\u9700\u8981\u6301\u7eed\u89c2\u5bdf\u3002')])}</div>
-  <div class="panel"><h2>{U(r'\u5bf9\u6bd4\u6a21\u578b')}</h2>{self.bullets([U(r'59 \u6298\u957f\u671f\u9500\u552e\u98ce\u9669'), U(r'60 / 62 / 65 \u6298\u5bf9\u6bd4'), U(r'\u8fd4\u70b9\u4f9d\u8d56\u98ce\u9669'), U(r'\u5e93\u5b58\u63d0\u8d27\u98ce\u9669')])}</div>
+  <div class="panel"><h2>{__fb_u_593}</h2>{self.bullets([__fb_u_594, __fb_u_595, __fb_u_596])}</div>
+  <div class="panel"><h2>{__fb_u_597}</h2>{self.bullets([__fb_u_598, __fb_u_599, __fb_u_600, __fb_u_601])}</div>
 </div>
 <div class="panel form">
-  <h2>{U(r'\u7b80\u6613\u8bd5\u7b97\u5668')}</h2>
+  <h2>{__fb_u_602}</h2>
   <form method="post" action="/api/brands/osprey-risk/calculate">
-    <label>{U(r'\u6210\u672c\u6298\u6263')}</label><input name="cost_discount" placeholder="0.50">
-    <label>{U(r'\u9500\u552e\u6298\u6263')}</label><input name="selling_discount" placeholder="0.60">
-    <label>{U(r'\u8fd4\u70b9\u6bd4\u7387')}</label><input name="rebate_rate" placeholder="0.03">
-    <label>{U(r'\u5e93\u5b58\u91d1\u989d')}</label><input name="inventory_amount" placeholder="0">
-    <label>{U(r'\u9884\u8ba1\u9500\u552e\u989d')}</label><input name="expected_sales_amount" placeholder="0">
-    <label>{U(r'\u56fa\u5b9a\u8d39\u7528\u5206\u644a')}</label><input name="fixed_expense_allocation" placeholder="0">
-    <p class="small">{U(r'\u7ed3\u679c\u7531 API \u8fd4\u56de JSON\uff0c\u4e0d\u5199\u6b7b\u8d22\u52a1\u7ed3\u8bba\u3002')}</p>
+    <label>{__fb_u_603}</label><input name="cost_discount" placeholder="0.50">
+    <label>{__fb_u_604}</label><input name="selling_discount" placeholder="0.60">
+    <label>{__fb_u_605}</label><input name="rebate_rate" placeholder="0.03">
+    <label>{__fb_u_606}</label><input name="inventory_amount" placeholder="0">
+    <label>{__fb_u_607}</label><input name="expected_sales_amount" placeholder="0">
+    <label>{__fb_u_608}</label><input name="fixed_expense_allocation" placeholder="0">
+    <p class="small">{__fb_u_609}</p>
   </form>
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u76f8\u5173\u6587\u4ef6')}</h2>{self.empty_state(U(r'\u53ef\u4ece\u77e5\u8bc6\u5e93\u5173\u8054 Osprey \u6587\u6863\u3002'))}</div><div class="panel"><h2>{U(r'\u76f8\u5173\u7814\u7a76')}</h2>{self.empty_state(U(r'\u7814\u7a76\u5f15\u64ce\u63a5\u5165\u540e\u663e\u793a\u5916\u90e8\u4ef7\u683c\u89c2\u5bdf\u3002'))}</div></div>"""
+<div class="split"><div class="panel"><h2>{__fb_u_610}</h2>{self.empty_state(__fb_u_611)}</div><div class="panel"><h2>{__fb_u_612}</h2>{self.empty_state(__fb_u_613)}</div></div>"""
         self.out(layout(U(r"Osprey \u4ef7\u683c\u98ce\u9669"), body, user=user, wide=True))
 
     def task_center(self, user):
@@ -18028,22 +18641,35 @@ where ki.deleted_at is null"""
             rows = conn.execute("select * from tasks order by status='done', updated_at desc limit 100").fetchall()
         cards = ""
         for row in rows:
+            __fb_u_614 = U(r'瀹屾垚')
             cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {} 路 {}</p></div>{}</div>".format(
                 esc(row["title"]), esc(row["description"]), esc(row["owner"]), esc(row["priority"]), esc(row["status"]), esc(row["due_date"]),
-                "" if row["status"] == "done" else f"<form method='post' action='/tasks/complete'><input type='hidden' name='id' value='{row['id']}'><button>{U(r'瀹屾垚')}</button></form>"
+                "" if row["status"] == "done" else f"<form method='post' action='/tasks/complete'><input type='hidden' name='id' value='{row['id']}'><button>{__fb_u_614}</button></form>"
             )
         if not cards:
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u4efb\u52a1\uff0c\u53ef\u4ece AI \u5efa\u8bae\u6216\u65e5\u5e38\u7ecf\u8425\u4e2d\u521b\u5efa\u3002")))
+        __fb_u_615 = U(r'\u4efb\u52a1\u4e2d\u5fc3 V1')
+        __fb_u_616 = U(r'\u4efb\u52a1\u6807\u9898')
+        __fb_u_617 = U(r'\u8bf4\u660e')
+        __fb_u_618 = U(r'\u8d23\u4efb\u4eba')
+        __fb_u_619 = U(r'\u4f18\u5148\u7ea7')
+        __fb_u_620 = U(r'\u666e\u901a')
+        __fb_u_621 = U(r'\u9ad8')
+        __fb_u_622 = U(r'\u7d27\u6025')
+        __fb_u_623 = U(r'\u4f4e')
+        __fb_u_624 = U(r'\u622a\u6b62\u65e5\u671f')
+        __fb_u_625 = U(r'\u5173\u8054\u5bf9\u8c61')
+        __fb_u_626 = U(r'\u521b\u5efa\u4efb\u52a1')
         body = f"""
-<div class="panel form"><h2>{U(r'\u4efb\u52a1\u4e2d\u5fc3 V1')}</h2>
+<div class="panel form"><h2>{__fb_u_615}</h2>
   <form method="post" action="/tasks/save">
-    <label>{U(r'\u4efb\u52a1\u6807\u9898')}</label><input name="title" required>
-    <label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea>
-    <label>{U(r'\u8d23\u4efb\u4eba')}</label><input name="owner" placeholder="{esc(user['name'])}">
-    <label>{U(r'\u4f18\u5148\u7ea7')}</label><select name="priority"><option value="normal">{U(r'\u666e\u901a')}</option><option value="high">{U(r'\u9ad8')}</option><option value="urgent">{U(r'\u7d27\u6025')}</option><option value="low">{U(r'\u4f4e')}</option></select>
-    <label>{U(r'\u622a\u6b62\u65e5\u671f')}</label><input name="due_date" placeholder="2026-07-05">
-    <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><input name="related_object_type" placeholder="stores / brands / knowledge / research"><input name="related_object_id" placeholder="ID">
-    <p><button>{U(r'\u521b\u5efa\u4efb\u52a1')}</button></p>
+    <label>{__fb_u_616}</label><input name="title" required>
+    <label>{__fb_u_617}</label><textarea name="description"></textarea>
+    <label>{__fb_u_618}</label><input name="owner" placeholder="{esc(user['name'])}">
+    <label>{__fb_u_619}</label><select name="priority"><option value="normal">{__fb_u_620}</option><option value="high">{__fb_u_621}</option><option value="urgent">{__fb_u_622}</option><option value="low">{__fb_u_623}</option></select>
+    <label>{__fb_u_624}</label><input name="due_date" placeholder="2026-07-05">
+    <label>{__fb_u_625}</label><input name="related_object_type" placeholder="stores / brands / knowledge / research"><input name="related_object_id" placeholder="ID">
+    <p><button>{__fb_u_626}</button></p>
   </form>
 </div>
 <div class="grid">{cards}</div>"""
@@ -18238,7 +18864,9 @@ where ki.deleted_at is null"""
             return
         payload = self.health_payload()
         items = [f"{k}: {v}" for k, v in payload.items()]
-        body = f"<div class='panel'><h2>{U(r'\u7cfb\u7edf\u5065\u5eb7\u68c0\u67e5')}</h2>{self.bullets(items)}<p><a class='btn' href='/api/health'>{U(r'JSON \u5065\u5eb7\u63a5\u53e3')}</a></p></div>"
+        __fb_u_627 = U(r'\u7cfb\u7edf\u5065\u5eb7\u68c0\u67e5')
+        __fb_u_628 = U(r'JSON \u5065\u5eb7\u63a5\u53e3')
+        body = f"<div class='panel'><h2>{__fb_u_627}</h2>{self.bullets(items)}<p><a class='btn' href='/api/health'>{__fb_u_628}</a></p></div>"
         self.out(layout(U(r"\u7cfb\u7edf\u5065\u5eb7\u68c0\u67e5"), body, user=user))
 
     def calculate_osprey_payload(self, form):
@@ -18337,33 +18965,50 @@ where ki.deleted_at is null"""
         )
         if not automation_cards:
             automation_cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u81ea\u52a8\u5316\u4efb\u52a1\uff0c\u53ef\u5148\u521b\u5efa\u4e00\u6761\u624b\u52a8\u6216\u5b9a\u65f6\u6d41\u7a0b\u3002")))
+        __fb_u_629 = U(r'AI \u81ea\u52a8\u5316\u4e2d\u5fc3')
+        __fb_u_630 = U(r'\u628a\u7ecf\u8425\u5efa\u8bae\u3001SAP \u626b\u63cf\u3001\u77e5\u8bc6\u5e93\u3001\u7814\u7a76\u5f15\u64ce\u548c\u4efb\u52a1\u4e2d\u5fc3\u8fde\u6210\u53ef\u6267\u884c\u7684 AI \u6d41\u7a0b\u3002')
+        __fb_u_631 = U(r'\u521b\u5efa\u81ea\u52a8\u5316')
+        __fb_u_632 = U(r'\u540d\u79f0')
+        __fb_u_633 = U(r'\u8bf4\u660e')
+        __fb_u_634 = U(r'\u89e6\u53d1\u5668')
+        __fb_u_635 = U(r'AI \u52a8\u4f5c')
+        __fb_u_636 = U(r'\u8d1f\u8d23\u4eba')
+        __fb_u_637 = U(r'\u4fdd\u5b58\u81ea\u52a8\u5316')
+        __fb_u_638 = U(r'AI \u6bcf\u65e5\u81ea\u52a8\u4efb\u52a1')
+        __fb_u_639 = U(r'\u901a\u77e5\u6e20\u9053')
+        __fb_u_640 = U(r'\u5de5\u4f5c\u6d41\u6a21\u677f')
+        __fb_u_641 = U(r'\u81ea\u52a8\u5316\u4efb\u52a1')
+        __fb_u_642 = U(r'\u6267\u884c\u5386\u53f2')
+        __fb_u_643 = U(r'\u6682\u65e0\u6267\u884c\u8bb0\u5f55\u3002')
+        __fb_u_644 = U(r'\u901a\u77e5\u4e2d\u5fc3')
+        __fb_u_645 = U(r'\u6682\u65e0\u901a\u77e5\u3002')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI \u81ea\u52a8\u5316\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u628a\u7ecf\u8425\u5efa\u8bae\u3001SAP \u626b\u63cf\u3001\u77e5\u8bc6\u5e93\u3001\u7814\u7a76\u5f15\u64ce\u548c\u4efb\u52a1\u4e2d\u5fc3\u8fde\u6210\u53ef\u6267\u884c\u7684 AI \u6d41\u7a0b\u3002')}</p>
+  <h2>{__fb_u_629}</h2>
+  <p class="small">{__fb_u_630}</p>
   <div class="metrics">{metrics}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u521b\u5efa\u81ea\u52a8\u5316')}</h2>
+    <h2>{__fb_u_631}</h2>
     <form method="post" action="/automation/save">
-      <label>{U(r'\u540d\u79f0')}</label><input name="name" required>
-      <label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea>
-      <label>{U(r'\u89e6\u53d1\u5668')}</label><select name="trigger_type">{''.join('<option value="{}">{}</option>'.format(esc(x), esc(x)) for x in data['triggers'])}</select>
-      <label>{U(r'AI \u52a8\u4f5c')}</label><select name="action_type">{''.join('<option value="{}">{}</option>'.format(esc(x), esc(x)) for x in data['actions'])}</select>
-      <label>{U(r'\u8d1f\u8d23\u4eba')}</label><input name="owner" value="{esc(user['name'])}">
-      <p><button>{U(r'\u4fdd\u5b58\u81ea\u52a8\u5316')}</button></p>
+      <label>{__fb_u_632}</label><input name="name" required>
+      <label>{__fb_u_633}</label><textarea name="description"></textarea>
+      <label>{__fb_u_634}</label><select name="trigger_type">{''.join('<option value="{}">{}</option>'.format(esc(x), esc(x)) for x in data['triggers'])}</select>
+      <label>{__fb_u_635}</label><select name="action_type">{''.join('<option value="{}">{}</option>'.format(esc(x), esc(x)) for x in data['actions'])}</select>
+      <label>{__fb_u_636}</label><input name="owner" value="{esc(user['name'])}">
+      <p><button>{__fb_u_637}</button></p>
     </form>
   </div>
   <div class="panel">
-    <h2>{U(r'AI \u6bcf\u65e5\u81ea\u52a8\u4efb\u52a1')}</h2>{self.bullets(data['daily_jobs'])}
-    <h2>{U(r'\u901a\u77e5\u6e20\u9053')}</h2>{self.bullets(data['channels'])}
+    <h2>{__fb_u_638}</h2>{self.bullets(data['daily_jobs'])}
+    <h2>{__fb_u_639}</h2>{self.bullets(data['channels'])}
   </div>
 </div>
-<div class="panel"><h2>{U(r'\u5de5\u4f5c\u6d41\u6a21\u677f')}</h2><div class="grid">{template_cards}</div></div>
-<div class="panel"><h2>{U(r'\u81ea\u52a8\u5316\u4efb\u52a1')}</h2><div class="grid">{automation_cards}</div></div>
-<div class="panel"><h2>{U(r'\u6267\u884c\u5386\u53f2')}</h2>{self.bullets([dt(r['created_at']) + ' 路 ' + r['status'] + ' 路 ' + (r['message'] or '') for r in data['runs']] or [U(r'\u6682\u65e0\u6267\u884c\u8bb0\u5f55\u3002')])}</div>
-<div class="panel"><h2>{U(r'\u901a\u77e5\u4e2d\u5fc3')}</h2>{self.bullets([n['channel'] + ' 路 ' + n['title'] + ' 路 ' + n['status'] for n in data['notifications']] or [U(r'\u6682\u65e0\u901a\u77e5\u3002')])}</div>"""
+<div class="panel"><h2>{__fb_u_640}</h2><div class="grid">{template_cards}</div></div>
+<div class="panel"><h2>{__fb_u_641}</h2><div class="grid">{automation_cards}</div></div>
+<div class="panel"><h2>{__fb_u_642}</h2>{self.bullets([dt(r['created_at']) + ' 路 ' + r['status'] + ' 路 ' + (r['message'] or '') for r in data['runs']] or [__fb_u_643])}</div>
+<div class="panel"><h2>{__fb_u_644}</h2>{self.bullets([n['channel'] + ' 路 ' + n['title'] + ' 路 ' + n['status'] for n in data['notifications']] or [__fb_u_645])}</div>"""
         self.out(layout(U(r"AI \u81ea\u52a8\u5316\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def automation_save(self):
@@ -18917,20 +19562,31 @@ where ki.deleted_at is null"""
         cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {}</p></div></div>".format(esc(r["decision_title"]), esc(r["reason"]), esc(r["owner"]), esc(r["decision_date"])) for r in rows)
         if not cards:
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u51b3\u7b56\u8bb0\u5fc6\u3002")))
+        __fb_u_646 = U(r'\u51b3\u7b56\u8bb0\u5fc6')
+        __fb_u_647 = U(r'\u51b3\u7b56\u6807\u9898')
+        __fb_u_648 = U(r'\u51b3\u7b56\u80cc\u666f')
+        __fb_u_649 = U(r'\u8003\u8651\u8fc7\u7684\u9009\u9879')
+        __fb_u_650 = U(r'\u9009\u62e9\u65b9\u6848')
+        __fb_u_651 = U(r'\u539f\u56e0')
+        __fb_u_652 = U(r'\u98ce\u9669')
+        __fb_u_653 = U(r'\u8d1f\u8d23\u4eba')
+        __fb_u_654 = U(r'\u51b3\u7b56\u65e5\u671f')
+        __fb_u_655 = U(r'\u540e\u7eed\u4efb\u52a1')
+        __fb_u_656 = U(r'\u4fdd\u5b58\u51b3\u7b56')
         body = f"""
 <div class="panel form">
-  <h2>{U(r'\u51b3\u7b56\u8bb0\u5fc6')}</h2>
+  <h2>{__fb_u_646}</h2>
   <form method="post" action="/decisions/save">
-    <label>{U(r'\u51b3\u7b56\u6807\u9898')}</label><input name="decision_title" required>
-    <label>{U(r'\u51b3\u7b56\u80cc\u666f')}</label><textarea name="decision_context"></textarea>
-    <label>{U(r'\u8003\u8651\u8fc7\u7684\u9009\u9879')}</label><textarea name="options_considered"></textarea>
-    <label>{U(r'\u9009\u62e9\u65b9\u6848')}</label><input name="selected_option">
-    <label>{U(r'\u539f\u56e0')}</label><textarea name="reason"></textarea>
-    <label>{U(r'\u98ce\u9669')}</label><textarea name="risks"></textarea>
-    <label>{U(r'\u8d1f\u8d23\u4eba')}</label><input name="owner" value="{esc(user['name'])}">
-    <label>{U(r'\u51b3\u7b56\u65e5\u671f')}</label><input name="decision_date" placeholder="2026-07-04">
-    <label>{U(r'\u540e\u7eed\u4efb\u52a1')}</label><input name="follow_up_task">
-    <p><button>{U(r'\u4fdd\u5b58\u51b3\u7b56')}</button></p>
+    <label>{__fb_u_647}</label><input name="decision_title" required>
+    <label>{__fb_u_648}</label><textarea name="decision_context"></textarea>
+    <label>{__fb_u_649}</label><textarea name="options_considered"></textarea>
+    <label>{__fb_u_650}</label><input name="selected_option">
+    <label>{__fb_u_651}</label><textarea name="reason"></textarea>
+    <label>{__fb_u_652}</label><textarea name="risks"></textarea>
+    <label>{__fb_u_653}</label><input name="owner" value="{esc(user['name'])}">
+    <label>{__fb_u_654}</label><input name="decision_date" placeholder="2026-07-04">
+    <label>{__fb_u_655}</label><input name="follow_up_task">
+    <p><button>{__fb_u_656}</button></p>
   </form>
 </div>
 <div class="grid">{cards}</div>"""
@@ -22156,21 +22812,51 @@ group by coalesce(store_name,'')
         for r in data["relationships"][:12]:
             rel = self.relationship_to_json(r)
             rel_items.append(f"{rel.get('source_entity_type')} #{rel.get('source_entity_id')} -> {rel.get('target_entity_type')} #{rel.get('target_entity_id')} / {rel.get('relationship_type') or rel.get('relation_type')}")
-        risk_items = [f"{r['title']} 路 {r['risk_type']} 路 {r['level']}" for r in data["risks"][:10]] or [U(r"\u6682\u65e0\u98ce\u9669\u8bb0\u5f55\uff0c\u4e0d\u4f1a\u4f2a\u9020\u98ce\u9669\u503c\u3002")]
+        __fb_u_657 = U(r"\u6682\u65e0\u98ce\u9669\u8bb0\u5f55\uff0c\u4e0d\u4f1a\u4f2a\u9020\u98ce\u9669\u503c\u3002")
+        risk_items = [f"{r['title']} 路 {r['risk_type']} 路 {r['level']}" for r in data["risks"][:10]] or [__fb_u_657]
         type_pills = "".join("<span class='pill'>{} {}</span>".format(esc(r["entity_type"]), r["c"]) for r in data["by_type"])
+        __fb_u_658 = U(r'\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31')
+        __fb_u_659 = U(r'\u628a\u95e8\u5e97\u3001\u5458\u5de5\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u4f9b\u5e94\u5546\u3001\u77e5\u8bc6\u3001\u8bb0\u5fc6\u3001\u4efb\u52a1\u548c\u98ce\u9669\u8fde\u6210\u53ef\u7406\u89e3\u7684\u5173\u7cfb\u7f51\u3002')
+        __fb_u_660 = U(r'\u5b9e\u4f53')
+        __fb_u_661 = U(r'\u5bf9\u8c61')
+        __fb_u_662 = U(r'\u5173\u7cfb')
+        __fb_u_663 = U(r'\u8fde\u63a5')
+        __fb_u_664 = U(r'\u98ce\u9669')
+        __fb_u_665 = U(r'\u8bb0\u5f55')
+        __fb_u_666 = U(r'\u56fe\u8c31\u641c\u7d22')
+        __fb_u_667 = U(r'\u641c\u7d22\u5b9e\u4f53\u3001\u7c7b\u578b\u3001\u98ce\u9669\u5173\u952e\u8bcd')
+        __fb_u_668 = U(r'\u641c\u7d22')
+        __fb_u_669 = U(r'\u8fd0\u884c\u89c4\u5219\u62bd\u53d6')
+        __fb_u_670 = U(r'\u98ce\u9669\u5730\u56fe')
+        __fb_u_671 = U(r'\u98ce\u9669\u5730\u56fe JSON')
+        __fb_u_672 = U(r'Osprey \u98ce\u9669\u56fe\u8c31')
+        __fb_u_673 = U(r'\u54c1\u724c\uff1aOsprey')
+        __fb_u_674 = U(r'\u5b9a\u4ef7\u98ce\u9669')
+        __fb_u_675 = U(r'\u8fd4\u70b9\u4e0d\u786e\u5b9a')
+        __fb_u_676 = U(r'\u76f8\u5173\u4efb\u52a1/\u6587\u6863/\u51b3\u7b56\u5f85\u63a5\u5165')
+        __fb_u_677 = U(r'Osprey \u56fe\u8c31 JSON')
+        __fb_u_678 = U(r'\u5b9e\u4f53\u6d4f\u89c8')
+        __fb_u_679 = U(r'\u5173\u7cfb\u6d4f\u89c8')
+        __fb_u_680 = U(r'\u6682\u65e0\u5173\u7cfb\uff0c\u8bf7\u5148\u8fd0\u884c\u62bd\u53d6\u6216\u624b\u52a8\u5efa\u7acb\u3002')
+        __fb_u_681 = U(r'AI \u67e5\u8be2\u56fe\u8c31\u4e0a\u4e0b\u6587')
+        __fb_u_682 = U(r'\u68c0\u7d22\u76f8\u5173\u5b9e\u4f53')
+        __fb_u_683 = U(r'\u68c0\u7d22\u76f8\u5173\u5173\u7cfb')
+        __fb_u_684 = U(r'\u68c0\u7d22\u8bc1\u636e')
+        __fb_u_685 = U(r'\u7ec4\u5408\u4e0a\u4e0b\u6587')
+        __fb_u_686 = U(r'\u5e26\u5f15\u7528\u56de\u7b54')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31')}</h2>
-  <p class="small">{U(r'\u628a\u95e8\u5e97\u3001\u5458\u5de5\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u4f9b\u5e94\u5546\u3001\u77e5\u8bc6\u3001\u8bb0\u5fc6\u3001\u4efb\u52a1\u548c\u98ce\u9669\u8fde\u6210\u53ef\u7406\u89e3\u7684\u5173\u7cfb\u7f51\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u5b9e\u4f53'), data['entity_count'], U(r'\u5bf9\u8c61'))}{self.metric(U(r'\u5173\u7cfb'), data['relationship_count'], U(r'\u8fde\u63a5'))}{self.metric(U(r'\u98ce\u9669'), data['risk_count'], U(r'\u8bb0\u5f55'))}</div>
-  <form method="get" action="/graph"><label>{U(r'\u56fe\u8c31\u641c\u7d22')}</label><input name="q" value="{esc(q)}" placeholder="{U(r'\u641c\u7d22\u5b9e\u4f53\u3001\u7c7b\u578b\u3001\u98ce\u9669\u5173\u952e\u8bcd')}"><p><button>{U(r'\u641c\u7d22')}</button></p></form>
-  <form method="post" action="/api/graph/extract"><button class="dark">{U(r'\u8fd0\u884c\u89c4\u5219\u62bd\u53d6')}</button></form>
+  <h2>{__fb_u_658}</h2>
+  <p class="small">{__fb_u_659}</p>
+  <div class="metrics">{self.metric(__fb_u_660, data['entity_count'], __fb_u_661)}{self.metric(__fb_u_662, data['relationship_count'], __fb_u_663)}{self.metric(__fb_u_664, data['risk_count'], __fb_u_665)}</div>
+  <form method="get" action="/graph"><label>{__fb_u_666}</label><input name="q" value="{esc(q)}" placeholder="{__fb_u_667}"><p><button>{__fb_u_668}</button></p></form>
+  <form method="post" action="/api/graph/extract"><button class="dark">{__fb_u_669}</button></form>
   <div>{type_pills}</div>
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u98ce\u9669\u5730\u56fe')}</h2>{self.bullets(risk_items)}<p><a class="btn" href="/api/graph/risk-map">{U(r'\u98ce\u9669\u5730\u56fe JSON')}</a></p></div><div class="panel"><h2>{U(r'Osprey \u98ce\u9669\u56fe\u8c31')}</h2>{self.bullets([U(r'\u54c1\u724c\uff1aOsprey'), U(r'\u5b9a\u4ef7\u98ce\u9669'), U(r'\u8fd4\u70b9\u4e0d\u786e\u5b9a'), U(r'\u76f8\u5173\u4efb\u52a1/\u6587\u6863/\u51b3\u7b56\u5f85\u63a5\u5165')])}<p><a class="btn" href="/api/graph/osprey-risk">{U(r'Osprey \u56fe\u8c31 JSON')}</a></p></div></div>
-<div class="panel"><h2>{U(r'\u5b9e\u4f53\u6d4f\u89c8')}</h2><div class="grid">{entity_cards}</div></div>
-<div class="panel"><h2>{U(r'\u5173\u7cfb\u6d4f\u89c8')}</h2>{self.bullets(rel_items or [U(r'\u6682\u65e0\u5173\u7cfb\uff0c\u8bf7\u5148\u8fd0\u884c\u62bd\u53d6\u6216\u624b\u52a8\u5efa\u7acb\u3002')])}</div>
-<div class="panel"><h2>{U(r'AI \u67e5\u8be2\u56fe\u8c31\u4e0a\u4e0b\u6587')}</h2>{self.bullets([U(r'\u68c0\u7d22\u76f8\u5173\u5b9e\u4f53'), U(r'\u68c0\u7d22\u76f8\u5173\u5173\u7cfb'), U(r'\u68c0\u7d22\u8bc1\u636e'), U(r'\u7ec4\u5408\u4e0a\u4e0b\u6587'), U(r'\u5e26\u5f15\u7528\u56de\u7b54')])}</div>"""
+<div class="split"><div class="panel"><h2>{__fb_u_670}</h2>{self.bullets(risk_items)}<p><a class="btn" href="/api/graph/risk-map">{__fb_u_671}</a></p></div><div class="panel"><h2>{__fb_u_672}</h2>{self.bullets([__fb_u_673, __fb_u_674, __fb_u_675, __fb_u_676])}<p><a class="btn" href="/api/graph/osprey-risk">{__fb_u_677}</a></p></div></div>
+<div class="panel"><h2>{__fb_u_678}</h2><div class="grid">{entity_cards}</div></div>
+<div class="panel"><h2>{__fb_u_679}</h2>{self.bullets(rel_items or [__fb_u_680])}</div>
+<div class="panel"><h2>{__fb_u_681}</h2>{self.bullets([__fb_u_682, __fb_u_683, __fb_u_684, __fb_u_685, __fb_u_686])}</div>"""
         self.out(layout(U(r"\u4f01\u4e1a\u77e5\u8bc6\u56fe\u8c31"), body, user=user, wide=True))
 
     def api_graph_get(self, user, path):
@@ -22474,23 +23160,35 @@ group by coalesce(store_name,'')
             h["agent_name"] + " 路 " + h["tool_name"] + " 路 " + h["risk_level"] + " 路 approval_required"
             for h in data["high_risk_tool_controls"][:12]
         ]
+        __fb_u_687 = U(r'\u6570\u5b57\u5458\u5de5\u76ee\u5f55')
+        __fb_u_688 = U(r'\u9ad8\u98ce\u9669\u5de5\u5177\u7ba1\u63a7')
+        __fb_u_689 = U(r'\u6682\u65e0\u9ad8\u98ce\u9669\u5de5\u5177\u3002')
+        __fb_u_690 = U(r'\u8bb0\u5f55\u6570\u5b57\u5458\u5de5\u7ee9\u6548')
+        __fb_u_691 = U(r'\u6570\u5b57\u5458\u5de5 ID')
+        __fb_u_692 = U(r'\u4efb\u52a1\u5b8c\u6210')
+        __fb_u_693 = U(r'\u5ba1\u6279\u8bf7\u6c42')
+        __fb_u_694 = U(r'\u963b\u65ad\u9ad8\u98ce\u9669')
+        __fb_u_695 = U(r'\u8d28\u91cf\u5206')
+        __fb_u_696 = U(r'\u5b89\u5168\u5206')
+        __fb_u_697 = U(r'\u7ba1\u7406\u8005\u8bc4\u4ef7')
+        __fb_u_698 = U(r'\u4fdd\u5b58\u7ee9\u6548')
         body = f"""
 <div class="panel"><h2>Enterprise Digital Workforce</h2><div class="metrics">{metrics}</div>{self.bullets([data['safety_rule']])}</div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u6570\u5b57\u5458\u5de5\u76ee\u5f55')}</h2>{self.bullets(employee_items)}</div>
-  <div class="panel"><h2>{U(r'\u9ad8\u98ce\u9669\u5de5\u5177\u7ba1\u63a7')}</h2>{self.bullets(high_risk_items or [U(r'\u6682\u65e0\u9ad8\u98ce\u9669\u5de5\u5177\u3002')])}</div>
+  <div class="panel"><h2>{__fb_u_687}</h2>{self.bullets(employee_items)}</div>
+  <div class="panel"><h2>{__fb_u_688}</h2>{self.bullets(high_risk_items or [__fb_u_689])}</div>
 </div>
 <div class="panel form">
-  <h2>{U(r'\u8bb0\u5f55\u6570\u5b57\u5458\u5de5\u7ee9\u6548')}</h2>
+  <h2>{__fb_u_690}</h2>
   <form method="post" action="/api/digital-workforce/performance">
-    <label>{U(r'\u6570\u5b57\u5458\u5de5 ID')}</label><input name="digital_employee_id" value="DE-001">
-    <label>{U(r'\u4efb\u52a1\u5b8c\u6210')}</label><input name="tasks_completed" value="0">
-    <label>{U(r'\u5ba1\u6279\u8bf7\u6c42')}</label><input name="approvals_requested" value="0">
-    <label>{U(r'\u963b\u65ad\u9ad8\u98ce\u9669')}</label><input name="high_risk_blocked" value="0">
-    <label>{U(r'\u8d28\u91cf\u5206')}</label><input name="quality_score" value="80">
-    <label>{U(r'\u5b89\u5168\u5206')}</label><input name="safety_score" value="100">
-    <label>{U(r'\u7ba1\u7406\u8005\u8bc4\u4ef7')}</label><textarea name="manager_review"></textarea>
-    <p><button>{U(r'\u4fdd\u5b58\u7ee9\u6548')}</button></p>
+    <label>{__fb_u_691}</label><input name="digital_employee_id" value="DE-001">
+    <label>{__fb_u_692}</label><input name="tasks_completed" value="0">
+    <label>{__fb_u_693}</label><input name="approvals_requested" value="0">
+    <label>{__fb_u_694}</label><input name="high_risk_blocked" value="0">
+    <label>{__fb_u_695}</label><input name="quality_score" value="80">
+    <label>{__fb_u_696}</label><input name="safety_score" value="100">
+    <label>{__fb_u_697}</label><textarea name="manager_review"></textarea>
+    <p><button>{__fb_u_698}</button></p>
   </form>
 </div>"""
         self.out(layout("Enterprise Digital Workforce", body, user=user, wide=True))
@@ -22671,29 +23369,50 @@ group by coalesce(store_name,'')
         )
         task_items = [t["title"] + " / " + t["status"] + " / " + (t["assigned_agent"] or "") for t in tasks] or [U(r"\u6682\u65e0 AI \u4efb\u52a1\u3002")]
         run_items = [(r["status"] + " / " + summarize_text(r["input"] or "", 48)) for r in runs] or [U(r"\u6682\u65e0\u8fd0\u884c\u8bb0\u5f55\u3002")]
+        __fb_u_699 = U(r'AI \u667a\u80fd\u4f53\u4e2d\u5fc3')
+        __fb_u_700 = U(r'\u7edf\u4e00\u667a\u80fd\u4f53\u3001\u7edf\u4e00\u6743\u9650\u3001\u7edf\u4e00\u5de5\u5177\u63a5\u53e3\u3001\u7edf\u4e00\u5ba1\u8ba1\u3002\u9ad8\u98ce\u9669\u64cd\u4f5c\u53ea\u751f\u6210\u8349\u7a3f\uff0c\u7b49\u5f85\u4eba\u5de5\u5ba1\u6279\u3002')
+        __fb_u_701 = U(r'\u667a\u80fd\u4f53')
+        __fb_u_702 = U(r'\u5df2\u542f\u7528')
+        __fb_u_703 = U(r'AI \u4efb\u52a1')
+        __fb_u_704 = U(r'\u8fd1\u671f')
+        __fb_u_705 = U(r'\u8fd0\u884c\u8bb0\u5f55')
+        __fb_u_706 = U(r'\u53ef\u8ffd\u6eaf')
+        __fb_u_707 = U(r'\u95ee AI')
+        __fb_u_708 = U(r'\u9009\u62e9\u667a\u80fd\u4f53')
+        __fb_u_709 = U(r'\u95ee\u9898')
+        __fb_u_710 = U(r'\u4f8b\uff1a\u4eca\u5929\u516c\u53f8\u7ecf\u8425\u600e\u4e48\u6837\uff1f')
+        __fb_u_711 = U(r'\u751f\u6210\u5f85\u5ba1\u6838\u5206\u6790')
+        __fb_u_712 = U(r'\u5feb\u6377\u5165\u53e3')
+        __fb_u_713 = U(r'AI \u4efb\u52a1')
+        __fb_u_714 = U(r'\u5185\u5bb9\u4e2d\u5fc3')
+        __fb_u_715 = U(r'\u65e5\u5fd7\u4e2d\u5fc3')
+        __fb_u_716 = U(r'\u6743\u9650\u4e2d\u5fc3')
+        __fb_u_717 = U(r'\u667a\u80fd\u4f53\u76ee\u5f55')
+        __fb_u_718 = U(r'\u6700\u8fd1 AI \u4efb\u52a1')
+        __fb_u_719 = U(r'\u6700\u8fd1\u8fd0\u884c')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI \u667a\u80fd\u4f53\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u7edf\u4e00\u667a\u80fd\u4f53\u3001\u7edf\u4e00\u6743\u9650\u3001\u7edf\u4e00\u5de5\u5177\u63a5\u53e3\u3001\u7edf\u4e00\u5ba1\u8ba1\u3002\u9ad8\u98ce\u9669\u64cd\u4f5c\u53ea\u751f\u6210\u8349\u7a3f\uff0c\u7b49\u5f85\u4eba\u5de5\u5ba1\u6279\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u667a\u80fd\u4f53'), len(agents), U(r'\u5df2\u542f\u7528'))}{self.metric(U(r'AI \u4efb\u52a1'), len(tasks), U(r'\u8fd1\u671f'))}{self.metric(U(r'\u8fd0\u884c\u8bb0\u5f55'), len(runs), U(r'\u53ef\u8ffd\u6eaf'))}</div>
+  <h2>{__fb_u_699}</h2>
+  <p class="small">{__fb_u_700}</p>
+  <div class="metrics">{self.metric(__fb_u_701, len(agents), __fb_u_702)}{self.metric(__fb_u_703, len(tasks), __fb_u_704)}{self.metric(__fb_u_705, len(runs), __fb_u_706)}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u95ee AI')}</h2>
+    <h2>{__fb_u_707}</h2>
     <form method="post" action="/api/agents/run">
-      <label>{U(r'\u9009\u62e9\u667a\u80fd\u4f53')}</label>
+      <label>{__fb_u_708}</label>
       <select name="agent_code">{''.join("<option value='{}'>{}</option>".format(esc(a['code']), esc(a['name'])) for a in agents)}</select>
-      <label>{U(r'\u95ee\u9898')}</label><textarea name="question" placeholder="{U(r'\u4f8b\uff1a\u4eca\u5929\u516c\u53f8\u7ecf\u8425\u600e\u4e48\u6837\uff1f')}"></textarea>
-      <p><button>{U(r'\u751f\u6210\u5f85\u5ba1\u6838\u5206\u6790')}</button></p>
+      <label>{__fb_u_709}</label><textarea name="question" placeholder="{__fb_u_710}"></textarea>
+      <p><button>{__fb_u_711}</button></p>
     </form>
   </div>
   <div class="panel">
-    <h2>{U(r'\u5feb\u6377\u5165\u53e3')}</h2>
-    <div class="actions"><a class="button" href="/ai-tasks">{U(r'AI \u4efb\u52a1')}</a><a class="button" href="/content">{U(r'\u5185\u5bb9\u4e2d\u5fc3')}</a><a class="button dark" href="/logs">{U(r'\u65e5\u5fd7\u4e2d\u5fc3')}</a><a class="button" href="/permissions">{U(r'\u6743\u9650\u4e2d\u5fc3')}</a></div>
+    <h2>{__fb_u_712}</h2>
+    <div class="actions"><a class="button" href="/ai-tasks">{__fb_u_713}</a><a class="button" href="/content">{__fb_u_714}</a><a class="button dark" href="/logs">{__fb_u_715}</a><a class="button" href="/permissions">{__fb_u_716}</a></div>
   </div>
 </div>
-<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u76ee\u5f55')}</h2><div class="grid">{agent_cards}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u6700\u8fd1 AI \u4efb\u52a1')}</h2>{self.bullets(task_items)}</div><div class="panel"><h2>{U(r'\u6700\u8fd1\u8fd0\u884c')}</h2>{self.bullets(run_items)}</div></div>"""
+<div class="panel"><h2>{__fb_u_717}</h2><div class="grid">{agent_cards}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_718}</h2>{self.bullets(task_items)}</div><div class="panel"><h2>{__fb_u_719}</h2>{self.bullets(run_items)}</div></div>"""
         self.out(layout(U(r"AI \u667a\u80fd\u4f53\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def agents(self, user):
@@ -22814,23 +23533,37 @@ group by coalesce(store_name,'')
             )
             for t in tasks
         ) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0 AI \u4efb\u52a1\u3002")))
+        __fb_u_720 = U(r'AI \u4efb\u52a1\u4e2d\u5fc3')
+        __fb_u_721 = U(r'\u628a\u7ecf\u8425\u95ee\u9898\u3001\u5185\u5bb9\u9700\u6c42\u3001\u5e93\u5b58\u5206\u6790\u548c\u77e5\u8bc6\u6574\u7406\u7edf\u4e00\u8f6c\u6210\u53ef\u8ddf\u8e2a\u4efb\u52a1\u3002')
+        __fb_u_722 = U(r'\u65b0\u5efa AI \u4efb\u52a1')
+        __fb_u_723 = U(r'\u6807\u9898')
+        __fb_u_724 = U(r'\u4efb\u52a1\u7c7b\u578b')
+        __fb_u_725 = U(r'\u5206\u914d\u667a\u80fd\u4f53')
+        __fb_u_726 = U(r'\u4f18\u5148\u7ea7')
+        __fb_u_727 = U(r'\u666e\u901a')
+        __fb_u_728 = U(r'\u9ad8')
+        __fb_u_729 = U(r'\u7d27\u6025')
+        __fb_u_730 = U(r'\u4f4e')
+        __fb_u_731 = U(r'\u8bf4\u660e')
+        __fb_u_732 = U(r'\u521b\u5efa AI \u4efb\u52a1')
+        __fb_u_733 = U(r'\u4efb\u52a1\u5217\u8868')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI \u4efb\u52a1\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u628a\u7ecf\u8425\u95ee\u9898\u3001\u5185\u5bb9\u9700\u6c42\u3001\u5e93\u5b58\u5206\u6790\u548c\u77e5\u8bc6\u6574\u7406\u7edf\u4e00\u8f6c\u6210\u53ef\u8ddf\u8e2a\u4efb\u52a1\u3002')}</p>
+  <h2>{__fb_u_720}</h2>
+  <p class="small">{__fb_u_721}</p>
 </div>
 <div class="panel form">
-  <h2>{U(r'\u65b0\u5efa AI \u4efb\u52a1')}</h2>
+  <h2>{__fb_u_722}</h2>
   <form method="post" action="/ai-tasks/save">
-    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
-    <label>{U(r'\u4efb\u52a1\u7c7b\u578b')}</label><select name="task_type"><option value="analysis">analysis</option><option value="content">content</option><option value="knowledge">knowledge</option><option value="inventory">inventory</option><option value="customer">customer</option></select>
-    <label>{U(r'\u5206\u914d\u667a\u80fd\u4f53')}</label><select name="assigned_agent">{''.join("<option value='{}'>{}</option>".format(esc(a['code']), esc(a['name'])) for a in agents)}</select>
-    <label>{U(r'\u4f18\u5148\u7ea7')}</label><select name="priority"><option value="normal">{U(r'\u666e\u901a')}</option><option value="high">{U(r'\u9ad8')}</option><option value="urgent">{U(r'\u7d27\u6025')}</option><option value="low">{U(r'\u4f4e')}</option></select>
-    <label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea>
-    <p><button>{U(r'\u521b\u5efa AI \u4efb\u52a1')}</button></p>
+    <label>{__fb_u_723}</label><input name="title" required>
+    <label>{__fb_u_724}</label><select name="task_type"><option value="analysis">analysis</option><option value="content">content</option><option value="knowledge">knowledge</option><option value="inventory">inventory</option><option value="customer">customer</option></select>
+    <label>{__fb_u_725}</label><select name="assigned_agent">{''.join("<option value='{}'>{}</option>".format(esc(a['code']), esc(a['name'])) for a in agents)}</select>
+    <label>{__fb_u_726}</label><select name="priority"><option value="normal">{__fb_u_727}</option><option value="high">{__fb_u_728}</option><option value="urgent">{__fb_u_729}</option><option value="low">{__fb_u_730}</option></select>
+    <label>{__fb_u_731}</label><textarea name="description"></textarea>
+    <p><button>{__fb_u_732}</button></p>
   </form>
 </div>
-<div class="panel"><h2>{U(r'\u4efb\u52a1\u5217\u8868')}</h2><div class="grid">{cards}</div></div>"""
+<div class="panel"><h2>{__fb_u_733}</h2><div class="grid">{cards}</div></div>"""
         self.out(layout(U(r"AI \u4efb\u52a1\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def ai_task_save(self):
@@ -22861,9 +23594,13 @@ group by coalesce(store_name,'')
             acts = conn.execute("select * from activity_log order by created_at desc limit 40").fetchall()
         log_items = [str(l["created_at"]) + " / " + (l["module"] or "") + " / " + (l["action"] or "") + " / " + summarize_text(l["message"] or "", 60) for l in logs] or [U(r"\u6682\u65e0\u7cfb\u7edf\u65e5\u5fd7\u3002")]
         act_items = [str(a["created_at"]) + " / " + (a["action"] or "") + " / " + (a["target_type"] or "") for a in acts] or [U(r"\u6682\u65e0\u64cd\u4f5c\u65e5\u5fd7\u3002")]
+        __fb_u_734 = U(r'\u65e5\u5fd7\u4e2d\u5fc3')
+        __fb_u_735 = U(r'\u8bb0\u5f55 AI \u64cd\u4f5c\u3001\u4efb\u52a1\u3001\u5185\u5bb9\u3001\u6743\u9650\u548c\u7cfb\u7edf\u884c\u4e3a\uff0c\u7528\u4e8e\u8ffd\u6eaf\u548c\u5ba1\u8ba1\u3002')
+        __fb_u_736 = U(r'\u7cfb\u7edf\u65e5\u5fd7')
+        __fb_u_737 = U(r'\u64cd\u4f5c\u65e5\u5fd7')
         body = f"""
-<div class="panel"><h2>{U(r'\u65e5\u5fd7\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u8bb0\u5f55 AI \u64cd\u4f5c\u3001\u4efb\u52a1\u3001\u5185\u5bb9\u3001\u6743\u9650\u548c\u7cfb\u7edf\u884c\u4e3a\uff0c\u7528\u4e8e\u8ffd\u6eaf\u548c\u5ba1\u8ba1\u3002')}</p></div>
-<div class="split"><div class="panel"><h2>{U(r'\u7cfb\u7edf\u65e5\u5fd7')}</h2>{self.bullets(log_items)}</div><div class="panel"><h2>{U(r'\u64cd\u4f5c\u65e5\u5fd7')}</h2>{self.bullets(act_items)}</div></div>"""
+<div class="panel"><h2>{__fb_u_734}</h2><p class="small">{__fb_u_735}</p></div>
+<div class="split"><div class="panel"><h2>{__fb_u_736}</h2>{self.bullets(log_items)}</div><div class="panel"><h2>{__fb_u_737}</h2>{self.bullets(act_items)}</div></div>"""
         self.out(layout(U(r"\u65e5\u5fd7\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def permission_center(self, user):
@@ -22877,14 +23614,29 @@ group by coalesce(store_name,'')
             "<div class='card'><div><h2>{}</h2>{}</div></div>".format(esc(role), self.bullets(items))
             for role, items in permissions.items()
         )
+        __fb_u_738 = U(r'\u6743\u9650\u4e2d\u5fc3')
+        __fb_u_739 = U(r'\u6240\u6709 AI \u667a\u80fd\u4f53\u3001\u5185\u5bb9\u3001\u77e5\u8bc6\u3001SAP \u6570\u636e\u548c\u9ad8\u98ce\u9669\u64cd\u4f5c\u90fd\u6309\u89d2\u8272\u7ba1\u63a7\u3002')
+        __fb_u_740 = U(r'\u5f53\u524d\u89d2\u8272')
+        __fb_u_741 = U(r'\u5df2\u767b\u5f55')
+        __fb_u_742 = U(r'\u9ad8\u98ce\u9669')
+        __fb_u_743 = U(r'\u5ba1\u6279')
+        __fb_u_744 = U(r'\u9ed8\u8ba4')
+        __fb_u_745 = U(r'\u5bc6\u7801')
+        __fb_u_746 = U(r'\u52a0\u5bc6')
+        __fb_u_747 = U(r'\u5b58\u50a8')
+        __fb_u_748 = U(r'\u89d2\u8272\u6743\u9650')
+        __fb_u_749 = U(r'\u9ad8\u98ce\u9669\u89c4\u5219')
+        __fb_u_750 = U(r'\u4ef7\u683c\u8c03\u6574\u3001\u5408\u540c\u3001\u8d22\u52a1\u652f\u4ed8\u3001\u5bf9\u5916\u53d1\u5e03\u4e0d\u80fd\u7531 AI \u81ea\u52a8\u6267\u884c\u3002')
+        __fb_u_751 = U(r'\u6240\u6709 AI \u5efa\u8bae\u5fc5\u987b\u4fdd\u7559\u6570\u636e\u6216\u77e5\u8bc6\u4f9d\u636e\u3002')
+        __fb_u_752 = U(r'\u7ba1\u7406\u5458\u53ef\u901a\u8fc7\u7528\u6237\u7ba1\u7406\u4fee\u6539\u89d2\u8272\u548c\u7981\u7528\u7528\u6237\u3002')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u6743\u9650\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u6240\u6709 AI \u667a\u80fd\u4f53\u3001\u5185\u5bb9\u3001\u77e5\u8bc6\u3001SAP \u6570\u636e\u548c\u9ad8\u98ce\u9669\u64cd\u4f5c\u90fd\u6309\u89d2\u8272\u7ba1\u63a7\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u5f53\u524d\u89d2\u8272'), esc(user['role']), U(r'\u5df2\u767b\u5f55'))}{self.metric(U(r'\u9ad8\u98ce\u9669'), U(r'\u5ba1\u6279'), U(r'\u9ed8\u8ba4'))}{self.metric(U(r'\u5bc6\u7801'), U(r'\u52a0\u5bc6'), U(r'\u5b58\u50a8'))}</div>
+  <h2>{__fb_u_738}</h2>
+  <p class="small">{__fb_u_739}</p>
+  <div class="metrics">{self.metric(__fb_u_740, esc(user['role']), __fb_u_741)}{self.metric(__fb_u_742, __fb_u_743, __fb_u_744)}{self.metric(__fb_u_745, __fb_u_746, __fb_u_747)}</div>
 </div>
-<div class="panel"><h2>{U(r'\u89d2\u8272\u6743\u9650')}</h2><div class="grid">{cards}</div></div>
-<div class="panel"><h2>{U(r'\u9ad8\u98ce\u9669\u89c4\u5219')}</h2>{self.bullets([U(r'\u4ef7\u683c\u8c03\u6574\u3001\u5408\u540c\u3001\u8d22\u52a1\u652f\u4ed8\u3001\u5bf9\u5916\u53d1\u5e03\u4e0d\u80fd\u7531 AI \u81ea\u52a8\u6267\u884c\u3002'), U(r'\u6240\u6709 AI \u5efa\u8bae\u5fc5\u987b\u4fdd\u7559\u6570\u636e\u6216\u77e5\u8bc6\u4f9d\u636e\u3002'), U(r'\u7ba1\u7406\u5458\u53ef\u901a\u8fc7\u7528\u6237\u7ba1\u7406\u4fee\u6539\u89d2\u8272\u548c\u7981\u7528\u7528\u6237\u3002')])}</div>"""
+<div class="panel"><h2>{__fb_u_748}</h2><div class="grid">{cards}</div></div>
+<div class="panel"><h2>{__fb_u_749}</h2>{self.bullets([__fb_u_750, __fb_u_751, __fb_u_752])}</div>"""
         self.out(layout(U(r"\u6743\u9650\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def agent_collaboration(self, user):
@@ -22906,33 +23658,64 @@ group by coalesce(store_name,'')
         ) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u667a\u80fd\u4f53\u4efb\u52a1\u3002")))
         discussion_items = [d["topic"] + " 路 " + d["human_review_status"] for d in data["discussions"]] or [U(r"\u6682\u65e0\u667a\u80fd\u4f53\u8ba8\u8bba\u3002")]
         tool_items = [t["tool_name"] + " 路 " + t["permission_required"] for t in data["tools"]]
+        __fb_u_753 = U(r'\u591a\u667a\u80fd\u4f53\u534f\u540c\u4e2d\u5fc3')
+        __fb_u_754 = U(r'AI CEO \u63a5\u6536\u95ee\u9898\uff0c\u518d\u5206\u914d CFO\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u7814\u7a76\u3001\u95e8\u5e97\u7b49\u667a\u80fd\u4f53\u5206\u6790\uff0c\u6700\u540e\u7531\u4eba\u5de5\u5ba1\u6838\u3002')
+        __fb_u_755 = U(r'\u667a\u80fd\u4f53')
+        __fb_u_756 = U(r'\u89d2\u8272')
+        __fb_u_757 = U(r'\u4efb\u52a1')
+        __fb_u_758 = U(r'\u5f85\u5ba1\u6838')
+        __fb_u_759 = U(r'\u8ba8\u8bba')
+        __fb_u_760 = U(r'\u534f\u540c')
+        __fb_u_761 = U(r'\u5de5\u5177')
+        __fb_u_762 = U(r'\u6ce8\u518c')
+        __fb_u_763 = U(r'\u521b\u5efa\u667a\u80fd\u4f53\u4efb\u52a1')
+        __fb_u_764 = U(r'\u4efb\u52a1\u6807\u9898')
+        __fb_u_765 = U(r'\u8bf4\u660e')
+        __fb_u_766 = U(r'\u6307\u6d3e\u667a\u80fd\u4f53 ID')
+        __fb_u_767 = U(r'\u671f\u671b\u8f93\u51fa')
+        __fb_u_768 = U(r'\u521b\u5efa\u5f85\u5ba1\u6838\u4efb\u52a1')
+        __fb_u_769 = U(r'Osprey \u591a\u667a\u80fd\u4f53\u573a\u666f')
+        __fb_u_770 = U(r'AI CEO\uff1a\u7efc\u5408\u5224\u65ad')
+        __fb_u_771 = U(r'AI CFO\uff1a\u5229\u6da6\u4e0e\u8fd4\u70b9\u98ce\u9669')
+        __fb_u_772 = U(r'AI \u5e93\u5b58\u7ecf\u7406\uff1a\u5e93\u5b58\u538b\u529b')
+        __fb_u_773 = U(r'AI \u54c1\u724c\u7ecf\u7406\uff1a\u54c1\u724c\u4ef7\u683c\u5f62\u8c61')
+        __fb_u_774 = U(r'AI \u7814\u7a76\u5458\uff1a\u5916\u90e8\u5e02\u573a\u4ef7\u683c')
+        __fb_u_775 = U(r'\u751f\u6210\u573a\u666f\u5360\u4f4d JSON')
+        __fb_u_776 = U(r'\u667a\u80fd\u4f53\u56e2\u961f')
+        __fb_u_777 = U(r'\u667a\u80fd\u4f53\u4efb\u52a1')
+        __fb_u_778 = U(r'\u667a\u80fd\u4f53\u8ba8\u8bba')
+        __fb_u_779 = U(r'\u5de5\u5177\u6ce8\u518c\u8868')
+        __fb_u_780 = U(r'\u4eba\u5de5\u5ba1\u6279\u95f8\u95e8')
+        __fb_u_781 = U(r'\u521b\u5efa\u5206\u914d\u7ed9\u5458\u5de5\u7684\u4efb\u52a1\u9700\u8981\u5ba1\u6838')
+        __fb_u_782 = U(r'\u5ba1\u6838\u5916\u90e8\u77e5\u8bc6\u9700\u8981\u4eba\u5de5\u786e\u8ba4')
+        __fb_u_783 = U(r'\u4fee\u6539\u8bb0\u5fc6\u3001\u5b9a\u4ef7\u89c4\u5219\u3001\u53d1\u9001\u901a\u77e5\u3001\u53d1\u5e03\u5185\u5bb9\u90fd\u9700\u8981\u4eba\u5de5\u5ba1\u6838')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u591a\u667a\u80fd\u4f53\u534f\u540c\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'AI CEO \u63a5\u6536\u95ee\u9898\uff0c\u518d\u5206\u914d CFO\u3001\u5e93\u5b58\u3001\u54c1\u724c\u3001\u7814\u7a76\u3001\u95e8\u5e97\u7b49\u667a\u80fd\u4f53\u5206\u6790\uff0c\u6700\u540e\u7531\u4eba\u5de5\u5ba1\u6838\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u667a\u80fd\u4f53'), len(data['roles']), U(r'\u89d2\u8272'))}{self.metric(U(r'\u4efb\u52a1'), len(data['tasks']), U(r'\u5f85\u5ba1\u6838'))}{self.metric(U(r'\u8ba8\u8bba'), len(data['discussions']), U(r'\u534f\u540c'))}{self.metric(U(r'\u5de5\u5177'), len(data['tools']), U(r'\u6ce8\u518c'))}</div>
+  <h2>{__fb_u_753}</h2>
+  <p class="small">{__fb_u_754}</p>
+  <div class="metrics">{self.metric(__fb_u_755, len(data['roles']), __fb_u_756)}{self.metric(__fb_u_757, len(data['tasks']), __fb_u_758)}{self.metric(__fb_u_759, len(data['discussions']), __fb_u_760)}{self.metric(__fb_u_761, len(data['tools']), __fb_u_762)}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u521b\u5efa\u667a\u80fd\u4f53\u4efb\u52a1')}</h2>
+    <h2>{__fb_u_763}</h2>
     <form method="post" action="/api/agents/tasks">
-      <label>{U(r'\u4efb\u52a1\u6807\u9898')}</label><input name="title" required>
-      <label>{U(r'\u8bf4\u660e')}</label><textarea name="description"></textarea>
-      <label>{U(r'\u6307\u6d3e\u667a\u80fd\u4f53 ID')}</label><input name="assigned_agent_id" placeholder="1">
-      <label>{U(r'\u671f\u671b\u8f93\u51fa')}</label><textarea name="expected_output" placeholder="Summary / Evidence / Risks / Recommended action"></textarea>
-      <p><button>{U(r'\u521b\u5efa\u5f85\u5ba1\u6838\u4efb\u52a1')}</button></p>
+      <label>{__fb_u_764}</label><input name="title" required>
+      <label>{__fb_u_765}</label><textarea name="description"></textarea>
+      <label>{__fb_u_766}</label><input name="assigned_agent_id" placeholder="1">
+      <label>{__fb_u_767}</label><textarea name="expected_output" placeholder="Summary / Evidence / Risks / Recommended action"></textarea>
+      <p><button>{__fb_u_768}</button></p>
     </form>
   </div>
   <div class="panel">
-    <h2>{U(r'Osprey \u591a\u667a\u80fd\u4f53\u573a\u666f')}</h2>
-    {self.bullets([U(r'AI CEO\uff1a\u7efc\u5408\u5224\u65ad'), U(r'AI CFO\uff1a\u5229\u6da6\u4e0e\u8fd4\u70b9\u98ce\u9669'), U(r'AI \u5e93\u5b58\u7ecf\u7406\uff1a\u5e93\u5b58\u538b\u529b'), U(r'AI \u54c1\u724c\u7ecf\u7406\uff1a\u54c1\u724c\u4ef7\u683c\u5f62\u8c61'), U(r'AI \u7814\u7a76\u5458\uff1a\u5916\u90e8\u5e02\u573a\u4ef7\u683c')])}
-    <form method="post" action="/api/agents/scenarios/osprey-pricing"><button class="dark">{U(r'\u751f\u6210\u573a\u666f\u5360\u4f4d JSON')}</button></form>
+    <h2>{__fb_u_769}</h2>
+    {self.bullets([__fb_u_770, __fb_u_771, __fb_u_772, __fb_u_773, __fb_u_774])}
+    <form method="post" action="/api/agents/scenarios/osprey-pricing"><button class="dark">{__fb_u_775}</button></form>
   </div>
 </div>
-<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u56e2\u961f')}</h2><div class="grid">{role_cards}</div></div>
-<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u4efb\u52a1')}</h2><div class="grid">{task_cards}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u8ba8\u8bba')}</h2>{self.bullets(discussion_items)}</div><div class="panel"><h2>{U(r'\u5de5\u5177\u6ce8\u518c\u8868')}</h2>{self.bullets(tool_items)}</div></div>
-<div class="panel"><h2>{U(r'\u4eba\u5de5\u5ba1\u6279\u95f8\u95e8')}</h2>{self.bullets([U(r'\u521b\u5efa\u5206\u914d\u7ed9\u5458\u5de5\u7684\u4efb\u52a1\u9700\u8981\u5ba1\u6838'), U(r'\u5ba1\u6838\u5916\u90e8\u77e5\u8bc6\u9700\u8981\u4eba\u5de5\u786e\u8ba4'), U(r'\u4fee\u6539\u8bb0\u5fc6\u3001\u5b9a\u4ef7\u89c4\u5219\u3001\u53d1\u9001\u901a\u77e5\u3001\u53d1\u5e03\u5185\u5bb9\u90fd\u9700\u8981\u4eba\u5de5\u5ba1\u6838')])}</div>"""
+<div class="panel"><h2>{__fb_u_776}</h2><div class="grid">{role_cards}</div></div>
+<div class="panel"><h2>{__fb_u_777}</h2><div class="grid">{task_cards}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_778}</h2>{self.bullets(discussion_items)}</div><div class="panel"><h2>{__fb_u_779}</h2>{self.bullets(tool_items)}</div></div>
+<div class="panel"><h2>{__fb_u_780}</h2>{self.bullets([__fb_u_781, __fb_u_782, __fb_u_783])}</div>"""
         self.out(layout(U(r"\u591a\u667a\u80fd\u4f53\u534f\u540c"), body, user=user, wide=True))
 
     def agent_framework_payload(self, user):
@@ -23115,25 +23898,36 @@ group by coalesce(store_name,'')
         flow_items = [f.get("name", "") + " / " + f.get("approval_gate", "") for f in flows]
         model_items = context.get("available_models") or [context.get("readiness", "waiting_for_sap_knowledge_engine")]
         fusion_items = [k + ": " + v for k, v in (fusion.get("layer_readiness") or {}).items()]
+        __fb_u_784 = U(r'\u534f\u540c')
+        __fb_u_785 = U(r'\u5171\u4eab\u6a21\u578b')
+        __fb_u_786 = U(r'\u5ba1\u6279')
+        __fb_u_787 = U(r'\u5fc5\u987b')
+        __fb_u_788 = U(r'\u9ad8\u98ce\u9669')
+        __fb_u_789 = U(r'\u521b\u5efa\u591a\u667a\u80fd\u4f53\u534f\u540c\u8ba1\u5212')
+        __fb_u_790 = U(r'\u76ee\u6807')
+        __fb_u_791 = U(r'\u63d0\u4ea4\u5ba1\u6279\u8ba1\u5212')
+        __fb_u_792 = U(r'\u878d\u5408\u77e5\u8bc6')
+        __fb_u_793 = U(r'\u534f\u540c\u6d41')
+        __fb_u_794 = U(r'\u5ba1\u6279\u4e2d\u5fc3')
         body = f"""
 <div class="panel">
   <h2>VAFOX Enterprise OS V1.6</h2>
-  <div class="metrics">{self.metric("Agent", len(roles), U(r'\u534f\u540c'))}{self.metric("SAP", len(model_items), U(r'\u5171\u4eab\u6a21\u578b'))}{self.metric(U(r'\u5ba1\u6279'), U(r'\u5fc5\u987b'), U(r'\u9ad8\u98ce\u9669'))}</div>
+  <div class="metrics">{self.metric("Agent", len(roles), __fb_u_784)}{self.metric("SAP", len(model_items), __fb_u_785)}{self.metric(__fb_u_786, __fb_u_787, __fb_u_788)}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u521b\u5efa\u591a\u667a\u80fd\u4f53\u534f\u540c\u8ba1\u5212')}</h2>
+    <h2>{__fb_u_789}</h2>
     <form method="post" action="/api/agents/v1.6/collaboration-plan">
-      <label>{U(r'\u76ee\u6807')}</label><textarea name="objective" placeholder="review SAP sales, inventory, product and member signals" required></textarea>
+      <label>{__fb_u_790}</label><textarea name="objective" placeholder="review SAP sales, inventory, product and member signals" required></textarea>
       <label>Agents</label><input name="agents" value="ceo,business,inventory,product,member,content">
-      <p><button>{U(r'\u63d0\u4ea4\u5ba1\u6279\u8ba1\u5212')}</button></p>
+      <p><button>{__fb_u_791}</button></p>
     </form>
   </div>
-  <div class="panel"><h2>{U(r'\u878d\u5408\u77e5\u8bc6')}</h2>{self.bullets(fusion_items or model_items)}</div>
+  <div class="panel"><h2>{__fb_u_792}</h2>{self.bullets(fusion_items or model_items)}</div>
 </div>
-<div class="panel"><h2>{U(r'\u534f\u540c\u6d41')}</h2>{self.bullets(flow_items)}</div>
+<div class="panel"><h2>{__fb_u_793}</h2>{self.bullets(flow_items)}</div>
 <div class="panel"><h2>Agents</h2><div class="grid">{cards}</div></div>
-<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.6">/api/agents/v1.6</a><a class="button" href="/api/agents/v1.6/fusion-knowledge">Fusion</a><a class="button" href="/api/agents/v1.6/shared-sap-knowledge">SAP Context</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</a></div></div>
+<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.6">/api/agents/v1.6</a><a class="button" href="/api/agents/v1.6/fusion-knowledge">Fusion</a><a class="button" href="/api/agents/v1.6/shared-sap-knowledge">SAP Context</a><a class="button dark" href="/approvals">{__fb_u_794}</a></div></div>
 """
         self.out(layout("VAFOX Enterprise OS V1.6", body, user=user, wide=True))
 
@@ -23153,28 +23947,47 @@ group by coalesce(store_name,'')
             for d in domains
         )
         options = "".join("<option value='{}'>{}</option>".format(esc(d.get("key", "")), esc(d.get("name", ""))) for d in domains)
+        __fb_u_795 = U(r'\u7ecf\u8425\u3001\u5e93\u5b58\u3001\u4f1a\u5458\u3001\u5185\u5bb9\u667a\u80fd\u4f53\u5df2\u63a5\u5165\u73b0\u6709 Agent \u6846\u67b6\uff0c\u6240\u6709 AI \u6267\u884c\u5148\u8fdb\u5165\u5ba1\u6279\u8ba1\u5212\u3002')
+        __fb_u_796 = U(r'\u667a\u80fd\u4f53')
+        __fb_u_797 = U(r'\u4e1a\u52a1\u57df')
+        __fb_u_798 = U(r'\u5ba1\u6279')
+        __fb_u_799 = U(r'\u5fc5\u987b')
+        __fb_u_800 = U(r'AI \u6267\u884c')
+        __fb_u_801 = U(r'\u6838\u5fc3')
+        __fb_u_802 = U(r'\u6570\u636e\u6e90')
+        __fb_u_803 = U(r'\u521b\u5efa\u5f85\u5ba1\u6279\u667a\u80fd\u4f53\u8ba1\u5212')
+        __fb_u_804 = U(r'\u667a\u80fd\u4f53\u7c7b\u578b')
+        __fb_u_805 = U(r'\u76ee\u6807')
+        __fb_u_806 = U(r'\u63d0\u4ea4\u5ba1\u6279\u8ba1\u5212')
+        __fb_u_807 = U(r'\u6267\u884c\u8fb9\u754c')
+        __fb_u_808 = U(r'\u4e0d\u91cd\u6784\u6570\u636e\u5e93\uff0c\u590d\u7528 ai_operation_plans\u3002')
+        __fb_u_809 = U(r'\u6240\u6709 AI \u6267\u884c\u5148\u751f\u6210 pending_review \u8ba1\u5212\u3002')
+        __fb_u_810 = U(r'\u672a\u7ecf\u4eba\u5de5\u5ba1\u6279\u524d execution_status \u4fdd\u6301 blocked_manual_required\u3002')
+        __fb_u_811 = U(r'SAP \u4ecd\u662f\u6838\u5fc3\u4e1a\u52a1\u6570\u636e\u6e90\u3002')
+        __fb_u_812 = U(r'\u667a\u80fd\u4f53\u57df')
+        __fb_u_813 = U(r'\u5ba1\u6279\u4e2d\u5fc3')
         body = f"""
 <div class="panel">
   <h2>VAFOX Enterprise OS V1.2</h2>
-  <p class="small">{U(r'\u7ecf\u8425\u3001\u5e93\u5b58\u3001\u4f1a\u5458\u3001\u5185\u5bb9\u667a\u80fd\u4f53\u5df2\u63a5\u5165\u73b0\u6709 Agent \u6846\u67b6\uff0c\u6240\u6709 AI \u6267\u884c\u5148\u8fdb\u5165\u5ba1\u6279\u8ba1\u5212\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u667a\u80fd\u4f53'), len(domains), U(r'\u4e1a\u52a1\u57df'))}{self.metric(U(r'\u5ba1\u6279'), U(r'\u5fc5\u987b'), U(r'AI \u6267\u884c'))}{self.metric("SAP", U(r'\u6838\u5fc3'), U(r'\u6570\u636e\u6e90'))}</div>
+  <p class="small">{__fb_u_795}</p>
+  <div class="metrics">{self.metric(__fb_u_796, len(domains), __fb_u_797)}{self.metric(__fb_u_798, __fb_u_799, __fb_u_800)}{self.metric("SAP", __fb_u_801, __fb_u_802)}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u521b\u5efa\u5f85\u5ba1\u6279\u667a\u80fd\u4f53\u8ba1\u5212')}</h2>
+    <h2>{__fb_u_803}</h2>
     <form method="post" action="/api/agents/v1.2/plan">
-      <label>{U(r'\u667a\u80fd\u4f53\u7c7b\u578b')}</label><select name="domain">{options}</select>
-      <label>{U(r'\u76ee\u6807')}</label><textarea name="objective" placeholder="渚嬪锛氬垎鏋愭湰鍛ㄥ簱瀛橀闄╁苟鎻愬嚭琛ヨ揣寤鸿" required></textarea>
-      <p><button>{U(r'\u63d0\u4ea4\u5ba1\u6279\u8ba1\u5212')}</button></p>
+      <label>{__fb_u_804}</label><select name="domain">{options}</select>
+      <label>{__fb_u_805}</label><textarea name="objective" placeholder="渚嬪锛氬垎鏋愭湰鍛ㄥ簱瀛橀闄╁苟鎻愬嚭琛ヨ揣寤鸿" required></textarea>
+      <p><button>{__fb_u_806}</button></p>
     </form>
   </div>
   <div class="panel">
-    <h2>{U(r'\u6267\u884c\u8fb9\u754c')}</h2>
-    {self.bullets([U(r'\u4e0d\u91cd\u6784\u6570\u636e\u5e93\uff0c\u590d\u7528 ai_operation_plans\u3002'), U(r'\u6240\u6709 AI \u6267\u884c\u5148\u751f\u6210 pending_review \u8ba1\u5212\u3002'), U(r'\u672a\u7ecf\u4eba\u5de5\u5ba1\u6279\u524d execution_status \u4fdd\u6301 blocked_manual_required\u3002'), U(r'SAP \u4ecd\u662f\u6838\u5fc3\u4e1a\u52a1\u6570\u636e\u6e90\u3002')])}
+    <h2>{__fb_u_807}</h2>
+    {self.bullets([__fb_u_808, __fb_u_809, __fb_u_810, __fb_u_811])}
   </div>
 </div>
-<div class="panel"><h2>{U(r'\u667a\u80fd\u4f53\u57df')}</h2><div class="grid">{cards}</div></div>
-<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.2">/api/agents/v1.2</a><a class="button" href="/api/agents/v1.2/inventory">Inventory</a><a class="button dark" href="/approvals">{U(r'\u5ba1\u6279\u4e2d\u5fc3')}</a></div></div>
+<div class="panel"><h2>{__fb_u_812}</h2><div class="grid">{cards}</div></div>
+<div class="panel"><h2>API</h2><div class="actions"><a class="button" href="/api/agents/v1.2">/api/agents/v1.2</a><a class="button" href="/api/agents/v1.2/inventory">Inventory</a><a class="button dark" href="/approvals">{__fb_u_813}</a></div></div>
 """
         self.out(layout("VAFOX Enterprise OS V1.2", body, user=user, wide=True))
 
@@ -23581,31 +24394,50 @@ group by coalesce(store_name,'')
             )
             for c in cases
         ) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u51b3\u7b56\u6848\u4f8b\u3002")))
+        __fb_u_814 = U(r'AI \u51b3\u7b56\u4e2d\u5fc3')
+        __fb_u_815 = U(r'\u628a SAP\u3001KPI\u3001\u77e5\u8bc6\u548c AI \u5efa\u8bae\u8f6c\u6210\u53ef\u5ba1\u6838\u3001\u53ef\u8ffd\u6eaf\u3001\u53ef\u5ba1\u6279\u7684\u51b3\u7b56\u6848\u4f8b\u3002')
+        __fb_u_816 = U(r'\u672c\u6708\u9500\u552e')
+        __fb_u_817 = U(r'\uffe5')
+        __fb_u_818 = U(r'\u6765\u6e90 SAP')
+        __fb_u_819 = U(r'\u5b8c\u6210\u7387')
+        __fb_u_820 = U(r'\u7edf\u4e00 KPI')
+        __fb_u_821 = U(r'\u98ce\u9669\u8bc4\u5206')
+        __fb_u_822 = U(r'\u9700\u4eba\u5de5\u590d\u6838')
+        __fb_u_823 = U(r'SAP \u540c\u6b65')
+        __fb_u_824 = U(r'\u6bcf\u665a 22:00')
+        __fb_u_825 = U(r'AI \u5efa\u8bae')
+        __fb_u_826 = U(r'\u65b0\u5efa\u51b3\u7b56\u6848\u4f8b')
+        __fb_u_827 = U(r'\u51b3\u7b56\u6807\u9898')
+        __fb_u_828 = U(r'\u7c7b\u578b')
+        __fb_u_829 = U(r'\u4e1a\u52a1\u533a\u57df')
+        __fb_u_830 = U(r'\u5efa\u8bae\u5185\u5bb9')
+        __fb_u_831 = U(r'\u4fdd\u5b58\u4e3a\u5f85\u5ba1\u6838\u51b3\u7b56')
+        __fb_u_832 = U(r'\u51b3\u7b56\u6848\u4f8b')
         body = f"""
 <div class="panel">
-  <h2>{U(r'AI \u51b3\u7b56\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'\u628a SAP\u3001KPI\u3001\u77e5\u8bc6\u548c AI \u5efa\u8bae\u8f6c\u6210\u53ef\u5ba1\u6838\u3001\u53ef\u8ffd\u6eaf\u3001\u53ef\u5ba1\u6279\u7684\u51b3\u7b56\u6848\u4f8b\u3002')}</p>
+  <h2>{__fb_u_814}</h2>
+  <p class="small">{__fb_u_815}</p>
   <div class="metrics">
-    {self.metric(U(r'\u672c\u6708\u9500\u552e'), U(r'\uffe5') + money(snap['metrics'].get('month_sales')), U(r'\u6765\u6e90 SAP'))}
-    {self.metric(U(r'\u5b8c\u6210\u7387'), pct(snap['metrics'].get('completion_rate')), U(r'\u7edf\u4e00 KPI'))}
-    {self.metric(U(r'\u98ce\u9669\u8bc4\u5206'), snap['risk_score'], U(r'\u9700\u4eba\u5de5\u590d\u6838'))}
-    {self.metric(U(r'SAP \u540c\u6b65'), snap['sap'].get('next_run_time'), U(r'\u6bcf\u665a 22:00'))}
+    {self.metric(__fb_u_816, __fb_u_817 + money(snap['metrics'].get('month_sales')), __fb_u_818)}
+    {self.metric(__fb_u_819, pct(snap['metrics'].get('completion_rate')), __fb_u_820)}
+    {self.metric(__fb_u_821, snap['risk_score'], __fb_u_822)}
+    {self.metric(__fb_u_823, snap['sap'].get('next_run_time'), __fb_u_824)}
   </div>
 </div>
 <div class="split">
-  <div class="panel"><h2>{U(r'AI \u5efa\u8bae')}</h2>{self.bullets(rec_items)}</div>
+  <div class="panel"><h2>{__fb_u_825}</h2>{self.bullets(rec_items)}</div>
   <div class="panel form">
-    <h2>{U(r'\u65b0\u5efa\u51b3\u7b56\u6848\u4f8b')}</h2>
+    <h2>{__fb_u_826}</h2>
     <form method="post" action="/decision-center/save">
-      <label>{U(r'\u51b3\u7b56\u6807\u9898')}</label><input name="title" required>
-      <label>{U(r'\u7c7b\u578b')}</label><select name="decision_type"><option value="sales">sales</option><option value="inventory">inventory</option><option value="pricing">pricing</option><option value="finance">finance</option><option value="purchase">purchase</option></select>
-      <label>{U(r'\u4e1a\u52a1\u533a\u57df')}</label><input name="business_area" placeholder="store / brand / product / customer">
-      <label>{U(r'\u5efa\u8bae\u5185\u5bb9')}</label><textarea name="recommendation"></textarea>
-      <p><button>{U(r'\u4fdd\u5b58\u4e3a\u5f85\u5ba1\u6838\u51b3\u7b56')}</button></p>
+      <label>{__fb_u_827}</label><input name="title" required>
+      <label>{__fb_u_828}</label><select name="decision_type"><option value="sales">sales</option><option value="inventory">inventory</option><option value="pricing">pricing</option><option value="finance">finance</option><option value="purchase">purchase</option></select>
+      <label>{__fb_u_829}</label><input name="business_area" placeholder="store / brand / product / customer">
+      <label>{__fb_u_830}</label><textarea name="recommendation"></textarea>
+      <p><button>{__fb_u_831}</button></p>
     </form>
   </div>
 </div>
-<div class="panel"><h2>{U(r'\u51b3\u7b56\u6848\u4f8b')}</h2><div class="grid">{case_cards}</div></div>"""
+<div class="panel"><h2>{__fb_u_832}</h2><div class="grid">{case_cards}</div></div>"""
         self.out(layout(U(r"AI \u51b3\u7b56\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def v64_decision_save(self):
@@ -23715,14 +24547,28 @@ group by coalesce(store_name,'')
         payload = self.v71_kernel_payload(user)
         setting_items = [s["setting_key"] + " = " + str(s["setting_value"]) for s in payload["kernel"]["configuration_center"]]
         route_items = [r["method"] + " " + r["path"] + " -> " + r["service_name"] for r in payload["api_gateway"]]
+        __fb_u_833 = U(r'V7.1 \u4f01\u4e1a\u5185\u6838')
+        __fb_u_834 = U(r'\u7edf\u4e00\u914d\u7f6e\u3001\u7ec4\u7ec7\u3001RBAC\u3001\u529f\u80fd\u5f00\u5173\u3001\u5ba1\u8ba1\u3001\u8bb8\u53ef\u548c\u5168\u5c40\u8bbe\u7f6e\u3002')
+        __fb_u_835 = U(r'\u7248\u672c')
+        __fb_u_836 = U(r'\u5185\u6838')
+        __fb_u_837 = U(r'\u7ec4\u7ec7')
+        __fb_u_838 = U(r'\u5df2\u6ce8\u518c')
+        __fb_u_839 = U(r'API \u8def\u7531')
+        __fb_u_840 = U(r'\u7248\u672c\u5316')
+        __fb_u_841 = U(r'\u4e8b\u4ef6')
+        __fb_u_842 = U(r'\u53ef\u8ffd\u6eaf')
+        __fb_u_843 = U(r'\u914d\u7f6e\u4e2d\u5fc3')
+        __fb_u_844 = U(r'\u5feb\u6377\u5165\u53e3')
+        __fb_u_845 = U(r'AI \u51b3\u7b56\u4e2d\u5fc3')
+        __fb_u_846 = U(r'\u65e5\u5fd7\u4e2d\u5fc3')
         body = f"""
 <div class="panel">
-  <h2>{U(r'V7.1 \u4f01\u4e1a\u5185\u6838')}</h2>
-  <p class="small">{U(r'\u7edf\u4e00\u914d\u7f6e\u3001\u7ec4\u7ec7\u3001RBAC\u3001\u529f\u80fd\u5f00\u5173\u3001\u5ba1\u8ba1\u3001\u8bb8\u53ef\u548c\u5168\u5c40\u8bbe\u7f6e\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u7248\u672c'), payload['version'], U(r'\u5185\u6838'))}{self.metric(U(r'\u7ec4\u7ec7'), len(payload['kernel']['organization']), U(r'\u5df2\u6ce8\u518c'))}{self.metric(U(r'API \u8def\u7531'), len(payload['api_gateway']), U(r'\u7248\u672c\u5316'))}{self.metric(U(r'\u4e8b\u4ef6'), len(payload['event_bus']), U(r'\u53ef\u8ffd\u6eaf'))}</div>
+  <h2>{__fb_u_833}</h2>
+  <p class="small">{__fb_u_834}</p>
+  <div class="metrics">{self.metric(__fb_u_835, payload['version'], __fb_u_836)}{self.metric(__fb_u_837, len(payload['kernel']['organization']), __fb_u_838)}{self.metric(__fb_u_839, len(payload['api_gateway']), __fb_u_840)}{self.metric(__fb_u_841, len(payload['event_bus']), __fb_u_842)}</div>
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u914d\u7f6e\u4e2d\u5fc3')}</h2>{self.bullets(setting_items)}</div><div class="panel"><h2>API Gateway</h2>{self.bullets(route_items)}</div></div>
-<div class="panel"><h2>{U(r'\u5feb\u6377\u5165\u53e3')}</h2><div class="actions"><a class="button" href="/mcp-gateway">MCP Gateway</a><a class="button" href="/decision-center">{U(r'AI \u51b3\u7b56\u4e2d\u5fc3')}</a><a class="button dark" href="/logs">{U(r'\u65e5\u5fd7\u4e2d\u5fc3')}</a></div></div>"""
+<div class="split"><div class="panel"><h2>{__fb_u_843}</h2>{self.bullets(setting_items)}</div><div class="panel"><h2>API Gateway</h2>{self.bullets(route_items)}</div></div>
+<div class="panel"><h2>{__fb_u_844}</h2><div class="actions"><a class="button" href="/mcp-gateway">MCP Gateway</a><a class="button" href="/decision-center">{__fb_u_845}</a><a class="button dark" href="/logs">{__fb_u_846}</a></div></div>"""
         self.out(layout(U(r"V7.1 \u4f01\u4e1a\u5185\u6838"), body, user=user, wide=True))
 
     def v71_mcp_gateway(self, user):
@@ -23738,9 +24584,19 @@ group by coalesce(store_name,'')
             )
             for c in payload["connectors"]
         )
+        __fb_u_847 = U(r'\u4e3a SAP B1\u3001PostgreSQL\u3001Redis\u3001Neo4j\u3001Qdrant\u3001MinIO\u3001Dify\u3001n8n\u3001Wiki.js \u9884\u7559\u7edf\u4e00\u8fde\u63a5\u5668\u3002')
+        __fb_u_848 = U(r'\u8fde\u63a5\u5668')
+        __fb_u_849 = U(r'\u5df2\u6ce8\u518c')
+        __fb_u_850 = U(r'\u8ba4\u8bc1')
+        __fb_u_851 = U(r'.env')
+        __fb_u_852 = U(r'\u4e0d\u5199\u6b7b')
+        __fb_u_853 = U(r'\u91cd\u8bd5')
+        __fb_u_854 = U(r'3')
+        __fb_u_855 = U(r'\u6b21')
+        __fb_u_856 = U(r'\u8fde\u63a5\u5668\u76ee\u5f55')
         body = f"""
-<div class="panel"><h2>MCP Gateway</h2><p class="small">{U(r'\u4e3a SAP B1\u3001PostgreSQL\u3001Redis\u3001Neo4j\u3001Qdrant\u3001MinIO\u3001Dify\u3001n8n\u3001Wiki.js \u9884\u7559\u7edf\u4e00\u8fde\u63a5\u5668\u3002')}</p><div class="metrics">{self.metric(U(r'\u8fde\u63a5\u5668'), len(payload['connectors']), U(r'\u5df2\u6ce8\u518c'))}{self.metric(U(r'\u8ba4\u8bc1'), U(r'.env'), U(r'\u4e0d\u5199\u6b7b'))}{self.metric(U(r'\u91cd\u8bd5'), U(r'3'), U(r'\u6b21'))}</div></div>
-<div class="panel"><h2>{U(r'\u8fde\u63a5\u5668\u76ee\u5f55')}</h2><div class="grid">{cards}</div></div>"""
+<div class="panel"><h2>MCP Gateway</h2><p class="small">{__fb_u_847}</p><div class="metrics">{self.metric(__fb_u_848, len(payload['connectors']), __fb_u_849)}{self.metric(__fb_u_850, __fb_u_851, __fb_u_852)}{self.metric(__fb_u_853, __fb_u_854, __fb_u_855)}</div></div>
+<div class="panel"><h2>{__fb_u_856}</h2><div class="grid">{cards}</div></div>"""
         self.out(layout("MCP Gateway", body, user=user, wide=True))
 
     def api_v71_get(self, user, path):
@@ -23966,15 +24822,30 @@ group by coalesce(store_name,'')
         hub_items = [c["connector_name"] + " / " + c["category"] + " / " + c["status"] for c in payload["integration_hub"]["connections"]]
         api_items = [p["method"] + " " + p["route_pattern"] + " / " + p["risk_level"] for p in payload["api_governance"]["policies"]]
         tenant_items = [t["company_name"] + " / " + (t.get("brand_scope") or "") for t in payload["multi_company_multi_brand"]["tenants"]]
+        __fb_u_857 = U(r'\u7edf\u4e00\u63d2\u4ef6\u4f53\u7cfb\u3001Integration Hub\u3001API \u6cbb\u7406\u3001\u591a\u516c\u53f8/\u591a\u54c1\u724c\u6269\u5c55\u3001\u5f00\u53d1\u8005\u6587\u6863\u548c\u5e73\u53f0\u7ea7\u76d1\u63a7\u3002')
+        __fb_u_858 = U(r'\u63d2\u4ef6')
+        __fb_u_859 = U(r'\u5df2\u767b\u8bb0')
+        __fb_u_860 = U(r'\u96c6\u6210')
+        __fb_u_861 = U(r'\u5df2\u6cbb\u7406')
+        __fb_u_862 = U(r'\u79df\u6237')
+        __fb_u_863 = U(r'\u9884\u5907')
+        __fb_u_864 = U(r'\u63d2\u4ef6\u4f53\u7cfb')
+        __fb_u_865 = U(r'\u591a\u516c\u53f8/\u591a\u54c1\u724c')
+        __fb_u_866 = U(r'\u5b89\u5168\u8fb9\u754c')
+        __fb_u_867 = U(r'SAP B1 \u4fdd\u6301\u6838\u5fc3\u4e1a\u52a1\u6570\u636e\u6e90')
+        __fb_u_868 = U(r'\u9ad8\u98ce\u9669\u64cd\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279')
+        __fb_u_869 = U(r'AI \u5efa\u8bae\u5fc5\u987b\u53ef\u89e3\u91ca\u3001\u53ef\u8ffd\u6eaf\u3001\u53ef\u5ba1\u8ba1')
+        __fb_u_870 = U(r'\u76d1\u63a7')
+        __fb_u_871 = U(r'\u5ba1\u8ba1\u65e5\u5fd7')
         body = f"""
 <div class="panel">
   <h2>Enterprise AI Platform 6.0</h2>
-  <p class="small">{U(r'\u7edf\u4e00\u63d2\u4ef6\u4f53\u7cfb\u3001Integration Hub\u3001API \u6cbb\u7406\u3001\u591a\u516c\u53f8/\u591a\u54c1\u724c\u6269\u5c55\u3001\u5f00\u53d1\u8005\u6587\u6863\u548c\u5e73\u53f0\u7ea7\u76d1\u63a7\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u63d2\u4ef6'), len(plugin_items), U(r'\u5df2\u767b\u8bb0'))}{self.metric(U(r'\u96c6\u6210'), len(hub_items), "Hub")}{self.metric("API", len(api_items), U(r'\u5df2\u6cbb\u7406'))}{self.metric(U(r'\u79df\u6237'), len(tenant_items), U(r'\u9884\u5907'))}</div>
+  <p class="small">{__fb_u_857}</p>
+  <div class="metrics">{self.metric(__fb_u_858, len(plugin_items), __fb_u_859)}{self.metric(__fb_u_860, len(hub_items), "Hub")}{self.metric("API", len(api_items), __fb_u_861)}{self.metric(__fb_u_862, len(tenant_items), __fb_u_863)}</div>
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u63d2\u4ef6\u4f53\u7cfb')}</h2>{self.bullets(plugin_items)}</div><div class="panel"><h2>Integration Hub</h2>{self.bullets(hub_items)}</div></div>
-<div class="split"><div class="panel"><h2>API Governance</h2>{self.bullets(api_items)}</div><div class="panel"><h2>{U(r'\u591a\u516c\u53f8/\u591a\u54c1\u724c')}</h2>{self.bullets(tenant_items)}</div></div>
-<div class="panel"><h2>{U(r'\u5b89\u5168\u8fb9\u754c')}</h2>{self.bullets([U(r'SAP B1 \u4fdd\u6301\u6838\u5fc3\u4e1a\u52a1\u6570\u636e\u6e90'), U(r'\u9ad8\u98ce\u9669\u64cd\u4f5c\u5fc5\u987b\u4eba\u5de5\u5ba1\u6279'), U(r'AI \u5efa\u8bae\u5fc5\u987b\u53ef\u89e3\u91ca\u3001\u53ef\u8ffd\u6eaf\u3001\u53ef\u5ba1\u8ba1')])}<div class="actions"><a class="button" href="/api/enterprise-ai-platform">API</a><a class="button" href="/api/enterprise-ai-platform/monitoring">{U(r'\u76d1\u63a7')}</a><a class="button dark" href="/logs">{U(r'\u5ba1\u8ba1\u65e5\u5fd7')}</a></div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_864}</h2>{self.bullets(plugin_items)}</div><div class="panel"><h2>Integration Hub</h2>{self.bullets(hub_items)}</div></div>
+<div class="split"><div class="panel"><h2>API Governance</h2>{self.bullets(api_items)}</div><div class="panel"><h2>{__fb_u_865}</h2>{self.bullets(tenant_items)}</div></div>
+<div class="panel"><h2>{__fb_u_866}</h2>{self.bullets([__fb_u_867, __fb_u_868, __fb_u_869])}<div class="actions"><a class="button" href="/api/enterprise-ai-platform">API</a><a class="button" href="/api/enterprise-ai-platform/monitoring">{__fb_u_870}</a><a class="button dark" href="/logs">{__fb_u_871}</a></div></div>
 """
         self.out(layout("Enterprise AI Platform 6.0", body, user=user, wide=True))
 
@@ -25718,27 +26589,45 @@ group by coalesce(store_name,'')
         task_items = [t["title"] + " 路 " + t["status"] for t in tasks] or [U(r"\u6682\u65e0\u672a\u5b8c\u6210\u4efb\u52a1\u3002")]
         notice_items = [n["title"] + " 路 " + n["status"] for n in notices] or [U(r"\u6682\u65e0\u901a\u77e5\u3002")]
         sub_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {}</p></div></div>".format(esc(s["title"]), esc(summarize_text(s["content"], 120)), esc(s["submission_type"]), esc(s["status"])) for s in my) or "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u63d0\u4ea4\u3002")))
+        __fb_u_872 = U(r'\u624b\u673a\u4e00\u7ebf\u8fd0\u8425\u4e2d\u5fc3')
+        __fb_u_873 = U(r'\u7ed9\u95e8\u5e97\u5458\u5de5\u7528\uff1a\u62cd\u7167\u3001\u8bb0\u5f55\u3001\u53cd\u9988\u3001\u63d0\u4ea4\u95ee\u9898\u3001\u5b8c\u6210\u4efb\u52a1\u3002')
+        __fb_u_874 = U(r'\u4eca\u65e5\u4efb\u52a1')
+        __fb_u_875 = U(r'\u6253\u5f00\u4efb\u52a1')
+        __fb_u_876 = U(r'\u6211\u7684\u901a\u77e5')
+        __fb_u_877 = U(r'\u4e00\u7ebf\u63d0\u4ea4')
+        __fb_u_878 = U(r'\u7c7b\u578b')
+        __fb_u_879 = U(r'\u6807\u9898')
+        __fb_u_880 = U(r'\u95e8\u5e97')
+        __fb_u_881 = U(r'\u5357\u5c71\u5e97 / \u632f\u5174\u5e97 / \u822a\u82d1\u5e97')
+        __fb_u_882 = U(r'\u5185\u5bb9')
+        __fb_u_883 = U(r'\u4eca\u5929\u60c5\u51b5\u3001\u987e\u5ba2\u53cd\u9988\u3001\u5e93\u5b58\u95ee\u9898\u3001\u7ade\u54c1\u89c2\u5bdf\u7b49')
+        __fb_u_884 = U(r'\u6807\u7b7e')
+        __fb_u_885 = U(r'\u7167\u7247')
+        __fb_u_886 = U(r'\u63d0\u4ea4')
+        __fb_u_887 = U(r'\u6211\u7684\u63d0\u4ea4')
+        __fb_u_888 = U(r'\u4f01\u4e1a\u5fae\u4fe1')
+        __fb_u_889 = U(r'\u4f01\u4e1a\u5fae\u4fe1\u767b\u5f55\u3001\u4efb\u52a1\u901a\u77e5\u548c\u6d88\u606f\u63a5\u6536\u5df2\u9884\u7559\uff0c\u4e0d\u5728\u4ee3\u7801\u4e2d\u5199\u5165\u5bc6\u94a5\u3002')
         body = f"""
-<div class="panel"><h2>{U(r'\u624b\u673a\u4e00\u7ebf\u8fd0\u8425\u4e2d\u5fc3')}</h2><p class="small">{U(r'\u7ed9\u95e8\u5e97\u5458\u5de5\u7528\uff1a\u62cd\u7167\u3001\u8bb0\u5f55\u3001\u53cd\u9988\u3001\u63d0\u4ea4\u95ee\u9898\u3001\u5b8c\u6210\u4efb\u52a1\u3002')}</p></div>
+<div class="panel"><h2>{__fb_u_872}</h2><p class="small">{__fb_u_873}</p></div>
 <div class="grid">{quick_cards}</div>
 <div class="split">
-  <div class="panel"><h2>{U(r'\u4eca\u65e5\u4efb\u52a1')}</h2>{self.bullets(task_items)}<p><a class="btn" href="/mobile/tasks">{U(r'\u6253\u5f00\u4efb\u52a1')}</a></p></div>
-  <div class="panel"><h2>{U(r'\u6211\u7684\u901a\u77e5')}</h2>{self.bullets(notice_items)}</div>
+  <div class="panel"><h2>{__fb_u_874}</h2>{self.bullets(task_items)}<p><a class="btn" href="/mobile/tasks">{__fb_u_875}</a></p></div>
+  <div class="panel"><h2>{__fb_u_876}</h2>{self.bullets(notice_items)}</div>
 </div>
 <div id="mobile-form" class="panel form">
-  <h2>{U(r'\u4e00\u7ebf\u63d0\u4ea4')}</h2>
+  <h2>{__fb_u_877}</h2>
   <form method="post" action="/mobile/submissions/save" enctype="multipart/form-data">
-    <label>{U(r'\u7c7b\u578b')}</label><select name="submission_type">{type_options}</select>
-    <label>{U(r'\u6807\u9898')}</label><input name="title" required>
-    <label>{U(r'\u95e8\u5e97')}</label><input name="store_id" value="{esc(user['store'])}" placeholder="{U(r'\u5357\u5c71\u5e97 / \u632f\u5174\u5e97 / \u822a\u82d1\u5e97')}">
-    <label>{U(r'\u5185\u5bb9')}</label><textarea name="content" placeholder="{U(r'\u4eca\u5929\u60c5\u51b5\u3001\u987e\u5ba2\u53cd\u9988\u3001\u5e93\u5b58\u95ee\u9898\u3001\u7ade\u54c1\u89c2\u5bdf\u7b49')}"></textarea>
-    <label>{U(r'\u6807\u7b7e')}</label><input name="tags" placeholder="KAILAS,Osprey,inventory">
-    <label>{U(r'\u7167\u7247')}</label><input name="photos" type="file" accept="image/*" multiple>
-    <p><button>{U(r'\u63d0\u4ea4')}</button></p>
+    <label>{__fb_u_878}</label><select name="submission_type">{type_options}</select>
+    <label>{__fb_u_879}</label><input name="title" required>
+    <label>{__fb_u_880}</label><input name="store_id" value="{esc(user['store'])}" placeholder="{__fb_u_881}">
+    <label>{__fb_u_882}</label><textarea name="content" placeholder="{__fb_u_883}"></textarea>
+    <label>{__fb_u_884}</label><input name="tags" placeholder="KAILAS,Osprey,inventory">
+    <label>{__fb_u_885}</label><input name="photos" type="file" accept="image/*" multiple>
+    <p><button>{__fb_u_886}</button></p>
   </form>
 </div>
-<div id="my-submissions" class="panel"><h2>{U(r'\u6211\u7684\u63d0\u4ea4')}</h2><div class="grid">{sub_cards}</div></div>
-<div class="panel"><h2>{U(r'\u4f01\u4e1a\u5fae\u4fe1')}</h2>{self.empty_state(U(r'\u4f01\u4e1a\u5fae\u4fe1\u767b\u5f55\u3001\u4efb\u52a1\u901a\u77e5\u548c\u6d88\u606f\u63a5\u6536\u5df2\u9884\u7559\uff0c\u4e0d\u5728\u4ee3\u7801\u4e2d\u5199\u5165\u5bc6\u94a5\u3002'))}</div>"""
+<div id="my-submissions" class="panel"><h2>{__fb_u_887}</h2><div class="grid">{sub_cards}</div></div>
+<div class="panel"><h2>{__fb_u_888}</h2>{self.empty_state(__fb_u_889)}</div>"""
         self.out(layout(U(r"\u624b\u673a\u4e00\u7ebf\u8fd0\u8425"), body, user=user, msg=msg, wide=True))
 
     def mobile_submission_save(self):
@@ -25769,12 +26658,15 @@ group by coalesce(store_name,'')
         cards = ""
         for row in rows:
             done = row["status"] == "done"
+            __fb_u_890 = U(r'\u5b8c\u6210\u8bf4\u660e')
+            __fb_u_891 = U(r'\u7ed3\u679c\u7167\u7247')
+            __fb_u_892 = U(r'\u6807\u8bb0\u5b8c\u6210')
             action = "" if done else f"""
 <form method="post" action="/mobile/tasks/complete" enctype="multipart/form-data">
   <input type="hidden" name="id" value="{row['id']}">
-  <label>{U(r'\u5b8c\u6210\u8bf4\u660e')}</label><textarea name="completion_note"></textarea>
-  <label>{U(r'\u7ed3\u679c\u7167\u7247')}</label><input name="photos" type="file" accept="image/*" multiple>
-  <p><button>{U(r'\u6807\u8bb0\u5b8c\u6210')}</button></p>
+  <label>{__fb_u_890}</label><textarea name="completion_note"></textarea>
+  <label>{__fb_u_891}</label><input name="photos" type="file" accept="image/*" multiple>
+  <p><button>{__fb_u_892}</button></p>
 </form>"""
             cards += "<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 路 {} 路 {}</p></div>{}</div>".format(esc(row["title"]), esc(row["description"]), esc(row["priority"]), esc(row["status"]), esc(row["due_date"]), action)
         if not cards:
@@ -25958,26 +26850,63 @@ group by coalesce(store_name,'')
         focus_items = [f["store_id"] + " 路 " + (f["brand_id"] or "") + " 路 " + (f["product_id"] or "") + " 路 " + f["status"] for f in focus] or [U(r"\u6682\u65e0\u4e3b\u63a8\u54c1\u724c/\u4ea7\u54c1\u3002")]
         field_items = [r["status"] + ": " + str(r["c"]) for r in field_counts] or [U(r"\u6682\u65e0\u4e00\u7ebf\u63d0\u4ea4\u6570\u636e\u3002")]
         diag_items = [d["store_id"] + " 路 " + d["status"] + " 路 " + dt(d["updated_at"]) for d in diagnoses] or [U(r"\u6682\u65e0\u95e8\u5e97\u8bca\u65ad\u3002")]
+        __fb_u_893 = U(r'\u95e8\u5e97\u589e\u957f\u5f15\u64ce')
+        __fb_u_894 = U(r'\u628a\u95e8\u5e97\u8bca\u65ad\u3001\u589e\u957f\u8ba1\u5212\u3001\u6d3b\u52a8\u3001\u5458\u5de5\u6267\u884c\u3001\u5185\u5bb9\u548c\u590d\u76d8\u4e32\u8d77\u6765\u3002\u6ca1\u6709\u6570\u636e\u65f6\u53ea\u663e\u793a\u7a7a\u72b6\u6001\u548c\u6a21\u677f\uff0c\u4e0d\u7f16\u9020\u7ed3\u8bba\u3002')
+        __fb_u_895 = U(r'\u65b0\u5efa\u95e8\u5e97\u8bca\u65ad')
+        __fb_u_896 = U(r'\u5f00\u59cb\u65e5\u671f')
+        __fb_u_897 = U(r'\u7ed3\u675f\u65e5\u671f')
+        __fb_u_898 = U(r'\u751f\u6210\u8bca\u65ad\u8349\u7a3f')
+        __fb_u_899 = U(r'\u8bca\u65ad\u8bb0\u5f55')
+        __fb_u_900 = U(r'\u65b0\u5efa\u589e\u957f\u8ba1\u5212')
+        __fb_u_901 = U(r'\u8ba1\u5212\u6807\u9898')
+        __fb_u_902 = U(r'\u76ee\u6807')
+        __fb_u_903 = U(r'\u5173\u952e\u52a8\u4f5c')
+        __fb_u_904 = U(r'\u6bcf\u884c\u4e00\u4e2a\u52a8\u4f5c\uff0c\u53ef\u751f\u6210\u4efb\u52a1')
+        __fb_u_905 = U(r'\u8d23\u4efb\u4eba')
+        __fb_u_906 = U(r'\u4fdd\u5b58\u8ba1\u5212')
+        __fb_u_907 = U(r'\u95e8\u5e97\u6d3b\u52a8')
+        __fb_u_908 = U(r'\u6d3b\u52a8\u6807\u9898')
+        __fb_u_909 = U(r'\u6d3b\u52a8\u7c7b\u578b')
+        __fb_u_910 = U(r'\u4f1a\u5458\u65e5 / \u88c5\u5907\u8bfe\u5802 / \u6e05\u8d27\u6d3b\u52a8')
+        __fb_u_911 = U(r'\u5185\u5bb9\u8ba1\u5212')
+        __fb_u_912 = U(r'\u4efb\u52a1\u8ba1\u5212')
+        __fb_u_913 = U(r'\u4fdd\u5b58\u6d3b\u52a8')
+        __fb_u_914 = U(r'\u589e\u957f\u8ba1\u5212')
+        __fb_u_915 = U(r'\u95e8\u5e97\u6d3b\u52a8')
+        __fb_u_916 = U(r'\u4e00\u7ebf\u6267\u884c')
+        __fb_u_917 = U(r'\u5ba1\u6838\u4e00\u7ebf\u63d0\u4ea4')
+        __fb_u_918 = U(r'\u4e3b\u63a8\u54c1\u724c/\u4ea7\u54c1')
+        __fb_u_919 = U(r'\u54c1\u724c')
+        __fb_u_920 = U(r'\u4ea7\u54c1')
+        __fb_u_921 = U(r'\u4e3b\u63a8\u7406\u7531')
+        __fb_u_922 = U(r'\u5468\u671f')
+        __fb_u_923 = U(r'\u4fdd\u5b58\u4e3b\u63a8')
+        __fb_u_924 = U(r'\u4e3b\u63a8\u6e05\u5355')
+        __fb_u_925 = U(r'\u5185\u5bb9\u4e0e\u590d\u76d8')
+        __fb_u_926 = U(r'\u53ef\u4ece\u589e\u957f\u8ba1\u5212\u751f\u6210\u95e8\u5e97\u5c0f\u7ea2\u4e66\u3001\u89c6\u9891\u53f7\u3001\u670b\u53cb\u5708\u548c\u793e\u7fa4\u901a\u77e5\u8349\u7a3f\u3002')
+        __fb_u_927 = U(r'\u53ef\u4ece\u6d3b\u52a8\u548c\u4efb\u52a1\u751f\u6210\u95e8\u5e97\u590d\u76d8\u62a5\u544a\u8349\u7a3f\u3002')
+        __fb_u_928 = U(r'\u6253\u5f00\u5185\u5bb9\u5f15\u64ce')
+        __fb_u_929 = U(r'\u6253\u5f00\u62a5\u544a\u4e2d\u5fc3')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u95e8\u5e97\u589e\u957f\u5f15\u64ce')}</h2>
-  <p class="small">{U(r'\u628a\u95e8\u5e97\u8bca\u65ad\u3001\u589e\u957f\u8ba1\u5212\u3001\u6d3b\u52a8\u3001\u5458\u5de5\u6267\u884c\u3001\u5185\u5bb9\u548c\u590d\u76d8\u4e32\u8d77\u6765\u3002\u6ca1\u6709\u6570\u636e\u65f6\u53ea\u663e\u793a\u7a7a\u72b6\u6001\u548c\u6a21\u677f\uff0c\u4e0d\u7f16\u9020\u7ed3\u8bba\u3002')}</p>
+  <h2>{__fb_u_893}</h2>
+  <p class="small">{__fb_u_894}</p>
 </div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u95e8\u5e97\u8bca\u65ad')}</h2><form method="post" action="/store-growth/diagnosis/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{U(r'\u5f00\u59cb\u65e5\u671f')}</label><input name="date_range_start"><label>{U(r'\u7ed3\u675f\u65e5\u671f')}</label><input name="date_range_end"><p><button>{U(r'\u751f\u6210\u8bca\u65ad\u8349\u7a3f')}</button></p></form></div>
-  <div class="panel"><h2>{U(r'\u8bca\u65ad\u8bb0\u5f55')}</h2>{self.bullets(diag_items)}</div>
+  <div class="panel form"><h2>{__fb_u_895}</h2><form method="post" action="/store-growth/diagnosis/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{__fb_u_896}</label><input name="date_range_start"><label>{__fb_u_897}</label><input name="date_range_end"><p><button>{__fb_u_898}</button></p></form></div>
+  <div class="panel"><h2>{__fb_u_899}</h2>{self.bullets(diag_items)}</div>
 </div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u65b0\u5efa\u589e\u957f\u8ba1\u5212')}</h2><form method="post" action="/store-growth/plans/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{U(r'\u8ba1\u5212\u6807\u9898')}</label><input name="title" required><label>{U(r'\u76ee\u6807')}</label><textarea name="goal"></textarea><label>{U(r'\u5173\u952e\u52a8\u4f5c')}</label><textarea name="key_actions" placeholder="{U(r'\u6bcf\u884c\u4e00\u4e2a\u52a8\u4f5c\uff0c\u53ef\u751f\u6210\u4efb\u52a1')}"></textarea><label>{U(r'\u8d23\u4efb\u4eba')}</label><input name="owner" value="{esc(user['name'])}"><p><button>{U(r'\u4fdd\u5b58\u8ba1\u5212')}</button></p></form></div>
-  <div class="panel form"><h2>{U(r'\u95e8\u5e97\u6d3b\u52a8')}</h2><form method="post" action="/store-growth/activities/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{U(r'\u6d3b\u52a8\u6807\u9898')}</label><input name="title" required><label>{U(r'\u6d3b\u52a8\u7c7b\u578b')}</label><input name="activity_type" placeholder="{U(r'\u4f1a\u5458\u65e5 / \u88c5\u5907\u8bfe\u5802 / \u6e05\u8d27\u6d3b\u52a8')}"><label>{U(r'\u5185\u5bb9\u8ba1\u5212')}</label><textarea name="content_plan"></textarea><label>{U(r'\u4efb\u52a1\u8ba1\u5212')}</label><textarea name="task_plan"></textarea><p><button>{U(r'\u4fdd\u5b58\u6d3b\u52a8')}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_900}</h2><form method="post" action="/store-growth/plans/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{__fb_u_901}</label><input name="title" required><label>{__fb_u_902}</label><textarea name="goal"></textarea><label>{__fb_u_903}</label><textarea name="key_actions" placeholder="{__fb_u_904}"></textarea><label>{__fb_u_905}</label><input name="owner" value="{esc(user['name'])}"><p><button>{__fb_u_906}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_907}</h2><form method="post" action="/store-growth/activities/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{__fb_u_908}</label><input name="title" required><label>{__fb_u_909}</label><input name="activity_type" placeholder="{__fb_u_910}"><label>{__fb_u_911}</label><textarea name="content_plan"></textarea><label>{__fb_u_912}</label><textarea name="task_plan"></textarea><p><button>{__fb_u_913}</button></p></form></div>
 </div>
-<div class="panel"><h2>{U(r'\u589e\u957f\u8ba1\u5212')}</h2><div class="grid">{plan_cards}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u95e8\u5e97\u6d3b\u52a8')}</h2>{self.bullets(activity_items)}</div><div class="panel"><h2>{U(r'\u4e00\u7ebf\u6267\u884c')}</h2>{self.bullets(field_items)}<p><a class="btn" href="/mobile/review">{U(r'\u5ba1\u6838\u4e00\u7ebf\u63d0\u4ea4')}</a></p></div></div>
+<div class="panel"><h2>{__fb_u_914}</h2><div class="grid">{plan_cards}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_915}</h2>{self.bullets(activity_items)}</div><div class="panel"><h2>{__fb_u_916}</h2>{self.bullets(field_items)}<p><a class="btn" href="/mobile/review">{__fb_u_917}</a></p></div></div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u4e3b\u63a8\u54c1\u724c/\u4ea7\u54c1')}</h2><form method="post" action="/store-growth/focus/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{U(r'\u54c1\u724c')}</label><input name="brand_id" placeholder="KAILAS / Osprey / VAFOX"><label>{U(r'\u4ea7\u54c1')}</label><input name="product_id"><label>{U(r'\u4e3b\u63a8\u7406\u7531')}</label><textarea name="focus_reason"></textarea><label>{U(r'\u5468\u671f')}</label><input name="period"><p><button>{U(r'\u4fdd\u5b58\u4e3b\u63a8')}</button></p></form></div>
-  <div class="panel"><h2>{U(r'\u4e3b\u63a8\u6e05\u5355')}</h2>{self.bullets(focus_items)}</div>
+  <div class="panel form"><h2>{__fb_u_918}</h2><form method="post" action="/store-growth/focus/save"><label>{T['store']}</label><select name="store_id">{store_options}</select><label>{__fb_u_919}</label><input name="brand_id" placeholder="KAILAS / Osprey / VAFOX"><label>{__fb_u_920}</label><input name="product_id"><label>{__fb_u_921}</label><textarea name="focus_reason"></textarea><label>{__fb_u_922}</label><input name="period"><p><button>{__fb_u_923}</button></p></form></div>
+  <div class="panel"><h2>{__fb_u_924}</h2>{self.bullets(focus_items)}</div>
 </div>
-<div class="panel"><h2>{U(r'\u5185\u5bb9\u4e0e\u590d\u76d8')}</h2>{self.bullets([U(r'\u53ef\u4ece\u589e\u957f\u8ba1\u5212\u751f\u6210\u95e8\u5e97\u5c0f\u7ea2\u4e66\u3001\u89c6\u9891\u53f7\u3001\u670b\u53cb\u5708\u548c\u793e\u7fa4\u901a\u77e5\u8349\u7a3f\u3002'), U(r'\u53ef\u4ece\u6d3b\u52a8\u548c\u4efb\u52a1\u751f\u6210\u95e8\u5e97\u590d\u76d8\u62a5\u544a\u8349\u7a3f\u3002')])}<p><a class="btn orange" href="/content">{U(r'\u6253\u5f00\u5185\u5bb9\u5f15\u64ce')}</a> <a class="btn dark" href="/reports">{U(r'\u6253\u5f00\u62a5\u544a\u4e2d\u5fc3')}</a></p></div>"""
+<div class="panel"><h2>{__fb_u_925}</h2>{self.bullets([__fb_u_926, __fb_u_927])}<p><a class="btn orange" href="/content">{__fb_u_928}</a> <a class="btn dark" href="/reports">{__fb_u_929}</a></p></div>"""
         self.out(layout(U(r"\u95e8\u5e97\u589e\u957f\u5f15\u64ce"), body, user=user, wide=True))
 
     def store_growth_diagnosis_save(self):
@@ -26197,24 +27126,67 @@ group by coalesce(store_name,'')
         portfolio_items = [p["brand_id"] + " 路 " + (p["product_id"] or "") + " 路 " + (p["product_role"] or "") + " 路 " + p["status"] for p in portfolios] or [U(r"\u6682\u65e0\u4ea7\u54c1\u7ec4\u5408\u3002")]
         pricing_items = [p["brand_id"] + " 路 " + (p["normal_discount"] or "") + " 路 " + (p["minimum_allowed_discount"] or "") + " 路 " + p["status"] for p in pricing] or [U(r"\u6682\u65e0\u5b9a\u4ef7\u7b56\u7565\u3002")]
         risk_items = [r["brand_id"] + " 路 " + (r["rebate_uncertainty"] or "") + " 路 " + r["status"] for r in risks] or [U(r"\u6682\u65e0\u4f9b\u5e94\u5546\u4e0e\u8fd4\u70b9\u98ce\u9669\u3002")]
+        __fb_u_930 = U(r'\u54c1\u724c\u589e\u957f + \u4ea7\u54c1\u7ec4\u5408\u5f15\u64ce')
+        __fb_u_931 = U(r'\u7528\u4e8e\u533a\u5206\u54c1\u724c\u89d2\u8272\u3001\u4ea7\u54c1\u89d2\u8272\u3001\u5b9a\u4ef7\u98ce\u9669\u3001\u5e93\u5b58\u538b\u529b\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u3002\u6ca1\u6709\u771f\u5b9e\u6570\u636e\u65f6\u53ea\u663e\u793a\u6846\u67b6\u3002')
+        __fb_u_932 = U(r'\u54c1\u724c\u8bca\u65ad')
+        __fb_u_933 = U(r'\u54c1\u724c')
+        __fb_u_934 = U(r'\u5f00\u59cb\u65e5\u671f')
+        __fb_u_935 = U(r'\u7ed3\u675f\u65e5\u671f')
+        __fb_u_936 = U(r'\u751f\u6210\u8bca\u65ad\u8349\u7a3f')
+        __fb_u_937 = U(r'\u8bca\u65ad\u8bb0\u5f55')
+        __fb_u_938 = U(r'\u54c1\u724c\u7b56\u7565')
+        __fb_u_939 = U(r'\u54c1\u724c')
+        __fb_u_940 = U(r'\u7b56\u7565\u6807\u9898')
+        __fb_u_941 = U(r'\u54c1\u724c\u89d2\u8272')
+        __fb_u_942 = U(r'\u589e\u957f\u76ee\u6807')
+        __fb_u_943 = U(r'\u98ce\u9669\u63a7\u5236')
+        __fb_u_944 = U(r'\u5173\u952e\u52a8\u4f5c')
+        __fb_u_945 = U(r'\u4fdd\u5b58\u7b56\u7565')
+        __fb_u_946 = U(r'\u4ea7\u54c1\u7ec4\u5408')
+        __fb_u_947 = U(r'\u54c1\u724c')
+        __fb_u_948 = U(r'\u4ea7\u54c1/SKU')
+        __fb_u_949 = U(r'\u4ea7\u54c1\u89d2\u8272')
+        __fb_u_950 = U(r'\u63a8\u8350')
+        __fb_u_951 = U(r'\u4fdd\u5b58\u4ea7\u54c1\u7ec4\u5408')
+        __fb_u_952 = U(r'\u54c1\u724c\u7b56\u7565')
+        __fb_u_953 = U(r'\u5b9a\u4ef7\u7b56\u7565')
+        __fb_u_954 = U(r'\u54c1\u724c')
+        __fb_u_955 = U(r'\u5e38\u89c4\u6298\u6263')
+        __fb_u_956 = U(r'\u4fc3\u9500\u6298\u6263')
+        __fb_u_957 = U(r'\u6e05\u4ed3\u6298\u6263')
+        __fb_u_958 = U(r'\u6700\u4f4e\u5141\u8bb8\u6298\u6263')
+        __fb_u_959 = U(r'\u8bf4\u660e')
+        __fb_u_960 = U(r'\u4fdd\u5b58\u5b9a\u4ef7')
+        __fb_u_961 = U(r'\u6298\u6263\u8bd5\u7b97')
+        __fb_u_962 = U(r'59 / 60 / 62 / 65 \u6298\u4ec5\u4f5c\u6a21\u677f\u8bd5\u7b97\uff0c\u4e0d\u4ee3\u8868\u771f\u5b9e\u7ed3\u8bba\u3002')
+        __fb_u_963 = U(r'\u6253\u5f00 Osprey \u98ce\u9669\u9875')
+        __fb_u_964 = U(r'\u4ea7\u54c1\u7ec4\u5408')
+        __fb_u_965 = U(r'\u5b9a\u4ef7\u7b56\u7565')
+        __fb_u_966 = U(r'\u4f9b\u5e94\u5546\u4e0e\u8fd4\u70b9\u98ce\u9669')
+        __fb_u_967 = U(r'\u5e93\u5b58\u7ec4\u5408\u77e9\u9635')
+        __fb_u_968 = U(r'\u9ad8\u9500\u552e + \u9ad8\u6bdb\u5229 = \u6838\u5fc3\u4fdd\u7559')
+        __fb_u_969 = U(r'\u9ad8\u9500\u552e + \u4f4e\u6bdb\u5229 = \u5f15\u6d41\u63a7\u5236')
+        __fb_u_970 = U(r'\u4f4e\u9500\u552e + \u9ad8\u6bdb\u5229 = \u7cbe\u51c6\u63a8\u8350')
+        __fb_u_971 = U(r'\u4f4e\u9500\u552e + \u4f4e\u6bdb\u5229 = \u6e05\u4ed3\u5904\u7406')
+        __fb_u_972 = U(r'\u9ad8\u5e93\u5b58 + \u4f4e\u6bdb\u5229 = \u9ad8\u98ce\u9669')
         body = f"""
-<div class="panel"><h2>{U(r'\u54c1\u724c\u589e\u957f + \u4ea7\u54c1\u7ec4\u5408\u5f15\u64ce')}</h2><p class="small">{U(r'\u7528\u4e8e\u533a\u5206\u54c1\u724c\u89d2\u8272\u3001\u4ea7\u54c1\u89d2\u8272\u3001\u5b9a\u4ef7\u98ce\u9669\u3001\u5e93\u5b58\u538b\u529b\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u3002\u6ca1\u6709\u771f\u5b9e\u6570\u636e\u65f6\u53ea\u663e\u793a\u6846\u67b6\u3002')}</p></div>
+<div class="panel"><h2>{__fb_u_930}</h2><p class="small">{__fb_u_931}</p></div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u54c1\u724c\u8bca\u65ad')}</h2><form method="post" action="/brand-growth/diagnosis/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u5f00\u59cb\u65e5\u671f')}</label><input name="date_range_start"><label>{U(r'\u7ed3\u675f\u65e5\u671f')}</label><input name="date_range_end"><p><button>{U(r'\u751f\u6210\u8bca\u65ad\u8349\u7a3f')}</button></p></form></div>
-  <div class="panel"><h2>{U(r'\u8bca\u65ad\u8bb0\u5f55')}</h2>{self.bullets(diag_items)}</div>
+  <div class="panel form"><h2>{__fb_u_932}</h2><form method="post" action="/brand-growth/diagnosis/save"><label>{__fb_u_933}</label><select name="brand_id">{brand_opts}</select><label>{__fb_u_934}</label><input name="date_range_start"><label>{__fb_u_935}</label><input name="date_range_end"><p><button>{__fb_u_936}</button></p></form></div>
+  <div class="panel"><h2>{__fb_u_937}</h2>{self.bullets(diag_items)}</div>
 </div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u54c1\u724c\u7b56\u7565')}</h2><form method="post" action="/brand-growth/strategies/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u7b56\u7565\u6807\u9898')}</label><input name="strategy_title" required><label>{U(r'\u54c1\u724c\u89d2\u8272')}</label><select name="brand_role">{role_opts}</select><label>{U(r'\u589e\u957f\u76ee\u6807')}</label><textarea name="growth_goal"></textarea><label>{U(r'\u98ce\u9669\u63a7\u5236')}</label><textarea name="risk_control"></textarea><label>{U(r'\u5173\u952e\u52a8\u4f5c')}</label><textarea name="key_actions"></textarea><p><button>{U(r'\u4fdd\u5b58\u7b56\u7565')}</button></p></form></div>
-  <div class="panel form"><h2>{U(r'\u4ea7\u54c1\u7ec4\u5408')}</h2><form method="post" action="/brand-growth/portfolio/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u4ea7\u54c1/SKU')}</label><input name="product_id"><label>{U(r'\u4ea7\u54c1\u89d2\u8272')}</label><input name="product_role" placeholder="hero / profit / traffic / clearance"><label>{U(r'\u63a8\u8350')}</label><textarea name="recommendation"></textarea><p><button>{U(r'\u4fdd\u5b58\u4ea7\u54c1\u7ec4\u5408')}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_938}</h2><form method="post" action="/brand-growth/strategies/save"><label>{__fb_u_939}</label><select name="brand_id">{brand_opts}</select><label>{__fb_u_940}</label><input name="strategy_title" required><label>{__fb_u_941}</label><select name="brand_role">{role_opts}</select><label>{__fb_u_942}</label><textarea name="growth_goal"></textarea><label>{__fb_u_943}</label><textarea name="risk_control"></textarea><label>{__fb_u_944}</label><textarea name="key_actions"></textarea><p><button>{__fb_u_945}</button></p></form></div>
+  <div class="panel form"><h2>{__fb_u_946}</h2><form method="post" action="/brand-growth/portfolio/save"><label>{__fb_u_947}</label><select name="brand_id">{brand_opts}</select><label>{__fb_u_948}</label><input name="product_id"><label>{__fb_u_949}</label><input name="product_role" placeholder="hero / profit / traffic / clearance"><label>{__fb_u_950}</label><textarea name="recommendation"></textarea><p><button>{__fb_u_951}</button></p></form></div>
 </div>
-<div class="panel"><h2>{U(r'\u54c1\u724c\u7b56\u7565')}</h2><div class="grid">{strategy_cards}</div></div>
+<div class="panel"><h2>{__fb_u_952}</h2><div class="grid">{strategy_cards}</div></div>
 <div class="split">
-  <div class="panel form"><h2>{U(r'\u5b9a\u4ef7\u7b56\u7565')}</h2><form method="post" action="/brand-growth/pricing/save"><label>{U(r'\u54c1\u724c')}</label><select name="brand_id">{brand_opts}</select><label>{U(r'\u5e38\u89c4\u6298\u6263')}</label><input name="normal_discount"><label>{U(r'\u4fc3\u9500\u6298\u6263')}</label><input name="promotion_discount"><label>{U(r'\u6e05\u4ed3\u6298\u6263')}</label><input name="clearance_discount"><label>{U(r'\u6700\u4f4e\u5141\u8bb8\u6298\u6263')}</label><input name="minimum_allowed_discount"><label>{U(r'\u8bf4\u660e')}</label><textarea name="notes"></textarea><p><button>{U(r'\u4fdd\u5b58\u5b9a\u4ef7')}</button></p></form></div>
-  <div class="panel"><h2>Osprey {U(r'\u6298\u6263\u8bd5\u7b97')}</h2><p class="small">{U(r'59 / 60 / 62 / 65 \u6298\u4ec5\u4f5c\u6a21\u677f\u8bd5\u7b97\uff0c\u4e0d\u4ee3\u8868\u771f\u5b9e\u7ed3\u8bba\u3002')}</p><p><a class="btn" href="/brands/osprey-risk">{U(r'\u6253\u5f00 Osprey \u98ce\u9669\u9875')}</a></p></div>
+  <div class="panel form"><h2>{__fb_u_953}</h2><form method="post" action="/brand-growth/pricing/save"><label>{__fb_u_954}</label><select name="brand_id">{brand_opts}</select><label>{__fb_u_955}</label><input name="normal_discount"><label>{__fb_u_956}</label><input name="promotion_discount"><label>{__fb_u_957}</label><input name="clearance_discount"><label>{__fb_u_958}</label><input name="minimum_allowed_discount"><label>{__fb_u_959}</label><textarea name="notes"></textarea><p><button>{__fb_u_960}</button></p></form></div>
+  <div class="panel"><h2>Osprey {__fb_u_961}</h2><p class="small">{__fb_u_962}</p><p><a class="btn" href="/brands/osprey-risk">{__fb_u_963}</a></p></div>
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u4ea7\u54c1\u7ec4\u5408')}</h2>{self.bullets(portfolio_items)}</div><div class="panel"><h2>{U(r'\u5b9a\u4ef7\u7b56\u7565')}</h2>{self.bullets(pricing_items)}</div></div>
-<div class="panel"><h2>{U(r'\u4f9b\u5e94\u5546\u4e0e\u8fd4\u70b9\u98ce\u9669')}</h2>{self.bullets(risk_items)}</div>
-<div class="panel"><h2>{U(r'\u5e93\u5b58\u7ec4\u5408\u77e9\u9635')}</h2>{self.bullets([U(r'\u9ad8\u9500\u552e + \u9ad8\u6bdb\u5229 = \u6838\u5fc3\u4fdd\u7559'), U(r'\u9ad8\u9500\u552e + \u4f4e\u6bdb\u5229 = \u5f15\u6d41\u63a7\u5236'), U(r'\u4f4e\u9500\u552e + \u9ad8\u6bdb\u5229 = \u7cbe\u51c6\u63a8\u8350'), U(r'\u4f4e\u9500\u552e + \u4f4e\u6bdb\u5229 = \u6e05\u4ed3\u5904\u7406'), U(r'\u9ad8\u5e93\u5b58 + \u4f4e\u6bdb\u5229 = \u9ad8\u98ce\u9669')])}</div>"""
+<div class="split"><div class="panel"><h2>{__fb_u_964}</h2>{self.bullets(portfolio_items)}</div><div class="panel"><h2>{__fb_u_965}</h2>{self.bullets(pricing_items)}</div></div>
+<div class="panel"><h2>{__fb_u_966}</h2>{self.bullets(risk_items)}</div>
+<div class="panel"><h2>{__fb_u_967}</h2>{self.bullets([__fb_u_968, __fb_u_969, __fb_u_970, __fb_u_971, __fb_u_972])}</div>"""
         self.out(layout(U(r"\u54c1\u724c\u589e\u957f\u5f15\u64ce"), body, user=user, wide=True))
 
     def brand_growth_diagnosis_save(self):
@@ -26353,19 +27325,45 @@ group by coalesce(store_name,'')
         markdown_items = [m["brand_id"] + " 路 " + (m["suggested_discount"] or "") + " 路 " + m["approval_status"] for m in markdowns] or [U(r"\u6682\u65e0\u964d\u4ef7/\u6e05\u8d27\u5efa\u8bae\u3002")]
         future_items = [f["brand_id"] + " 路 " + (f["season"] or "") + " 路 " + f["decision_status"] for f in futures] or [U(r"\u6682\u65e0\u671f\u8d27\u51b3\u7b56\u8bb0\u5f55\u3002")]
         purchase_items = [p["title"] + " 路 " + (p["brand_id"] or "") + " 路 " + p["status"] for p in purchases] or [U(r"\u6682\u65e0\u91c7\u8d2d\u8ba1\u5212\u3002")]
+        __fb_u_973 = U(r'\u5e93\u5b58\u91c7\u8d2d\u51b3\u7b56\u5f15\u64ce')
+        __fb_u_974 = U(r'\u7528\u4e8e\u8865\u8d27\u3001\u8c03\u8d27\u3001\u964d\u4ef7\u3001\u6e05\u8d27\u3001\u671f\u8d27\u548c\u91c7\u8d2d\u51b3\u7b56\u3002\u4e0d\u81ea\u52a8\u751f\u6210\u91c7\u8d2d\u5355\u6216\u6539\u4ef7\u3002')
+        __fb_u_975 = U(r'\u5e93\u5b58\u98ce\u9669')
+        __fb_u_976 = U(r'\u9ad8\u5e93\u5b58\u3001\u6ede\u9500\u3001\u4f4e\u6bdb\u5229\u3001\u5b63\u8282\u3001\u73b0\u91d1\u6d41\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u3002')
+        __fb_u_977 = U(r'\u8865\u8d27\u5efa\u8bae')
+        __fb_u_978 = U(r'\u6839\u636e\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u548c\u9500\u552e\u901f\u5ea6\u5efa\u7acb\u8865\u8d27\u8349\u6848\u3002')
+        __fb_u_979 = U(r'Osprey \u5e93\u5b58\u51b3\u7b56')
+        __fb_u_980 = U(r'\u671f\u8d27\u3001\u8fd4\u70b9\u3001\u6298\u6263\u3001\u73b0\u91d1\u5360\u7528\u548c\u4ef7\u683c\u98ce\u9669\u4e13\u9898\u3002')
+        __fb_u_981 = U(r'\u5e93\u5b58\u98ce\u9669')
+        __fb_u_982 = U(r'\u8865\u8d27\u5efa\u8bae')
+        __fb_u_983 = U(r'\u8c03\u8d27\u5efa\u8bae')
+        __fb_u_984 = U(r'\u964d\u4ef7\u6e05\u8d27')
+        __fb_u_985 = U(r'\u671f\u8d27\u51b3\u7b56')
+        __fb_u_986 = U(r'\u91c7\u8d2d\u8ba1\u5212')
+        __fb_u_987 = U(r'\u65b0\u5efa\u5e93\u5b58\u98ce\u9669')
+        __fb_u_988 = U(r'\u54c1\u724c')
+        __fb_u_989 = U(r'\u4ea7\u54c1')
+        __fb_u_990 = U(r'\u98ce\u9669\u7c7b\u578b')
+        __fb_u_991 = U(r'\u5efa\u8bae')
+        __fb_u_992 = U(r'\u4fdd\u5b58\u98ce\u9669')
+        __fb_u_993 = U(r'\u65b0\u5efa\u8865\u8d27\u5efa\u8bae')
+        __fb_u_994 = U(r'\u54c1\u724c')
+        __fb_u_995 = U(r'\u4ea7\u54c1')
+        __fb_u_996 = U(r'\u5efa\u8bae\u6570\u91cf')
+        __fb_u_997 = U(r'\u539f\u56e0')
+        __fb_u_998 = U(r'\u4fdd\u5b58\u8865\u8d27\u5efa\u8bae')
         body = f"""
-<div class="panel"><h2>{U(r'\u5e93\u5b58\u91c7\u8d2d\u51b3\u7b56\u5f15\u64ce')}</h2><p class="small">{U(r'\u7528\u4e8e\u8865\u8d27\u3001\u8c03\u8d27\u3001\u964d\u4ef7\u3001\u6e05\u8d27\u3001\u671f\u8d27\u548c\u91c7\u8d2d\u51b3\u7b56\u3002\u4e0d\u81ea\u52a8\u751f\u6210\u91c7\u8d2d\u5355\u6216\u6539\u4ef7\u3002')}</p></div>
+<div class="panel"><h2>{__fb_u_973}</h2><p class="small">{__fb_u_974}</p></div>
 <div class="grid">
-  {self.card(U(r'\u5e93\u5b58\u98ce\u9669'), U(r'\u9ad8\u5e93\u5b58\u3001\u6ede\u9500\u3001\u4f4e\u6bdb\u5229\u3001\u5b63\u8282\u3001\u73b0\u91d1\u6d41\u548c\u4f9b\u5e94\u5546\u98ce\u9669\u3002'), '#risk-form', 'btn', True)}
-  {self.card(U(r'\u8865\u8d27\u5efa\u8bae'), U(r'\u6839\u636e\u95e8\u5e97\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u548c\u9500\u552e\u901f\u5ea6\u5efa\u7acb\u8865\u8d27\u8349\u6848\u3002'), '#replen-form', 'btn green', True)}
-  {self.card(U(r'Osprey \u5e93\u5b58\u51b3\u7b56'), U(r'\u671f\u8d27\u3001\u8fd4\u70b9\u3001\u6298\u6263\u3001\u73b0\u91d1\u5360\u7528\u548c\u4ef7\u683c\u98ce\u9669\u4e13\u9898\u3002'), '/brands/osprey-inventory-decision', 'btn orange', True)}
+  {self.card(__fb_u_975, __fb_u_976, '#risk-form', 'btn', True)}
+  {self.card(__fb_u_977, __fb_u_978, '#replen-form', 'btn green', True)}
+  {self.card(__fb_u_979, __fb_u_980, '/brands/osprey-inventory-decision', 'btn orange', True)}
 </div>
-<div class="split"><div class="panel"><h2>{U(r'\u5e93\u5b58\u98ce\u9669')}</h2>{self.bullets(risk_items)}</div><div class="panel"><h2>{U(r'\u8865\u8d27\u5efa\u8bae')}</h2>{self.bullets(replen_items)}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u8c03\u8d27\u5efa\u8bae')}</h2>{self.bullets(transfer_items)}</div><div class="panel"><h2>{U(r'\u964d\u4ef7\u6e05\u8d27')}</h2>{self.bullets(markdown_items)}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u671f\u8d27\u51b3\u7b56')}</h2>{self.bullets(future_items)}</div><div class="panel"><h2>{U(r'\u91c7\u8d2d\u8ba1\u5212')}</h2>{self.bullets(purchase_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_981}</h2>{self.bullets(risk_items)}</div><div class="panel"><h2>{__fb_u_982}</h2>{self.bullets(replen_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_983}</h2>{self.bullets(transfer_items)}</div><div class="panel"><h2>{__fb_u_984}</h2>{self.bullets(markdown_items)}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_985}</h2>{self.bullets(future_items)}</div><div class="panel"><h2>{__fb_u_986}</h2>{self.bullets(purchase_items)}</div></div>
 <div class="split">
-  <div id="risk-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u5e93\u5b58\u98ce\u9669')}</h2><form method="post" action="/inventory-decision/risks/save"><label>{U(r'\u54c1\u724c')}</label><input name="brand_id"><label>{U(r'\u4ea7\u54c1')}</label><input name="product_id"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u98ce\u9669\u7c7b\u578b')}</label><input name="risk_type" placeholder="high_inventory / slow_moving / price_risk"><label>{U(r'\u5efa\u8bae')}</label><textarea name="recommendation"></textarea><p><button>{U(r'\u4fdd\u5b58\u98ce\u9669')}</button></p></form></div>
-  <div id="replen-form" class="panel form"><h2>{U(r'\u65b0\u5efa\u8865\u8d27\u5efa\u8bae')}</h2><form method="post" action="/inventory-decision/replenishment/save"><label>{T['store']}</label><input name="store_id"><label>{U(r'\u54c1\u724c')}</label><input name="brand_id"><label>{U(r'\u4ea7\u54c1')}</label><input name="product_id"><label>{U(r'\u5efa\u8bae\u6570\u91cf')}</label><input name="suggested_quantity"><label>{U(r'\u539f\u56e0')}</label><textarea name="reason"></textarea><p><button>{U(r'\u4fdd\u5b58\u8865\u8d27\u5efa\u8bae')}</button></p></form></div>
+  <div id="risk-form" class="panel form"><h2>{__fb_u_987}</h2><form method="post" action="/inventory-decision/risks/save"><label>{__fb_u_988}</label><input name="brand_id"><label>{__fb_u_989}</label><input name="product_id"><label>{T['store']}</label><input name="store_id"><label>{__fb_u_990}</label><input name="risk_type" placeholder="high_inventory / slow_moving / price_risk"><label>{__fb_u_991}</label><textarea name="recommendation"></textarea><p><button>{__fb_u_992}</button></p></form></div>
+  <div id="replen-form" class="panel form"><h2>{__fb_u_993}</h2><form method="post" action="/inventory-decision/replenishment/save"><label>{T['store']}</label><input name="store_id"><label>{__fb_u_994}</label><input name="brand_id"><label>{__fb_u_995}</label><input name="product_id"><label>{__fb_u_996}</label><input name="suggested_quantity"><label>{__fb_u_997}</label><textarea name="reason"></textarea><p><button>{__fb_u_998}</button></p></form></div>
 </div>"""
         self.out(layout(U(r"\u5e93\u5b58\u91c7\u8d2d\u51b3\u7b56"), body, user=user, wide=True))
 
@@ -26413,9 +27411,22 @@ group by coalesce(store_name,'')
             return
         if not self.can_manage_inventory_decision(user):
             return self.dashboard(user)
-        body = f"""<div class="panel"><h2>Osprey {U(r'\u5e93\u5b58\u51b3\u7b56')}</h2><p class="small">{U(r'\u4e13\u9879\u5904\u7406 Osprey \u671f\u8d27\u3001\u5e93\u5b58\u3001\u6298\u6263\u3001\u8fd4\u70b9\u3001\u73b0\u91d1\u5360\u7528\u548c\u4ef7\u683c\u4f53\u7cfb\u98ce\u9669\u3002\u4e0d\u586b\u771f\u5b9e\u6570\u636e\u65f6\u4e0d\u4ea7\u751f\u7ed3\u8bba\u3002')}</p></div>
-<div class="split"><div class="panel"><h2>{U(r'\u51b3\u7b56\u6846\u67b6')}</h2>{self.bullets([U(r'\u5f53\u524d\u5e93\u5b58\uff1a\u7b49\u5f85 SAP \u660e\u7ec6'), U(r'\u671f\u8d27\u98ce\u9669\uff1a\u8ba2\u91d1\u3001\u63d0\u8d27\u3001\u53d6\u6d88\u53ef\u80fd\u6027'), U(r'\u6298\u6263\u573a\u666f\uff1a59 / 60 / 62 / 65 \u6298'), U(r'\u8fd4\u70b9\u4f9d\u8d56\uff1a\u4e0d\u672a\u5ba1\u6838\u5373\u8ba4\u5b9a'), U(r'\u73b0\u91d1\u5360\u7528\uff1a\u7b49\u5f85\u8d22\u52a1\u6570\u636e')])}</div><div class="panel"><h2>{U(r'\u591a\u667a\u80fd\u4f53\u5efa\u8bae')}</h2>{self.empty_state(U(r'\u5df2\u9884\u7559 AI CEO / CFO / \u5e93\u5b58 / \u54c1\u724c / \u7814\u7a76\u5458\u534f\u540c\u5206\u6790\uff0c\u9700\u771f\u5b9e\u6570\u636e\u540e\u8f93\u51fa\u3002'))}</div></div>
-<div class="panel"><h2>{U(r'\u4efb\u52a1\u751f\u6210')}</h2><form method="post" action="/api/inventory-decision/create-task"><input type="hidden" name="brand_id" value="Osprey"><label>{U(r'\u4efb\u52a1\u6807\u9898')}</label><input name="title" value="Osprey \u5e93\u5b58\u4e0e\u671f\u8d27\u98ce\u9669\u590d\u6838"><p><button>{U(r'\u751f\u6210\u5f85\u529e\u4efb\u52a1')}</button></p></form></div>"""
+        __fb_u_999 = U(r'\u5e93\u5b58\u51b3\u7b56')
+        __fb_u_1000 = U(r'\u4e13\u9879\u5904\u7406 Osprey \u671f\u8d27\u3001\u5e93\u5b58\u3001\u6298\u6263\u3001\u8fd4\u70b9\u3001\u73b0\u91d1\u5360\u7528\u548c\u4ef7\u683c\u4f53\u7cfb\u98ce\u9669\u3002\u4e0d\u586b\u771f\u5b9e\u6570\u636e\u65f6\u4e0d\u4ea7\u751f\u7ed3\u8bba\u3002')
+        __fb_u_1001 = U(r'\u51b3\u7b56\u6846\u67b6')
+        __fb_u_1002 = U(r'\u5f53\u524d\u5e93\u5b58\uff1a\u7b49\u5f85 SAP \u660e\u7ec6')
+        __fb_u_1003 = U(r'\u671f\u8d27\u98ce\u9669\uff1a\u8ba2\u91d1\u3001\u63d0\u8d27\u3001\u53d6\u6d88\u53ef\u80fd\u6027')
+        __fb_u_1004 = U(r'\u6298\u6263\u573a\u666f\uff1a59 / 60 / 62 / 65 \u6298')
+        __fb_u_1005 = U(r'\u8fd4\u70b9\u4f9d\u8d56\uff1a\u4e0d\u672a\u5ba1\u6838\u5373\u8ba4\u5b9a')
+        __fb_u_1006 = U(r'\u73b0\u91d1\u5360\u7528\uff1a\u7b49\u5f85\u8d22\u52a1\u6570\u636e')
+        __fb_u_1007 = U(r'\u591a\u667a\u80fd\u4f53\u5efa\u8bae')
+        __fb_u_1008 = U(r'\u5df2\u9884\u7559 AI CEO / CFO / \u5e93\u5b58 / \u54c1\u724c / \u7814\u7a76\u5458\u534f\u540c\u5206\u6790\uff0c\u9700\u771f\u5b9e\u6570\u636e\u540e\u8f93\u51fa\u3002')
+        __fb_u_1009 = U(r'\u4efb\u52a1\u751f\u6210')
+        __fb_u_1010 = U(r'\u4efb\u52a1\u6807\u9898')
+        __fb_u_1011 = U(r'\u751f\u6210\u5f85\u529e\u4efb\u52a1')
+        body = f"""<div class="panel"><h2>Osprey {__fb_u_999}</h2><p class="small">{__fb_u_1000}</p></div>
+<div class="split"><div class="panel"><h2>{__fb_u_1001}</h2>{self.bullets([__fb_u_1002, __fb_u_1003, __fb_u_1004, __fb_u_1005, __fb_u_1006])}</div><div class="panel"><h2>{__fb_u_1007}</h2>{self.empty_state(__fb_u_1008)}</div></div>
+<div class="panel"><h2>{__fb_u_1009}</h2><form method="post" action="/api/inventory-decision/create-task"><input type="hidden" name="brand_id" value="Osprey"><label>{__fb_u_1010}</label><input name="title" value="Osprey \u5e93\u5b58\u4e0e\u671f\u8d27\u98ce\u9669\u590d\u6838"><p><button>{__fb_u_1011}</button></p></form></div>"""
         self.out(layout("Osprey " + U(r"\u5e93\u5b58\u51b3\u7b56"), body, user=user, wide=True))
 
     def api_inventory_decision_get(self, user, path):
@@ -26515,29 +27526,58 @@ group by coalesce(store_name,'')
             cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u5185\u5bb9\u8349\u7a3f\uff0c\u53ef\u5148\u4ece\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u95e8\u5e97\u6545\u4e8b\u521b\u5efa\u3002")))
         campaign_items = [c["campaign_name"] + " 璺?" + (c["campaign_type"] or "") + " 璺?" + c["status"] for c in campaigns] or [U(r"\u6682\u65e0\u6d3b\u52a8\u3002")]
         queue_items = [q["platform"] + " 璺?" + q["status"] for q in queue] or [U(r"\u53d1\u5e03\u63a5\u53e3\u9884\u7559\uff0c\u5f53\u524d\u4ec5\u652f\u6301\u8349\u7a3f\u4e0e\u5bfc\u51fa\u3002")]
+        __fb_u_1012 = U(r'\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce')
+        __fb_u_1013 = U(r'\u628a\u77e5\u8bc6\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u95e8\u5e97\u6545\u4e8b\u548c AI \u5206\u6790\u8f6c\u6210\u591a\u5e73\u53f0\u5185\u5bb9\u8349\u7a3f\u3002\u6682\u4e0d\u81ea\u52a8\u53d1\u5e03\u3002')
+        __fb_u_1014 = U(r'\u8349\u7a3f')
+        __fb_u_1015 = U(r'\u53ef\u7f16\u8f91')
+        __fb_u_1016 = U(r'\u5f85\u5ba1')
+        __fb_u_1017 = U(r'\u9700\u5ba1\u6838')
+        __fb_u_1018 = U(r'\u5df2\u901a\u8fc7')
+        __fb_u_1019 = U(r'\u53ef\u6392\u671f')
+        __fb_u_1020 = U(r'\u5df2\u6392\u671f')
+        __fb_u_1021 = U(r'\u5f85\u53d1\u5e03')
+        __fb_u_1022 = U(r'\u5df2\u53d1\u5e03')
+        __fb_u_1023 = U(r'\u624b\u52a8\u8bb0\u5f55')
+        __fb_u_1024 = U(r'\u65b0\u5efa\u5185\u5bb9\u8349\u7a3f')
+        __fb_u_1025 = U(r'\u6807\u9898')
+        __fb_u_1026 = U(r'\u5185\u5bb9\u7c7b\u578b')
+        __fb_u_1027 = U(r'\u9009\u9898')
+        __fb_u_1028 = U(r'\u76ee\u6807\u5e73\u53f0')
+        __fb_u_1029 = U(r'\u4eba\u5de5\u8f93\u5165')
+        __fb_u_1030 = U(r'\u4fdd\u5b58\u5e76\u751f\u6210\u5e73\u53f0\u7248\u672c')
+        __fb_u_1031 = U(r'\u5185\u5bb9\u65e5\u5386')
+        __fb_u_1032 = U(r'\u4eca\u5929\uff1a\u68c0\u67e5\u5f85\u5ba1\u6838\u8349\u7a3f')
+        __fb_u_1033 = U(r'\u672c\u5468\uff1a\u5b89\u6392\u54c1\u724c\u548c\u95e8\u5e97\u5185\u5bb9')
+        __fb_u_1034 = U(r'\u672c\u6708\uff1a\u56f4\u7ed5\u6d3b\u52a8\u548c\u65b0\u54c1\u505a\u6392\u671f')
+        __fb_u_1035 = U(r'\u5185\u5bb9\u8349\u7a3f')
+        __fb_u_1036 = U(r'\u6d3b\u52a8')
+        __fb_u_1037 = U(r'\u53d1\u5e03\u961f\u5217')
+        __fb_u_1038 = U(r'\u4e13\u7528\u6a21\u677f')
+        __fb_u_1039 = U(r'Osprey \u6c9f\u901a\u6a21\u677f\uff1a\u987e\u5ba2\u8bdd\u672f\u3001\u95e8\u5e97\u8bdd\u672f\u3001\u5c0f\u7ea2\u4e66\u65b9\u5411\u3001\u4f1a\u5458\u6d3b\u52a8')
+        __fb_u_1040 = U(r'VAFOX \u6a21\u677f\uff1a\u54c1\u724c\u6545\u4e8b\u3001\u89c1\u5c71\u89c1\u5df1\u7406\u5ff5\u3001\u5b98\u7f51\u4ecb\u7ecd\u3001\u89c6\u9891\u53f7\u811a\u672c')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce')}</h2>
-  <p class="small">{U(r'\u628a\u77e5\u8bc6\u3001\u54c1\u724c\u3001\u4ea7\u54c1\u3001\u95e8\u5e97\u6545\u4e8b\u548c AI \u5206\u6790\u8f6c\u6210\u591a\u5e73\u53f0\u5185\u5bb9\u8349\u7a3f\u3002\u6682\u4e0d\u81ea\u52a8\u53d1\u5e03\u3002')}</p>
-  <div class="metrics">{self.metric(U(r'\u8349\u7a3f'), counts.get('draft',0), U(r'\u53ef\u7f16\u8f91'))}{self.metric(U(r'\u5f85\u5ba1'), counts.get('pending_review',0), U(r'\u9700\u5ba1\u6838'))}{self.metric(U(r'\u5df2\u901a\u8fc7'), counts.get('approved',0), U(r'\u53ef\u6392\u671f'))}{self.metric(U(r'\u5df2\u6392\u671f'), counts.get('scheduled',0), U(r'\u5f85\u53d1\u5e03'))}{self.metric(U(r'\u5df2\u53d1\u5e03'), counts.get('published',0), U(r'\u624b\u52a8\u8bb0\u5f55'))}</div>
+  <h2>{__fb_u_1012}</h2>
+  <p class="small">{__fb_u_1013}</p>
+  <div class="metrics">{self.metric(__fb_u_1014, counts.get('draft',0), __fb_u_1015)}{self.metric(__fb_u_1016, counts.get('pending_review',0), __fb_u_1017)}{self.metric(__fb_u_1018, counts.get('approved',0), __fb_u_1019)}{self.metric(__fb_u_1020, counts.get('scheduled',0), __fb_u_1021)}{self.metric(__fb_u_1022, counts.get('published',0), __fb_u_1023)}</div>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u65b0\u5efa\u5185\u5bb9\u8349\u7a3f')}</h2>
+    <h2>{__fb_u_1024}</h2>
     <form method="post" action="/content/save">
-      <label>{U(r'\u6807\u9898')}</label><input name="title" required>
-      <label>{U(r'\u5185\u5bb9\u7c7b\u578b')}</label><select name="content_type"><option value="article">article</option><option value="short_video_script">short_video_script</option><option value="xiaohongshu_note">xiaohongshu_note</option><option value="product_story">product_story</option><option value="store_story">store_story</option><option value="campaign_post">campaign_post</option><option value="brand_introduction">brand_introduction</option></select>
-      <label>{U(r'\u9009\u9898')}</label><input name="topic">
-      <label>{U(r'\u76ee\u6807\u5e73\u53f0')}</label><input name="target_platforms" value="wechat_official,xiaohongshu,douyin">
-      <label>{U(r'\u4eba\u5de5\u8f93\u5165')}</label><textarea name="body"></textarea>
-      <p><button>{U(r'\u4fdd\u5b58\u5e76\u751f\u6210\u5e73\u53f0\u7248\u672c')}</button></p>
+      <label>{__fb_u_1025}</label><input name="title" required>
+      <label>{__fb_u_1026}</label><select name="content_type"><option value="article">article</option><option value="short_video_script">short_video_script</option><option value="xiaohongshu_note">xiaohongshu_note</option><option value="product_story">product_story</option><option value="store_story">store_story</option><option value="campaign_post">campaign_post</option><option value="brand_introduction">brand_introduction</option></select>
+      <label>{__fb_u_1027}</label><input name="topic">
+      <label>{__fb_u_1028}</label><input name="target_platforms" value="wechat_official,xiaohongshu,douyin">
+      <label>{__fb_u_1029}</label><textarea name="body"></textarea>
+      <p><button>{__fb_u_1030}</button></p>
     </form>
   </div>
-  <div class="panel"><h2>{U(r'\u5185\u5bb9\u65e5\u5386')}</h2>{self.bullets([U(r'\u4eca\u5929\uff1a\u68c0\u67e5\u5f85\u5ba1\u6838\u8349\u7a3f'), U(r'\u672c\u5468\uff1a\u5b89\u6392\u54c1\u724c\u548c\u95e8\u5e97\u5185\u5bb9'), U(r'\u672c\u6708\uff1a\u56f4\u7ed5\u6d3b\u52a8\u548c\u65b0\u54c1\u505a\u6392\u671f')])}</div>
+  <div class="panel"><h2>{__fb_u_1031}</h2>{self.bullets([__fb_u_1032, __fb_u_1033, __fb_u_1034])}</div>
 </div>
-<div class="panel"><h2>{U(r'\u5185\u5bb9\u8349\u7a3f')}</h2><div class="grid">{cards}</div></div>
-<div class="split"><div class="panel"><h2>{U(r'\u6d3b\u52a8')}</h2>{self.bullets(campaign_items)}</div><div class="panel"><h2>{U(r'\u53d1\u5e03\u961f\u5217')}</h2>{self.bullets(queue_items)}</div></div>
-<div class="panel"><h2>{U(r'\u4e13\u7528\u6a21\u677f')}</h2>{self.bullets([U(r'Osprey \u6c9f\u901a\u6a21\u677f\uff1a\u987e\u5ba2\u8bdd\u672f\u3001\u95e8\u5e97\u8bdd\u672f\u3001\u5c0f\u7ea2\u4e66\u65b9\u5411\u3001\u4f1a\u5458\u6d3b\u52a8'), U(r'VAFOX \u6a21\u677f\uff1a\u54c1\u724c\u6545\u4e8b\u3001\u89c1\u5c71\u89c1\u5df1\u7406\u5ff5\u3001\u5b98\u7f51\u4ecb\u7ecd\u3001\u89c6\u9891\u53f7\u811a\u672c')])}</div>"""
+<div class="panel"><h2>{__fb_u_1035}</h2><div class="grid">{cards}</div></div>
+<div class="split"><div class="panel"><h2>{__fb_u_1036}</h2>{self.bullets(campaign_items)}</div><div class="panel"><h2>{__fb_u_1037}</h2>{self.bullets(queue_items)}</div></div>
+<div class="panel"><h2>{__fb_u_1038}</h2>{self.bullets([__fb_u_1039, __fb_u_1040])}</div>"""
         self.out(layout(U(r"\u5185\u5bb9\u53d1\u5e03\u5f15\u64ce"), body, user=user, wide=True))
 
     def content_save(self):
@@ -26748,28 +27788,42 @@ group by coalesce(store_name,'')
         if not report_cards:
             report_cards = "<div class='panel'>{}</div>".format(self.empty_state(U(r"\u6682\u65e0\u62a5\u544a\uff0c\u53ef\u5148\u751f\u6210 AI \u65e5\u62a5\u8349\u7a3f\u3002")))
         template_cards = "".join("<div class='card'><div><h2>{}</h2><p>{}</p><p class='small'>{} 璺?{}</p></div></div>".format(esc(t["template_name"]), esc(t["description"]), esc(t["report_type"]), esc(t["default_date_range"])) for t in templates)
-        schedule_items = [f"{s['frequency']} 璺?{s['recipients']} 璺?{'enabled' if s['enabled'] else 'disabled'}" for s in schedules] or [U(r"\u6682\u65e0\u5b9a\u65f6\u62a5\u544a\u3002")]
+        __fb_u_1041 = U(r"\u6682\u65e0\u5b9a\u65f6\u62a5\u544a\u3002")
+        schedule_items = [f"{s['frequency']} 璺?{s['recipients']} 璺?{'enabled' if s['enabled'] else 'disabled'}" for s in schedules] or [__fb_u_1041]
+        __fb_u_1042 = U(r'\u62a5\u544a\u4e2d\u5fc3')
+        __fb_u_1043 = U(r'AI \u62a5\u544a\u53ea\u662f\u8349\u7a3f\uff0c\u672a\u7ecf\u5ba1\u6838\u4e0d\u662f\u6b63\u5f0f\u62a5\u544a\u3002')
+        __fb_u_1044 = U(r'\u65b0\u5efa\u62a5\u544a\u8349\u7a3f')
+        __fb_u_1045 = U(r'\u62a5\u544a\u6807\u9898')
+        __fb_u_1046 = U(r'\u62a5\u544a\u7c7b\u578b')
+        __fb_u_1047 = U(r'\u5f00\u59cb\u65e5\u671f')
+        __fb_u_1048 = U(r'\u7ed3\u675f\u65e5\u671f')
+        __fb_u_1049 = U(r'\u5173\u8054\u5bf9\u8c61')
+        __fb_u_1050 = U(r'\u4fdd\u5b58\u5e76\u751f\u6210\u8349\u7a3f')
+        __fb_u_1051 = U(r'\u5b9a\u65f6\u62a5\u544a')
+        __fb_u_1052 = U(r'\u540e\u7eed\u7531 n8n \u5728\u6bcf\u665a 22:00 SAP \u540c\u6b65\u540e\u81ea\u52a8\u751f\u6210\u3002')
+        __fb_u_1053 = U(r'\u62a5\u544a\u5217\u8868')
+        __fb_u_1054 = U(r'\u9ed8\u8ba4\u6a21\u677f')
         body = f"""
 <div class="panel">
-  <h2>{U(r'\u62a5\u544a\u4e2d\u5fc3')}</h2>
-  <p class="small">{U(r'AI \u62a5\u544a\u53ea\u662f\u8349\u7a3f\uff0c\u672a\u7ecf\u5ba1\u6838\u4e0d\u662f\u6b63\u5f0f\u62a5\u544a\u3002')}</p>
+  <h2>{__fb_u_1042}</h2>
+  <p class="small">{__fb_u_1043}</p>
 </div>
 <div class="split">
   <div class="panel form">
-    <h2>{U(r'\u65b0\u5efa\u62a5\u544a\u8349\u7a3f')}</h2>
+    <h2>{__fb_u_1044}</h2>
     <form method="post" action="/reports/save">
-      <label>{U(r'\u62a5\u544a\u6807\u9898')}</label><input name="title" required>
-      <label>{U(r'\u62a5\u544a\u7c7b\u578b')}</label><select name="report_type">{template_options}</select>
-      <label>{U(r'\u5f00\u59cb\u65e5\u671f')}</label><input name="date_range_start" placeholder="2026-07-01">
-      <label>{U(r'\u7ed3\u675f\u65e5\u671f')}</label><input name="date_range_end" placeholder="2026-07-04">
-      <label>{U(r'\u5173\u8054\u5bf9\u8c61')}</label><input name="object_type" placeholder="store / brand / inventory"><input name="object_id" placeholder="ID">
-      <p><button>{U(r'\u4fdd\u5b58\u5e76\u751f\u6210\u8349\u7a3f')}</button></p>
+      <label>{__fb_u_1045}</label><input name="title" required>
+      <label>{__fb_u_1046}</label><select name="report_type">{template_options}</select>
+      <label>{__fb_u_1047}</label><input name="date_range_start" placeholder="2026-07-01">
+      <label>{__fb_u_1048}</label><input name="date_range_end" placeholder="2026-07-04">
+      <label>{__fb_u_1049}</label><input name="object_type" placeholder="store / brand / inventory"><input name="object_id" placeholder="ID">
+      <p><button>{__fb_u_1050}</button></p>
     </form>
   </div>
-  <div class="panel"><h2>{U(r'\u5b9a\u65f6\u62a5\u544a')}</h2>{self.bullets(schedule_items)}<p class="small">{U(r'\u540e\u7eed\u7531 n8n \u5728\u6bcf\u665a 22:00 SAP \u540c\u6b65\u540e\u81ea\u52a8\u751f\u6210\u3002')}</p></div>
+  <div class="panel"><h2>{__fb_u_1051}</h2>{self.bullets(schedule_items)}<p class="small">{__fb_u_1052}</p></div>
 </div>
-<div class="panel"><h2>{U(r'\u62a5\u544a\u5217\u8868')}</h2><div class="grid">{report_cards}</div></div>
-<div class="panel"><h2>{U(r'\u9ed8\u8ba4\u6a21\u677f')}</h2><div class="grid">{template_cards}</div></div>"""
+<div class="panel"><h2>{__fb_u_1053}</h2><div class="grid">{report_cards}</div></div>
+<div class="panel"><h2>{__fb_u_1054}</h2><div class="grid">{template_cards}</div></div>"""
         self.out(layout(U(r"\u62a5\u544a\u4e2d\u5fc3"), body, user=user, wide=True))
 
     def report_save(self):
@@ -27233,17 +28287,40 @@ group by coalesce(store_name,'')
 </div>""".format(esc(action["title"]), esc(action["reason"]), esc(action["action_id"]), U(r"\u786e\u8ba4"), U(r"\u53d6\u6d88"))
         if not action_rows:
             action_rows = self.empty_state(U(r"\u6682\u65e0\u5f85\u786e\u8ba4\u52a8\u4f5c\u3002"))
+        __fb_u_1055 = U(r'\u7b80\u6d01\u6a21\u5f0f\uff1a\u53ea\u56de\u7b54\u7ed3\u8bba\u3001\u4f9d\u636e\u548c\u4e0b\u4e00\u6b65\uff0c\u7ecf\u8425\u6570\u5b57\u7edf\u4e00\u4f7f\u7528 SAP B1 \u540c\u6b65\u6458\u8981\u3002')
+        __fb_u_1056 = U(r'\u6570\u636e\u65e5\u671f')
+        __fb_u_1057 = U(r'\u672a\u540c\u6b65')
+        __fb_u_1058 = U(r'SAP B1')
+        __fb_u_1059 = U(r'\u6628\u65e5\u9500\u552e')
+        __fb_u_1060 = U(r'\uffe5')
+        __fb_u_1061 = U(r'\u7edf\u4e00\u53e3\u5f84')
+        __fb_u_1062 = U(r'\u672c\u6708\u9500\u552e')
+        __fb_u_1063 = U(r'\uffe5')
+        __fb_u_1064 = U(r'\u5b8c\u6210\u7387 ')
+        __fb_u_1065 = U(r'\u95ee Jarvis')
+        __fb_u_1066 = U(r'\u4f8b\uff1a\u4eca\u5929\u516c\u53f8\u7ecf\u8425\u600e\u4e48\u6837\uff1f')
+        __fb_u_1067 = U(r'\u53d1\u9001')
+        __fb_u_1068 = U(r'\u5bf9\u8bdd\u5386\u53f2')
+        __fb_u_1069 = U(r'\u65b0\u5bf9\u8bdd')
+        __fb_u_1070 = U(r'\u5f85\u786e\u8ba4\u52a8\u4f5c')
+        __fb_u_1071 = U(r'\u6765\u6e90\u4e0e\u9650\u5236')
+        __fb_u_1072 = U(r'\u56de\u7b54\u4f1a\u5148\u68c0\u7d22\u5df2\u6709\u77e5\u8bc6\u3001SAP \u6458\u8981\u3001\u8bb0\u5fc6\u548c\u56fe\u8c31\u3002')
+        __fb_u_1073 = U(r'\u5df2\u914d\u7f6e API \u65f6\uff0cJarvis \u4f1a\u57fa\u4e8e\u5185\u90e8\u6765\u6e90\u751f\u6210\u66f4\u81ea\u7136\u7684\u7ecf\u8425\u5efa\u8bae\u3002')
+        __fb_u_1074 = U(r'\u6ca1\u6709\u6765\u6e90\u65f6\u4e0d\u7f16\u9020\u7ecf\u8425\u7ed3\u8bba\u3002')
+        __fb_u_1075 = U(r'\u91cd\u8981\u52a8\u4f5c\u9700\u4eba\u5de5\u786e\u8ba4\u3002')
+        __fb_u_1076 = U(r'\u8bed\u97f3\u8f93\u5165')
+        __fb_u_1077 = U(r'\u8bed\u97f3\u8f93\u5165\u80fd\u529b\u9884\u7559\uff0c\u7b49\u5f85\u63a5\u5165\u8bed\u97f3\u8bc6\u522b\u670d\u52a1\u3002')
         body = f"""
 <div class="chat-shell">
   <div>
     <div class="panel">
       <h2>VAFOX AI Assistant</h2>
-      <p class="small">{U(r'\u7b80\u6d01\u6a21\u5f0f\uff1a\u53ea\u56de\u7b54\u7ed3\u8bba\u3001\u4f9d\u636e\u548c\u4e0b\u4e00\u6b65\uff0c\u7ecf\u8425\u6570\u5b57\u7edf\u4e00\u4f7f\u7528 SAP B1 \u540c\u6b65\u6458\u8981\u3002')}</p>
+      <p class="small">{__fb_u_1055}</p>
       <p class="small"><span class="confidence">{esc(ai_status_text)}</span></p>
       <div class="metrics">
-        {self.metric(U(r'\u6570\u636e\u65e5\u671f'), cockpit['metrics']['data_date'] or U(r'\u672a\u540c\u6b65'), U(r'SAP B1'))}
-        {self.metric(U(r'\u6628\u65e5\u9500\u552e'), U(r'\uffe5') + money(cockpit['metrics']['yesterday_sales']), U(r'\u7edf\u4e00\u53e3\u5f84'))}
-        {self.metric(U(r'\u672c\u6708\u9500\u552e'), U(r'\uffe5') + money(cockpit['metrics']['month_sales']), U(r'\u5b8c\u6210\u7387 ') + pct(cockpit['metrics']['completion_rate']))}
+        {self.metric(__fb_u_1056, cockpit['metrics']['data_date'] or __fb_u_1057, __fb_u_1058)}
+        {self.metric(__fb_u_1059, __fb_u_1060 + money(cockpit['metrics']['yesterday_sales']), __fb_u_1061)}
+        {self.metric(__fb_u_1062, __fb_u_1063 + money(cockpit['metrics']['month_sales']), __fb_u_1064 + pct(cockpit['metrics']['completion_rate']))}
       </div>
       <div class="chipbar">{chips}</div>
     </div>
@@ -27251,17 +28328,17 @@ group by coalesce(store_name,'')
     <div class="chat-input">
       <form method="post" action="/jarvis/message">
         <input type="hidden" name="conversation_id" value="{esc(current['id'] if current else '')}">
-        <label>{U(r'\u95ee Jarvis')}</label>
-        <textarea id="jarvis-question" name="question" placeholder="{U(r'\u4f8b\uff1a\u4eca\u5929\u516c\u53f8\u7ecf\u8425\u600e\u4e48\u6837\uff1f')}" required></textarea>
-        <p><button>{U(r'\u53d1\u9001')}</button></p>
+        <label>{__fb_u_1065}</label>
+        <textarea id="jarvis-question" name="question" placeholder="{__fb_u_1066}" required></textarea>
+        <p><button>{__fb_u_1067}</button></p>
       </form>
     </div>
   </div>
   <div>
-    <div class="panel"><h2>{U(r'\u5bf9\u8bdd\u5386\u53f2')}</h2>{conversation_links}<p><a class="btn gray" href="/jarvis">{U(r'\u65b0\u5bf9\u8bdd')}</a></p></div>
-    <div class="panel"><h2>{U(r'\u5f85\u786e\u8ba4\u52a8\u4f5c')}</h2>{action_rows}</div>
-    <div class="panel"><h2>{U(r'\u6765\u6e90\u4e0e\u9650\u5236')}</h2>{self.bullets([U(r'\u56de\u7b54\u4f1a\u5148\u68c0\u7d22\u5df2\u6709\u77e5\u8bc6\u3001SAP \u6458\u8981\u3001\u8bb0\u5fc6\u548c\u56fe\u8c31\u3002'), U(r'\u5df2\u914d\u7f6e API \u65f6\uff0cJarvis \u4f1a\u57fa\u4e8e\u5185\u90e8\u6765\u6e90\u751f\u6210\u66f4\u81ea\u7136\u7684\u7ecf\u8425\u5efa\u8bae\u3002'), U(r'\u6ca1\u6709\u6765\u6e90\u65f6\u4e0d\u7f16\u9020\u7ecf\u8425\u7ed3\u8bba\u3002'), U(r'\u91cd\u8981\u52a8\u4f5c\u9700\u4eba\u5de5\u786e\u8ba4\u3002')])}</div>
-    <div class="panel"><h2>{U(r'\u8bed\u97f3\u8f93\u5165')}</h2>{self.empty_state(U(r'\u8bed\u97f3\u8f93\u5165\u80fd\u529b\u9884\u7559\uff0c\u7b49\u5f85\u63a5\u5165\u8bed\u97f3\u8bc6\u522b\u670d\u52a1\u3002'))}</div>
+    <div class="panel"><h2>{__fb_u_1068}</h2>{conversation_links}<p><a class="btn gray" href="/jarvis">{__fb_u_1069}</a></p></div>
+    <div class="panel"><h2>{__fb_u_1070}</h2>{action_rows}</div>
+    <div class="panel"><h2>{__fb_u_1071}</h2>{self.bullets([__fb_u_1072, __fb_u_1073, __fb_u_1074, __fb_u_1075])}</div>
+    <div class="panel"><h2>{__fb_u_1076}</h2>{self.empty_state(__fb_u_1077)}</div>
   </div>
 </div>"""
         self.out(layout(U(r"VAFOX AI Assistant"), body, user=user, wide=True))
