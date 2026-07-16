@@ -11,6 +11,7 @@ from datetime import date
 
 
 ENTERPRISE_DIMENSIONS = ("Sales", "Margin", "Inventory", "Supply Chain", "Store Performance", "Customer")
+HEALTH_SCORE_DIMENSIONS = ("Sales", "Margin", "Inventory", "Supply Chain", "Finance", "Growth", "Organization")
 
 
 def _status_score(status):
@@ -97,8 +98,15 @@ def build_ceo_strategy_snapshot(metrics, latest_batch=None, replenishment_summar
     agents = ["CEO Agent", "Supply Chain Agent", "Finance Agent", "Store Agent", "Growth Agent"]
     return {
         "as_of": date.today().isoformat(), "enterprise_health_score": health_score,
-        "risk_level": risk_level, "dimensions": ENTERPRISE_DIMENSIONS, "briefing": briefing,
+        "risk_level": risk_level, "dimensions": ENTERPRISE_DIMENSIONS, "health_dimensions": HEALTH_SCORE_DIMENSIONS, "briefing": briefing,
         "risks": risks, "opportunities": opportunities, "decision_center": decision_center,
         "simulation": simulation, "memory": {"records": memories, "learning": "Record decision, reason, action, result, and learning after human confirmation."},
         "agents": agents,
+        "digital_employees": [
+            {"name": "CEO Agent", "status": "Active", "tasks": pending_runs, "results": approved_runs, "purpose": "Executive risk, opportunity, and decision synthesis"},
+            {"name": "Supply Agent", "status": "Active", "tasks": urgent_skus, "results": suggested_units, "purpose": "Inventory pressure and supplier action recommendations"},
+            {"name": "Store Agent", "status": "Active", "tasks": len(replenishment_summary), "results": suggested_units, "purpose": "Store-level replenishment and demand intelligence"},
+            {"name": "Finance Agent", "status": "Standby", "tasks": pending_tasks, "results": approved_runs, "purpose": "Cash, margin, and approval impact review"},
+            {"name": "Growth Agent", "status": "Active", "tasks": len(opportunities), "results": memories, "purpose": "Market, brand, and content growth opportunity discovery"},
+        ],
     }

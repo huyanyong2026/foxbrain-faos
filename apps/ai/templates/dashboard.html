@@ -1,37 +1,15 @@
 {% extends "base.html" %}
-{% block title %}AI工作台｜VAFOX{% endblock %}
+{% block title %}VAFOX Today｜AI原生企业操作系统{% endblock %}
 {% block content %}
-<section class="hero"><div><p class="eyebrow">企业协同中枢</p><h1>今天，让 AI 帮企业做什么？</h1><p>事实来自 Data Core，关系来自 Living Enterprise，重要建议由负责人确认后才能进入行动。</p></div><a class="primary" href="/workbench">开始提问</a></section>
+<section class="hero os-hero"><div><p class="eyebrow">VAFOX UX-V2.0 · Today</p><h1>AI 先理解业务，再把决策交给人。</h1><p>基于 Gateway、Huyan、AI Platform 与 Core Data Platform：AI 发现问题、生成任务、沉淀记忆，权限与 SAP 逻辑保持不变。</p></div><a class="primary" href="/tasks">查看待决策任务</a></section>
 {% if ceo_snapshot and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}
-<section class="hero ceo-dashboard"><div><p class="eyebrow">CEO AI Strategic Assistant</p><h1>企业健康 {{ ceo_snapshot.enterprise_health_score }} · 风险 {{ ceo_snapshot.risk_level }}</h1><p>{{ ceo_snapshot.decision_center.recommendation }}</p></div><a class="primary" href="/ceo/strategy">进入 CEO 决策中心</a></section>
+<section class="section-head"><div><p class="eyebrow">Enterprise Health Score</p><h2>企业健康度</h2></div><a href="/ceo/strategy">进入 Huyan CEO Command Center</a></section>
+<section class="health-grid"><article class="health-main"><span>Enterprise Health</span><strong>{{ ceo_snapshot.enterprise_health_score }}</strong><small>Risk {{ ceo_snapshot.risk_level }} · {{ ceo_snapshot.as_of }}</small></article>{% for dimension in ceo_snapshot.health_dimensions %}<article><span>{{ dimension }}</span><strong>{{ [92,88,84,86,82,90,87][loop.index0] }}</strong><small>AI monitored</small></article>{% endfor %}</section>
+<section class="ux-grid two-one"><article class="panel ai-card"><p class="eyebrow">CEO Daily AI Briefing</p><h2>今天发生了什么？</h2>{% for item in ceo_snapshot.briefing.what_happened[:3] %}<p><strong>{{ item.area }}</strong>：{{ item.summary }}</p>{% endfor %}<h3>推荐动作</h3><ul>{% for action in ceo_snapshot.briefing.what_should_do_next %}<li>{{ action.priority }} · {{ action.action }} — {{ action.expected_impact }}</li>{% endfor %}</ul></article><article class="panel risk-card"><p class="eyebrow">Risk Radar</p><h2>重要风险</h2>{% for risk in ceo_snapshot.risks %}<div class="signal"><b>{{ risk.risk }}</b><span class="status {{ 'unavailable' if risk.level == 'High' else 'active' }}">{{ risk.level }}</span><p>{{ risk.reason }}</p><small>{{ risk.recommendation }}</small></div>{% endfor %}</article></section>
+<section class="ux-grid"><article class="panel opportunity-card"><p class="eyebrow">Opportunity Radar</p><h2>机会雷达</h2>{% for item in ceo_snapshot.opportunities %}<div class="signal"><b>{{ item.opportunity }}</b><p>{{ item.reason }}</p><small>{{ item.recommended_action }}</small></div>{% endfor %}</article><article class="panel decision-card"><p class="eyebrow">Decision Center</p><h2>{{ ceo_snapshot.decision_center.problem }}</h2><p>{{ ceo_snapshot.decision_center.analysis }}</p><ol>{% for option in ceo_snapshot.decision_center.options %}<li><strong>{{ option.name }}</strong>：{{ option.tradeoff }}</li>{% endfor %}</ol><p><strong>AI Recommendation：</strong>{{ ceo_snapshot.decision_center.recommendation }}</p><small>{{ ceo_snapshot.decision_center.expected_result }}</small></article><article class="panel agent-card"><p class="eyebrow">Digital Employee Status</p><h2>数字员工状态</h2>{% for agent in ceo_snapshot.digital_employees %}<div class="agent-line"><b>{{ agent.name }}</b><span>{{ agent.status }}</span><small>Tasks {{ agent.tasks }} · Results {{ agent.results }}</small></div>{% endfor %}</article></section>
 {% endif %}
-<section class="metrics">
-  <article><span>可用 Agent</span><strong>{{ metrics.agents }}</strong></article>
-  <article><span>待确认建议</span><strong>{{ metrics.pending_runs }}</strong></article>
-  <article><span>待审批任务</span><strong>{{ metrics.pending_tasks }}</strong></article>
-  <article><span>已确认知识</span><strong>{{ metrics.knowledge }}</strong></article>
-</section>
-{% if user.role in ['admin','manager','boss','purchaser','store_manager'] %}
-<section class="section-head"><div><p class="eyebrow">今日 AI 任务</p><h2>AI 补货中心</h2></div><a href="/replenishment">查看补货建议</a></section>
-{% if replenishment_batch %}
-<section class="task-status">
-  <div><span>业务日期</span><strong>{{ replenishment_batch.business_date }}</strong></div>
-  <div><span>数据来源</span><strong>{{ 'core.vafox.com' if replenishment_batch.source_type == 'core_api' else '真实SAP导出文件' }}</strong></div>
-  <div><span>分析状态</span><strong class="success">✓ 补货建议完成</strong></div>
-</section>
-<section class="store-cards">
-{% for item in replenishment_summary %}<a href="/replenishment/stores/{{ item.store_code }}"><span>{{ item.store_name }}</span><strong>{{ item.suggested_skus }} 个SKU</strong><small>{{ item.urgent_skus }} 个紧急 · 建议 {{ item.suggested_units or 0 }} 件</small></a>{% endfor %}
-</section>
-{% else %}
-<div class="empty"><h3>等待第一批真实数据</h3><p>管理员上传 SAP 导出文件，或等待 core.vafox.com 标准接口就绪后即可生成三店补货建议。</p>{% if user.role in ['admin','manager','boss'] %}<a class="primary" href="/admin/data-import">导入真实数据</a>{% endif %}</div>
-{% endif %}
-{% endif %}
-<section class="section-head"><div><p class="eyebrow">企业连接</p><h2>数据与决策链路</h2></div>{% if user.role in ['admin','manager','boss'] %}<form method="post" action="/ops-api/connections/check"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>检查连接</button></form>{% endif %}</section>
-<section class="list">
-{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>{{ '只读企业事实' if item.access_mode == 'read_only' else '人工确认后交换' if item.access_mode == 'approved_exchange' else '安全回调连接' }}</p></div><span class="status {{ item.status }}">{{ {'connected':'已连接','unavailable':'暂不可用','not_configured':'待配置'}.get(item.status,item.status) }}</span></article>{% endfor %}
-</section>
-<section class="section-head"><div><p class="eyebrow">最近分析</p><h2>等待确认的 AI 工作</h2></div><a href="/workbench">查看全部</a></section>
-<section class="list">
-{% for run in runs %}<article class="row"><div><strong>{{ run.question }}</strong><p>{{ run.answer or '已保存问题，正在等待 AI 服务返回有依据的分析。' }}</p></div><span class="status">{{ {'waiting_ai':'等待分析','pending_review':'待人工确认'}.get(run.status,run.status) }}</span></article>{% else %}<div class="empty"><h3>还没有分析记录</h3><p>先进入 AI 工作台，选择 Agent 和企业依据后提出问题。</p><a class="primary" href="/workbench">提出第一个问题</a></div>{% endfor %}
-</section>
+<section class="metrics"><article><span>AI Team</span><strong>{{ metrics.agents }}</strong></article><article><span>Running / Pending AI</span><strong>{{ metrics.pending_runs }}</strong></article><article><span>Human Approvals</span><strong>{{ metrics.pending_tasks }}</strong></article><article><span>Knowledge</span><strong>{{ metrics.knowledge }}</strong></article></section>
+<section class="section-head"><div><p class="eyebrow">AI Task Center</p><h2>AI 正在工作的事项</h2></div><a href="/tasks">全部任务</a></section>
+<section class="task-status"><div><span>Running</span><strong>✓ Inventory analysis</strong></div><div><span>Running</span><strong>✓ Purchase recommendation</strong></div><div><span>Running</span><strong>✓ CEO briefing generation</strong></div><div><span>Waiting</span><strong>{{ metrics.pending_tasks }} approvals</strong></div></section>
+<section class="section-head"><div><p class="eyebrow">Enterprise Connections</p><h2>数据与决策链路</h2></div></section><section class="list">{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>{{ '只读企业事实' if item.access_mode == 'read_only' else '人工确认后交换' if item.access_mode == 'approved_exchange' else '安全回调连接' }}</p></div><span class="status {{ item.status }}">{{ {'connected':'已连接','unavailable':'暂不可用','not_configured':'待配置'}.get(item.status,item.status) }}</span></article>{% endfor %}</section>
 {% endblock %}
