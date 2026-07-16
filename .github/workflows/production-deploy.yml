@@ -121,5 +121,9 @@ jobs:
 
           curl -fsS http://127.0.0.1/api/health >/dev/null || curl -fsS http://127.0.0.1:3000/api/health >/dev/null
           curl -fsS http://127.0.0.1/ >/dev/null || curl -fsS http://127.0.0.1:3000/ >/dev/null
-          python verify_production.py --service Gateway=http://127.0.0.1/health/version || true
+          python production_activation_check.py \
+            --base-url gateway=https://gateway.vafox.com \
+            --base-url huyan=https://huyan.vafox.com \
+            --base-url ai=https://ai.vafox.com \
+            --base-url core=https://core.vafox.com
           REMOTE_DEPLOY

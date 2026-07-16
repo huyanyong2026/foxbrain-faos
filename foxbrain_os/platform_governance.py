@@ -42,16 +42,33 @@ def _deployment_metadata() -> dict:
     return {}
 
 
-def version_payload(service: str, status: str = "running") -> dict:
+def deployment_metadata() -> dict:
+    """Return normalized deployment metadata for runtime verification."""
     metadata = _deployment_metadata()
+    services = metadata.get("services") or ["gateway", "huyan", "ai", "core"]
     return {
         "system": os.environ.get("FOXBRAIN_SYSTEM", metadata.get("system", SYSTEM_NAME)),
         "version": os.environ.get("FOXBRAIN_VERSION", metadata.get("version", RELEASE_VERSION)),
-        "service": service,
+        "release": os.environ.get("FOXBRAIN_RELEASE", metadata.get("release", "production")),
         "commit": os.environ.get("GIT_COMMIT") or os.environ.get("COMMIT_SHA") or metadata.get("commit") or current_commit(),
         "build_time": os.environ.get("BUILD_TIME", metadata.get("build_time", "unknown")),
         "deploy_time": os.environ.get("DEPLOY_TIME", metadata.get("deploy_time", "unknown")),
         "environment": os.environ.get("FOXBRAIN_ENV") or os.environ.get("ENVIRONMENT") or metadata.get("environment", "development"),
+        "services": services,
+    }
+
+
+def version_payload(service: str, status: str = "running") -> dict:
+    metadata = deployment_metadata()
+    return {
+        "system": metadata["system"],
+        "version": metadata["version"],
+        "release": metadata["release"],
+        "service": service,
+        "commit": metadata["commit"],
+        "build_time": metadata["build_time"],
+        "deploy_time": metadata["deploy_time"],
+        "environment": metadata["environment"],
         "status": status,
     }
 

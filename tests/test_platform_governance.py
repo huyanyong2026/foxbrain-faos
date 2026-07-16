@@ -4,7 +4,7 @@ from foxbrain_os.platform_governance import control_tower_status, health_payload
 def test_version_payload_has_standard_metadata(monkeypatch):
     monkeypatch.setenv("FOXBRAIN_VERSION", "AI-OS-V4.0")
     payload = version_payload("foxbrain-core")
-    assert set(payload) == {"system", "service", "version", "commit", "build_time", "deploy_time", "environment", "status"}
+    assert set(payload) == {"system", "service", "version", "release", "commit", "build_time", "deploy_time", "environment", "status"}
     assert payload["service"] == "foxbrain-core"
     assert payload["version"] == "AI-OS-V4.0"
 

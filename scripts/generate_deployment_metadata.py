@@ -23,10 +23,12 @@ def main() -> int:
     payload = {
         "system": "FoxBrain",
         "version": os.environ.get("FOXBRAIN_VERSION", "AI-OS-V4.0"),
+        "release": os.environ.get("FOXBRAIN_RELEASE", "production"),
         "commit": git_commit(),
         "build_time": build_time,
         "deploy_time": os.environ.get("DEPLOY_TIME", build_time),
         "environment": os.environ.get("FOXBRAIN_ENV") or os.environ.get("ENVIRONMENT", "production"),
+        "services": ["gateway", "huyan", "ai", "core"],
     }
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {output}")
