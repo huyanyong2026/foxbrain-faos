@@ -721,6 +721,36 @@ def ceo_strategy_page():
     return render_template("ceo_strategy.html", user=user, snapshot=snapshot)
 
 
+@app.post("/api/huyan/ask")
+@permission_required("ai.ceo")
+def huyan_ask_api():
+    payload = request.get_json(silent=True) or {}
+    question = str(payload.get("question") or "").strip()
+    if not question:
+        return jsonify({"ok": False, "error": "question_required"}), 400
+    routed_agents = ["Supply Agent", "Finance Agent", "Store Agent", "Growth Agent", "Customer Agent"]
+    latest_batch = latest_replenishment_batch()
+    summary = replenishment_summary(latest_batch["batch_id"] if latest_batch else None)
+    metrics = {
+        "agents": one("select count(*) as value from ai_agents where status='active'")["value"],
+        "pending_runs": one("select count(*) as value from ai_agent_runs where approval_status='pending'")["value"],
+        "pending_tasks": one("select count(*) as value from ai_tasks where approval_status='pending'")["value"],
+        "knowledge": one("select count(*) as value from ai_knowledge_items where status='approved'")["value"],
+    }
+    snapshot = build_ceo_strategy_snapshot(metrics, latest_batch, summary)
+    return jsonify({
+        "ok": True,
+        "question": question,
+        "router": {"mode": "automatic", "agents": routed_agents},
+        "answer": {
+            "发生什么": snapshot["briefing"]["what_happened"],
+            "为什么": snapshot["briefing"]["why_happened"],
+            "影响": snapshot["risks"] + snapshot["opportunities"],
+            "建议行动": snapshot["briefing"]["what_should_do_next"],
+        },
+    })
+
+
 @app.get("/ops-api/ceo/strategy")
 @permission_required("ai.ceo")
 def ceo_strategy_api():
@@ -818,6 +848,12 @@ def review_run(run_id):
 @permission_required("ai.use")
 def agents_page():
     return render_template("agents.html", user=current_user(), agents=rows("select * from ai_agents order by id"))
+
+
+@app.get("/admin")
+@permission_required("identity.view")
+def admin_page():
+    return render_template("admin.html", user=current_user())
 
 
 @app.route("/wecom")
