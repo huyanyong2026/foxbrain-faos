@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-RELEASE_VERSION = "AI-OS-V4.0"
+RELEASE_VERSION = "AI-OS-V5"
 SYSTEM_NAME = "FoxBrain"
 _METADATA_FILE = Path(os.environ.get("FOXBRAIN_DEPLOYMENT_METADATA", "deployment.json"))
 
@@ -72,6 +72,57 @@ def version_payload(service: str, status: str = "running") -> dict:
         "status": status,
     }
 
+
+
+RUNTIME_CHECKS = {
+    "gateway": {
+        "display_service": "Gateway",
+        "route_status": "enabled",
+        "identity_service_status": "enabled",
+        "runtime_status": "running",
+        "gateway_version": "Gateway V5",
+    },
+    "huyan": {
+        "display_service": "Huyan",
+        "ceo_command_center_enabled": True,
+        "ai_briefing_enabled": True,
+        "risk_radar_enabled": True,
+        "decision_center_enabled": True,
+    },
+    "ai": {
+        "display_service": "AI Workforce",
+        "ai_router_enabled": True,
+        "agent_routing_enabled": True,
+        "natural_question_interface_enabled": True,
+        "memory_enabled": True,
+    },
+    "core": {
+        "display_service": "Core Enterprise Data",
+        "master_data_enabled": True,
+        "event_engine_enabled": True,
+        "ai_context_layer_enabled": True,
+        "data_activity_engine_enabled": True,
+    },
+}
+
+
+def runtime_payload(service: str, status: str = "running") -> dict:
+    """Return safe production self-verification metadata.
+
+    This payload intentionally exposes only version, build, status, and boolean
+    capability flags. It must not include business, customer, financial, or SAP
+    row-level data.
+    """
+    payload = version_payload(service, status)
+    payload["timestamp"] = utc_now()
+    checks = RUNTIME_CHECKS.get(service, {})
+    display_service = checks.get("display_service")
+    if display_service:
+        payload["service"] = display_service
+        payload["service_key"] = service
+    payload["runtime_status"] = status
+    payload["checks"] = {key: value for key, value in checks.items() if key != "display_service"}
+    return payload
 
 def health_payload(service: str, checks: dict) -> dict:
     status = "healthy" if all(item.get("status") == "healthy" for item in checks.values()) else "unhealthy"

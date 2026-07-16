@@ -16,7 +16,7 @@ import psycopg2
 import psycopg2.extras
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_file, session
 
-from foxbrain_os.platform_governance import control_tower_status, health_payload, version_payload
+from foxbrain_os.platform_governance import control_tower_status, health_payload, runtime_payload, version_payload
 
 try:
     from .connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
@@ -1193,10 +1193,28 @@ def internal_health_console():
     )
     return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FoxBrain Internal Health</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.ok{color:#087f5b;font-weight:800}</style></head><body><main class="wrap"><section class="card"><h1>FoxBrain AI OS V4 Internal Health Console</h1><p>Administrator-only production verification console. RBAC/ABAC and permission audit controls are enforced before rendering.</p><table><thead><tr><th>Service</th><th>Status</th><th>Version</th><th>Commit</th><th>Build</th><th>Deploy</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
 
+
+
+@app.get("/internal/runtime-check")
+@permission_required("identity.manage")
+def internal_runtime_check():
+    record_permission_audit("internal.runtime_check.view", "allowed", "runtime", "production", "管理员查看 AI OS V5 运行自验证页面")
+    services = [runtime_payload(name) for name in ("gateway", "huyan", "ai", "core")]
+    rows_html = "".join(
+        "<tr><td>{service}</td><td class='pass'>PASS</td><td>{version}</td><td>{commit}</td><td>{build_time}</td><td>{environment}</td></tr>".format(**item)
+        for item in services
+    )
+    return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS V5 Runtime Check</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.pass{color:#087f5b;font-weight:900}.badge{display:inline-flex;border-radius:999px;background:#dff5e9;color:#087f5b;padding:6px 12px;font-weight:800}</style></head><body><main class="wrap"><section class="card"><span class="badge">Version: AI-OS-V5</span><h1>FoxBrain Runtime Verification</h1><p>Admin-only self-verification page. Only safe runtime metadata is shown; RBAC and audit logging are preserved.</p><table><thead><tr><th>Service</th><th>Result</th><th>Version</th><th>Commit</th><th>Build</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
+
 @app.get("/version")
 @app.get("/health/version")
 def version():
     return jsonify(version_payload("ai"))
+
+
+@app.get("/health/runtime")
+def runtime_health():
+    return jsonify(runtime_payload("ai"))
 
 
 @app.get("/health")

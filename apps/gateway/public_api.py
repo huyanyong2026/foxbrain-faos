@@ -7,7 +7,7 @@ import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from foxbrain_os.enterprise_data_service import EnterpriseDataClient
-from foxbrain_os.platform_governance import version_payload
+from foxbrain_os.platform_governance import runtime_payload, version_payload
 
 
 PUBLIC_ROUTES = {
@@ -39,9 +39,11 @@ class GatewayPublicHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path in ("/", "/version"):
-            return self._reply(200, {**version_payload("gateway"), "display": "FoxBrain Portal V4"})
+            return self._reply(200, {**version_payload("gateway"), "display": "FoxBrain Portal V5"})
         if self.path == "/health/version":
             return self._reply(200, version_payload("gateway"))
+        if self.path == "/health/runtime":
+            return self._reply(200, runtime_payload("gateway"))
         if self.path == "/healthz":
             if self.client_address[0] not in {"127.0.0.1", "::1"}:
                 return self._reply(404, {"error": "not_found"})
