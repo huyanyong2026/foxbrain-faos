@@ -37,4 +37,4 @@ Covered modules: CEO Daily Executive Briefing, Enterprise Risk Prediction, Oppor
 
 Status: PASS
 
-WeCom UserID maps to FoxBrain Identity and then to RBAC permissions plus ABAC data scope. Employees receive limited product, knowledge, training, and basic inventory access; store managers are restricted to store scope; procurement receives supply-chain scope; CEO receives enterprise scope. AI responses remain read-only recommendations backed by Core evidence, and AI-created tasks stay approval-gated with audit trails.
+WeCom UserID maps to VAFOX Identity and then to RBAC permissions plus ABAC data scope. Employees receive limited product, knowledge, training, and basic inventory access; store managers are restricted to store scope; procurement receives supply-chain scope; CEO receives enterprise scope. AI responses remain read-only recommendations backed by Core evidence, and AI-created tasks stay approval-gated with audit trails.

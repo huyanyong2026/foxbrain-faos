@@ -37,4 +37,4 @@ Covered modules: CEO Daily Executive Briefing, Enterprise Risk Prediction, Oppor
 
 Status: PASS
 
-Enterprise WeCom becomes the FoxBrain Employee AI Workspace entry while existing gateway, Core, AI, and Huyan services remain unchanged. Daily operation checks WeCom identity recognition, Core data timestamps, pending AI-created tasks, approved knowledge responses, role-targeted notifications, and audit completeness. Rollback disables the WeCom AI entry at gateway while preserving normal WeCom communication and read-only Core/SAP paths.
+Enterprise WeCom becomes the VAFOX Employee AI Workspace entry while existing gateway, Core, AI, and Huyan services remain unchanged. Daily operation checks WeCom identity recognition, Core data timestamps, pending AI-created tasks, approved knowledge responses, role-targeted notifications, and audit completeness. Rollback disables the WeCom AI entry at gateway while preserving normal WeCom communication and read-only Core/SAP paths.
