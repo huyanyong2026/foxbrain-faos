@@ -447,3 +447,51 @@ def tearDownModule():
 
 if __name__ == "__main__":
     unittest.main()
+
+class UXV3AINativeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        portal.init()
+        now = int(time.time())
+        with portal.db() as conn:
+            existing = conn.execute("select * from users where email=?", ("uxv3@example.test",)).fetchone()
+            if not existing:
+                conn.execute(
+                    "insert into users(email,name,phone,store,role,status,password_hash,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)",
+                    ("uxv3@example.test", "呼总", "", "总部", "admin", "approved", portal.hp("test-only-password"), now, now),
+                )
+
+    def setUp(self):
+        self.app = object.__new__(portal.App)
+        with portal.db() as conn:
+            self.user = conn.execute("select * from users where email=?", ("uxv3@example.test",)).fetchone()
+
+    def test_ai_router_selects_hidden_agents_without_user_selection(self):
+        routed = self.app.ai_router_engine("南山店最近最需要关注什么？")
+        self.assertEqual(routed["intent"], "store_question")
+        self.assertIn("Store Agent", routed["agents"])
+        self.assertEqual(routed["selection_mode"], "hidden_auto")
+        profit = self.app.ai_router_engine("为什么利润下降？")
+        self.assertEqual(profit["intent"], "finance_question")
+        self.assertIn("Finance Agent", profit["agents"])
+
+    def test_ai_answer_contains_v3_required_sections_and_router_context(self):
+        answer, code = self.app.create_copilot_answer(self.user, "Osprey库存风险？", "", "", {"page": "/copilot", "title": "AI Native Workspace"})
+        self.assertEqual(code, 200)
+        for label in ["结论", "原因", "数据来源", "建议", "下一步行动"]:
+            self.assertIn(label, answer["answer"])
+        self.assertIn("Supply Chain Agent", answer["hidden_agents"])
+        self.assertEqual(answer["ai_router"]["selection_mode"], "hidden_auto")
+
+    def test_ai_workspace_v3_home_removes_manual_agent_configuration(self):
+        rendered = []
+        self.app.path = "/copilot"
+        self.app.out = lambda html, code=200: rendered.append(html)
+        self.app.enterprise_copilot_page(self.user)
+        page = rendered[0]
+        self.assertIn("Hello, 呼总", page)
+        self.assertIn("今天想了解什么", page)
+        self.assertIn("南山店最近经营情况怎么样", page)
+        self.assertNotIn("Agent selection", page)
+        self.assertNotIn("Object type", page)
+        self.assertNotIn("Manual data source", page)
