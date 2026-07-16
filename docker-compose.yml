@@ -5,9 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: foxbrain-v4:cloud
+    image: foxbrain-v4:${FOXBRAIN_VERSION:-0.20.5}
     container_name: foxbrain-web
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -26,7 +26,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || curl -fsS http://127.0.0.1:3000/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -36,9 +36,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: foxbrain-v4:cloud
+    image: foxbrain-v4:${FOXBRAIN_VERSION:-0.20.5}
     container_name: foxbrain-api
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -56,7 +56,7 @@ services:
       foxbrain-web:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health || curl -fsS http://127.0.0.1:8000/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -66,9 +66,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: foxbrain-v4:cloud
+    image: foxbrain-v4:${FOXBRAIN_VERSION:-0.20.5}
     container_name: foxbrain-worker
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -91,7 +91,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: foxbrain-postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-foxbrain}
       POSTGRES_USER: ${POSTGRES_USER:-foxbrain}
@@ -107,7 +107,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: foxbrain-redis
-    restart: always
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - foxbrain_redis:/data
@@ -120,7 +120,7 @@ services:
   minio:
     image: minio/minio:RELEASE.2025-01-20T14-49-07Z
     container_name: foxbrain-minio
-    restart: always
+    restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-foxbrain}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_minio_password}
@@ -139,7 +139,7 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.12.5
     container_name: foxbrain-qdrant
-    restart: always
+    restart: unless-stopped
     expose:
       - "6333"
     volumes:
@@ -154,7 +154,7 @@ services:
   nginx:
     image: nginx:1.27-alpine
     container_name: foxbrain-nginx
-    restart: always
+    restart: unless-stopped
     ports:
       - "${NGINX_LOOPBACK_PORT:-127.0.0.1:8088}:80"
     expose:
@@ -178,7 +178,7 @@ services:
   n8n:
     image: n8nio/n8n:1.75.2
     container_name: foxbrain-n8n
-    restart: always
+    restart: unless-stopped
     profiles:
       - optional
     environment:
@@ -192,7 +192,7 @@ services:
   dify:
     image: nginx:1.27-alpine
     container_name: foxbrain-dify-placeholder
-    restart: always
+    restart: unless-stopped
     profiles:
       - optional
     command: ["nginx", "-g", "daemon off;"]
@@ -200,7 +200,7 @@ services:
   ollama:
     image: ollama/ollama:0.5.7
     container_name: foxbrain-ollama-placeholder
-    restart: always
+    restart: unless-stopped
     profiles:
       - optional
     volumes:
@@ -209,7 +209,7 @@ services:
   wikijs:
     image: ghcr.io/requarks/wiki:2
     container_name: foxbrain-wikijs
-    restart: always
+    restart: unless-stopped
     profiles:
       - optional
     environment:

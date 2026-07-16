@@ -16,3 +16,14 @@ server {
         proxy_send_timeout 300;
     }
 }
+
+# V0.20.5 nginx hardening baseline: preserve Ubuntu nginx -> FoxBrain Services architecture.
+worker_rlimit_nofile 65535;
+# In the top-level events block set: worker_connections 4096;
+# In proxied server/location blocks set:
+# proxy_connect_timeout 10s;
+# proxy_send_timeout 60s;
+# proxy_read_timeout 60s;
+# gzip on;
+# gzip_types text/plain text/css application/json application/javascript application/xml;
+# add_header Cache-Control "no-store" always;
