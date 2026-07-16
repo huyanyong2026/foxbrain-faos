@@ -12,7 +12,7 @@ Development -> Automated Test -> Pull Request -> Merge -> Deploy -> Health Check
 
 - Store AI Manager implementation.
 - Store AI automated test suite.
-- Architecture, operation, security, testing, release, assistant, task, health, and daily briefing documentation.
+- Architecture, operation, security, testing, release, assistant, task, health, daily briefing, and visual AI documentation.
 
 ## Acceptance
 
