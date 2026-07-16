@@ -19,6 +19,8 @@ DIGITAL_WORKFORCE_AGENTS = (
     ("ceo", "CEO Agent", "生成 CEO 简报、经营洞察和决策建议"),
     ("supply_chain", "Supply Chain Agent", "识别采购、供应、库存和履约风险"),
     ("store", "Store Agent", "分析门店经营、库存周转和现场行动"),
+    ("finance", "Finance Agent", "分析现金、毛利、费用和资金压力"),
+    ("growth", "Growth Agent", "识别增长机会、品类趋势和市场动作"),
     ("customer", "Customer Agent", "支持客户洞察、服务建议和体验提升"),
     ("supplier", "Supplier Agent", "协同供应商、品牌资料和供货状态"),
 )
