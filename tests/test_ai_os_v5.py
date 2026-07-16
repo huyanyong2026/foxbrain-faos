@@ -55,7 +55,7 @@ def test_autonomous_task_generation_requires_human_approval():
 
 def test_core_data_activity_and_cross_system_linking_preserve_truth_layers():
     flow = build_data_activity_flow("sales_change")
-    assert flow["flow"] == ["SAP", "Core", "AI", "Decision", "Action"]
+    assert flow["flow"] == ["SAP", "Core", "AI", "Decision", "Action", "Memory"]
     assert flow["sap_truth_preserved"] is True
 
     linked = link_cross_system_context("Nanshan store")
@@ -67,6 +67,8 @@ def test_core_data_activity_and_cross_system_linking_preserve_truth_layers():
 def test_automation_converts_events_to_approval_ready_actions():
     automation = run_automation("inventory_change", owner="procurement", today=date(2026, 7, 16))
     assert automation["event_detected"] == "inventory_change"
+    assert automation["core_detection"]["status"] == "detected"
+    assert automation["agent_response"]["agent"] == "Supply Agent"
     assert automation["task_creation"]["status"] == "pending_human_approval"
     assert automation["notification"]["status"] == "ready_for_approval"
     assert automation["learning"] == "memory_learning_after_feedback"
@@ -80,4 +82,6 @@ def test_ceo_homepage_and_contract_acceptance_pass():
     contract = build_ai_os_v5_contract()
     assert contract["guardrails"]["sap_business_logic_modified"] is False
     assert contract["guardrails"]["duplicate_business_truth_created"] is False
+    assert contract["version"] == "AI-OS-V5.1"
+    assert contract["release_guard"]["mixed_versions_blocked"] is True
     assert all(value == "PASS" for value in contract["acceptance"].values())
