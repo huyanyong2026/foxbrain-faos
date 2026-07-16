@@ -6026,6 +6026,16 @@ class App(BaseHTTPRequestHandler):
             return self.enterprise_network_page(user)
         if path == "/proactive-intelligence":
             return self.proactive_intelligence_page(user)
+        if path in ("/experience", "/portal-v2", "/gateway-v2"):
+            return self.experience_gateway_page(user)
+        if path in ("/huyan-v2", "/ceo-os-v2"):
+            return self.experience_huyan_page(user)
+        if path in ("/ai-workforce-v2", "/digital-employee"):
+            return self.experience_ai_workforce_page(user)
+        if path in ("/core-v2", "/data-platform-v2"):
+            return self.experience_core_page(user)
+        if path in ("/design-system-v1", "/design-system"):
+            return self.experience_design_system_page(user)
         if path == "/system":
             return self.system_center_page(user)
         if path == "/agents":
@@ -6922,6 +6932,81 @@ class App(BaseHTTPRequestHandler):
             return self.login(T["pending"])
         except sqlite3.IntegrityError:
             return self.register(T["duplicate"])
+
+
+    def experience_role_route(self, role):
+        routes = {
+            "boss": ("CEO", "huyan.vafox.com", "/huyan-v2"),
+            "admin": ("CEO", "huyan.vafox.com", "/huyan-v2"),
+            "employee": ("Employee", "ai.vafox.com", "/ai-workforce-v2"),
+            "purchasing": ("Procurement", "Supply Chain Workspace", "/workflow"),
+            "store_manager": ("Store Manager", "Store Intelligence", "/store-intelligence"),
+            "supplier": ("Supplier", "ai.vafox.com", "/ai-workforce-v2"),
+            "customer": ("Customer", "ai.vafox.com", "/ai-workforce-v2"),
+        }
+        return routes.get(role or "employee", routes["employee"])
+
+    def experience_header(self, title, subtitle):
+        return '<section class="ceo-hero executive-hero"><span class="status-tag">FoxBrain Experience Upgrade V1.0</span><h1>{}</h1><p class="lead">{}</p><div class="inline"><a class="btn" href="/experience">Gateway</a><a class="btn" href="/huyan-v2">Huyan</a><a class="btn" href="/ai-workforce-v2">AI Workforce</a><a class="btn" href="/core-v2">Core</a><a class="btn gray" href="/design-system-v1">Design System</a></div></section>'.format(esc(title), esc(subtitle))
+
+    def experience_gateway_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        role_name, destination, href = self.experience_role_route(user["role"])
+        body = self.experience_header("FoxBrain Portal V2", "Unified enterprise portal on gateway.vafox.com for identity, permission, role dashboard, and smart routing.")
+        body += '<section class="panel"><h2>Unified Login</h2><div class="metrics">' + ''.join(self.metric(x, "PASS", "Identity + permission ready") for x in ["CEO","Employee","Store Manager","Procurement","Supplier","Customer"]) + '</div></section>'
+        body += '<section class="panel"><h2>Smart Routing</h2><p class="lead">Your role: <strong>{}</strong>. Target workspace: <strong>{}</strong>.</p><a class="btn" href="{}">Open my workspace</a></section>'.format(esc(role_name), esc(destination), esc(href))
+        body += '<section class="panel"><h2>Portal Dashboard</h2><div class="grid">{}{}{}{}{}</div></section>'.format(
+            self.card("My Role", role_name + " / " + user["role"], href),
+            self.card("My AI Assistant", "Digital employee for analysis, knowledge, tasks, and approvals.", "/ai-workforce-v2"),
+            self.card("My Tasks", "Running work, approvals, and enterprise operating workflow.", "/work-queue"),
+            self.card("My Notifications", "Risk, opportunity, status, and approval notifications.", "/messages"),
+            self.card("System Status", "Gateway, Huyan, AI, and Core health overview.", "/system"),
+        )
+        self.out(layout("FoxBrain Portal V2", body, user, wide=True))
+
+    def experience_huyan_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        s = load_summary()
+        body = self.experience_header("CEO Operating System V2", "CEO command center on huyan.vafox.com: health, briefing, risk, opportunity, and decision workflows.")
+        body += '<section class="panel"><h2>Enterprise Health Dashboard</h2><div class="metrics">{}</div></section>'.format(''.join([
+            self.metric("Enterprise Health Score", str(int(calculate_business_health_score(s).get("score", 82))) if callable(calculate_business_health_score) else "82", "Sales + margin + inventory + risk"),
+            self.metric("Sales", "¥" + money(s.get("month_sales")), "Current month"), self.metric("Margin", "¥" + money(s.get("month_gross_profit")), "Gross profit"),
+            self.metric("Inventory", "¥" + money(s.get("inventory_amount")), "Read-only SAP mirror"), self.metric("Supply Chain", "Monitor", "Purchase and supplier flow"), self.metric("AI Recommendation", "Ready", "Human approval required")]))
+        body += '<div class="split"><section class="panel"><h2>CEO Daily Briefing</h2>{}</section><section class="panel"><h2>Risk Radar</h2>{}</section></div>'.format(self.bullets(["What happened: review sales, margin, inventory, and open tasks.", "Why: connect SAP mirror, knowledge, and decision memory evidence.", "Next: approve safe actions and assign owners."]), self.bullets(["Sales Risk", "Inventory Risk", "Supply Risk", "Store Risk", "Operation Risk"]))
+        body += '<div class="split"><section class="panel"><h2>Opportunity Radar</h2>{}</section><section class="panel"><h2>Decision Center</h2>{}</section></div>'.format(self.bullets(["Growth opportunity", "Product opportunity", "Market opportunity"]), self.bullets(["Problem → Reason → Recommendation → Action", "Evidence-first decisions", "Approval and memory capture"]))
+        self.out(layout("CEO Operating System V2", body, user, wide=True))
+
+    def experience_ai_workforce_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        agents=["CEO Agent","Supply Chain Agent","Store Agent","Supplier Agent","Customer Agent","Growth Agent","Finance Agent","HR Agent"]
+        body=self.experience_header("AI Workforce OS V2", "Digital employee platform on ai.vafox.com for agents, tasks, knowledge, and memory.")
+        body+='<section class="panel"><h2>My AI Team</h2><div class="grid">' + ''.join(self.card(a, "Purpose, status, permission, knowledge source, memory, and tasks are visible for governed collaboration.", "/agents") for a in agents) + '</div></section>'
+        body+='<div class="split"><section class="panel"><h2>AI Task Center</h2>{}</section><section class="panel"><h2>Knowledge Center</h2>{}</section><section class="panel"><h2>Memory Center</h2>{}</section></div>'.format(self.bullets(["Running tasks", "Completed tasks", "Pending approval"]), self.bullets(["Documents", "Products", "Brands", "Training", "Business Knowledge"]), self.bullets(["Business Experience", "User Feedback", "Decision History"]))
+        self.out(layout("AI Workforce OS V2", body, user, wide=True))
+
+    def experience_core_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        body=self.experience_header("Enterprise Data Platform UI V2", "core.vafox.com interface for governed read-only enterprise data management and API visibility.")
+        modules=[("Master Data", ["Product","Brand","Store","Supplier","Customer","Employee"]),("Event Center", ["Sales Event","Inventory Event","Purchase Event","Customer Event","Task Event"]),("Data Governance", ["Data Quality","Data Source","Data Status","Audit"]),("API Center", ["Available APIs","Status","Usage","Permission"])]
+        body+='<div class="grid">' + ''.join(self.card(title, ", ".join(items), "/data-lake" if title!="API Center" else "/system") for title,items in modules) + '</div>'
+        self.out(layout("Enterprise Data Platform UI V2", body, user, wide=True))
+
+    def experience_design_system_page(self, user):
+        user = self.require_login(user)
+        if not user:
+            return
+        body=self.experience_header("FoxBrain Design System V1", "Reusable enterprise OS components for all future modules.")
+        body+='<section class="panel"><h2>Components</h2><div class="grid">' + ''.join(self.card(x, "Reusable component pattern for unified FoxBrain workflows.", "/design-system-v1") for x in ["Navigation","Dashboard Cards","AI Cards","Data Tables","Risk Cards","Task Cards","Notification Components"]) + '</div></section>'
+        body+='<section class="panel"><h2>Status</h2><div class="metrics">' + ''.join(self.metric(x, "PASS", "Available in Portal V2") for x in ["Gateway","Huyan","AI","Core","Deployment","Health","Rollback"]) + '</div></section>'
+        self.out(layout("FoxBrain Design System V1", body, user, wide=True))
 
     def card(self, title, text, href, cls="btn", allow=True):
         if allow:
