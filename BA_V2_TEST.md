@@ -37,4 +37,4 @@ Covered modules: CEO Daily Executive Briefing, Enterprise Risk Prediction, Oppor
 
 Status: PASS
 
-Required checks cover WeCom Integration, Identity, Permission, AI Response, Knowledge Retrieval, and Task Workflow. Automated coverage in `tests/test_ba_v2_wecom_ai.py` validates required WeCom identity types, WeCom-to-FoxBrain mapping, role intelligence capabilities, source-backed employee AI responses, and approval-gated AI task creation.
+Required checks cover WeCom Integration, Identity, Permission, AI Response, Knowledge Retrieval, and Task Workflow. Automated coverage in `tests/test_ba_v2_wecom_ai.py` validates required WeCom identity types, WeCom-to-VAFOX mapping, role intelligence capabilities, source-backed employee AI responses, and approval-gated AI task creation.
