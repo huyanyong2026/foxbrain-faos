@@ -6947,14 +6947,14 @@ class App(BaseHTTPRequestHandler):
         return routes.get(role or "employee", routes["employee"])
 
     def experience_header(self, title, subtitle):
-        return '<section class="ceo-hero executive-hero"><span class="status-tag">FoxBrain Experience Upgrade V1.0</span><h1>{}</h1><p class="lead">{}</p><div class="inline"><a class="btn" href="/experience">Gateway</a><a class="btn" href="/huyan-v2">Huyan</a><a class="btn" href="/ai-workforce-v2">AI Workforce</a><a class="btn" href="/core-v2">Core</a><a class="btn gray" href="/design-system-v1">Design System</a></div></section>'.format(esc(title), esc(subtitle))
+        return '<section class="ceo-hero executive-hero"><span class="status-tag">VAFOX Experience Upgrade V1.0</span><h1>{}</h1><p class="lead">{}</p><div class="inline"><a class="btn" href="/experience">Gateway</a><a class="btn" href="/huyan-v2">Huyan</a><a class="btn" href="/ai-workforce-v2">AI Workforce</a><a class="btn" href="/core-v2">Core</a><a class="btn gray" href="/design-system-v1">Design System</a></div></section>'.format(esc(title), esc(subtitle))
 
     def experience_gateway_page(self, user):
         user = self.require_login(user)
         if not user:
             return
         role_name, destination, href = self.experience_role_route(user["role"])
-        body = self.experience_header("FoxBrain Portal V2", "Unified enterprise portal on gateway.vafox.com for identity, permission, role dashboard, and smart routing.")
+        body = self.experience_header("VAFOX Portal V2", "Unified enterprise portal on gateway.vafox.com for identity, permission, role dashboard, and smart routing.")
         body += '<section class="panel"><h2>Unified Login</h2><div class="metrics">' + ''.join(self.metric(x, "PASS", "Identity + permission ready") for x in ["CEO","Employee","Store Manager","Procurement","Supplier","Customer"]) + '</div></section>'
         body += '<section class="panel"><h2>Smart Routing</h2><p class="lead">Your role: <strong>{}</strong>. Target workspace: <strong>{}</strong>.</p><a class="btn" href="{}">Open my workspace</a></section>'.format(esc(role_name), esc(destination), esc(href))
         body += '<section class="panel"><h2>Portal Dashboard</h2><div class="grid">{}{}{}{}{}</div></section>'.format(
@@ -6964,7 +6964,7 @@ class App(BaseHTTPRequestHandler):
             self.card("My Notifications", "Risk, opportunity, status, and approval notifications.", "/messages"),
             self.card("System Status", "Gateway, Huyan, AI, and Core health overview.", "/system"),
         )
-        self.out(layout("FoxBrain Portal V2", body, user, wide=True))
+        self.out(layout("VAFOX Portal V2", body, user, wide=True))
 
     def experience_huyan_page(self, user):
         user = self.require_login(user)
@@ -7003,10 +7003,10 @@ class App(BaseHTTPRequestHandler):
         user = self.require_login(user)
         if not user:
             return
-        body=self.experience_header("FoxBrain Design System V1", "Reusable enterprise OS components for all future modules.")
-        body+='<section class="panel"><h2>Components</h2><div class="grid">' + ''.join(self.card(x, "Reusable component pattern for unified FoxBrain workflows.", "/design-system-v1") for x in ["Navigation","Dashboard Cards","AI Cards","Data Tables","Risk Cards","Task Cards","Notification Components"]) + '</div></section>'
+        body=self.experience_header("VAFOX Design System V1", "Reusable enterprise OS components for all future modules.")
+        body+='<section class="panel"><h2>Components</h2><div class="grid">' + ''.join(self.card(x, "Reusable component pattern for unified VAFOX workflows.", "/design-system-v1") for x in ["Navigation","Dashboard Cards","AI Cards","Data Tables","Risk Cards","Task Cards","Notification Components"]) + '</div></section>'
         body+='<section class="panel"><h2>Status</h2><div class="metrics">' + ''.join(self.metric(x, "PASS", "Available in Portal V2") for x in ["Gateway","Huyan","AI","Core","Deployment","Health","Rollback"]) + '</div></section>'
-        self.out(layout("FoxBrain Design System V1", body, user, wide=True))
+        self.out(layout("VAFOX Design System V1", body, user, wide=True))
 
     def card(self, title, text, href, cls="btn", allow=True):
         if allow:
@@ -11137,9 +11137,9 @@ where d.deleted_at is null and v.status='active' order by v.updated_at desc limi
   <p class="small">{}</p>
   <a class="btn" href="/drive/external/baidu" target="_blank" rel="noopener noreferrer">{}</a>
 </div>""".format(
-                U(r"\u767e\u5ea6\u7f51\u76d8\uff5cFoxBrain\u4f01\u4e1a\u5171\u4eab"),
+                U(r"\u767e\u5ea6\u7f51\u76d8\uff5cVAFOX\u4f01\u4e1a\u5171\u4eab"),
                 U(r"\u5df2\u8fde\u63a5\u5916\u90e8\u53ea\u8bfb\u5171\u4eab\u6587\u4ef6\u5939\u3002"),
-                U(r"\u6587\u4ef6\u4ecd\u4fdd\u5b58\u5728\u767e\u5ea6\u7f51\u76d8\uff1bFoxBrain \u6682\u4e0d\u4f1a\u81ea\u52a8\u590d\u5236\u3001\u5220\u9664\u6216\u7528\u4f5c AI \u8bc1\u636e\u3002"),
+                U(r"\u6587\u4ef6\u4ecd\u4fdd\u5b58\u5728\u767e\u5ea6\u7f51\u76d8\uff1bVAFOX \u6682\u4e0d\u4f1a\u81ea\u52a8\u590d\u5236\u3001\u5220\u9664\u6216\u7528\u4f5c AI \u8bc1\u636e\u3002"),
                 U(r"\u6253\u5f00\u767e\u5ea6\u7f51\u76d8"),
             )
         body = """
@@ -26536,7 +26536,7 @@ group by coalesce(store_name,'')
             {"key": "rollback_documented", "status": "pass", "evidence": "backup.sh, restore.sh, BACKUP_RESTORE.md"},
             {"key": "security_review", "status": "pass", "evidence": "role permissions, .env, approval gates"},
             {"key": "documentation_complete", "status": "pass", "evidence": "README_CLOUD_DEPLOY.md, docs/119, docs/128 and docs/129"},
-            {"key": "architecture_review_completed", "status": "pass", "evidence": "docs/FoxBrain_OS_1_0_Architecture_Review_Report.md"},
+            {"key": "architecture_review_completed", "status": "pass", "evidence": "docs/VAFOX_OS_1_0_Architecture_Review_Report.md"},
             {"key": "production_checklist_passed", "status": "conditional", "evidence": "local validation passed; remote server smoke test still requires operator deployment window"},
         ]
         return {"ok": True, "release": "1.0", "checklist": checks, "decision": "release_candidate_ready_after_remote_smoke_test"}
@@ -26628,7 +26628,7 @@ group by coalesce(store_name,'')
             "integration": self.release_1_0_integration_payload()["checks"],
             "readiness": self.release_readiness_payload(),
             "architecture_review": self.architecture_review_report_payload(),
-            "report": "docs/FoxBrain_OS_1_0_Architecture_Review_Report.md",
+            "report": "docs/VAFOX_OS_1_0_Architecture_Review_Report.md",
         }
 
     def release_readiness_payload(self):
