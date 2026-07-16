@@ -20146,21 +20146,36 @@ where ki.deleted_at is null"""
             return self.json_out(payload, code=code)
         return self.json_out({"ok": False, "message": "unknown daily intelligence write api"}, code=404)
 
-    def copilot_detect_intent(self, question):
+    def ai_router_engine(self, question):
         q = (question or "").lower()
-        rules = [
-            ("inventory_question", ["inventory", "stock", U(r"\u5e93\u5b58"), U(r"\u6ede\u9500"), U(r"\u7f3a\u8d27")]),
-            ("brand_question", ["brand", "osprey", "kailas", "mammut", U(r"\u54c1\u724c")]),
-            ("store_question", ["store", U(r"\u95e8\u5e97"), U(r"\u5357\u5c71"), U(r"\u632f\u5174"), U(r"\u822a\u82d1"), U(r"\u91d1\u6c99")]),
-            ("product_question", ["product", "sku", U(r"\u4ea7\u54c1"), U(r"\u5546\u54c1"), U(r"\u8d27\u54c1")]),
-            ("sales_question", ["sales", U(r"\u9500\u552e"), U(r"\u6bdb\u5229"), U(r"\u4e1a\u7ee9")]),
-            ("decision_question", ["decision", U(r"\u51b3\u7b56"), U(r"\u5efa\u8bae"), U(r"\u4e3a\u4ec0\u4e48")]),
-            ("history_question", ["history", U(r"\u5386\u53f2"), U(r"\u8bb0\u5fc6"), U(r"\u8fc7\u53bb")]),
+        catalog = [
+            ("inventory_question", ["inventory", "stock", U(r"\u5e93\u5b58"), U(r"\u6ede\u9500"), U(r"\u7f3a\u8d27"), U(r"\u91c7\u8d2d")], ["Supply Chain Agent", "Supplier Agent"]),
+            ("brand_question", ["brand", "osprey", "kailas", "mammut", U(r"\u54c1\u724c"), U(r"\u589e\u957f\u673a\u4f1a")], ["Growth Agent", "Commerce Agent"]),
+            ("store_question", ["store", U(r"\u95e8\u5e97"), U(r"\u5357\u5c71"), U(r"\u632f\u5174"), U(r"\u822a\u82d1"), U(r"\u91d1\u6c99")], ["Store Agent", "Supply Chain Agent"]),
+            ("product_question", ["product", "sku", U(r"\u4ea7\u54c1"), U(r"\u5546\u54c1"), U(r"\u8d27\u54c1")], ["Commerce Agent", "Supply Chain Agent"]),
+            ("finance_question", ["profit", "margin", "cash", U(r"\u5229\u6da6"), U(r"\u6bdb\u5229"), U(r"\u4e0b\u964d"), U(r"\u6210\u672c")], ["Finance Agent", "Commerce Agent"]),
+            ("sales_question", ["sales", U(r"\u9500\u552e"), U(r"\u4e1a\u7ee9")], ["Commerce Agent", "Growth Agent"]),
+            ("decision_question", ["decision", U(r"\u51b3\u7b56"), U(r"\u5efa\u8bae"), U(r"\u4e3a\u4ec0\u4e48"), U(r"\u5982\u679c")], ["CEO Agent", "Finance Agent"]),
+            ("history_question", ["history", U(r"\u5386\u53f2"), U(r"\u8bb0\u5fc6"), U(r"\u8fc7\u53bb"), U(r"\u590d\u76d8")], ["CEO Agent", "Customer Agent"]),
         ]
-        for intent, words in rules:
-            if any(w.lower() in q for w in words):
-                return intent
-        return "business_question"
+        hits = []
+        for intent, words, agents in catalog:
+            score = sum(1 for w in words if w.lower() in q)
+            if score:
+                hits.append((score, intent, agents))
+        if not hits:
+            return {"intent": "business_question", "agents": ["CEO Agent", "Commerce Agent"], "confidence": "medium", "selection_mode": "hidden_auto"}
+        hits.sort(key=lambda x: (-x[0], x[1]))
+        primary_intent = hits[0][1]
+        agents = []
+        for _score, _intent, group in hits[:3]:
+            for agent in group:
+                if agent not in agents:
+                    agents.append(agent)
+        return {"intent": primary_intent, "agents": agents[:3], "confidence": "high" if hits[0][0] > 1 else "medium", "selection_mode": "hidden_auto"}
+
+    def copilot_detect_intent(self, question):
+        return self.ai_router_engine(question).get("intent") or "business_question"
 
     def copilot_freshness_meta(self, updated_at):
         try:
@@ -20262,7 +20277,8 @@ where ki.deleted_at is null"""
         related_objects = []
         related_decisions = []
         related_memory = []
-        context = {"intent": intent, "question": question, "page_context": page_context, "conversation_context": conversation_context, "sources": {}}
+        router = self.ai_router_engine(effective_question)
+        context = {"intent": intent, "question": question, "page_context": page_context, "conversation_context": conversation_context, "sources": {}, "ai_router": router, "hidden_agents": router.get("agents", [])}
         q = effective_question.strip()
         entity_filters = self.copilot_entity_filters(effective_question)
         required_context = ["sync_freshness"]
@@ -20539,11 +20555,11 @@ where ki.deleted_at is null"""
         if not evidence or not reliable:
             answer = "\n\n".join([
                 "结论：当前数据不足，无法形成可靠结论。",
-                "为什么：缺少{}。".format("、".join(missing_text) if missing_text else "可追溯企业依据"),
-                "关键数字：当前找到 {} 条资料，但不足以支撑该问题。".format(len(evidence)),
-                "风险与不确定性：不能用通用常识代替企业真实数据。",
-                "建议行动：先更新或重新计算相关经营数据，再重新提问。",
-                "依据与更新时间：下方资料仅供复核；数据更新时间 {}，状态 {}。".format(updated, status),
+                "原因：缺少{}。".format("、".join(missing_text) if missing_text else "可追溯企业依据"),
+                "数据来源：当前找到 {} 条资料；下方资料仅供复核，数据更新时间 {}，状态 {}。".format(len(evidence), updated, status),
+                "建议：不能用通用常识代替企业真实数据，先更新或重新计算相关经营数据。",
+                "下一步行动：完成数据更新后重新提问；如需执行任务，必须由人工确认。",
+                "风险与不确定性：当前依据不足以支撑该问题。",
             ])
             return {"answer": answer, "confidence": "low", "reliable": False, "missing": missing}
         risks = decision.get("top_risks", [])[:3]
@@ -20555,11 +20571,10 @@ where ki.deleted_at is null"""
                 money(metrics.get("sales_amount") or 0), money(metrics.get("gross_profit") or 0),
                 money(metrics.get("inventory_retail_amount") or 0), int(float(metrics.get("inventory_quantity") or 0)),
             ),
-            "为什么：已结合企业经营数据、数字档案、企业关系、经营规则、决策记录、企业记忆和每日简报。",
-            "关键数字：本次使用 {} 条可追溯依据。".format(len(evidence)),
-            "风险与不确定性：{} {}".format(risk_text, "另有 {} 条依据可能陈旧，需要复核。".format(stale) if stale else "主要依据未触发陈旧提醒。"),
-            "建议行动：先打开下方依据卡复核原始来源，再生成行动或企业记忆草稿；高风险执行仍需人工审批。",
-            "依据与更新时间：下方展示来源、可信程度和更新时间；最近数据更新时间 {}，状态 {}。每日简报：{}".format(updated, status, daily_text),
+            "原因：已结合企业经营数据、数字档案、企业关系、经营规则、决策记录、企业记忆和每日简报。",
+            "数据来源：本次使用 {} 条可追溯依据；最近数据更新时间 {}，状态 {}。每日简报：{}".format(len(evidence), updated, status, daily_text),
+            "建议：{} {}".format(risk_text, "另有 {} 条依据可能陈旧，需要复核。".format(stale) if stale else "主要依据未触发陈旧提醒。"),
+            "下一步行动：先打开下方依据卡复核原始来源，再生成行动或企业记忆草稿；高风险执行仍需人工审批。",
         ])
         confidence = "high" if len(evidence) >= 5 else "medium"
         return {"answer": answer, "confidence": confidence, "reliable": True, "missing": []}
@@ -20622,6 +20637,8 @@ where ki.deleted_at is null"""
             "session_id": session_id,
             "message_id": assistant.lastrowid,
             "intent": payload["intent"],
+            "ai_router": payload["context"].get("ai_router", {}),
+            "hidden_agents": payload["context"].get("hidden_agents", []),
             "answer": answer_payload["answer"],
             "confidence": answer_payload["confidence"],
             "reliable": bool(answer_payload.get("reliable")),
@@ -20746,6 +20763,11 @@ where ki.deleted_at is null"""
             current = conn.execute("select * from copilot_sessions where id=? and user_id=?", (session_id, user["id"])).fetchone() if str(session_id).isdigit() else None
             messages = conn.execute("select * from copilot_messages where session_id=? order by created_at", (current["id"],)).fetchall() if current else []
         suggestions = [
+            U(r"\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u60c5\u51b5\u600e\u4e48\u6837\uff1f"),
+            U(r"Osprey\u5e93\u5b58\u98ce\u9669\uff1f"),
+            U(r"\u4eca\u5e74\u5229\u6da6\u4e3a\u4ec0\u4e48\u4e0b\u964d\uff1f"),
+            U(r"\u4e0b\u4e2a\u6708\u91c7\u8d2d\u91cd\u70b9\u662f\u4ec0\u4e48\uff1f"),
+            U(r"\u5e2e\u6211\u5206\u6790KAILAS\u54c1\u724c\u8868\u73b0"),
             U(r"\u4eca\u5929\u4f01\u4e1a\u6700\u91cd\u8981\u7684\u98ce\u9669\u662f\u4ec0\u4e48\uff1f"),
             U(r"\u4eca\u5e74\u5229\u6da6\u4e3a\u4ec0\u4e48\u770b\u8d77\u6765\u4e0d\u9519\uff1f"),
             U(r"\u54c1\u724c\u8fd4\u70b9\u5bf9\u5229\u6da6\u5f71\u54cd\u591a\u5927\uff1f"),
@@ -20789,8 +20811,9 @@ where ki.deleted_at is null"""
 <div class="chat-shell">
   <div>
     <div class="panel">
-      <h2>AI助手</h2>
-      <p class="small">只基于企业数据和依据回答；依据不足时会明确说明不能下结论。</p>
+      <h2>Hello, 呼总</h2>
+      <p class="lead">今天想了解什么？直接提问即可，系统会自动理解意图、选择隐藏 Agent、检索数据并给出行动建议。</p>
+      <p class="small">不需要选择 Agent、不需要填写对象类型、不需要配置数据源；依据不足时会明确说明不能下结论。</p>
       {}
       <div class="chipbar">{}</div>
     </div>
@@ -20815,8 +20838,8 @@ where ki.deleted_at is null"""
             chips,
             message_html,
             hidden_context,
-            U(r"\u95ee\u4f01\u4e1a"),
-            U(r"\u4f8b\uff1a\u68c0\u67e5\u706b\u72d0\u72f8\u76ee\u524d\u6700\u5927\u7ecf\u8425\u98ce\u9669"),
+            U(r"\u76f4\u63a5\u95ee\u4f01\u4e1a"),
+            U(r"\u4f8b\uff1a\u5357\u5c71\u5e97\u6700\u8fd1\u7ecf\u8425\u60c5\u51b5\u600e\u4e48\u6837\uff1f"),
             esc(initial_question),
             U(r"\u57fa\u4e8e\u8bc1\u636e\u56de\u7b54"),
             U(r"\u5386\u53f2\u95ee\u9898"),
