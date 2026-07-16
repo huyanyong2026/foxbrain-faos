@@ -23,6 +23,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate deployment metadata
+        run: python scripts/generate_deployment_metadata.py
+        env:
+          FOXBRAIN_VERSION: AI-OS-V4.0
+          FOXBRAIN_ENV: production
+          GIT_COMMIT: ${{ github.sha }}
+          BUILD_TIME: ${{ github.run_started_at }}
+
       - name: Setup SSH
         run: |
           set -euo pipefail
@@ -56,6 +64,7 @@ jobs:
           git pull --ff-only origin main
 
           test -f .env
+          python scripts/generate_deployment_metadata.py
           docker compose config >/dev/null
           docker compose pull --ignore-buildable || true
           docker compose up -d --build
@@ -112,4 +121,5 @@ jobs:
 
           curl -fsS http://127.0.0.1/api/health >/dev/null || curl -fsS http://127.0.0.1:3000/api/health >/dev/null
           curl -fsS http://127.0.0.1/ >/dev/null || curl -fsS http://127.0.0.1:3000/ >/dev/null
+          python verify_production.py --service Gateway=http://127.0.0.1/health/version || true
           REMOTE_DEPLOY

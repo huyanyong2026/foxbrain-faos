@@ -74,6 +74,10 @@ app.secret_key = os.environ.get("AUTH_SECRET_KEY") or "development-only-change-b
 app.permanent_session_lifetime = timedelta(hours=8)
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=True)
 
+@app.context_processor
+def inject_runtime_version():
+    return {"runtime_version": version_payload("ai")}
+
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "postgres"),
     "port": os.environ.get("DB_PORT", "5432"),
@@ -1177,8 +1181,9 @@ def replenishment_latest_api():
 
 
 @app.get("/version")
+@app.get("/health/version")
 def version():
-    return jsonify(version_payload("foxbrain-ai"))
+    return jsonify(version_payload("ai"))
 
 
 @app.get("/health")

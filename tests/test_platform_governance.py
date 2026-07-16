@@ -2,11 +2,11 @@ from foxbrain_os.platform_governance import control_tower_status, health_payload
 
 
 def test_version_payload_has_standard_metadata(monkeypatch):
-    monkeypatch.setenv("FOXBRAIN_VERSION", "0.20.5")
+    monkeypatch.setenv("FOXBRAIN_VERSION", "AI-OS-V4.0")
     payload = version_payload("foxbrain-core")
-    assert set(payload) == {"service", "version", "commit", "build_time", "environment"}
+    assert set(payload) == {"system", "service", "version", "commit", "build_time", "deploy_time", "environment", "status"}
     assert payload["service"] == "foxbrain-core"
-    assert payload["version"] == "0.20.5"
+    assert payload["version"] == "AI-OS-V4.0"
 
 
 def test_health_payload_requires_process_database_dependencies():
@@ -19,6 +19,6 @@ def test_health_payload_requires_process_database_dependencies():
 def test_control_tower_displays_enterprise_status():
     payload = control_tower_status(last_deploy="2026-07-16T00:00:00+00:00")
     assert payload["platform"] == "FoxBrain Enterprise OS"
-    assert payload["release_version"] == "0.20.5"
+    assert payload["release_version"] == "AI-OS-V4.0"
     assert payload["components"]["core"]["status"] == "Healthy"
     assert payload["components"]["sap_sync"]["status"] == "Healthy"
