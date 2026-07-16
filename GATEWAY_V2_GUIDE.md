@@ -1,4 +1,4 @@
-# Gateway V2 Guide — FoxBrain Portal V2
+# Gateway V2 Guide — VAFOX Portal V2
 
 ## Purpose
 Gateway V2 is the unified enterprise portal for login, identity, permission, smart routing, and the role dashboard.

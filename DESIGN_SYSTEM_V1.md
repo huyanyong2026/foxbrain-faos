@@ -1,4 +1,4 @@
-# FoxBrain Design System V1
+# VAFOX Design System V1
 
 ## Principles
 - One enterprise OS visual language across Gateway, Huyan, AI, and Core.
@@ -15,4 +15,4 @@
 - Notification Components: system status, risk notifications, and approval alerts.
 
 ## Reuse Rule
-All future FoxBrain modules should reuse the shared `layout`, `card`, `metric`, `bullets`, `grid`, `panel`, `split`, and `status-tag` patterns in `portal_v2.py` instead of creating a duplicate UI system.
+All future VAFOX modules should reuse the shared `layout`, `card`, `metric`, `bullets`, `grid`, `panel`, `split`, and `status-tag` patterns in `portal_v2.py` instead of creating a duplicate UI system.
