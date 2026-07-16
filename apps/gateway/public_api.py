@@ -38,6 +38,8 @@ class GatewayPublicHandler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self):
+        if self.path in ("/", "/version"):
+            return self._reply(200, {**version_payload("gateway"), "display": "FoxBrain Portal V4"})
         if self.path == "/health/version":
             return self._reply(200, version_payload("gateway"))
         if self.path == "/healthz":
