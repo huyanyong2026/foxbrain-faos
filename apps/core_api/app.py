@@ -654,6 +654,17 @@ class CoreApiHandler(BaseHTTPRequestHandler):
         header = self.headers.get("Authorization", "")
         return header[7:].strip() if header.lower().startswith("bearer ") else ""
 
+    def _reply_html(self, status, html):
+        body = html.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
     def _reply(self, status, payload):
         body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
@@ -685,6 +696,8 @@ class CoreApiHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         try:
+            if parsed.path in ("/", "/ui"):
+                return self._reply_html(200, """<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>VAFOX Core Data Platform</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;background:#f5f7f5;color:#14231d}.hero{background:#14382c;color:white;padding:56px max(24px,calc((100% - 1100px)/2))}.hero p{color:#d8e7df;max-width:760px}.wrap{width:min(1100px,calc(100% - 32px));margin:28px auto;display:grid;gap:18px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:white;border:1px solid #d9e0dc;border-radius:16px;padding:22px}.card b{display:block;font-size:24px;margin-top:10px;color:#176443}.list{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.pill{display:inline-flex;border-radius:999px;background:#dfeee7;color:#176443;padding:6px 10px;font-weight:800;font-size:12px}@media(max-width:760px){.grid,.list{grid-template-columns:1fr}}</style></head><body><section class='hero'><span class='pill'>Core UI · UX-V2.0</span><h1>Enterprise Data Platform Management</h1><p>面向业务的数据平台视图，只展示 Master Data、Events、Data Quality 与 API Status；保留只读 SAP Mirror，不暴露开发者 SQL 或写入能力。</p></section><main class='wrap'><section class='grid'><article class='card'>Master Data<b>Stores · Products · Brands · Suppliers</b></article><article class='card'>Events<b>Sync · API · Audit</b></article><article class='card'>Data Quality<b>/api/v1/data-health</b></article><article class='card'>API Status<b>/api/health</b></article></section><section class='list'><article class='card'><h2>Governance</h2><p>RBAC / ABAC / audit controls remain unchanged through token scopes and read-only endpoints.</p></article><article class='card'><h2>No duplicate source</h2><p>Core UI describes the existing SAP mirror and API layer; SAP logic is not rebuilt or modified.</p></article></section></main></body></html>""")
             if parsed.path == "/version":
                 return self._reply(200, version_payload("foxbrain-core"))
             if parsed.path == "/health":
