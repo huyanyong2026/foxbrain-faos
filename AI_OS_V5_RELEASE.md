@@ -23,3 +23,16 @@ Development → Automated Test → Pull Request → Merge → Deploy → Health 
 
 ## Release Gate
 Release is allowed only when SAP truth guardrails are preserved, automated tests pass, and human approval remains required before execution.
+
+## Production Self Verification Gate
+AI OS V5 adds production self-verification and runtime transparency without requiring direct server access.
+
+Release gates:
+- Gateway Runtime API: PASS
+- Huyan Runtime API: PASS
+- AI Runtime API: PASS
+- Core Runtime API: PASS
+- Version badges: PASS
+- Verification script: PASS
+- Security controls: PASS
+- CI/CD runtime verification: PASS
