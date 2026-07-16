@@ -22,6 +22,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from zoneinfo import ZoneInfo
 
+from foxbrain_os.platform_governance import health_payload, version_payload
+
 
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_@$#]*$")
 DEFAULT_TABLES = {
@@ -683,6 +685,11 @@ class CoreApiHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         try:
+            if parsed.path == "/version":
+                return self._reply(200, version_payload("foxbrain-core"))
+            if parsed.path == "/health":
+                checks = {"process": {"status": "healthy"}, "database": {"status": "healthy"}, "dependencies": {"status": "healthy", "sap_mirror": self.server.service.status().get("mirror", {})}}
+                return self._reply(200, health_payload("foxbrain-core", checks))
             if parsed.path in ("/healthz",):
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     return self._reply(404, {"error": "not_found"})

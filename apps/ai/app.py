@@ -16,6 +16,8 @@ import psycopg2
 import psycopg2.extras
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_file, session
 
+from foxbrain_os.platform_governance import control_tower_status, health_payload, version_payload
+
 try:
     from .connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
     from .domain import (
@@ -1125,6 +1127,27 @@ def replenishment_latest_api():
         "batch": {key: batch[key] for key in ("batch_id", "business_date", "source_type", "source_name", "rule_version", "status")},
         "stores": replenishment_summary(batch["batch_id"]),
     })
+
+
+@app.get("/version")
+def version():
+    return jsonify(version_payload("foxbrain-ai"))
+
+
+@app.get("/health")
+def platform_health():
+    try:
+        value = one("select 1 as value")["value"]
+        checks = {"process": {"status": "healthy"}, "database": {"status": "healthy" if value == 1 else "unhealthy"}, "dependencies": {"status": "healthy", "core_configured": bool(os.environ.get("CORE_BASE_URL"))}}
+        payload = health_payload("foxbrain-ai", checks)
+        return jsonify(payload), 200 if payload["status"] == "healthy" else 503
+    except Exception:
+        return jsonify(health_payload("foxbrain-ai", {"process": {"status": "healthy"}, "database": {"status": "unhealthy"}, "dependencies": {"status": "healthy"}})), 503
+
+
+@app.get("/control-tower")
+def control_tower():
+    return jsonify(control_tower_status())
 
 
 @app.get("/ops-api/health")
