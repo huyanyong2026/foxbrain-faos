@@ -32,3 +32,9 @@ Status: PASS
 This release adds the Huyan CEO AI Strategic Assistant while preserving the existing architecture: SAP B1 remains the business truth, Core remains the enterprise data layer, and AI provides analysis, prediction, recommendation, simulation, and decision memory only after human review.
 
 Covered modules: CEO Daily Executive Briefing, Enterprise Risk Prediction, Opportunity Radar, CEO Decision Center, Business Simulation, CEO Memory, Huyan Command Center V2, AI Agent Integration, RBAC/ABAC permission controls, and audit-aligned operation readiness.
+
+## BA-V2.0-C Enterprise WeCom AI Test Addendum
+
+Status: PASS
+
+Required checks cover WeCom Integration, Identity, Permission, AI Response, Knowledge Retrieval, and Task Workflow. Automated coverage in `tests/test_ba_v2_wecom_ai.py` validates required WeCom identity types, WeCom-to-FoxBrain mapping, role intelligence capabilities, source-backed employee AI responses, and approval-gated AI task creation.

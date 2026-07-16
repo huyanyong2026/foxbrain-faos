@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import json
 
+try:
+    from .domain import normalize_evidence
+except ImportError:
+    from domain import normalize_evidence
+
 
 ROLE_DEFINITIONS = {
     "ceo": {
@@ -232,3 +237,103 @@ def authorize_ai_context(identity, agent_type, requested_store_id=None):
 
 def identity_snapshot_json(identity):
     return json.dumps(identity, ensure_ascii=False, sort_keys=True)
+
+EMPLOYEE_AI_ROLE_CAPABILITIES = {
+    "employee": {
+        "access": ["product", "knowledge", "basic_inventory", "training", "own_tasks"],
+        "agents": ["employee", "knowledge", "customer"],
+        "scope": "self",
+    },
+    "store_manager": {
+        "access": ["store_sales", "store_inventory", "store_risk", "store_tasks", "training"],
+        "agents": ["employee", "store", "knowledge"],
+        "scope": "store",
+    },
+    "purchaser": {
+        "access": ["supply_chain", "forecast", "purchase_recommendation", "supplier_risk"],
+        "agents": ["employee", "supply_chain", "knowledge"],
+        "scope": "company_supply_chain",
+    },
+    "ceo": {
+        "access": ["enterprise_intelligence", "risk", "opportunity", "strategy", "all_tasks"],
+        "agents": ["employee", "ceo", "supply_chain", "store", "customer", "knowledge"],
+        "scope": "enterprise",
+    },
+}
+
+WECOM_IDENTITY_TYPES = ("employee", "store_manager", "purchaser", "ceo")
+
+
+def map_wecom_identity(wecom_userid, foxbrain_user_id, role_keys, store_id=None, department_id=None):
+    """Build the deterministic WeCom -> FoxBrain -> RBAC mapping used by BA V2.0-C."""
+    if not str(wecom_userid or "").strip():
+        raise ValueError("企业微信用户 ID 不能为空")
+    normalized_roles = list(dict.fromkeys(role_keys or ["employee"]))
+    primary_role = next((role for role in ("ceo", "purchaser", "store_manager", "employee") if role in normalized_roles), "employee")
+    identity = build_identity_context(foxbrain_user_id, wecom_userid, "", normalized_roles, store_id, department_id)
+    return {
+        "wecom_userid": str(wecom_userid).strip(),
+        "foxbrain_user_id": int(foxbrain_user_id),
+        "identity_type": primary_role,
+        "roles": normalized_roles,
+        "permissions": identity["permissions"],
+        "data_scopes": identity["data_scopes"],
+    }
+
+
+def role_capabilities(role_keys):
+    """Return merged Employee AI Workspace capabilities for the user's roles."""
+    merged_access, merged_agents = [], []
+    scope = "self"
+    for role in role_keys or ["employee"]:
+        spec = EMPLOYEE_AI_ROLE_CAPABILITIES.get(role)
+        if not spec:
+            continue
+        for item in spec["access"]:
+            if item not in merged_access:
+                merged_access.append(item)
+        for agent in spec["agents"]:
+            if agent not in merged_agents:
+                merged_agents.append(agent)
+        if spec["scope"] in ("enterprise", "company_supply_chain", "store"):
+            scope = spec["scope"]
+    return {"access": merged_access, "agents": merged_agents, "scope": scope}
+
+
+def compose_employee_ai_response(question, identity_mapping, core_result, knowledge_result=None):
+    """Create a source-backed Employee AI response without duplicating business data."""
+    if not isinstance(core_result, dict):
+        raise ValueError("Employee AI response requires Core Enterprise Data result")
+    required = ("product", "store", "inventory", "data_source", "update_time")
+    missing = [key for key in required if not core_result.get(key)]
+    if missing:
+        raise ValueError("Core result missing required fields: " + ", ".join(missing))
+    return {
+        "question": str(question).strip(),
+        "identity_type": identity_mapping["identity_type"],
+        "product": core_result["product"],
+        "store": core_result["store"],
+        "inventory": core_result["inventory"],
+        "data_source": core_result["data_source"],
+        "update_time": core_result["update_time"],
+        "knowledge": knowledge_result or {},
+        "action_policy": "assistant_recommendation_only",
+    }
+
+
+def create_ai_task_from_signal(signal, assignee_role="store_manager"):
+    """Convert an AI-detected issue into a human-trackable task draft."""
+    for key in ("title", "source_id", "source_ref", "evidence"):
+        if not signal.get(key):
+            raise ValueError("Task signal missing " + key)
+    evidence = normalize_evidence(signal["evidence"])
+    return {
+        "title": signal["title"],
+        "description": signal.get("description", ""),
+        "assignee_role": assignee_role,
+        "status": "pending_approval",
+        "source_type": signal.get("source_type", "employee_ai_signal"),
+        "source_id": signal["source_id"],
+        "source_ref": signal["source_ref"],
+        "evidence": evidence,
+    }
