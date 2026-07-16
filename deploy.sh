@@ -11,7 +11,25 @@ log() {
 
 cd "$APP_DIR"
 
+validate_environment() {
+  if [ ! -f .env ]; then
+    log "Missing .env. Create it from .env.example before deploying."
+    exit 1
+  fi
+
+  if grep -Eq '^(PORTAL_INITIAL_ADMIN_PASSWORD|ADMIN_PASSWORD|POSTGRES_PASSWORD|MINIO_ROOT_PASSWORD|JWT_SECRET|ENCRYPTION_KEY)=change_me' .env; then
+    log "Refusing production deploy with default placeholder secrets in .env."
+    exit 1
+  fi
+
+  if grep -Eq '^(SAP_|B1_|SAPB1_)' .env; then
+    log "Refusing deploy: Huyan must not keep direct SAP credentials. Use CORE_BASE_URL and CORE_API_TOKEN."
+    exit 1
+  fi
+}
+
 log "Starting VAFOX deployment."
+validate_environment
 
 if [ "$MODE" = "--rollback" ]; then
   PREVIOUS_COMMIT="$(git rev-parse HEAD~1)"
