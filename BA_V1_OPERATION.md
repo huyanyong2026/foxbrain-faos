@@ -1,4 +1,4 @@
-# FoxBrain Business Activation V1.0
+# VAFOX Business Activation V1.0
 
 Status: implemented as application-layer business activation on top of Foundation V2.0. SAP remains the business truth layer; Core remains the enterprise data layer; AI provides recommendations; humans approve actions.
 
