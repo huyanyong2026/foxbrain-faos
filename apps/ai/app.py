@@ -17,6 +17,7 @@ import psycopg2.extras
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_file, session
 
 from foxbrain_os.platform_governance import control_tower_status, health_payload, runtime_payload, version_payload
+from foxbrain_os.ai_os_v5 import build_ai_response, build_ai_os_v5_contract, create_autonomous_task, route_intent
 
 try:
     from .connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
@@ -77,6 +78,65 @@ app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", S
 @app.context_processor
 def inject_runtime_version():
     return {"runtime_version": version_payload("ai")}
+
+
+AI_WORKSPACE_V5_LABEL = "FoxBrain AI Workforce V5"
+AI_WORKSPACE_V5_EXAMPLES = (
+    "分析火狐狸当前最大经营风险",
+    "南山店最近经营怎么样？",
+    "Osprey库存风险？",
+    "下个月采购重点是什么？",
+)
+AGENT_TYPE_BY_V5_NAME = {
+    "CEO Agent": "ceo",
+    "Supply Agent": "supply_chain",
+    "Supply Chain Agent": "supply_chain",
+    "Store Agent": "store",
+    "Finance Agent": "finance",
+    "Commerce Agent": "business",
+    "Growth Agent": "growth",
+    "Forecast Engine": "inventory",
+    "Customer Agent": "customer",
+}
+
+
+def workspace_v5_context(question):
+    response = build_ai_response(question)
+    route = response["route"]
+    task = create_autonomous_task(question, owner="AI Router V5")
+    return {"route": route, "response": response, "task": task}
+
+
+def v5_evidence_from_route(route):
+    objects = route.get("business_objects") or ["Enterprise"]
+    sources = route.get("required_data") or ["Core Enterprise Digital Twin"]
+    return [{
+        "source_layer": "enterprise_fact",
+        "source_type": "core.vafox.com",
+        "source_id": "auto-link:" + "+".join(objects),
+        "source_ref": "https://core.vafox.com/auto-link/" + "-".join(objects).lower(),
+        "statement": "AI Router V5 automatically linked {} to {} for this answer.".format(", ".join(objects), ", ".join(sources)),
+    }]
+
+
+def answer_text_from_v5_response(response):
+    return "\n".join([
+        "Conclusion: " + response["conclusion"],
+        "Reason: " + response["reason"],
+        "Data Source: " + ", ".join(response["data_source"]),
+        "Recommendation: " + response["recommendation"],
+        "Next Action: " + response["next_action"],
+    ])
+
+
+def select_v5_agent_id(route, user):
+    allowed_agents = accessible_agents(user)
+    by_type = {agent["agent_type"]: agent["agent_id"] for agent in allowed_agents}
+    for agent_name in route.get("required_agents", []):
+        agent_type = AGENT_TYPE_BY_V5_NAME.get(agent_name)
+        if agent_type in by_type:
+            return by_type[agent_type]
+    return allowed_agents[0]["agent_id"] if allowed_agents else "agent-enterprise"
 
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "postgres"),
@@ -743,35 +803,55 @@ def ceo_strategy_api():
 @permission_required("ai.use")
 def workbench():
     user = current_user()
-    return render_template("workbench.html", user=user, agents=accessible_agents(user), runs=visible_runs(user, 30))
+    preview_question = request.args.get("q") or AI_WORKSPACE_V5_EXAMPLES[1]
+    return render_template(
+        "workbench.html", user=user, agents=accessible_agents(user), runs=visible_runs(user, 30),
+        examples=AI_WORKSPACE_V5_EXAMPLES, v5=workspace_v5_context(preview_question),
+        contract=build_ai_os_v5_contract(), workspace_label=AI_WORKSPACE_V5_LABEL,
+    )
 
 
 @app.post("/ops-api/runs")
 @permission_required("ai.use")
 def create_run():
     require_csrf()
-    form = request.form
-    evidence = evidence_from_form(form)
-    validate_ai_run(form.get("question"), evidence)
+    question = str(request.form.get("question") or "").strip()
+    if not question:
+        raise ValueError("企业问题不能为空")
     user = current_user()
-    agent = one("select agent_type from ai_agents where agent_id=%s and status='active'", (form.get("agent_id"),))
-    if not agent:
+    response = build_ai_response(question)
+    route = response["route"]
+    evidence = v5_evidence_from_route(route)
+    validate_ai_run(question, evidence)
+    agent_id = select_v5_agent_id(route, user)
+    selected_agent = one("select agent_type from ai_agents where agent_id=%s and status='active'", (agent_id,))
+    if not selected_agent:
         raise ValueError("AI助手不存在或未启用")
-    permission_context = authorize_ai_context(user["identity"], agent["agent_type"], form.get("store_id"))
+    permission_context = authorize_ai_context(user["identity"], selected_agent["agent_type"], request.form.get("store_id"))
     run_id = new_id("RUN")
+    task = create_autonomous_task(question, owner=user.get("real_name") or user.get("display_name") or "AI Router V5")
+    result = {"response": response, "auto_task": task, "memory_learning": "pending_feedback_after_owner_decision"}
     cur = get_db().cursor()
     cur.execute(
-        """insert into ai_agent_runs(run_id,agent_id,question,context_json,evidence_json,created_by)
-        values(%s,%s,%s,%s::jsonb,%s::jsonb,%s)""",
-        (run_id, form.get("agent_id"), form.get("question").strip(), json.dumps({
-            "object_type": form.get("object_type"), "object_id": form.get("object_id"),
+        """insert into ai_agent_runs(run_id,agent_id,question,context_json,evidence_json,answer,result_json,status,approval_status,created_by)
+        values(%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s::jsonb,'pending_review','pending',%s)""",
+        (run_id, agent_id, question, json.dumps({
+            "ai_router_v5": route, "business_objects": route["business_objects"],
+            "required_agents": route["required_agents"], "required_data": route["required_data"],
             "identity": permission_context["identity"], "effective_store_id": permission_context["effective_store_id"],
-            "core_access": "read_only",
-        }, ensure_ascii=False), json.dumps(evidence, ensure_ascii=False), session["user_id"]),
+            "core_access": "read_only_auto_linked", "manual_configuration_removed": True,
+        }, ensure_ascii=False), json.dumps(evidence, ensure_ascii=False), answer_text_from_v5_response(response),
+         json.dumps(result, ensure_ascii=False), session["user_id"]),
     )
     save_evidence(cur, "agent_run", run_id, evidence)
+    cur.execute(
+        """insert into ai_tasks(task_id,title,description,owner_name,priority,status,source_type,source_id,source_ref,evidence_json,created_by)
+        values(%s,%s,%s,%s,%s,'pending_approval','ai_agent_run',%s,%s,%s::jsonb,%s)""",
+        (task["task_id"] + "-" + run_id[-8:], task["task"], "Auto-generated by AI Router V5; execution requires human approval.",
+         task["owner"], task["priority"], run_id, "https://ai.vafox.com/workbench#" + run_id, json.dumps(evidence, ensure_ascii=False), session["user_id"]),
+    )
     get_db().commit()
-    return redirect("/workbench")
+    return redirect("/workbench#" + run_id)
 
 
 @app.post("/ops-api/internal/runs/<run_id>/result")

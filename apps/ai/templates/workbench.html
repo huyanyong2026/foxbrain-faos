@@ -1,25 +1,56 @@
 {% extends "base.html" %}
-{% block title %}企业提问｜VAFOX{% endblock %}
+{% block title %}FoxBrain AI Workforce V5｜VAFOX{% endblock %}
 {% block content %}
-<section class="page-title"><p class="eyebrow">AI工作台</p><h1>基于企业事实提问</h1><p>没有依据的问题不会进入分析；AI回答默认等待人工确认。</p></section>
+<section class="hero os-hero">
+  <div>
+    <p class="eyebrow">{{ workspace_label }}</p>
+    <h1>Universal AI Conversation Interface</h1>
+    <p>直接提问，AI Router V5 自动识别意图、业务对象、数字员工和 Core 数据；不再需要选择 Agent、来源、对象类型或对象。</p>
+    <form class="conversation-form" method="post" action="/ops-api/runs" data-ai-router-v5="enabled">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea name="question" placeholder="例如：分析火狐狸当前最大经营风险" required></textarea>
+      <button>Ask FoxBrain AI</button>
+    </form>
+  </div>
+  <div class="version-badge" data-version-badge="FoxBrain AI Workforce V5">
+    <strong>FoxBrain AI Workforce V5</strong>
+    <span>Build: {{ runtime_version.build_time }}</span>
+    <span>Commit: {{ runtime_version.commit }}</span>
+  </div>
+</section>
+<section class="prompt-row" aria-label="示例问题">
+  {% for example in examples %}<a href="/workbench?q={{ example|urlencode }}">{{ example }}</a>{% endfor %}
+</section>
+<section class="ux-grid two-one">
+  <article class="panel ai-card">
+    <p class="eyebrow">AI Router V5 Preview</p>
+    <h2>{{ v5.route.question }}</h2>
+    <dl class="decision-list">
+      <dt>Intent</dt><dd>{{ v5.route.intent }}</dd>
+      <dt>Object</dt><dd>{{ v5.route.business_objects|join(', ') }}</dd>
+      <dt>Agents</dt><dd>{{ v5.route.required_agents|join(', ') }}</dd>
+      <dt>Data</dt><dd>{{ v5.route.required_data|join(', ') }}</dd>
+    </dl>
+  </article>
+  <article class="panel task-card">
+    <p class="eyebrow">Auto Task Draft</p>
+    <h2>{{ v5.task.task }}</h2>
+    <p>Owner: {{ v5.task.owner }} · Priority: {{ v5.task.priority }} · Deadline: {{ v5.task.deadline }}</p>
+    <span class="status">{{ v5.task.status }}</span>
+  </article>
+</section>
 <section class="split">
-  <form class="panel" method="post" action="/ops-api/runs">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <h2>新建分析</h2>
-    <label>选择助手<select name="agent_id" required>{% for agent in agents %}<option value="{{ agent.agent_id }}">{{ agent.name }}</option>{% endfor %}</select></label>
-    <label>企业问题<textarea name="question" placeholder="例如：南山店最近最需要关注什么？" required></textarea></label>
-    <div class="two"><label>关联对象类型<input name="object_type" placeholder="门店、品牌、产品"></label><label>关联对象<input name="object_id" placeholder="例如：南山店"></label></div>
-    <fieldset><legend>本次分析依据</legend>
-      <input type="hidden" name="source_layer" value="enterprise_fact">
-      <label>来源<select name="source_type" required><option value="core.vafox.com">Enterprise Data Core</option><option value="living_enterprise">Living Enterprise</option><option value="huyan.vafox.com">CEO Enterprise Brain</option></select></label>
-      <label>来源记录<input name="source_id" placeholder="同步批次、对象编号或资料编号" required></label>
-      <label>来源位置<input name="source_ref" placeholder="可回溯的页面或记录位置" required></label>
-      <label>依据说明<textarea name="statement" placeholder="用一句话说明这条事实支持什么" required></textarea></label>
-    </fieldset>
-    <button>提交分析</button>
-  </form>
-  <section class="panel"><h2>最近分析</h2><div class="list compact">
-    {% for run in runs %}<article class="run"><div><span class="status">{{ {'waiting_ai':'等待 AI','pending_review':'待确认'}.get(run.status,run.status) }}</span><h3>{{ run.question }}</h3><p>{{ run.answer or '问题与企业依据已保存，AI服务返回前不会生成结论。' }}</p></div>{% if run.status == 'pending_review' and user.role in ['admin','manager','boss'] %}<div class="actions"><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve"><button>接受建议</button></form><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject"><button class="secondary">拒绝</button></form></div>{% endif %}</article>{% else %}<div class="empty"><h3>暂无分析</h3><p>填写左侧问题和企业依据后开始。</p></div>{% endfor %}
+  <section class="panel"><h2>AI Response Standard</h2>
+    <ul>
+      <li><strong>Conclusion</strong> — {{ v5.response.conclusion }}</li>
+      <li><strong>Reason</strong> — {{ v5.response.reason }}</li>
+      <li><strong>Data Source</strong> — {{ v5.response.data_source|join(', ') }}</li>
+      <li><strong>Recommendation</strong> — {{ v5.response.recommendation }}</li>
+      <li><strong>Next Action</strong> — {{ v5.response.next_action }}</li>
+    </ul>
+  </section>
+  <section class="panel"><h2>Recent AI Workforce Runs</h2><div class="list compact">
+    {% for run in runs %}<article class="run" id="{{ run.run_id }}"><div><span class="status">{{ {'waiting_ai':'等待 AI','pending_review':'待确认'}.get(run.status,run.status) }}</span><h3>{{ run.question }}</h3><p>{{ run.answer or 'AI Router V5 已保存自动路由与 Core 数据链接，等待结果。' }}</p></div>{% if run.status == 'pending_review' and user.role in ['admin','manager','boss'] %}<div class="actions"><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve"><button>接受建议</button></form><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject"><button class="secondary">拒绝</button></form></div>{% endif %}</article>{% else %}<div class="empty"><h3>暂无分析</h3><p>输入自然语言问题即可开始。</p></div>{% endfor %}
   </div></section>
 </section>
 {% endblock %}
