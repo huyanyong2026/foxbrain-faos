@@ -1,4 +1,4 @@
-# FoxBrain Business Activation V2.0-B CEO Intelligence Upgrade
+# VAFOX Business Activation V2.0-B CEO Intelligence Upgrade
 
 Status: PASS
 
