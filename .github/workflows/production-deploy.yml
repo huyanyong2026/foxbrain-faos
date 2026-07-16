@@ -57,12 +57,13 @@ jobs:
 
           test -f .env
           docker compose config >/dev/null
+          docker compose pull --ignore-buildable || true
           docker compose up -d --build
 
           echo "Current Docker Compose status:"
           docker compose ps
 
-          required_services="foxbrain-web foxbrain-api foxbrain-worker nginx"
+          required_services="foxbrain-web foxbrain-api foxbrain-worker postgres redis minio qdrant nginx"
           max_attempts=20
           sleep_seconds=15
 
@@ -87,7 +88,7 @@ jobs:
 
             if [ "$all_healthy" = true ]; then
               echo "Verified healthy services: $required_services"
-              exit 0
+              break
             fi
 
             if [ "$attempt" -lt "$max_attempts" ]; then
@@ -96,7 +97,19 @@ jobs:
             fi
           done
 
-          echo "Deployment health check failed. Final Docker Compose status:"
-          docker compose ps
-          exit 1
+          if [ "$all_healthy" != true ]; then
+            echo "Deployment health check failed. Final Docker Compose status:"
+            docker compose ps
+            exit 1
+          fi
+
+          echo "Checking public gateway ownership:"
+          ss -tlnp | awk '$4 ~ /(:80|:443)$/ {print}' || true
+          if ss -tlnp | awk '$4 ~ /(:80|:443)$/ {print}' | grep -q 'docker-proxy'; then
+            echo "Docker must not own public port 80 or 443."
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1/api/health >/dev/null || curl -fsS http://127.0.0.1:3000/api/health >/dev/null
+          curl -fsS http://127.0.0.1/ >/dev/null || curl -fsS http://127.0.0.1:3000/ >/dev/null
           REMOTE_DEPLOY

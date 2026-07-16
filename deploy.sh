@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/foxbrain}"
+APP_DIR="${APP_DIR:-/opt/foxbrain-faos}"
 LOG_FILE="/var/log/foxbrain-deploy.log"
 MODE="${1:-}"
 
@@ -36,7 +36,7 @@ if [ "$MODE" = "--rollback" ]; then
   log "Rolling back to $PREVIOUS_COMMIT."
   git checkout "$PREVIOUS_COMMIT"
   docker compose up -d --build
-  bash "$APP_DIR/healthcheck.sh" || true
+  bash "$APP_DIR/healthcheck.sh"
   log "Rollback command finished. Please verify business pages before continuing."
   exit 0
 fi
@@ -55,7 +55,7 @@ fi
 
 if [ "$MODE" = "--pull" ] || [ -z "$MODE" ]; then
   log "Pulling Docker images."
-  docker compose pull || true
+  docker compose pull --ignore-buildable || true
 fi
 
 if [ "$MODE" = "--build" ] || [ -z "$MODE" ]; then
@@ -73,7 +73,7 @@ docker compose ps | sudo tee -a "$LOG_FILE"
 
 if [ -x "$APP_DIR/healthcheck.sh" ]; then
   log "Running healthcheck."
-  bash "$APP_DIR/healthcheck.sh" || log "Healthcheck reported warnings. Check logs before confirming the release."
+  bash "$APP_DIR/healthcheck.sh"
 fi
 
 log "Pruning old Docker objects."
