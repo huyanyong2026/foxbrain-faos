@@ -81,10 +81,10 @@ install_nginx_config() {
 }
 
 install_cron() {
-  CRON_FILE="/etc/cron.d/foxbrain-sap-sync"
-  CRON_CMD="0 22 * * * root cd $APP_DIR && docker compose exec -T foxbrain-worker python sync_sap_b1.py --trigger scheduled_22_00 >> $APP_DIR/logs/sap_sync.log 2>&1"
-  echo "$CRON_CMD" | sudo tee "$CRON_FILE" >/dev/null
-  sudo chmod 0644 "$CRON_FILE"
+  # FoxBrain must not schedule direct SAP writes or SAP synchronization from Huyan.
+  # SAP remains the enterprise system of fact; Huyan reads operating facts through Core only.
+  sudo rm -f /etc/cron.d/foxbrain-sap-sync
+  echo "Removed legacy direct SAP sync cron if it existed. Use Core read-only sync outside Huyan."
   echo "30 2 * * * root $APP_DIR/backup.sh >> $APP_DIR/logs/backup.log 2>&1" | sudo tee /etc/cron.d/foxbrain-backup >/dev/null
   sudo chmod 0644 /etc/cron.d/foxbrain-backup
 }

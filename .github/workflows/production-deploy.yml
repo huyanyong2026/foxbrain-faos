@@ -14,6 +14,10 @@ jobs:
     name: Deploy FoxBrain FAOS production
     runs-on: ubuntu-latest
     environment: production
+    env:
+      PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+      PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+      PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
 
     steps:
       - name: Checkout code
@@ -24,22 +28,25 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+          missing=0
+          for name in PRODUCTION_SSH_HOST PRODUCTION_SSH_USER PRODUCTION_DEPLOY_PATH; do
+            if [ -z "${!name}" ]; then echo "Missing required GitHub Secret: $name"; missing=1; fi
+          done
+          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then echo "Missing required GitHub Secret: PRODUCTION_SSH_KEY"; missing=1; fi
+          if [ "$missing" -ne 0 ]; then exit 1; fi
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/production_deploy_key
           chmod 600 ~/.ssh/production_deploy_key
-          ssh-keyscan -H 140.143.207.194 >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$PRODUCTION_SSH_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy on production server
-        env:
-          PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
         run: |
           set -euo pipefail
           quoted_deploy_path="$(printf '%q' "$PRODUCTION_DEPLOY_PATH")"
           ssh -i ~/.ssh/production_deploy_key \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
-            "${PRODUCTION_SSH_USER}@140.143.207.194" \
+            "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}" \
             "PRODUCTION_DEPLOY_PATH=${quoted_deploy_path} bash -s" <<'REMOTE_DEPLOY'
           set -euo pipefail
 
@@ -48,12 +55,14 @@ jobs:
           git checkout main
           git pull --ff-only origin main
 
+          test -f .env
+          docker compose config >/dev/null
           docker compose up -d --build
 
           echo "Current Docker Compose status:"
           docker compose ps
 
-          required_services="foxbrain-web foxbrain-api foxbrain-worker"
+          required_services="foxbrain-web foxbrain-api foxbrain-worker nginx"
           max_attempts=20
           sleep_seconds=15
 
