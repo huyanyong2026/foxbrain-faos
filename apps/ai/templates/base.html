@@ -18,6 +18,7 @@
   </header>
   <nav class="nav" aria-label="主要导航">
     <a href="/dashboard">AI工作台</a>
+    {% if user and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}<a href="/ceo/strategy">CEO战略助手</a>{% endif %}
     {% if user and ('*' in user.identity.permissions or 'replenishment.read' in user.identity.permissions) %}<a href="/replenishment">AI补货中心</a>{% endif %}
     <a href="/agents">Agent中心</a>
     <a href="/wecom">企业微信</a>

@@ -20,8 +20,9 @@ from foxbrain_os.platform_governance import control_tower_status, health_payload
 
 try:
     from .connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
+    from .ceo_strategy import build_ceo_strategy_snapshot
     from .domain import (
-        AGENT_ROLES, CONNECTIONS, DEFAULT_APPROVAL_POLICY, SCHEMA_STATEMENTS, new_id, normalize_evidence,
+        AGENT_ROLES, CONNECTIONS, DEFAULT_APPROVAL_POLICY, DIGITAL_WORKFORCE_AGENTS, SCHEMA_STATEMENTS, new_id, normalize_evidence,
         require_human_approval, validate_ai_run, validate_feedback, validate_task,
     )
     from .identity import (
@@ -38,10 +39,12 @@ try:
     )
 except ImportError:
     from connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
+    from ceo_strategy import build_ceo_strategy_snapshot
     from domain import (
     AGENT_ROLES,
     CONNECTIONS,
     DEFAULT_APPROVAL_POLICY,
+    DIGITAL_WORKFORCE_AGENTS,
     SCHEMA_STATEMENTS,
     new_id,
     normalize_evidence,
@@ -154,7 +157,7 @@ def init_db():
         cur.execute(statement)
     for statement in OPERATION_SCHEMA_STATEMENTS:
         cur.execute(statement)
-    for agent_type, name, description in AGENT_ROLES:
+    for agent_type, name, description in AGENT_ROLES + DIGITAL_WORKFORCE_AGENTS:
         cur.execute(
             """insert into ai_agents(agent_id,agent_type,name,description,permission_scope,tool_scope,approval_policy)
             values(%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb) on conflict(agent_id) do nothing""",
@@ -401,7 +404,7 @@ def accessible_agents(user):
     allowed = []
     for agent in rows("select * from ai_agents where status='active' order by id"):
         agent_type = str(agent["agent_type"])
-        required = {"business": "ai.business", "inventory": "ai.inventory", "brand": "ai.brand", "content": "ai.content", "enterprise": "ai.enterprise"}.get(agent_type)
+        required = {"business": "ai.business", "inventory": "ai.inventory", "brand": "ai.brand", "content": "ai.content", "enterprise": "ai.enterprise", "ceo": "ai.ceo", "supply_chain": "supply_chain.read", "finance": "finance.read", "store": "store.read", "growth": "business.trend.read"}.get(agent_type)
         if required and allows(permissions, required):
             allowed.append(agent)
     return allowed
@@ -681,11 +684,55 @@ def dashboard():
         "pending_tasks": one("select count(*) as value from ai_tasks where approval_status='pending'")["value"],
         "knowledge": one("select count(*) as value from ai_knowledge_items where status='approved'")["value"],
     }
+    summary = replenishment_summary(latest_batch["batch_id"] if latest_batch else None)
+    ceo_snapshot = build_ceo_strategy_snapshot(
+        metrics, latest_batch, summary,
+        approved_runs=one("select count(*) as value from ai_agent_runs where approval_status='approved'")["value"],
+        memories=one("select count(*) as value from ai_memory_items where status in ('approved','pending_review')")["value"],
+    )
     return render_template("dashboard.html", user=user, metrics=metrics,
                            connections=rows("select * from enterprise_connections order by id"),
                            runs=visible_runs(user, 8),
                            replenishment_batch=latest_batch,
-                           replenishment_summary=replenishment_summary(latest_batch["batch_id"] if latest_batch else None))
+                           replenishment_summary=summary, ceo_snapshot=ceo_snapshot)
+
+
+@app.get("/ceo/strategy")
+@permission_required("ai.ceo")
+def ceo_strategy_page():
+    user = current_user()
+    latest_batch = latest_replenishment_batch()
+    summary = replenishment_summary(latest_batch["batch_id"] if latest_batch else None)
+    metrics = {
+        "agents": one("select count(*) as value from ai_agents where status='active'")["value"],
+        "pending_runs": one("select count(*) as value from ai_agent_runs where approval_status='pending'")["value"],
+        "pending_tasks": one("select count(*) as value from ai_tasks where approval_status='pending'")["value"],
+        "knowledge": one("select count(*) as value from ai_knowledge_items where status='approved'")["value"],
+    }
+    snapshot = build_ceo_strategy_snapshot(
+        metrics, latest_batch, summary,
+        approved_runs=one("select count(*) as value from ai_agent_runs where approval_status='approved'")["value"],
+        memories=one("select count(*) as value from ai_memory_items where status in ('approved','pending_review')")["value"],
+    )
+    return render_template("ceo_strategy.html", user=user, snapshot=snapshot)
+
+
+@app.get("/ops-api/ceo/strategy")
+@permission_required("ai.ceo")
+def ceo_strategy_api():
+    latest_batch = latest_replenishment_batch()
+    summary = replenishment_summary(latest_batch["batch_id"] if latest_batch else None)
+    metrics = {
+        "agents": one("select count(*) as value from ai_agents where status='active'")["value"],
+        "pending_runs": one("select count(*) as value from ai_agent_runs where approval_status='pending'")["value"],
+        "pending_tasks": one("select count(*) as value from ai_tasks where approval_status='pending'")["value"],
+        "knowledge": one("select count(*) as value from ai_knowledge_items where status='approved'")["value"],
+    }
+    return jsonify({"ok": True, "snapshot": build_ceo_strategy_snapshot(
+        metrics, latest_batch, summary,
+        approved_runs=one("select count(*) as value from ai_agent_runs where approval_status='approved'")["value"],
+        memories=one("select count(*) as value from ai_memory_items where status in ('approved','pending_review')")["value"],
+    )})
 
 
 @app.route("/workbench")
