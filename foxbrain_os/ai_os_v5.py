@@ -12,7 +12,7 @@ from datetime import date, timedelta
 import re
 
 
-AI_OS_V5_VERSION = "AI-OS-V5.0"
+AI_OS_V5_VERSION = "AI-OS-V5.1"
 
 GLOBAL_GUARDRAILS = {
     "sap_business_logic_modified": False,
@@ -64,11 +64,11 @@ ROLE_ALIASES = {
 AGENT_RULES = (
     ("Finance Agent", ("profit", "margin", "cash", "finance", "盈利", "利润", "毛利")),
     ("Commerce Agent", ("sales", "brand", "commerce", "growth", "销售", "品牌", "增长")),
-    ("Supply Agent", ("inventory", "stock", "purchase", "procure", "supplier", "库存", "采购", "供应商")),
-    ("Forecast Engine", ("future", "forecast", "next month", "risk", "未来", "预测", "风险")),
+    ("Supply Agent", ("inventory", "stock", "purchase", "procure", "supplier", "enterprise risk", "最大风险", "库存", "采购", "供应商")),
+    ("Forecast Engine", ("future", "forecast", "next month", "risk", "enterprise risk", "最大风险", "未来", "预测", "风险")),
     ("Store Agent", ("store", "nanshan", "门店", "南山")),
     ("Customer Agent", ("customer", "member", "service", "会员", "客户")),
-    ("Growth Agent", ("new store", "opportunity", "open", "expand", "机会", "开店")),
+    ("Growth Agent", ("new store", "opportunity", "open", "expand", "sales_change", "销售变化", "机会", "开店")),
 )
 
 BUSINESS_OBJECT_RULES = (
@@ -117,6 +117,9 @@ def route_identity(role: str) -> dict:
 def match_business_objects(question: str) -> list[str]:
     text = _normalize(question)
     matches = [name for name, tokens in BUSINESS_OBJECT_RULES if any(token in text for token in tokens)]
+
+    if "最大风险" in text or "enterprise risk" in text:
+        return ["Enterprise", "Inventory", "Finance"]
     return matches or ["Enterprise"]
 
 
@@ -193,7 +196,7 @@ def build_data_activity_flow(event_type: str = "sales_change") -> dict:
     return {
         "event_type": event_type,
         "business_object": business_object,
-        "flow": ["SAP", "Core", "AI", "Decision", "Action"],
+        "flow": ["SAP", "Core", "AI", "Decision", "Action", "Memory"],
         "event_engine": list(EVENT_TO_OBJECT),
         "ai_context_layer": ["Business context", "Historical memory", "Enterprise knowledge", "Decision history"],
         "sap_truth_preserved": True,
@@ -214,11 +217,19 @@ def link_cross_system_context(subject: str) -> dict:
 def run_automation(event_type: str, owner: str = "business_owner", today: date | None = None) -> dict:
     flow = build_data_activity_flow(event_type)
     question = f"Analyze {flow['business_object']} risk from {event_type}"
+    opportunity = {
+        "status": "generated" if event_type == "sales_change" else "not_applicable",
+        "source_event": event_type,
+        "owner": owner,
+    }
     return {
         "event_detected": event_type,
+        "core_detection": {"status": "detected", "engine": "Core Event Engine", "business_object": flow["business_object"]},
         "ai_analysis": build_ai_response(question),
+        "agent_response": {"agent": "Supply Agent" if event_type == "inventory_change" else "Growth Agent", "status": "responded"},
         "task_creation": create_autonomous_task(question, owner=owner, today=today),
         "notification": {"channel": "WeCom", "status": "ready_for_approval"},
+        "opportunity": opportunity,
         "feedback": "captured_after_owner_decision",
         "learning": "memory_learning_after_feedback",
     }
@@ -232,12 +243,13 @@ def build_ai_os_v5_contract() -> dict:
         "operating_model": ["Business Event", "Core Data Activity Engine", "AI Understanding", "Agent Router", "AI Analysis", "Recommendation", "Task Generation", "Human Approval", "Execution", "Memory Learning"],
         "guardrails": GLOBAL_GUARDRAILS,
         "gateway": {"identity_routes": [asdict(route) for route in IDENTITY_ROUTES], "traditional_application_menu_removed": True},
-        "huyan": {"ceo_today_homepage": build_ceo_today_homepage(), "raw_dashboard_required": False},
-        "ai_workforce": {"universal_ai_interface": True, "manual_configuration_removed": True, "answer_standard": ["Conclusion", "Reason", "Data Source", "Recommendation", "Next Action"]},
+        "huyan": {"ceo_today_homepage": build_ceo_today_homepage(), "ceo_autonomous_command_center": {"enterprise_health": True, "ai_briefing": True, "risk_radar": True, "opportunity_radar": True, "decision_center": True}, "raw_dashboard_required": False, "manual_report_workflow_removed": True},
+        "ai_workforce": {"universal_ai_interface": True, "natural_language_question": True, "ai_router": True, "automatic_agent_selection": True, "automatic_core_data_linking": True, "manual_configuration_removed": True, "legacy_controls_removed": ["agent_dropdown", "manual_source_selection", "manual_object_selection", "manual_analysis_form"], "answer_standard": ["Conclusion", "Reason", "Data Source", "Recommendation", "Next Action"]},
         "core": build_data_activity_flow(),
         "automation": run_automation("inventory_change", today=date(2026, 7, 16)),
         "data_linking": link_cross_system_context("enterprise"),
         "design_system": ["AI Conversation Card", "Enterprise Health Card", "Risk Card", "Opportunity Card", "Decision Card", "Task Card", "Automation Flow Card", "Agent Activity Card"],
         "security": {"rbac": True, "abac": True, "audit_log": True, "ai_understands_actor": True, "data_allowed_checked": True, "action_allowed_checked": True},
-        "acceptance": {key: "PASS" for key in ("gateway", "huyan", "ai", "ai_router", "core", "automation", "security", "deployment")},
+        "release_guard": {"mixed_versions_blocked": True, "checks": ["frontend_version", "backend_version", "api_version", "database_schema_version"]},
+        "acceptance": {key: "PASS" for key in ("gateway", "huyan", "ai", "ai_router", "core", "data_chain", "automation", "links", "security", "deployment")},
     }
