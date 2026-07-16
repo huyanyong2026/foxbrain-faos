@@ -14,7 +14,7 @@ ROLE_DEFINITIONS = {
     "management": {
         "name": "管理层",
         "permissions": [
-            "ai.use", "ai.business", "ai.inventory", "ai.brand", "ai.enterprise",
+            "ai.use", "ai.ceo", "ai.business", "ai.inventory", "ai.brand", "ai.enterprise",
             "business.read", "brand.read", "store.read", "inventory.read",
             "replenishment.read",
             "knowledge.read", "knowledge.write", "tasks.read", "tasks.create",
@@ -36,7 +36,7 @@ ROLE_DEFINITIONS = {
         "permissions": [
             "ai.use", "ai.inventory", "inventory.read", "purchase.read",
             "replenishment.read", "product.read", "brand.read", "supplier.read",
-            "supply_chain.read", "business.trend.read", "knowledge.read",
+            "supply_chain.read", "finance.read", "business.trend.read", "knowledge.read",
             "tasks.read", "tasks.create",
         ],
         "scope": "company",
@@ -78,6 +78,11 @@ AGENT_PERMISSIONS = {
     "brand": "ai.brand",
     "content": "ai.content",
     "enterprise": "ai.enterprise",
+    "ceo": "ai.ceo",
+    "supply_chain": "supply_chain.read",
+    "finance": "finance.read",
+    "store": "store.read",
+    "growth": "business.trend.read",
 }
 
 IDENTITY_SCHEMA_STATEMENTS = (

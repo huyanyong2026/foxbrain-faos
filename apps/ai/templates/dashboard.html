@@ -2,6 +2,9 @@
 {% block title %}AI工作台｜VAFOX{% endblock %}
 {% block content %}
 <section class="hero"><div><p class="eyebrow">企业协同中枢</p><h1>今天，让 AI 帮企业做什么？</h1><p>事实来自 Data Core，关系来自 Living Enterprise，重要建议由负责人确认后才能进入行动。</p></div><a class="primary" href="/workbench">开始提问</a></section>
+{% if ceo_snapshot and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}
+<section class="hero ceo-dashboard"><div><p class="eyebrow">CEO AI Strategic Assistant</p><h1>企业健康 {{ ceo_snapshot.enterprise_health_score }} · 风险 {{ ceo_snapshot.risk_level }}</h1><p>{{ ceo_snapshot.decision_center.recommendation }}</p></div><a class="primary" href="/ceo/strategy">进入 CEO 决策中心</a></section>
+{% endif %}
 <section class="metrics">
   <article><span>可用 Agent</span><strong>{{ metrics.agents }}</strong></article>
   <article><span>待确认建议</span><strong>{{ metrics.pending_runs }}</strong></article>

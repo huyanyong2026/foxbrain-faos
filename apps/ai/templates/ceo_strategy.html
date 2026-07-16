@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}CEO AI Strategic Assistant｜VAFOX{% endblock %}
+{% block content %}
+<section class="hero ceo-hero"><div><p class="eyebrow">Huyan Command Center V2</p><h1>CEO AI Strategic Operating System</h1><p>SAP B1 是业务真相，Core 是企业数据层，AI 只做分析、预测与建议，最终由人决策。</p></div><div class="health-score"><span>Enterprise Health</span><strong>{{ snapshot.enterprise_health_score }}</strong><small>Risk {{ snapshot.risk_level }}</small></div></section>
+<section class="metrics ceo-metrics">
+{% for name in snapshot.dimensions %}<article><span>{{ name }}</span><strong>PASS</strong></article>{% endfor %}
+</section>
+<section class="split">
+  <article class="panel"><p class="eyebrow">Module 01</p><h2>CEO Daily Executive Briefing</h2><h3>What happened?</h3>{% for item in snapshot.briefing.what_happened %}<p><strong>{{ item.area }}：</strong>{{ item.summary }}</p>{% endfor %}<h3>Why happened?</h3><ul>{% for item in snapshot.briefing.why_happened %}<li>{{ item }}</li>{% endfor %}</ul><h3>What should do next?</h3>{% for item in snapshot.briefing.what_should_do_next %}<p><strong>{{ item.priority }}</strong> {{ item.action }} · {{ item.expected_impact }}</p>{% endfor %}</article>
+  <article class="panel"><p class="eyebrow">Module 04</p><h2>CEO Decision Center</h2><p><strong>Problem：</strong>{{ snapshot.decision_center.problem }}</p><p><strong>Analysis：</strong>{{ snapshot.decision_center.analysis }}</p><ol>{% for option in snapshot.decision_center.options %}<li><strong>{{ option.name }}</strong> — {{ option.tradeoff }}</li>{% endfor %}</ol><p><strong>Recommendation：</strong>{{ snapshot.decision_center.recommendation }}</p><p><strong>Expected Result：</strong>{{ snapshot.decision_center.expected_result }}</p></article>
+</section>
+<section class="section-head"><div><p class="eyebrow">Modules 02-03</p><h2>Risk Prediction & Opportunity Radar</h2></div></section>
+<section class="strategy-grid">
+  {% for item in snapshot.risks %}<article><span class="status {{ 'unavailable' if item.level == 'High' else 'active' }}">{{ item.level }} · {{ item.probability }}</span><h3>{{ item.risk }}</h3><p>{{ item.reason }}</p><strong>{{ item.recommendation }}</strong></article>{% endfor %}
+  {% for item in snapshot.opportunities %}<article><span class="status connected">Opportunity</span><h3>{{ item.opportunity }}</h3><p>{{ item.reason }}</p><strong>{{ item.recommended_action }}</strong></article>{% endfor %}
+</section>
+<section class="split">
+  <article class="panel"><p class="eyebrow">Module 05</p><h2>Business Simulation Engine</h2><p>{{ snapshot.simulation.question }}</p><dl class="decision-list">{% for key,value in snapshot.simulation.expected.items() %}<dt>{{ key|upper }}</dt><dd>{{ value }}</dd>{% endfor %}</dl></article>
+  <article class="panel"><p class="eyebrow">Modules 06-09</p><h2>Memory, Agents & Security</h2><p><strong>CEO Memory：</strong>{{ snapshot.memory.records }} records · {{ snapshot.memory.learning }}</p><p><strong>Agent Integration：</strong>{{ snapshot.agents|join(' / ') }}</p><p><strong>Security：</strong>RBAC + ABAC + permission audit; CEO gets full enterprise view and managers get authorized business scope.</p></article>
+</section>
+{% endblock %}

@@ -24,3 +24,11 @@ Deployment: PASS
 
 ## Operating Loop
 AI detects shortage or imbalance, creates a task, notifies procurement, supports supplier collaboration, tracks results, and captures learning from approved outcomes.
+
+## BA-V2.0-B CEO Intelligence Upgrade Addendum
+
+Status: PASS
+
+This release adds the Huyan CEO AI Strategic Assistant while preserving the existing architecture: SAP B1 remains the business truth, Core remains the enterprise data layer, and AI provides analysis, prediction, recommendation, simulation, and decision memory only after human review.
+
+Covered modules: CEO Daily Executive Briefing, Enterprise Risk Prediction, Opportunity Radar, CEO Decision Center, Business Simulation, CEO Memory, Huyan Command Center V2, AI Agent Integration, RBAC/ABAC permission controls, and audit-aligned operation readiness.
