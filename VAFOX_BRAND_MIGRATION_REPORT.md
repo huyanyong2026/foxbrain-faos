@@ -34,7 +34,7 @@
 - `foxbrain_os` Python 包和既有模块名。
 - `/opt/firefox-*` 服务器目录与现有 systemd 服务名。
 - 既有 API 路由、数据库表、字段、Cookie 与插件 ID。
-- `X-FoxBrain-Service-Token` 内部服务请求头。
+- `X-VAFOX-Service-Token` 内部服务请求头。
 - 历史 Git 分支、Commit、SHA 与文件名。
 
 这些标识不会显示在普通用户页面中。

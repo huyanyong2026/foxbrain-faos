@@ -15,6 +15,14 @@ AGENT_ROLES = (
     ("enterprise", "企业资料 Agent", "整理资料、对象关系和知识引用"),
 )
 
+DIGITAL_WORKFORCE_AGENTS = (
+    ("ceo", "CEO Agent", "生成 CEO 简报、经营洞察和决策建议"),
+    ("supply_chain", "Supply Chain Agent", "识别采购、供应、库存和履约风险"),
+    ("store", "Store Agent", "分析门店经营、库存周转和现场行动"),
+    ("customer", "Customer Agent", "支持客户洞察、服务建议和体验提升"),
+    ("supplier", "Supplier Agent", "协同供应商、品牌资料和供货状态"),
+)
+
 CONNECTIONS = (
     ("data_core", "Enterprise Data Core", "https://core.vafox.com", "read_only"),
     ("ceo_brain", "CEO Enterprise Brain", "https://huyan.vafox.com", "approved_exchange"),
@@ -26,6 +34,7 @@ DEFAULT_APPROVAL_POLICY = {
     "business_action": "human_required",
     "task_creation": "human_required",
     "knowledge_promotion": "human_required",
+    "memory_promotion": "human_required",
     "feedback_learning": "human_required",
 }
 
@@ -63,6 +72,12 @@ SCHEMA_STATEMENTS = (
     source_id varchar(160) not null,source_ref text not null,evidence_json jsonb not null default '[]'::jsonb,
     approval_status varchar(30) not null default 'pending',approved_by bigint,approved_at timestamptz,
     result_note text,created_by bigint,created_at timestamptz not null default now(),updated_at timestamptz not null default now())""",
+    """create table if not exists ai_memory_items(
+    id bigserial primary key,memory_id varchar(80) unique not null,memory_type varchar(40) not null,
+    title varchar(240) not null,summary text not null default '',source_type varchar(80) not null,
+    source_id varchar(160) not null,evidence_json jsonb not null default '[]'::jsonb,
+    status varchar(30) not null default 'pending_review',created_by bigint,approved_by bigint,
+    approved_at timestamptz,created_at timestamptz not null default now())""",
     """create table if not exists ai_feedback(
     id bigserial primary key,feedback_id varchar(80) unique not null,run_id varchar(80) not null,
     feedback_type varchar(30) not null,comment text not null default '',effect_score integer,

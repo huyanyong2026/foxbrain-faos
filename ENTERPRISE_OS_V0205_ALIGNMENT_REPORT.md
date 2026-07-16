@@ -1,4 +1,4 @@
-# FoxBrain Enterprise OS V0.20.5 Platform Alignment Audit
+# VAFOX Enterprise OS V0.20.5 Platform Alignment Audit
 
 ## Scope
 

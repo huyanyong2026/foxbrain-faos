@@ -1,8 +1,8 @@
-# FoxBrain Enterprise OS V0.20.5 Production Environment Audit
+# VAFOX Enterprise OS V0.20.5 Production Environment Audit
 
 ## Scope
 
-This audit covers the infrastructure road-repair items for FoxBrain FAOS production hardening:
+This audit covers the infrastructure road-repair items for VAFOX FAOS production hardening:
 
 - Docker and Docker Compose
 - Nginx exposure and reverse proxy health
@@ -13,7 +13,7 @@ This audit covers the infrastructure road-repair items for FoxBrain FAOS product
 
 ## Non-negotiable platform boundary
 
-SAP B1 remains the enterprise system of fact. FoxBrain Huyan must not hold SAP credentials, write SAP data, or schedule direct SAP synchronization. Huyan reads operating facts through Core (`CORE_BASE_URL` and `CORE_API_TOKEN`) only. AI may analyze, reason, and recommend, but it must not persist a second set of operating facts.
+SAP B1 remains the enterprise system of fact. VAFOX Huyan must not hold SAP credentials, write SAP data, or schedule direct SAP synchronization. Huyan reads operating facts through Core (`CORE_BASE_URL` and `CORE_API_TOKEN`) only. AI may analyze, reason, and recommend, but it must not persist a second set of operating facts.
 
 ## Findings and repairs
 
@@ -86,4 +86,4 @@ The server `.env` must not define direct SAP credential variables such as `SAP_*
 
 ## Result
 
-FoxBrain remains functionally unchanged at the business layer. This release repairs production infrastructure so the platform is safer to deploy, easier to verify, and aligned with the SAP/Core/AI operating boundary.
+VAFOX remains functionally unchanged at the business layer. This release repairs production infrastructure so the platform is safer to deploy, easier to verify, and aligned with the SAP/Core/AI operating boundary.
