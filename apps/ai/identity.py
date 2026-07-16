@@ -35,10 +35,27 @@ ROLE_DEFINITIONS = {
         "name": "采购员",
         "permissions": [
             "ai.use", "ai.inventory", "inventory.read", "purchase.read",
-            "replenishment.read", "product.read", "brand.read", "business.trend.read", "knowledge.read",
+            "replenishment.read", "product.read", "brand.read", "supplier.read",
+            "supply_chain.read", "business.trend.read", "knowledge.read",
             "tasks.read", "tasks.create",
         ],
         "scope": "company",
+    },
+    "supplier": {
+        "name": "供应商",
+        "permissions": [
+            "ai.use", "ai.supplier", "supplier.portal.read", "brand.own.read",
+            "product.read", "purchase.status.read", "knowledge.read", "tasks.read",
+        ],
+        "scope": "brand",
+    },
+    "customer": {
+        "name": "客户",
+        "permissions": [
+            "customer.portal.read", "customer.own.read", "orders.own.read",
+            "product.read", "brand.knowledge.read", "knowledge.read",
+        ],
+        "scope": "self",
     },
     "employee": {
         "name": "普通员工",
@@ -101,7 +118,7 @@ IDENTITY_SCHEMA_STATEMENTS = (
     primary key(user_id,role_id))""",
     """create table if not exists identity_data_scopes(
     id bigserial primary key,user_id bigint not null references auth_users(id) on delete cascade,
-    scope_type varchar(30) not null check(scope_type in ('company','department','store','self')),
+    scope_type varchar(30) not null check(scope_type in ('company','department','store','brand','self')),
     scope_value varchar(120) not null default '*',source varchar(40) not null default 'role',
     created_at timestamptz not null default now(),unique(user_id,scope_type,scope_value))""",
     """create table if not exists identity_login_audit(
@@ -178,6 +195,8 @@ def build_identity_context(user_id, real_name, employee_no, role_keys, store_id=
         scopes.append({"type": "company", "value": "*"})
     elif any(ROLE_DEFINITIONS.get(role, {}).get("scope") == "store" for role in role_keys) and store_id:
         scopes.append({"type": "store", "value": str(store_id)})
+    elif any(ROLE_DEFINITIONS.get(role, {}).get("scope") == "brand" for role in role_keys):
+        scopes.append({"type": "brand", "value": "assigned_brand"})
     else:
         scopes.append({"type": "self", "value": str(user_id)})
     return {

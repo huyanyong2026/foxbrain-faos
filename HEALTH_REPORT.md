@@ -1,4 +1,4 @@
-# FoxBrain Enterprise OS V0.20.5 Stabilization Report
+# VAFOX Enterprise OS V0.20.5 Stabilization Report
 
 Status: PASS
 

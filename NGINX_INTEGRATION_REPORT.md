@@ -1,8 +1,8 @@
-# FoxBrain Nginx Integration Report V1.0
+# VAFOX Nginx Integration Report V1.0
 
 ## Scope
 
-This change integrates FoxBrain FAOS with the existing production system Nginx on `140.143.207.194` for `huyan.vafox.com` without allowing the Docker Compose `foxbrain-nginx` container to bind the public HTTP/HTTPS ports already owned by the host Nginx.
+This change integrates VAFOX FAOS with the existing production system Nginx on `140.143.207.194` for `huyan.vafox.com` without allowing the Docker Compose `foxbrain-nginx` container to bind the public HTTP/HTTPS ports already owned by the host Nginx.
 
 ## Current Architecture
 
@@ -16,7 +16,7 @@ That conflicted with the production server's existing system Nginx, which alread
 - `dify.huyan.vafox.com`
 - `n8n.huyan.vafox.com`
 
-The FoxBrain application services remain internal Docker services:
+The VAFOX application services remain internal Docker services:
 
 - `foxbrain-web` on container port `3000`
 - `foxbrain-api` on container port `8000`
@@ -39,7 +39,7 @@ This avoids any conflict with system Nginx while preserving Docker-internal rout
 - `foxbrain-web:3000`
 - `foxbrain-api:8000`
 
-System Nginx should then proxy only the `huyan.vafox.com` virtual host to the local FoxBrain proxy port. Existing `dify.huyan.vafox.com` and `n8n.huyan.vafox.com` server blocks must remain unchanged.
+System Nginx should then proxy only the `huyan.vafox.com` virtual host to the local VAFOX proxy port. Existing `dify.huyan.vafox.com` and `n8n.huyan.vafox.com` server blocks must remain unchanged.
 
 ## Proxy Target
 
@@ -102,7 +102,7 @@ If the integration fails:
    sudo systemctl reload nginx
    ```
 
-3. Stop or recreate only the FoxBrain proxy container if needed:
+3. Stop or recreate only the VAFOX proxy container if needed:
 
    ```bash
    docker compose stop nginx

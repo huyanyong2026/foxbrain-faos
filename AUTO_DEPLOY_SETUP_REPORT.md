@@ -1,10 +1,10 @@
-# FoxBrain FAOS Automatic Production Deployment Setup Report
+# VAFOX FAOS Automatic Production Deployment Setup Report
 
 ## Summary
 
 GitHub Actions automatic production deployment has been configured for the `huyanyong2026/foxbrain-faos` repository.
 
-The workflow deploys FoxBrain FAOS to production after every push to the `main` branch, which covers the normal post-merge deployment flow for pull requests merged into `main`.
+The workflow deploys VAFOX FAOS to production after every push to the `main` branch, which covers the normal post-merge deployment flow for pull requests merged into `main`.
 
 ## Workflow File
 
@@ -19,7 +19,7 @@ The production deployment workflow runs on:
 ## Production Server
 
 - Host: `140.143.207.194`
-- Application: FoxBrain FAOS
+- Application: VAFOX FAOS
 
 ## Deployment Process
 
