@@ -17,7 +17,7 @@ import psycopg2.extras
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_file, session
 
 from foxbrain_os.platform_governance import control_tower_status, health_payload, runtime_payload, version_payload
-from foxbrain_os.ai_os_v5 import build_ai_response, build_ai_os_v5_contract, create_autonomous_task, route_intent
+from foxbrain_os.ai_os_v6 import build_ai_os_v6_contract, create_ai_task, route_ai_question
 
 try:
     from .connectors import ceo_brain_connector, data_core_connector, living_enterprise_connector
@@ -80,14 +80,14 @@ def inject_runtime_version():
     return {"runtime_version": version_payload("ai")}
 
 
-AI_WORKSPACE_V5_LABEL = "FoxBrain AI Workforce V5"
-AI_WORKSPACE_V5_EXAMPLES = (
+AI_WORKSPACE_V6_LABEL = "FoxBrain Digital Workforce OS V6"
+AI_WORKSPACE_V6_EXAMPLES = (
     "分析火狐狸当前最大经营风险",
     "南山店最近经营怎么样？",
     "Osprey库存风险？",
     "下个月采购重点是什么？",
 )
-AGENT_TYPE_BY_V5_NAME = {
+AGENT_TYPE_BY_V6_NAME = {
     "CEO Agent": "ceo",
     "Supply Agent": "supply_chain",
     "Supply Chain Agent": "supply_chain",
@@ -100,26 +100,26 @@ AGENT_TYPE_BY_V5_NAME = {
 }
 
 
-def workspace_v5_context(question):
-    response = build_ai_response(question)
-    route = response["route"]
-    task = create_autonomous_task(question, owner="AI Router V5")
+def workspace_v6_context(question):
+    route = route_ai_question(question)
+    response = {"conclusion": "AI OS V6 prepared a governed recommendation.", "reason": "AI Router V6 selected intent, agents, Core data, and task policy from the question.", "data_source": route["core_data_sources"], "recommendation": "Review the recommendation and approve governed operational actions only.", "next_action": "Create a V6 autonomous draft task for the responsible owner.", "route": route}
+    task = create_ai_task(question, owner="AI Router V6")
     return {"route": route, "response": response, "task": task}
 
 
-def v5_evidence_from_route(route):
+def v6_evidence_from_route(route):
     objects = route.get("business_objects") or ["Enterprise"]
-    sources = route.get("required_data") or ["Core Enterprise Digital Twin"]
+    sources = route.get("core_data_sources") or ["Core Enterprise Digital Twin"]
     return [{
         "source_layer": "enterprise_fact",
         "source_type": "core.vafox.com",
         "source_id": "auto-link:" + "+".join(objects),
         "source_ref": "https://core.vafox.com/auto-link/" + "-".join(objects).lower(),
-        "statement": "AI Router V5 automatically linked {} to {} for this answer.".format(", ".join(objects), ", ".join(sources)),
+        "statement": "AI Router V6 automatically linked {} to {} for this answer.".format(", ".join(objects), ", ".join(sources)),
     }]
 
 
-def answer_text_from_v5_response(response):
+def answer_text_from_v6_response(response):
     return "\n".join([
         "Conclusion: " + response["conclusion"],
         "Reason: " + response["reason"],
@@ -129,11 +129,11 @@ def answer_text_from_v5_response(response):
     ])
 
 
-def select_v5_agent_id(route, user):
+def select_v6_agent_id(route, user):
     allowed_agents = accessible_agents(user)
     by_type = {agent["agent_type"]: agent["agent_id"] for agent in allowed_agents}
-    for agent_name in route.get("required_agents", []):
-        agent_type = AGENT_TYPE_BY_V5_NAME.get(agent_name)
+    for agent_name in route.get("selected_agents", []):
+        agent_type = AGENT_TYPE_BY_V6_NAME.get(agent_name)
         if agent_type in by_type:
             return by_type[agent_type]
     return allowed_agents[0]["agent_id"] if allowed_agents else "agent-enterprise"
@@ -833,11 +833,11 @@ def ceo_strategy_api():
 @permission_required("ai.use")
 def workbench():
     user = current_user()
-    preview_question = request.args.get("q") or AI_WORKSPACE_V5_EXAMPLES[1]
+    preview_question = request.args.get("q") or AI_WORKSPACE_V6_EXAMPLES[1]
     return render_template(
         "workbench.html", user=user, agents=accessible_agents(user), runs=visible_runs(user, 30),
-        examples=AI_WORKSPACE_V5_EXAMPLES, v5=workspace_v5_context(preview_question),
-        contract=build_ai_os_v5_contract(), workspace_label=AI_WORKSPACE_V5_LABEL,
+        examples=AI_WORKSPACE_V6_EXAMPLES, v6=workspace_v6_context(preview_question),
+        contract=build_ai_os_v6_contract(), workspace_label=AI_WORKSPACE_V6_LABEL,
     )
 
 
@@ -849,35 +849,35 @@ def create_run():
     if not question:
         raise ValueError("企业问题不能为空")
     user = current_user()
-    response = build_ai_response(question)
-    route = response["route"]
-    evidence = v5_evidence_from_route(route)
+    route = route_ai_question(question)
+    response = {"conclusion": "AI OS V6 prepared a governed recommendation.", "reason": "AI Router V6 selected intent, agents, Core data, and task policy from the question.", "data_source": route["core_data_sources"], "recommendation": "Review the recommendation and approve governed operational actions only.", "next_action": "Create a V6 autonomous draft task for the responsible owner.", "route": route}
+    evidence = v6_evidence_from_route(route)
     validate_ai_run(question, evidence)
-    agent_id = select_v5_agent_id(route, user)
+    agent_id = select_v6_agent_id(route, user)
     selected_agent = one("select agent_type from ai_agents where agent_id=%s and status='active'", (agent_id,))
     if not selected_agent:
         raise ValueError("AI助手不存在或未启用")
     permission_context = authorize_ai_context(user["identity"], selected_agent["agent_type"], request.form.get("store_id"))
     run_id = new_id("RUN")
-    task = create_autonomous_task(question, owner=user.get("real_name") or user.get("display_name") or "AI Router V5")
+    task = create_ai_task(question, owner=user.get("real_name") or user.get("display_name") or "AI Router V6")
     result = {"response": response, "auto_task": task, "memory_learning": "pending_feedback_after_owner_decision"}
     cur = get_db().cursor()
     cur.execute(
         """insert into ai_agent_runs(run_id,agent_id,question,context_json,evidence_json,answer,result_json,status,approval_status,created_by)
         values(%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s::jsonb,'pending_review','pending',%s)""",
         (run_id, agent_id, question, json.dumps({
-            "ai_router_v5": route, "business_objects": route["business_objects"],
-            "required_agents": route["required_agents"], "required_data": route["required_data"],
+            "ai_router_v6": route, "business_objects": route["business_objects"],
+            "required_agents": route["selected_agents"], "required_data": route["core_data_sources"],
             "identity": permission_context["identity"], "effective_store_id": permission_context["effective_store_id"],
             "core_access": "read_only_auto_linked", "manual_configuration_removed": True,
-        }, ensure_ascii=False), json.dumps(evidence, ensure_ascii=False), answer_text_from_v5_response(response),
+        }, ensure_ascii=False), json.dumps(evidence, ensure_ascii=False), answer_text_from_v6_response(response),
          json.dumps(result, ensure_ascii=False), session["user_id"]),
     )
     save_evidence(cur, "agent_run", run_id, evidence)
     cur.execute(
         """insert into ai_tasks(task_id,title,description,owner_name,priority,status,source_type,source_id,source_ref,evidence_json,created_by)
         values(%s,%s,%s,%s,%s,'pending_approval','ai_agent_run',%s,%s,%s::jsonb,%s)""",
-        (task["task_id"] + "-" + run_id[-8:], task["task"], "Auto-generated by AI Router V5; execution requires human approval.",
+        (task["task_id"] + "-" + run_id[-8:], task["title"], "Auto-generated by AI Router V6; execution requires human approval.",
          task["owner"], task["priority"], run_id, "https://ai.vafox.com/workbench#" + run_id, json.dumps(evidence, ensure_ascii=False), session["user_id"]),
     )
     get_db().commit()
@@ -1314,13 +1314,13 @@ def internal_health_console():
 @app.get("/internal/runtime-check")
 @permission_required("identity.manage")
 def internal_runtime_check():
-    record_permission_audit("internal.runtime_check.view", "allowed", "runtime", "production", "管理员查看 AI OS V5 运行自验证页面")
+    record_permission_audit("internal.runtime_check.view", "allowed", "runtime", "production", "管理员查看 AI OS V6 运行自验证页面")
     services = [runtime_payload(name) for name in ("gateway", "huyan", "ai", "core")]
     rows_html = "".join(
         "<tr><td>{service}</td><td class='pass'>PASS</td><td>{version}</td><td>{commit}</td><td>{build_time}</td><td>{environment}</td></tr>".format(**item)
         for item in services
     )
-    return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS V5 Runtime Check</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.pass{color:#087f5b;font-weight:900}.badge{display:inline-flex;border-radius:999px;background:#dff5e9;color:#087f5b;padding:6px 12px;font-weight:800}</style></head><body><main class="wrap"><section class="card"><span class="badge">Version: AI-OS-V5</span><h1>FoxBrain Runtime Verification</h1><p>Admin-only self-verification page. Only safe runtime metadata is shown; RBAC and audit logging are preserved.</p><table><thead><tr><th>Service</th><th>Result</th><th>Version</th><th>Commit</th><th>Build</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
+    return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS V6 Runtime Check</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.pass{color:#087f5b;font-weight:900}.badge{display:inline-flex;border-radius:999px;background:#dff5e9;color:#087f5b;padding:6px 12px;font-weight:800}</style></head><body><main class="wrap"><section class="card"><span class="badge">Version: AI OS V6</span><h1>FoxBrain Runtime Verification</h1><p>Admin-only self-verification page. Only safe runtime metadata is shown; RBAC and audit logging are preserved.</p><table><thead><tr><th>Service</th><th>Result</th><th>Version</th><th>Commit</th><th>Build</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
 
 @app.get("/version")
 @app.get("/health/version")

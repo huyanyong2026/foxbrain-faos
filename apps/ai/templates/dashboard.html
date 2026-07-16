@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Huyan V5｜CEO Autonomous Command Center{% endblock %}
+{% block title %}Huyan V6｜CEO Autonomous Command Center{% endblock %}
 {% block content %}
-<section class="hero os-hero"><div><p class="eyebrow">FoxBrain AI OS V5 · CEO Today Center</p><h1>早上好，呼总。AI 已完成今日企业态势理解。</h1><p>Huyan 不再是人工浏览式 Dashboard，而是 CEO 自主指挥中心：AI 汇总 Core Enterprise Digital Twin，报告重点事件、风险、机会与建议行动，最终由 CEO 决策。</p></div><a class="primary" href="/ceo/strategy">进入 CEO Decision Center</a></section>
+<section class="hero os-hero"><div><p class="eyebrow">FoxBrain AI OS V6 · CEO Today Center</p><h1>早上好，呼总。AI 已完成今日企业态势理解。</h1><p>Huyan 不再是人工浏览式 Dashboard，而是 CEO 自主指挥中心：AI 汇总 Core Enterprise Digital Twin，报告重点事件、风险、机会与建议行动，最终由 CEO 决策。</p></div><a class="primary" href="/ceo/strategy">进入 CEO Decision Center</a></section>
 {% if ceo_snapshot and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}
 <section class="section-head"><div><p class="eyebrow">Enterprise Health Score</p><h2>企业健康</h2></div><span class="status active">Core → AI → Huyan</span></section>
 <section class="health-grid"><article class="health-main health-card"><span>Enterprise Health</span><strong>{{ ceo_snapshot.enterprise_health_score }}</strong><small>Risk {{ ceo_snapshot.risk_level }} · {{ ceo_snapshot.as_of }}</small></article>{% for dimension in ceo_snapshot.health_dimensions %}<article class="health-card"><span>{{ dimension }}</span><strong>{{ [92,88,84,86,82,90,87][loop.index0] }}</strong><small>AI monitored</small></article>{% endfor %}</section>
