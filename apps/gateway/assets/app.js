@@ -139,7 +139,10 @@ if (identityForm) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'login_failed');
-      status.innerHTML = `VID resolved: <strong>${payload.vid}</strong><br>Role: ${payload.roles.join(', ')}<br>Home: ${payload.route}<br>No manual system selection.`;
+      status.innerHTML = `VID resolved: <strong>${payload.vid}</strong><br>Role: ${payload.roles.join(', ')}<br>Home: ${payload.route}<br>Automatic routing starts now. No manual system selection.`;
+      window.setTimeout(() => {
+        window.location.assign(payload.route);
+      }, 900);
     } catch (error) {
       status.textContent = `Identity verification unavailable: ${error.message}`;
     }
