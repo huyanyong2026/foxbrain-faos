@@ -20,4 +20,4 @@ def test_ceo_strategy_snapshot_covers_ba_v2_0_b_modules():
     assert {"problem", "analysis", "options", "recommendation", "expected_result"}.issubset(snapshot["decision_center"])
     assert {"sales", "margin", "inventory", "risk", "roi"}.issubset(snapshot["simulation"]["expected"])
     assert snapshot["memory"]["records"] == 4
-    assert {"CEO Agent", "Supply Chain Agent", "Finance Agent", "Store Agent", "Growth Agent"}.issubset(snapshot["agents"])
+    assert {"Supply Agent", "Finance Agent", "Store Agent", "Growth Agent"}.issubset(snapshot["agents"])

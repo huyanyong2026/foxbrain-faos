@@ -90,7 +90,7 @@ RUNTIME_CHECKS = {
         "decision_center_enabled": True,
     },
     "ai": {
-        "display_service": "AI Workforce",
+        "display_service": "VAFOX Enterprise AI Center",
         "ai_router_enabled": True,
         "agent_routing_enabled": True,
         "natural_question_interface_enabled": True,

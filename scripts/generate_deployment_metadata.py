@@ -21,7 +21,7 @@ def main() -> int:
     output = Path(os.environ.get("FOXBRAIN_DEPLOYMENT_METADATA", "deployment.json"))
     build_time = os.environ.get("BUILD_TIME", now())
     payload = {
-        "system": "FoxBrain",
+        "system": "VAFOX",
         "version": os.environ.get("FOXBRAIN_VERSION", "AI-OS-V6-CLEAN-REBUILD-V1"),
         "release": os.environ.get("FOXBRAIN_RELEASE", "production"),
         "commit": git_commit(),

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FoxBrain AI OS V5.1 runtime automation health check.
+"""VAFOX Genesis runtime automation health check.
 
 The check is deterministic by default so CI can validate the automation chain
 without production credentials. Set FOXBRAIN_HEALTH_LIVE=1 to also probe live
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from foxbrain_os.ai_os_v5 import build_ai_os_v5_contract, route_identity, route_intent, run_automation
+from foxbrain_os.ai_os_v6 import build_ai_os_v6_contract, build_business_event_flow, route_ai_question, route_identity
 from foxbrain_os.platform_governance import RELEASE_VERSION
 
 SERVICES = {
@@ -23,7 +23,7 @@ SERVICES = {
     "ai": "https://ai.vafox.com",
     "core": "https://core.vafox.com",
 }
-EXPECTED_VERSION = "AI-OS-V5.1"
+EXPECTED_VERSION = "AI-OS-V6-CLEAN-REBUILD-V1"
 
 @dataclass(frozen=True)
 class CheckResult:
@@ -48,19 +48,19 @@ def _live_runtime(service: str, base_url: str) -> CheckResult:
 
 
 def run_checks(live: bool = False) -> dict:
-    contract = build_ai_os_v5_contract()
-    ai_route = route_intent("分析企业当前最大风险")
-    inventory_loop = run_automation("inventory_change", owner="procurement")
-    sales_loop = run_automation("sales_change", owner="commerce")
+    contract = build_ai_os_v6_contract()
+    ai_route = route_ai_question("分析企业当前最大风险")
+    inventory_loop = build_business_event_flow("inventory_decrease")
+    sales_loop = build_business_event_flow("sales_increase")
 
     results = [
         CheckResult("Gateway", "PASS" if route_identity("CEO")["destination"] == "huyan.vafox.com" else "FAIL", "CEO identity routes to Huyan"),
         CheckResult("Huyan", "PASS" if contract["huyan"]["ceo_autonomous_command_center"]["decision_center"] else "FAIL", "CEO command center modules present"),
-        CheckResult("AI", "PASS" if not ai_route["manual_agent_selection_required"] and len(ai_route["required_agents"]) >= 2 else "FAIL", "AI Router automatic multi-agent risk routing"),
-        CheckResult("Core", "PASS" if contract["core"]["flow"][:3] == ["SAP", "Core", "AI"] else "FAIL", "Core digital twin feeds AI"),
-        CheckResult("Data Chain", "PASS" if contract["acceptance"]["data_chain"] == "PASS" else "FAIL", "Identity→Data→AI→Decision→Action→Memory connected"),
-        CheckResult("Automation", "PASS" if inventory_loop["task_creation"]["status"] == "pending_human_approval" and sales_loop["opportunity"]["status"] == "generated" else "FAIL", "inventory task and sales opportunity loops validated"),
-        CheckResult("Version", "PASS" if RELEASE_VERSION == EXPECTED_VERSION and contract["version"] == EXPECTED_VERSION else "FAIL", f"expected {EXPECTED_VERSION}, got {RELEASE_VERSION}/{contract['version']}"),
+        CheckResult("AI", "PASS" if ai_route["manual_agent_dropdown_removed"] and len(ai_route["selected_agents"]) >= 1 else "FAIL", "AI Router automatic Genesis routing"),
+        CheckResult("Core", "PASS" if contract["core"]["flow"][:3] == ["SAP B1", "Core", "AI"] else "FAIL", "Core digital twin feeds AI"),
+        CheckResult("Data Chain", "PASS" if contract["acceptance"]["data_chain"] == "PASS" else "FAIL", "Identity→Data→AI→Decision→Action→Learning connected"),
+        CheckResult("Automation", "PASS" if inventory_loop["task"]["status"] == "pending_human_approval" and sales_loop["task"]["status"] == "pending_human_approval" else "FAIL", "inventory and sales loops validated"),
+        CheckResult("Version", "PASS" if RELEASE_VERSION == EXPECTED_VERSION and contract["build"] == EXPECTED_VERSION else "FAIL", f"expected {EXPECTED_VERSION}, got {RELEASE_VERSION}/{contract['build']}"),
     ]
     if live:
         results.extend(_live_runtime(service, url) for service, url in SERVICES.items())

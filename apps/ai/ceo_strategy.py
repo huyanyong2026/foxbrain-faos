@@ -46,7 +46,7 @@ def build_ceo_strategy_snapshot(metrics, latest_batch=None, replenishment_summar
             "Pending AI runs and tasks reduce operating confidence until a human decision owner reviews them.",
         ],
         "what_should_do_next": [
-            {"priority": "P1", "action": "Review urgent replenishment SKUs with Supply Chain Agent", "expected_impact": "Reduce stockout and fulfillment risk."},
+            {"priority": "P1", "action": "Review urgent replenishment SKUs with Supply Agent", "expected_impact": "Reduce stockout and fulfillment risk."},
             {"priority": "P2", "action": "Approve or reject pending CEO recommendations", "expected_impact": "Shorten decision latency and improve auditability."},
             {"priority": "P3", "action": "Promote high-confidence decisions into CEO memory", "expected_impact": "Improve repeat-season learning."},
         ],
@@ -58,7 +58,7 @@ def build_ceo_strategy_snapshot(metrics, latest_batch=None, replenishment_summar
             "level": risk_level,
             "probability": risk_probability,
             "reason": f"Latest replenishment intelligence shows {urgent_skus} urgent SKUs and {suggested_units} suggested units.",
-            "recommendation": "Ask Supply Chain Agent for supplier and brand-level confirmation before purchase action.",
+            "recommendation": "Ask Supply Agent for supplier and brand-level confirmation before purchase action.",
         },
         {
             "risk": "Decision backlog",
@@ -88,7 +88,7 @@ def build_ceo_strategy_snapshot(metrics, latest_batch=None, replenishment_summar
             {"name": "Maintain current levels", "tradeoff": "Lower cash pressure but potential stockout risk."},
             {"name": "Reduce exposure", "tradeoff": "Protects cash but may miss seasonal demand."},
         ],
-        "recommendation": "Increase selected models only after Supply Chain Agent confirmation.",
+        "recommendation": "Increase selected models only after Supply Agent confirmation.",
         "expected_result": "Better availability, lower emergency replenishment pressure, and a human-approved audit trail.",
     }
     simulation = {
@@ -115,7 +115,7 @@ def build_ceo_strategy_snapshot(metrics, latest_batch=None, replenishment_summar
         "simulation": simulation, "memory": {"records": memories, "learning": "Record decision, reason, action, result, and learning after human confirmation."},
         "agents": agents, "pipeline_status": pipeline_status, "ai_router": router,
         "digital_employees": [
-            {"name": "CEO Agent", "status": "Active", "tasks": pending_runs, "results": approved_runs, "purpose": "Executive risk, opportunity, and decision synthesis"},
+            {"name": "Executive Strategy Agent", "status": "Active", "tasks": pending_runs, "results": approved_runs, "purpose": "Executive risk, opportunity, and decision synthesis"},
             {"name": "Supply Agent", "status": "Active", "tasks": urgent_skus, "results": suggested_units, "purpose": "Inventory pressure and supplier action recommendations"},
             {"name": "Finance Agent", "status": "Active", "tasks": pending_tasks, "results": approved_runs, "purpose": "Cash, margin, and approval impact review"},
             {"name": "Store Agent", "status": "Active", "tasks": len(replenishment_summary), "results": suggested_units, "purpose": "Store-level replenishment and demand intelligence"},

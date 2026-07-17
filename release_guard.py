@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FoxBrain release guard: blocks mixed AI OS V5.1 deployments."""
+"""VAFOX Genesis release guard: blocks mixed or legacy runtime deployments."""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,8 @@ import os
 import sys
 from pathlib import Path
 
-EXPECTED_VERSION = "AI-OS-V5.1"
+EXPECTED_VERSION = "AI-OS-V6-CLEAN-REBUILD-V1"
+LEGACY_VERSION_TOKENS = ("AI-OS-V4", "AI-OS-V5", "AI-OS-V5.1", "FoxBrain Enterprise OS")
 REQUIRED_SERVICES = ("gateway", "huyan", "ai", "core")
 REQUIRED_KEYS = ("frontend_version", "backend_version", "api_version", "database_schema_version")
 
@@ -25,10 +26,17 @@ def validate_manifest(manifest: dict) -> dict:
             failures.append(f"{service}: missing service manifest")
             continue
         for key in REQUIRED_KEYS:
-            if data.get(key) != EXPECTED_VERSION:
-                failures.append(f"{service}.{key}: expected {EXPECTED_VERSION}, got {data.get(key)!r}")
-        if data.get("deployment_version") != EXPECTED_VERSION or data.get("runtime_version") != EXPECTED_VERSION:
-            failures.append(f"{service}: deployment/runtime version mismatch")
+            value = data.get(key)
+            if value != EXPECTED_VERSION:
+                failures.append(f"{service}.{key}: expected {EXPECTED_VERSION}, got {value!r}")
+            if isinstance(value, str) and any(token in value for token in LEGACY_VERSION_TOKENS):
+                failures.append(f"{service}.{key}: obsolete legacy version {value!r} is not a Genesis release")
+        for key in ("deployment_version", "runtime_version"):
+            value = data.get(key)
+            if value != EXPECTED_VERSION:
+                failures.append(f"{service}.{key}: expected {EXPECTED_VERSION}, got {value!r}")
+            if isinstance(value, str) and any(token in value for token in LEGACY_VERSION_TOKENS):
+                failures.append(f"{service}.{key}: obsolete legacy version {value!r} is not a Genesis release")
     return {"status": "PASS" if not failures else "FAIL", "expected_version": EXPECTED_VERSION, "failures": failures}
 
 

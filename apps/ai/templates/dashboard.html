@@ -75,8 +75,8 @@
 </section>
 {% endif %}
 
-<section class="mobile-principle"><b>On the way · 一路有你</b><span>Powered by FoxBrain Intelligence Engine · Core and SAP untouched.</span></section>
+<section class="mobile-principle"><b>On the way · 一路有你</b><span>Powered by VAFOX Intelligence Engine · Core and SAP untouched.</span></section>
 <section class="metrics home-metrics"><article><span>AI Team</span><strong>{{ metrics.agents }}</strong></article><article><span>AI Conversations</span><strong>{{ metrics.pending_runs }}</strong></article><article><span>Missions / Tasks</span><strong>{{ metrics.pending_tasks }}</strong></article><article><span>Knowledge</span><strong>{{ metrics.knowledge }}</strong></article></section>
-<section class="section-head"><div><p class="eyebrow">Preserved Foundation</p><h2>Gateway Identity → Enterprise Data Hub → FoxBrain Intelligence</h2></div><span class="status active">SAP / Core pipeline untouched</span></section>
+<section class="section-head"><div><p class="eyebrow">Preserved Foundation</p><h2>Gateway Identity → Enterprise Data Hub → VAFOX Intelligence</h2></div><span class="status active">SAP / Core pipeline untouched</span></section>
 <section class="list">{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>Preserved foundation for identity, permission, knowledge, workflow, automation, memory, and enterprise events.</p></div><span class="status {{ item.status }}">{{ {'connected':'active','unavailable':'waiting','not_configured':'admin only'}.get(item.status,item.status) }}</span></article>{% endfor %}</section>
 {% endblock %}
