@@ -141,6 +141,7 @@ jobs:
           git fetch origin main
           git checkout main
           git reset --hard "$GIT_COMMIT"
+          python .github/scripts/validate_production_env.py .env
           python scripts/generate_deployment_metadata.py
           echo "Validating Docker Compose on production server with the server-managed .env file."
           docker compose config >/dev/null
