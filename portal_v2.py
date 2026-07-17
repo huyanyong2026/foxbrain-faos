@@ -20,6 +20,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
+from foxbrain_os.platform_governance import runtime_payload, version_payload
+
 try:
     import psycopg2
     import psycopg2.extras
@@ -5874,6 +5876,11 @@ class App(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def gateway_login_redirect(self):
+        next_path = urlparse(self.path).path or "/"
+        target = os.environ.get("GATEWAY_LOGIN_URL", "https://gateway.vafox.com/login")
+        return self.redir(f"{target}?next={quote(next_path)}")
+
     def redir(self, path, cookie=None):
         self.send_response(302)
         self.send_header("Location", path)
@@ -5934,12 +5941,16 @@ class App(BaseHTTPRequestHandler):
         user = self.current_user()
         if path in ("/health", "/api/health"):
             return self.api_health()
+        if path == "/health/version":
+            return self.json_out(version_payload("huyan"))
+        if path == "/health/runtime":
+            return self.json_out(runtime_payload("huyan"))
         if path == "/":
-            return self.ceo_home_v11_page(user) if user else self.login()
+            return self.ceo_home_v11_page(user) if user else self.gateway_login_redirect()
         if path == "/logout":
             return self.redir("/login", "fp_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
         if path == "/login":
-            return self.login()
+            return self.gateway_login_redirect()
         if path == "/register":
             return self.register()
         if path == "/change-password":
