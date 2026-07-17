@@ -61,20 +61,45 @@ jobs:
         env:
           FOXBRAIN_ENV: production
 
-      - name: Validate Docker Compose
-        run: docker compose config
+      - name: Verify production deployment secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in PRODUCTION_SSH_HOST PRODUCTION_SSH_USER PRODUCTION_DEPLOY_PATH; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing production secret::Required GitHub Secret ${name} is not configured. Add it in repository or environment secrets before deploying."
+              missing=1
+            fi
+          done
+          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
+            echo "::error title=Missing production secret::Required GitHub Secret PRODUCTION_SSH_KEY is not configured. Add the private deploy key in repository or environment secrets before deploying."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "Production deployment cannot continue until all required secrets exist: PRODUCTION_SSH_HOST, PRODUCTION_SSH_USER, PRODUCTION_SSH_KEY, PRODUCTION_DEPLOY_PATH."
+            exit 1
+          fi
+          echo "All required production deployment secrets are configured."
+
+      - name: Validate Docker Compose with safe CI environment
+        run: |
+          set -euo pipefail
+          if [ -f .env ]; then
+            echo "::error title=Unexpected .env::A repository-root .env file already exists on the CI runner. Remove it from the workspace before validation to avoid reading secrets."
+            exit 1
+          fi
+          cp .env.example .env
+          cleanup() { rm -f .env; }
+          trap cleanup EXIT
+          echo "Validating Docker Compose using .env.example copied to a temporary .env file. Production secrets are not used for CI compose validation."
+          docker compose config >/tmp/foxbrain-compose-config.yml
+          test -s /tmp/foxbrain-compose-config.yml
 
       - name: Setup SSH
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          missing=0
-          for name in PRODUCTION_SSH_HOST PRODUCTION_SSH_USER PRODUCTION_DEPLOY_PATH; do
-            if [ -z "${!name}" ]; then echo "Missing required GitHub Secret: $name"; missing=1; fi
-          done
-          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then echo "Missing required GitHub Secret: PRODUCTION_SSH_KEY"; missing=1; fi
-          if [ "$missing" -ne 0 ]; then exit 1; fi
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/production_deploy_key
           chmod 600 ~/.ssh/production_deploy_key
           ssh-keyscan -H "$PRODUCTION_SSH_HOST" >> ~/.ssh/known_hosts
@@ -109,11 +134,15 @@ jobs:
           }
           trap rollback ERR
 
-          test -f .env
+          if [ ! -f .env ]; then
+            echo "Production server is missing $PRODUCTION_DEPLOY_PATH/.env. Create it on the server from .env.production or .env.example and populate real production values; do not commit .env."
+            exit 1
+          fi
           git fetch origin main
           git checkout main
           git reset --hard "$GIT_COMMIT"
           python scripts/generate_deployment_metadata.py
+          echo "Validating Docker Compose on production server with the server-managed .env file."
           docker compose config >/dev/null
           docker compose build --pull foxbrain-web foxbrain-api foxbrain-worker
           docker compose up -d --remove-orphans
