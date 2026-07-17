@@ -12,7 +12,7 @@ from typing import Dict, List
 
 ENTERPRISE_OS_VERSION = "0.20.5"
 NEXT_ENTERPRISE_OS_VERSION = "0.21"
-RELEASE_NAME = "FoxBrain Enterprise OS V0.20.5 Platform Alignment"
+RELEASE_NAME = "VAFOX Enterprise OS V0.20.5 Platform Alignment"
 
 
 @dataclass(frozen=True)
