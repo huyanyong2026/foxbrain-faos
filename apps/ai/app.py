@@ -100,6 +100,74 @@ AGENT_TYPE_BY_V6_NAME = {
 }
 
 
+
+
+def workforce_identity_summary(user):
+    identity = user.get("identity", {})
+    scopes = identity.get("data_scopes", [])
+    store_scope = next((item.get("value") for item in scopes if item.get("type") == "store"), None)
+    department = user.get("department_id") or "VAFOX Outdoor LIFE"
+    store = user.get("store_code") or store_scope or "pilot-home"
+    return {
+        "vid": identity.get("vid") or user.get("employee_no") or f"VID-{user['id']}",
+        "name": user.get("real_name") or user.get("display_name"),
+        "roles": identity.get("roles") or [user.get("role") or "employee"],
+        "department": department,
+        "store": store,
+        "team": "Founder / Management pilot" if "ai.ceo" in identity.get("permissions", []) or "*" in identity.get("permissions", []) else "Store workforce pilot",
+        "permissions": identity.get("permissions", []),
+        "growth_context": "Learning, completed tasks, experience, skills, and contribution are tracked as personal growth signals.",
+    }
+
+
+def build_workforce_mission(user, summary, latest_batch):
+    identity = workforce_identity_summary(user)
+    role_text = ", ".join(identity["roles"])
+    store_text = identity["store"]
+    inventory_signal = "Latest replenishment batch available" if latest_batch else "No urgent replenishment batch"
+    if any(role in identity["roles"] for role in ("ceo", "management", "identity_admin")) or "*" in identity["permissions"]:
+        title = "Review pilot workforce home and decide next rollout gate"
+        priority = "P0 Founder / Management"
+        reason = "Pilot scope is limited to Founder and Management before 南山店, 航苑店, and 振兴店."
+        steps = ["Confirm gateway identity context", "Review today enterprise signals", "Ask AI for store readiness", "Approve only governed next actions"]
+    else:
+        title = f"Serve today's customers and protect {store_text} inventory health"
+        priority = "P1 Store execution"
+        reason = f"Mission generated from role={role_text}, store={store_text}, workflow tasks, customer needs, inventory signals, and learning progress."
+        steps = ["Read identity and permission context", "Check Enterprise Today", "Complete the first customer or inventory action", "Ask AI when product, customer, or stock help is needed"]
+    return {
+        "title": title,
+        "priority": priority,
+        "reason": reason,
+        "steps": steps,
+        "expected_result": "Employee knows what matters today and completes the highest-value governed action.",
+        "ai_assistance": "Ask AI can answer in Chinese or English, check permission, retrieve Core context, draft optional tasks, and record memory.",
+        "signals": {"inventory": inventory_signal, "store": store_text, "sales_amount_30d": round((summary or {}).get("sales_amount", 0) or 0, 2)},
+    }
+
+
+def build_enterprise_today(metrics, summary, latest_batch):
+    return {
+        "headline": "Enterprise Data Hub is connected; Workforce Home is the daily entry.",
+        "events": [
+            f"{metrics['pending_tasks']} governed missions/tasks need attention",
+            f"{metrics['pending_runs']} AI conversations are waiting or in review",
+            "Latest replenishment signal: " + (latest_batch["batch_id"] if latest_batch else "none"),
+        ],
+        "core_status": "SAP and Core data pipeline remain read-only and untouched.",
+        "performance": "Mobile-first home designed for three-second understanding.",
+    }
+
+
+def build_growth_profile(user):
+    return {
+        "learning": "Role-based micro-learning ready",
+        "completed_tasks": "Captured from approved workflow history",
+        "experience": "Daily missions add experience signals",
+        "skills": "Customer service, product knowledge, inventory response",
+        "contribution": "Mission completion and AI feedback become contribution memory",
+    }
+
 def workspace_v6_context(question):
     route = route_ai_question(question)
     response = {"conclusion": "AI OS V6 prepared a governed recommendation.", "reason": "AI Router V6 selected intent, agents, Core data, and task policy from the question.", "data_source": route["core_data_sources"], "recommendation": "Review the recommendation and approve governed operational actions only.", "next_action": "Create a V6 autonomous draft task for the responsible owner.", "route": route}
@@ -766,11 +834,17 @@ def home():
         approved_runs=one("select count(*) as value from ai_agent_runs where approval_status='approved'")["value"],
         memories=one("select count(*) as value from ai_memory_items where status in ('approved','pending_review')")["value"],
     )
+    workforce_identity = workforce_identity_summary(user)
+    workforce_mission = build_workforce_mission(user, summary, latest_batch)
+    enterprise_today = build_enterprise_today(metrics, summary, latest_batch)
+    growth_profile = build_growth_profile(user)
     return render_template("dashboard.html", user=user, metrics=metrics,
                            connections=rows("select * from enterprise_connections order by id"),
                            runs=visible_runs(user, 8),
                            replenishment_batch=latest_batch,
-                           replenishment_summary=summary, ceo_snapshot=ceo_snapshot)
+                           replenishment_summary=summary, ceo_snapshot=ceo_snapshot,
+                           workforce_identity=workforce_identity, workforce_mission=workforce_mission,
+                           enterprise_today=enterprise_today, growth_profile=growth_profile)
 
 
 @app.get("/ceo/strategy")
@@ -846,6 +920,30 @@ def ceo_strategy_api():
 def dashboard_compat():
     return redirect("/home")
 
+
+
+@app.get("/ops-api/workforce-home")
+@permission_required("ai.use")
+def workforce_home_api():
+    user = current_user()
+    latest_batch = latest_replenishment_batch()
+    summary = replenishment_summary(latest_batch["batch_id"] if latest_batch else None)
+    metrics = {
+        "agents": one("select count(*) as value from ai_agents where status='active'")["value"],
+        "pending_runs": one("select count(*) as value from ai_agent_runs where approval_status='pending'")["value"],
+        "pending_tasks": one("select count(*) as value from ai_tasks where approval_status='pending'")["value"],
+        "knowledge": one("select count(*) as value from ai_knowledge_items where status='approved'")["value"],
+    }
+    return jsonify({
+        "ok": True,
+        "home": {
+            "identity": workforce_identity_summary(user),
+            "enterprise_today": build_enterprise_today(metrics, summary, latest_batch),
+            "mission_today": build_workforce_mission(user, summary, latest_batch),
+            "growth": build_growth_profile(user),
+            "ask_ai": {"endpoint": "/ops-api/runs", "manual_selectors_removed": True},
+        },
+    })
 
 @app.route("/workbench")
 @permission_required("ai.use")

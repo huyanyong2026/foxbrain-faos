@@ -1,63 +1,82 @@
 {% extends "base.html" %}
-{% block title %}{% if user and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}VAFOX CEO Home{% else %}VAFOX Workforce Home{% endif %}{% endblock %}
+{% block title %}VAFOX Workforce Home{% endblock %}
 {% block content %}
-<section class="home-hero">
+<section class="home-hero workforce-hero">
   <div>
-    <p class="eyebrow">🔥 火狐狸 VAFOX · On the way · 一路有你</p>
+    <p class="eyebrow">🔥 火狐狸 VAFOX · VAFOX Outdoor LIFE</p>
     <h1>Welcome Home.</h1>
-    <p>VAFOX Outdoor LIFE starts from identity, understands today, creates mission, connects community, and lets AI help without manual selectors.</p>
+    <p>Open phone. Know who I am. Know what matters today. Know what to do. Know how to do it. Ask AI when needed.</p>
+    <div class="hero-actions"><a class="primary" href="#ask-ai">Ask AI</a><a class="secondary" href="#mission">Today's Mission</a></div>
   </div>
   <div class="home-card identity-card">
-    <span>WHO AM I</span>
-    <strong>{{ user.real_name or user.display_name }}</strong>
-    <small>VID · One Identity · One Home</small>
+    <span>MY IDENTITY</span>
+    <strong>{{ workforce_identity.name }}</strong>
+    <small>{{ workforce_identity.vid }} · {{ workforce_identity.store }}</small>
   </div>
+</section>
+
+<section class="workforce-flow" aria-label="VAFOX Workforce Home daily flow">
+  <article class="home-panel" id="identity">
+    <p class="eyebrow">1 · My Identity · Who am I?</p>
+    <h2>{{ workforce_identity.name }}</h2>
+    <dl class="identity-summary">
+      <dt>VID</dt><dd>{{ workforce_identity.vid }}</dd>
+      <dt>Role</dt><dd>{{ workforce_identity.roles|join(', ') }}</dd>
+      <dt>Department</dt><dd>{{ workforce_identity.department }}</dd>
+      <dt>Store</dt><dd>{{ workforce_identity.store }}</dd>
+      <dt>Team</dt><dd>{{ workforce_identity.team }}</dd>
+      <dt>Growth</dt><dd>{{ workforce_identity.growth_context }}</dd>
+    </dl>
+  </article>
+
+  <article class="home-panel" id="today">
+    <p class="eyebrow">2 · Enterprise Today · What is happening?</p>
+    <h2>{{ enterprise_today.headline }}</h2>
+    {% for event in enterprise_today.events %}<div class="home-signal"><b>{{ event }}</b><small>{{ enterprise_today.core_status }}</small></div>{% endfor %}
+    <span class="status active">{{ enterprise_today.performance }}</span>
+  </article>
+
+  <article class="home-panel mission-panel" id="mission">
+    <p class="eyebrow">3 · My Mission Today · What should I do?</p>
+    <h2>{{ workforce_mission.title }}</h2>
+    <div class="today-priority"><b>{{ workforce_mission.priority }}</b><strong>Today</strong><span>{{ workforce_mission.reason }}</span></div>
+    <p><strong>Expected result:</strong> {{ workforce_mission.expected_result }}</p>
+  </article>
+
+  <article class="home-panel" id="how-to">
+    <p class="eyebrow">4 · How To · How should I complete it?</p>
+    <h2>Step-by-step execution</h2>
+    <ol class="mission-steps">{% for step in workforce_mission.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+    <p>{{ workforce_mission.ai_assistance }}</p>
+  </article>
+
+  <article class="home-panel ask-ai-panel" id="ask-ai">
+    <p class="eyebrow">5 · Ask AI · Need help?</p>
+    <h2>AI Companion First</h2>
+    <form class="conversation-form" method="post" action="/ops-api/runs" data-ai-router-v6="enabled">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea name="question" placeholder="今天应该做什么？这个客户怎么服务？这个产品怎么介绍？库存怎么办？" required></textarea>
+      <button>Ask VAFOX AI</button>
+    </form>
+    <p>No agent selector. No source selector. No object selector. Permission and Core context are checked automatically.</p>
+  </article>
+</section>
+
+<section class="home-grid growth-grid">
+  <article class="home-panel"><p class="eyebrow">Learning</p><h2>{{ growth_profile.learning }}</h2><p>Training recommendations will come from role, mission history, and knowledge gaps.</p></article>
+  <article class="home-panel"><p class="eyebrow">Skills</p><h2>{{ growth_profile.skills }}</h2><p>{{ growth_profile.experience }}</p></article>
+  <article class="home-panel"><p class="eyebrow">Contribution</p><h2>{{ growth_profile.contribution }}</h2><p>{{ growth_profile.completed_tasks }}</p></article>
 </section>
 
 {% if ceo_snapshot and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}
-<section class="home-stack">
-  <article class="home-panel mission-panel">
-    <p class="eyebrow">VAFOX CEO Home</p>
-    <h2>Enterprise Today</h2>
-    <p>AI Briefing has read the Enterprise Data Hub and prepared today's decisions, risks, opportunities, and growth signals.</p>
-    <div class="today-priority"><b>Enterprise Health</b><strong>{{ ceo_snapshot.enterprise_health_score }}</strong><span>{{ ceo_snapshot.risk_level }} · {{ ceo_snapshot.as_of }}</span></div>
-  </article>
-  <article class="home-panel">
-    <p class="eyebrow">Today's Decisions</p>
-    <h2>{{ ceo_snapshot.decision_center.problem }}</h2>
-    <p>{{ ceo_snapshot.decision_center.recommendation }}</p>
-    <a class="primary" href="/ceo/strategy">Open AI Briefing</a>
-  </article>
-</section>
-<section class="home-grid">
-  <article class="home-panel"><p class="eyebrow">Today's Risks</p>{% for risk in ceo_snapshot.risks[:3] %}<div class="home-signal"><b>{{ risk.risk }}</b><small>{{ risk.reason }}</small></div>{% endfor %}</article>
-  <article class="home-panel"><p class="eyebrow">Today's Opportunities</p>{% for item in ceo_snapshot.opportunities[:3] %}<div class="home-signal"><b>{{ item.opportunity }}</b><small>{{ item.recommended_action }}</small></div>{% endfor %}</article>
-  <article class="home-panel"><p class="eyebrow">Today's Growth</p><h2>Community + Learning</h2><p>Grow leaders, stores, suppliers, brands, customers, clubs, coaches, and creators in one Outdoor LIFE community.</p></article>
-</section>
-{% else %}
-<section class="home-stack">
-  <article class="home-panel mission-panel">
-    <p class="eyebrow">VAFOX Workforce Home</p>
-    <h2>Today's Mission</h2>
-    <p>AI automatically understands intent, selects agents, reads the Enterprise Data Hub, creates tasks, and updates memory.</p>
-    <div class="today-priority"><b>Start Today</b><strong>{{ metrics.pending_tasks }}</strong><span>missions waiting for human approval</span></div>
-  </article>
-  <article class="home-panel">
-    <p class="eyebrow">Need Help?</p>
-    <h2>Ask AI.</h2>
-    <p>No Agent Selector. No Object Selector. No Source Selector. Say what you need; VAFOX AI routes the work.</p>
-    <a class="primary" href="/workbench">Ask AI</a>
-  </article>
-</section>
-<section class="home-grid">
-  <article class="home-panel"><p class="eyebrow">Today's Growth</p><h2>Learn one useful thing.</h2><p>Role-based learning turns daily work into capability growth.</p></article>
-  <article class="home-panel"><p class="eyebrow">Today's Learning</p><h2>Enterprise Memory</h2><p>Approved knowledge and feedback become reusable memory.</p></article>
-  <article class="home-panel"><p class="eyebrow">Today's Community</p><h2>Outdoor LIFE Community</h2><p>Employees, customers, suppliers, brands, clubs, coaches, leaders, and creators belong to the same HOME.</p></article>
+<section class="home-stack management-console">
+  <article class="home-panel"><p class="eyebrow">Desktop Management Console</p><h2>Enterprise Health {{ ceo_snapshot.enterprise_health_score }}</h2><p>{{ ceo_snapshot.decision_center.recommendation }}</p><a class="primary" href="/ceo/strategy">Open AI Briefing</a></article>
+  <article class="home-panel"><p class="eyebrow">Pilot Scope</p><h2>Founder → Management → 南山店 / 航苑店 / 振兴店</h2><p>Do not release all employees yet. Use role routing and permissions for pilot access.</p></article>
 </section>
 {% endif %}
 
-<section class="mobile-principle"><b>Mobile First</b><span>Open phone → know today's priorities within 3 seconds.</span></section>
-<section class="metrics home-metrics"><article><span>AI Team</span><strong>{{ metrics.agents }}</strong></article><article><span>Running / Pending AI</span><strong>{{ metrics.pending_runs }}</strong></article><article><span>Human Approvals</span><strong>{{ metrics.pending_tasks }}</strong></article><article><span>Knowledge</span><strong>{{ metrics.knowledge }}</strong></article></section>
-<section class="section-head"><div><p class="eyebrow">Preserved Capability Layer</p><h2>Enterprise Data Hub → VAFOX Intelligence</h2></div><span class="status active">No business capability rebuilt</span></section>
+<section class="mobile-principle"><b>On the way · 一路有你</b><span>Powered by FoxBrain Intelligence Engine · Core and SAP untouched.</span></section>
+<section class="metrics home-metrics"><article><span>AI Team</span><strong>{{ metrics.agents }}</strong></article><article><span>AI Conversations</span><strong>{{ metrics.pending_runs }}</strong></article><article><span>Missions / Tasks</span><strong>{{ metrics.pending_tasks }}</strong></article><article><span>Knowledge</span><strong>{{ metrics.knowledge }}</strong></article></section>
+<section class="section-head"><div><p class="eyebrow">Preserved Foundation</p><h2>Gateway Identity → Enterprise Data Hub → FoxBrain Intelligence</h2></div><span class="status active">SAP / Core pipeline untouched</span></section>
 <section class="list">{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>Preserved foundation for identity, permission, knowledge, workflow, automation, memory, and enterprise events.</p></div><span class="status {{ item.status }}">{{ {'connected':'active','unavailable':'waiting','not_configured':'admin only'}.get(item.status,item.status) }}</span></article>{% endfor %}</section>
 {% endblock %}
