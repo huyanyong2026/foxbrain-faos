@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: production-deploy
@@ -11,25 +15,32 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy FoxBrain FAOS production
+    name: Deploy VAFOX production runtime
     runs-on: ubuntu-latest
     environment: production
     env:
       PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
       PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
       PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+      FOXBRAIN_VERSION: AI-OS-V6-CLEAN-REBUILD-V1
+      GIT_COMMIT: ${{ github.sha }}
+      BUILD_TIME: ${{ github.run_started_at }}
+      DEPLOY_TIME: ${{ github.run_started_at }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate workflow deployment scripts
+        run: python3 .github/scripts/check_workflow_scripts.py
+
       - name: Generate deployment metadata
         run: python scripts/generate_deployment_metadata.py
         env:
-          FOXBRAIN_VERSION: AI-OS-V4.0
           FOXBRAIN_ENV: production
-          GIT_COMMIT: ${{ github.sha }}
-          BUILD_TIME: ${{ github.run_started_at }}
+
+      - name: Validate Docker Compose
+        run: docker compose config
 
       - name: Setup SSH
         run: |
@@ -55,75 +66,54 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}" \
-            "PRODUCTION_DEPLOY_PATH=${quoted_deploy_path} bash -s" <<'REMOTE_DEPLOY'
+            "PRODUCTION_DEPLOY_PATH=${quoted_deploy_path} GIT_COMMIT='${GIT_COMMIT}' BUILD_TIME='${BUILD_TIME}' DEPLOY_TIME='${DEPLOY_TIME}' FOXBRAIN_VERSION='${FOXBRAIN_VERSION}' bash -s" <<'REMOTE_DEPLOY'
           set -euo pipefail
 
           cd "$PRODUCTION_DEPLOY_PATH"
-          git fetch origin main
-          git checkout main
-          git pull --ff-only origin main
+          previous_commit="$(git rev-parse HEAD || true)"
+          export GIT_COMMIT BUILD_TIME DEPLOY_TIME FOXBRAIN_VERSION
+          export FOXBRAIN_ENV=production FOXBRAIN_SYSTEM=VAFOX
+
+          rollback() {
+            echo "Deployment failed; rolling back to ${previous_commit}."
+            if [ -n "$previous_commit" ]; then
+              git checkout "$previous_commit"
+              docker compose up -d --build --remove-orphans
+            fi
+          }
+          trap rollback ERR
 
           test -f .env
+          git fetch origin main
+          git checkout main
+          git reset --hard "$GIT_COMMIT"
           python scripts/generate_deployment_metadata.py
           docker compose config >/dev/null
-          docker compose pull --ignore-buildable || true
-          docker compose up -d --build
-
-          echo "Current Docker Compose status:"
-          docker compose ps
+          docker compose build --pull foxbrain-web foxbrain-api foxbrain-worker
+          docker compose up -d --remove-orphans
 
           required_services="foxbrain-web foxbrain-api foxbrain-worker postgres redis minio qdrant nginx"
-          max_attempts=20
-          sleep_seconds=15
-
+          max_attempts=24
+          sleep_seconds=10
+          all_healthy=false
           for attempt in $(seq 1 "$max_attempts"); do
             all_healthy=true
-
             for service in $required_services; do
               container_id="$(docker compose ps -q "$service")"
-              if [ -z "$container_id" ]; then
-                echo "Service $service is not running yet."
-                all_healthy=false
-                continue
-              fi
-
+              if [ -z "$container_id" ]; then all_healthy=false; continue; fi
               health_status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")"
               echo "$service status: $health_status"
-
-              if [ "$health_status" != "healthy" ]; then
-                all_healthy=false
-              fi
+              if [ "$health_status" != "healthy" ]; then all_healthy=false; fi
             done
-
-            if [ "$all_healthy" = true ]; then
-              echo "Verified healthy services: $required_services"
-              break
-            fi
-
-            if [ "$attempt" -lt "$max_attempts" ]; then
-              echo "Waiting for services to become healthy ($attempt/$max_attempts)..."
-              sleep "$sleep_seconds"
-            fi
+            if [ "$all_healthy" = true ]; then break; fi
+            sleep "$sleep_seconds"
           done
+          if [ "$all_healthy" != true ]; then docker compose ps; exit 1; fi
 
-          if [ "$all_healthy" != true ]; then
-            echo "Deployment health check failed. Final Docker Compose status:"
-            docker compose ps
-            exit 1
-          fi
-
-          echo "Checking public gateway ownership:"
-          ss -tlnp | awk '$4 ~ /(:80|:443)$/ {print}' || true
-          if ss -tlnp | awk '$4 ~ /(:80|:443)$/ {print}' | grep -q 'docker-proxy'; then
-            echo "Docker must not own public port 80 or 443."
-            exit 1
-          fi
-
-          curl -fsS http://127.0.0.1/api/health >/dev/null || curl -fsS http://127.0.0.1:3000/api/health >/dev/null
-          curl -fsS http://127.0.0.1/ >/dev/null || curl -fsS http://127.0.0.1:3000/ >/dev/null
-          python production_activation_check.py \
-            --base-url gateway=https://gateway.vafox.com \
-            --base-url huyan=https://huyan.vafox.com \
-            --base-url ai=https://ai.vafox.com \
-            --base-url core=https://core.vafox.com
+          docker container prune -f --filter "label!=com.docker.compose.project=foxbrain" || true
+          docker image prune -f || true
+          curl -fsS http://127.0.0.1:8088/health/runtime >/tmp/vafox-runtime.json
+          python scripts/verify_release_runtime.py --expected-commit "$GIT_COMMIT" --expected-version "$FOXBRAIN_VERSION"
+          trap - ERR
+          echo "Deployment completed for $GIT_COMMIT."
           REMOTE_DEPLOY

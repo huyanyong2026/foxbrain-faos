@@ -37,7 +37,7 @@ def verify_service(service: str) -> tuple[bool, str]:
         return False, f"{service}: FAIL ({url}) {exc}"
     version_ok = payload.get("version") == EXPECTED_VERSION
     status_ok = payload.get("status") == "running" and payload.get("runtime_status") == "running"
-    system_ok = payload.get("system") == "FoxBrain"
+    system_ok = payload.get("system") in {"VAFOX", "FoxBrain"}
     if version_ok and status_ok and system_ok:
         return True, f"{service}: PASS {payload.get('version')} {payload.get('commit', 'unknown')}"
     return False, f"{service}: FAIL expected={EXPECTED_VERSION} payload={payload}"
