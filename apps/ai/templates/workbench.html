@@ -49,7 +49,7 @@
       <li><strong>Next Action</strong> — {{ v6.response.next_action }}</li>
     </ul>
   </section>
-  <section class="panel"><h2>Recent AI Workforce Runs</h2><div class="list compact">
+  <section class="panel"><h2>Recent VAFOX AI Runs</h2><div class="list compact">
     {% for run in runs %}<article class="run" id="{{ run.run_id }}"><div><span class="status">{{ {'waiting_ai':'等待 AI','pending_review':'待确认'}.get(run.status,run.status) }}</span><h3>{{ run.question }}</h3><p>{{ run.answer or 'AI Router V6 已保存自动路由与 Core 数据链接，等待结果。' }}</p></div>{% if run.status == 'pending_review' and user.role in ['admin','manager','boss'] %}<div class="actions"><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve"><button>接受建议</button></form><form method="post" action="/ops-api/runs/{{ run.run_id }}/review"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject"><button class="secondary">拒绝</button></form></div>{% endif %}</article>{% else %}<div class="empty"><h3>暂无分析</h3><p>输入自然语言问题即可开始。</p></div>{% endfor %}
   </div></section>
 </section>

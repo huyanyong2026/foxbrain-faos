@@ -244,8 +244,10 @@ class GatewayPublicHandler(BaseHTTPRequestHandler):
 
 
 def create_server(host=None, port=None, client=None, identity=None):
+    bind_host = host if host is not None else os.environ.get("GATEWAY_DATA_HOST", "127.0.0.1")
+    bind_port = int(port if port is not None else os.environ.get("GATEWAY_DATA_PORT", "8091"))
     server = ThreadingHTTPServer(
-        (host or os.environ.get("GATEWAY_DATA_HOST", "127.0.0.1"), int(port or os.environ.get("GATEWAY_DATA_PORT", "8091"))),
+        (bind_host, bind_port),
         GatewayPublicHandler,
     )
     server.identity = identity or GatewayIdentityCenter()

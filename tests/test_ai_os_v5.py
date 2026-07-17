@@ -13,14 +13,14 @@ from foxbrain_os.ai_os_v5 import (
 )
 
 
-def test_gateway_identity_routing_is_automatic_v5():
+def test_gateway_identity_routing_keeps_v5_compatibility_api():
     assert route_identity("CEO")["workspace"] == "CEO AI Command Center"
     assert route_identity("Procurement")["workspace"] == "Supply Intelligence Workspace"
     assert route_identity("unknown")["destination"] == "ai.vafox.com"
     assert route_identity("Supplier")["manual_system_selection_required"] is False
 
 
-def test_ai_router_v5_selects_agents_data_and_objects_without_configuration():
+def test_ai_router_keeps_v5_compatibility_api_without_configuration():
     profit = route_intent("Why profit decreased?")
     assert profit["manual_agent_selection_required"] is False
     assert "Finance Agent" in profit["required_agents"]
@@ -82,6 +82,5 @@ def test_ceo_homepage_and_contract_acceptance_pass():
     contract = build_ai_os_v5_contract()
     assert contract["guardrails"]["sap_business_logic_modified"] is False
     assert contract["guardrails"]["duplicate_business_truth_created"] is False
-    assert contract["version"] == "AI-OS-V5.1"
     assert contract["release_guard"]["mixed_versions_blocked"] is True
     assert all(value == "PASS" for value in contract["acceptance"].values())

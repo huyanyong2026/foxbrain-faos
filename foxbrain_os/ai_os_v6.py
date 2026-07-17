@@ -2,7 +2,7 @@
 
 V6 is the clean-architecture rebuild target.  It intentionally does not extend
 legacy V3/V4/V5 runtime contracts at execution time; instead it defines a
-single AI-native operating model for Gateway, Huyan, AI Workspace, Core,
+single AI-native operating model for Gateway, Huyan, VAFOX Enterprise AI Center, Core,
 automation, link repair, health checks, and release governance.
 """
 
@@ -29,7 +29,7 @@ class V6Route:
 
 
 IDENTITY_ROUTES = (
-    V6Route("ceo", "gateway.vafox.com", "huyan.vafox.com", "CEO Autonomous Command Center", "CEO receives enterprise health, risks, opportunities, decisions, and AI actions."),
+    V6Route("ceo", "gateway.vafox.com", "huyan.vafox.com", "VAFOX Enterprise Brain", "CEO receives enterprise health, risks, opportunities, decisions, and AI actions."),
     V6Route("employee", "gateway.vafox.com", "ai.vafox.com", "Digital Workforce OS", "Employees ask natural-language questions and receive governed AI work output."),
     V6Route("procurement", "gateway.vafox.com", "ai.vafox.com/supply", "Supply AI", "Procurement receives inventory, supplier, replenishment, and task recommendations."),
     V6Route("store_manager", "gateway.vafox.com", "ai.vafox.com/store", "Store AI", "Store managers receive local performance, risk, and action intelligence."),

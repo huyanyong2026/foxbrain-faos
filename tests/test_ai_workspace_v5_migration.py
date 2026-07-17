@@ -34,7 +34,7 @@ def test_response_task_data_link_standard():
 
 def test_workbench_template_has_no_legacy_manual_selection():
     html = (ROOT / "apps/ai/templates/workbench.html").read_text(encoding="utf-8")
-    assert "FoxBrain AI Workforce V5" in html
-    assert "data-ai-router-v5=\"enabled\"" in html
+    assert "VAFOX Digital Workforce OS V6" in html
+    assert "data-ai-router-v6=\"enabled\"" in html
     for legacy in ("选择助手", "关联对象类型", "本次分析依据", "提交分析"):
         assert legacy not in html
