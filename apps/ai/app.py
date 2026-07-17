@@ -9,7 +9,7 @@ import secrets
 import hashlib
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import bcrypt
 import psycopg2
@@ -80,7 +80,7 @@ def inject_runtime_version():
     return {"runtime_version": version_payload("ai")}
 
 
-AI_WORKSPACE_V6_LABEL = "FoxBrain Digital Workforce OS V6"
+AI_WORKSPACE_V6_LABEL = "VAFOX Digital Workforce OS V6"
 AI_WORKSPACE_V6_EXAMPLES = (
     "分析火狐狸当前最大经营风险",
     "南山店最近经营怎么样？",
@@ -299,13 +299,21 @@ def record_permission_audit(permission, decision, resource_type="", resource_id=
     get_db().commit()
 
 
+GATEWAY_LOGIN_URL = os.environ.get("GATEWAY_LOGIN_URL", "https://gateway.vafox.com/login")
+
+
+def gateway_login_redirect():
+    next_path = request.full_path if request.query_string else request.path
+    return redirect(f"{GATEWAY_LOGIN_URL}?next={quote(next_path)}")
+
+
 def login_required(function):
     @wraps(function)
     def decorated(*args, **kwargs):
         if "user_id" not in session:
             if request.path.startswith(("/api/", "/ops-api/")):
-                return jsonify({"ok": False, "message": "请先登录"}), 401
-            return redirect("/auth/login")
+                return jsonify({"ok": False, "message": "请先通过 VAFOX Gateway 登录"}), 401
+            return gateway_login_redirect()
         return function(*args, **kwargs)
     return decorated
 
@@ -487,12 +495,12 @@ def visible_runs(user, limit=30):
 
 @app.route("/")
 def index():
-    return redirect("/dashboard" if "user_id" in session else "/auth/login")
+    return redirect("/home") if "user_id" in session else gateway_login_redirect()
 
 
 @app.route("/login")
 def login_page():
-    return render_template("login.html", wecom_enabled=bool(os.environ.get("WECOM_CORP_ID") and os.environ.get("WECOM_AGENT_ID")))
+    return gateway_login_redirect()
 
 
 def record_login_audit(identifier, result, user_id=None, method="password"):
@@ -508,6 +516,10 @@ def record_login_audit(identifier, result, user_id=None, method="password"):
 
 @app.post("/api/login")
 def identity_login_api():
+    return jsonify({"ok": False, "message": "VAFOX Gateway is the canonical login authority", "redirect": GATEWAY_LOGIN_URL}), 410
+
+
+def legacy_identity_login_api_disabled():
     data = request.get_json(silent=True) or request.form
     identifier = (data.get("username") or "").strip()
     user = one(
@@ -533,7 +545,7 @@ def identity_login_api():
     cur.execute("update auth_users set last_login=now() where id=%s", (user["id"],))
     get_db().commit()
     record_login_audit(identifier, "success", user["id"])
-    return jsonify({"ok": True, "redirect": "/change-password" if user.get("must_change_password") else "/dashboard"})
+    return jsonify({"ok": True, "redirect": "/change-password" if user.get("must_change_password") else "/home"})
 
 
 @app.post("/api/logout")
@@ -542,7 +554,7 @@ def logout_api():
     require_csrf()
     record_login_audit(session.get("username"), "logout", session.get("user_id"))
     session.clear()
-    return jsonify({"ok": True, "redirect": "/auth/login"})
+    return jsonify({"ok": True, "redirect": GATEWAY_LOGIN_URL})
 
 
 @app.route("/change-password")
@@ -737,9 +749,9 @@ def identity_me_api():
     return jsonify({"ok": True, "identity": user["identity"], "real_name": user.get("real_name") or user["display_name"]})
 
 
-@app.route("/dashboard")
+@app.route("/home")
 @permission_required("ai.use")
-def dashboard():
+def home():
     user = current_user()
     latest_batch = latest_replenishment_batch()
     metrics = {
@@ -827,6 +839,12 @@ def ceo_strategy_api():
         approved_runs=one("select count(*) as value from ai_agent_runs where approval_status='approved'")["value"],
         memories=one("select count(*) as value from ai_memory_items where status in ('approved','pending_review')")["value"],
     )})
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard_compat():
+    return redirect("/home")
 
 
 @app.route("/workbench")
@@ -1091,7 +1109,7 @@ def check_connections():
             ("connected" if result["ok"] else "unavailable", result["ok"], None if result["ok"] else result["error"][:500], connection_type),
         )
     get_db().commit()
-    return redirect("/dashboard")
+    return redirect("/home")
 
 
 @app.get("/replenishment")
@@ -1307,7 +1325,7 @@ def internal_health_console():
         "<tr><td>{service}</td><td>{status}</td><td>{version}</td><td>{commit}</td><td>{build_time}</td><td>{deploy_time}</td><td>{environment}</td></tr>".format(**item)
         for item in services
     )
-    return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FoxBrain Internal Health</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.ok{color:#087f5b;font-weight:800}</style></head><body><main class="wrap"><section class="card"><h1>FoxBrain AI OS V4 Internal Health Console</h1><p>Administrator-only production verification console. RBAC/ABAC and permission audit controls are enforced before rendering.</p><table><thead><tr><th>Service</th><th>Status</th><th>Version</th><th>Commit</th><th>Build</th><th>Deploy</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
+    return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VAFOX Internal Health</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.ok{color:#087f5b;font-weight:800}</style></head><body><main class="wrap"><section class="card"><h1>VAFOX AI OS V6 Internal Health Console</h1><p>Administrator-only production verification console. RBAC/ABAC and permission audit controls are enforced before rendering.</p><table><thead><tr><th>Service</th><th>Status</th><th>Version</th><th>Commit</th><th>Build</th><th>Deploy</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
 
 
 
@@ -1320,7 +1338,7 @@ def internal_runtime_check():
         "<tr><td>{service}</td><td class='pass'>PASS</td><td>{version}</td><td>{commit}</td><td>{build_time}</td><td>{environment}</td></tr>".format(**item)
         for item in services
     )
-    return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS V6 Runtime Check</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.pass{color:#087f5b;font-weight:900}.badge{display:inline-flex;border-radius:999px;background:#dff5e9;color:#087f5b;padding:6px 12px;font-weight:800}</style></head><body><main class="wrap"><section class="card"><span class="badge">Version: AI OS V6</span><h1>FoxBrain Runtime Verification</h1><p>Admin-only self-verification page. Only safe runtime metadata is shown; RBAC and audit logging are preserved.</p><table><thead><tr><th>Service</th><th>Result</th><th>Version</th><th>Commit</th><th>Build</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
+    return """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI OS V6 Runtime Check</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;margin:0;background:#f6f8f7;color:#12251d}.wrap{max-width:1100px;margin:40px auto;padding:0 20px}.card{background:white;border:1px solid #dce5df;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(10,35,25,.06)}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid #edf2ef;padding:12px}th{color:#476256;font-size:13px;text-transform:uppercase}.pass{color:#087f5b;font-weight:900}.badge{display:inline-flex;border-radius:999px;background:#dff5e9;color:#087f5b;padding:6px 12px;font-weight:800}</style></head><body><main class="wrap"><section class="card"><span class="badge">Version: AI OS V6</span><h1>VAFOX Runtime Verification</h1><p>Admin-only self-verification page. Only safe runtime metadata is shown; RBAC and audit logging are preserved.</p><table><thead><tr><th>Service</th><th>Result</th><th>Version</th><th>Commit</th><th>Build</th><th>Environment</th></tr></thead><tbody>""" + rows_html + """</tbody></table></section></main></body></html>"""
 
 @app.get("/version")
 @app.get("/health/version")

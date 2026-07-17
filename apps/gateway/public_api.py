@@ -39,7 +39,7 @@ class GatewayPublicHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path in ("/", "/version"):
-            return self._reply(200, {**version_payload("gateway"), "display": "FoxBrain Portal V5"})
+            return self._reply(200, {**version_payload("gateway"), "display": "VAFOX Gateway Genesis"})
         if self.path == "/health/version":
             return self._reply(200, version_payload("gateway"))
         if self.path == "/health/runtime":

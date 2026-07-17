@@ -11,7 +11,7 @@ if (loginForm) {
       const response = await fetch('/auth/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || '登录失败');
-      window.location.href = result.redirect || '/dashboard';
+      window.location.href = result.redirect || '/home';
     } catch (error) {
       message.textContent = error.message;
       button.disabled = false;
@@ -26,7 +26,7 @@ if (logoutButton) {
     const token = document.querySelector('#csrf-token')?.value || '';
     const response = await fetch('/auth/api/logout', {method: 'POST', headers: {'X-CSRF-Token': token}});
     const result = await response.json();
-    window.location.href = result.redirect || '/auth/login';
+    window.location.href = result.redirect || 'https://gateway.vafox.com/login';
   });
 }
 
