@@ -19,6 +19,6 @@ def test_health_payload_requires_process_database_dependencies():
 def test_control_tower_displays_enterprise_status():
     payload = control_tower_status(last_deploy="2026-07-16T00:00:00+00:00")
     assert payload["platform"] == "FoxBrain Enterprise OS"
-    assert payload["release_version"] == "AI-OS-V4.0"
+    assert payload["release_version"] == "AI-OS-V5.1"
     assert payload["components"]["core"]["status"] == "Healthy"
     assert payload["components"]["sap_sync"]["status"] == "Healthy"

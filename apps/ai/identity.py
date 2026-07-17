@@ -241,7 +241,7 @@ def identity_snapshot_json(identity):
 EMPLOYEE_AI_ROLE_CAPABILITIES = {
     "employee": {
         "access": ["product", "knowledge", "basic_inventory", "training", "own_tasks"],
-        "agents": ["employee", "knowledge", "customer"],
+        "agents": ["employee", "knowledge"],
         "scope": "self",
     },
     "store_manager": {
@@ -256,7 +256,7 @@ EMPLOYEE_AI_ROLE_CAPABILITIES = {
     },
     "ceo": {
         "access": ["enterprise_intelligence", "risk", "opportunity", "strategy", "all_tasks"],
-        "agents": ["employee", "ceo", "supply_chain", "store", "customer", "knowledge"],
+        "agents": ["employee", "ceo", "supply_chain", "store", "knowledge"],
         "scope": "enterprise",
     },
 }

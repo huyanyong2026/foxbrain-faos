@@ -15,7 +15,9 @@ SERVICES = {
     "AI": "https://ai.vafox.com/health/version",
     "Core": "https://core.vafox.com/health/version",
 }
-EXPECTED_VERSION = "AI-OS-V4.0"
+from foxbrain_os.platform_governance import RELEASE_VERSION
+
+EXPECTED_VERSION = RELEASE_VERSION
 
 
 def local_commit() -> str:

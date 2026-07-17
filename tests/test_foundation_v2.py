@@ -34,7 +34,8 @@ class FoundationV2Test(unittest.TestCase):
     def test_ai_contract_has_registry_workspace_knowledge_memory_and_no_sap_write(self):
         contract = ai_workforce_contract()
         agent_names = {agent["name"] for agent in contract["agent_registry"]}
-        self.assertTrue({"CEO Agent", "Supply Chain Agent", "Store Agent", "Customer Agent", "Supplier Agent"}.issubset(agent_names))
+        self.assertTrue({"CEO Agent", "Supply Chain Agent", "Store Agent", "Finance Agent", "Growth Agent"}.issubset(agent_names))
+        self.assertFalse({"Customer Agent", "Supplier Agent"} & agent_names)
         self.assertIn("Report generation", contract["workspace"])
         self.assertIn("Historical decisions", contract["memory_system"])
         self.assertEqual(contract["sap_write_policy"], "forbidden")

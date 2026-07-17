@@ -21,8 +21,6 @@ DIGITAL_WORKFORCE_AGENTS = (
     ("store", "Store Agent", "分析门店经营、库存周转和现场行动"),
     ("finance", "Finance Agent", "分析现金、毛利、费用和资金压力"),
     ("growth", "Growth Agent", "识别增长机会、品类趋势和市场动作"),
-    ("customer", "Customer Agent", "支持客户洞察、服务建议和体验提升"),
-    ("supplier", "Supplier Agent", "协同供应商、品牌资料和供货状态"),
 )
 
 CONNECTIONS = (

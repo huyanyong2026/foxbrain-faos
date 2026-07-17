@@ -64,7 +64,7 @@ def huyan_ceo_os_contract() -> dict:
 
 
 def ai_workforce_contract() -> dict:
-    agents = ["CEO Agent", "Supply Chain Agent", "Store Agent", "Customer Agent", "Supplier Agent"]
+    agents = ["CEO Agent", "Supply Chain Agent", "Store Agent", "Finance Agent", "Growth Agent"]
     return {
         "domain": DOMAINS["ai"],
         "responsibility": "Digital Workforce Platform",
