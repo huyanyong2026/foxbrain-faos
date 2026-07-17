@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}FoxBrain Digital Workforce OS V6｜VAFOX{% endblock %}
+{% block title %}VAFOX Digital Workforce OS V6｜VAFOX{% endblock %}
 {% block content %}
 <section class="hero os-hero">
   <div>
     <p class="eyebrow">{{ workspace_label }}</p>
-    <h1>Universal AI Conversation Interface</h1>
+    <h1>AI工作台 · Universal AI Conversation Interface</h1>
     <p>直接提问，AI Router V6 自动识别意图、业务对象、数字员工和 Core 数据；不再需要选择 Agent、来源、对象类型或对象。</p>
     <form class="conversation-form" method="post" action="/ops-api/runs" data-ai-router-v6="enabled">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <textarea name="question" placeholder="例如：分析火狐狸当前最大经营风险" required></textarea>
-      <button>Ask FoxBrain AI</button>
+      <button>Ask VAFOX AI</button>
     </form>
   </div>
-  <div class="version-badge" data-version-badge="FoxBrain Digital Workforce OS V6">
-    <strong>FoxBrain Digital Workforce OS V6</strong>
+  <div class="version-badge" data-version-badge="VAFOX Digital Workforce OS V6">
+    <strong>VAFOX Digital Workforce OS V6</strong>
     <span>Build: {{ runtime_version.build_time }}</span>
     <span>Commit: {{ runtime_version.commit }}</span>
   </div>

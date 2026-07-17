@@ -45,7 +45,7 @@
   <article class="home-panel">
     <p class="eyebrow">Need Help?</p>
     <h2>Ask AI.</h2>
-    <p>No Agent Selector. No Object Selector. No Source Selector. Say what you need; FoxBrain routes the work.</p>
+    <p>No Agent Selector. No Object Selector. No Source Selector. Say what you need; VAFOX AI routes the work.</p>
     <a class="primary" href="/workbench">Ask AI</a>
   </article>
 </section>
@@ -58,6 +58,6 @@
 
 <section class="mobile-principle"><b>Mobile First</b><span>Open phone → know today's priorities within 3 seconds.</span></section>
 <section class="metrics home-metrics"><article><span>AI Team</span><strong>{{ metrics.agents }}</strong></article><article><span>Running / Pending AI</span><strong>{{ metrics.pending_runs }}</strong></article><article><span>Human Approvals</span><strong>{{ metrics.pending_tasks }}</strong></article><article><span>Knowledge</span><strong>{{ metrics.knowledge }}</strong></article></section>
-<section class="section-head"><div><p class="eyebrow">Preserved Capability Layer</p><h2>Enterprise Data Hub → FoxBrain Intelligence</h2></div><span class="status active">No business capability rebuilt</span></section>
+<section class="section-head"><div><p class="eyebrow">Preserved Capability Layer</p><h2>Enterprise Data Hub → VAFOX Intelligence</h2></div><span class="status active">No business capability rebuilt</span></section>
 <section class="list">{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>Preserved foundation for identity, permission, knowledge, workflow, automation, memory, and enterprise events.</p></div><span class="status {{ item.status }}">{{ {'connected':'active','unavailable':'waiting','not_configured':'admin only'}.get(item.status,item.status) }}</span></article>{% endfor %}</section>
 {% endblock %}

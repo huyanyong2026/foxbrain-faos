@@ -505,7 +505,7 @@ header a{{text-decoration:none;font-weight:700}}main{{width:min(920px,calc(100% 
 label{{display:block;margin:16px 0 7px;font-weight:700}}input,textarea{{width:100%;padding:13px;border:1px solid #aeb8b0;border-radius:4px;font:inherit}}.choices{{display:flex;flex-wrap:wrap;gap:9px}}.choices label{{margin:0;padding:10px 12px;background:white;border:1px solid #c9d0ca;border-radius:4px;font-weight:500}}
 button,.button{{display:inline-flex;align-items:center;justify-content:center;min-height:46px;margin-top:18px;padding:10px 18px;border:1px solid #17251e;border-radius:4px;background:#17251e;color:white;text-decoration:none;font-weight:700;cursor:pointer}}.button.secondary{{background:transparent;color:#17251e}}.notice{{padding:16px;border-left:3px solid #b34535;background:#fff}}footer{{padding:28px;text-align:center;background:#0d1510;color:#aeb8b0}}
 @media(max-width:640px){{main{{padding-top:28px}}.grid{{grid-template-columns:1fr}}h1{{font-size:42px}}}}
-</style></head><body><header><a href="/">VAFOX Gateway</a><a href="/explorer">我的探索人生</a></header><main>{body}</main><footer>润物细无声。<br><small>FoxBrain Huyan V5 · Build: {build_time} · Commit: {commit}</small></footer></body></html>""".format(title=html.escape(title), body=body, **version_payload("huyan"))
+</style></head><body><header><a href="/">VAFOX Gateway</a><a href="/explorer">我的探索人生</a></header><main>{body}</main><footer>润物细无声。<br><small>VAFOX Huyan Genesis · Build: {build_time} · Commit: {commit}</small></footer></body></html>""".format(title=html.escape(title), body=body, **version_payload("huyan"))
 
 
 class ExplorerHandler(BaseHTTPRequestHandler):

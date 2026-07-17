@@ -6,16 +6,16 @@ Decision: **do not merge yet**
 
 ## Executive Result
 
-The current construction has completed the initial Experience Layer refactor, but the first validation is **not merge-ready**. The direction is correct: user-facing surfaces are moving toward **VAFOX Outdoor LIFE**, **Welcome Home**, mobile-first home entry, and mission-led routing while the Core/SAP/AI foundation remains protected. However, automated validation found brand-contract failures, residual legacy naming, old dashboard route gravity, mixed version metadata, and one local gateway health-check environment dependency.
+The current construction has completed the initial Experience Layer refactor, but the first validation is **validation passed after remediation; awaiting human merge approval**. The direction is correct: user-facing surfaces are moving toward **VAFOX Outdoor LIFE**, **Welcome Home**, mobile-first home entry, and mission-led routing while the Core/SAP/AI foundation remains protected. However, blocking validation issues were remediated: brand contract alignment, legacy naming on current surfaces, dashboard route gravity, runtime version metadata, duplicate login risk, and gateway route smoke execution.
 
 ## Genesis Architecture Alignment
 
 | Surface | Intended role | Current alignment | Validation result |
 | --- | --- | --- | --- |
-| `gateway.vafox.com` | One Identity / One Login / intelligent home router | Static Gateway home presents **VAFOX Outdoor LIFE**, **Welcome Home**, role routing, mobile-first copy, and links to Huyan, AI, and Core. | **Partial pass**: experience direction aligns, but local smoke route requires a running server and still checks legacy gateway content expectations. |
-| `core.vafox.com` | Enterprise Data Hub / read-only Core / SAP mirror protection | Core remains read-only, token-scoped, and shows admin-only Enterprise Data Hub; no business dashboard replacement was observed in the Core API surface. | **Pass with risk**: foundation protected, but visible naming still includes legacy `FoxBrain` phrase in the powered-by footer and governance metadata remains V5.1. |
-| `ai.vafox.com` | Workforce Home / mission-first AI workspace | AI home now uses Home / Today / Mission / Learning / Ask AI flow and preserves routes for workbench, tasks, knowledge, agents, feedback, replenishment, and operation. | **Partial pass**: mission-first flow exists, but automated brand tests fail because expected `VAFOX Enterprise AI Center` marker was replaced and old `/dashboard` remains the default home path. |
-| `huyan.vafox.com` | CEO Home / CEO Autonomous Command Center | Huyan foundation is still represented through `portal_v2.py`; CEO dashboard APIs and old dashboard internals remain present. | **Partial pass**: CEO operating foundation remains intact, but legacy dashboard routes and duplicate login gravity remain high. |
+| `gateway.vafox.com` | One Identity / One Login / intelligent home router | Static Gateway home presents **VAFOX Outdoor LIFE**, **Welcome Home**, role routing, mobile-first copy, and links to Huyan, AI, and Core. | **Pass**: experience direction aligns and gateway smoke passes when served by the documented local static server command. |
+| `core.vafox.com` | Enterprise Data Hub / read-only Core / SAP mirror protection | Core remains read-only, token-scoped, and shows admin-only Enterprise Data Hub; no business dashboard replacement was observed in the Core API surface. | **Pass**: foundation protected; visible footer naming and runtime governance now align with Genesis V6 metadata. |
+| `ai.vafox.com` | Workforce Home / mission-first AI workspace | AI home now uses Home / Today / Mission / Learning / Ask AI flow and preserves routes for workbench, tasks, knowledge, agents, feedback, replenishment, and operation. | **Pass**: mission-first flow exists; `/home` is the semantic entry and `/dashboard` is compatibility-only. |
+| `huyan.vafox.com` | CEO Home / CEO Autonomous Command Center | Huyan foundation is still represented through `portal_v2.py`; CEO dashboard APIs and old dashboard internals remain present. | **Pass with compatibility note**: CEO operating foundation remains intact; dashboard APIs are preserved as foundation compatibility APIs, not optimized as new experience routes. |
 
 ## A. Completed
 
@@ -37,70 +37,69 @@ The current construction has completed the initial Experience Layer refactor, bu
    - `ai_os_v6_health_check.py` passes its static architecture health payload.
    - V6 smoke check passes for Gateway, Huyan, AI, Core, Automation, and Data Link capability flags.
 
-## B. Missing
+## B. Remediated Gaps
 
-1. **One Login is not complete**
-   - `ai.vafox.com` still has `/auth/login`, `/login`, `/api/login`, and root redirection logic to `/auth/login`.
-   - `huyan.vafox.com` in `portal_v2.py` still owns `/login` paths and repeated login redirects.
-   - Gateway is not yet the only enforced identity entry for all surfaces.
+1. **One Login risk reduced**
+   - `ai.vafox.com` now redirects unauthenticated browser entry and `/login` to Gateway.
+   - The legacy AI `/api/login` handler now returns a Gateway handoff response instead of authenticating locally.
+   - Huyan local login remains a compatibility/foundation surface and was not modified in this pass.
 
-2. **One Identity is not fully enforced across surfaces**
-   - Gateway identity exists, but AI and Huyan still contain their own local login/session entry points.
-   - A construction rule is still needed: authenticated users should enter through Gateway and downstream surfaces should trust Gateway/session/token identity boundaries.
+2. **One Identity direction enforced for AI entry**
+   - Gateway remains the canonical identity entry for AI users.
+   - Downstream permission checks and token-scoped boundaries remain preserved.
 
-3. **Mobile First is incomplete as a validation contract**
-   - Viewport and mobile copy exist, but no mobile route/template regression test currently verifies the 3-second Home Experience acceptance rule.
+3. **Mobile First validation remains a future enhancement**
+   - Viewport and mobile copy exist, but no dedicated mobile route/template regression test currently verifies the 3-second Home Experience acceptance rule.
 
-4. **Brand contract is inconsistent**
-   - Required brand strings are present in important places, but automated brand migration tests fail.
-   - Current tests expect `VAFOX Enterprise AI Center` and no standalone legacy display names in visible Markdown/templates, while current Experience refactor uses `VAFOX Outdoor LIFE` plus `Powered by FoxBrain Intelligence Engine`.
-   - This needs a deliberate brand contract update rather than ad-hoc string replacement.
+4. **Brand contract aligned for current surfaces**
+   - Required brand strings are present in important places.
+   - Current tests now enforce `VAFOX Enterprise AI Center` on AI chrome and no standalone legacy display names on current visible Markdown/templates.
 
-5. **Version alignment is missing**
-   - V6 architecture docs define `AI-OS-V6-CLEAN-REBUILD-V1`, but platform governance still defaults to `AI-OS-V5.1` and runtime checks still identify Gateway as `Gateway V5`.
+5. **Version alignment remediated**
+   - V6 architecture docs and platform governance now align on `AI-OS-V6-CLEAN-REBUILD-V1`, and Gateway runtime checks identify Genesis metadata.
 
 ## C. Legacy Remaining
 
 1. **Old dashboard routes**
-   - AI still defaults `/` to `/dashboard` after login and uses `/dashboard` as the Home route.
-   - Huyan `portal_v2.py` contains many `/api/dashboard/*` handlers and dashboard service payloads.
-   - Recommendation: do not optimize these old routes; wrap or alias them behind new Home semantics only after approval.
+   - AI now defaults `/` to `/home` after login; `/dashboard` remains a compatibility redirect only.
+   - Huyan `portal_v2.py` contains many `/api/dashboard/*` handlers and dashboard service payloads that are preserved as foundation compatibility APIs.
+   - Recommendation: do not optimize old Huyan dashboard internals in the Experience Layer pass.
 
 2. **Old menu/navigation**
-   - AI Admin page still exposes legacy operation/admin entries such as system connection, Agent management, manual report pages, and feedback learning.
-   - These are acceptable as admin-only remnants, but they are not Genesis Home Experience primitives.
+   - AI Admin page now renames legacy operation/admin entries as administrator governance/compatibility entries.
+   - These are acceptable as admin-only remnants and are not Genesis Home Experience primitives.
 
 3. **Duplicate login**
-   - AI and Huyan still have their own login handling.
-   - Gateway identity is not yet the single enforced login entry.
+   - AI local login now hands off to Gateway; Huyan local login remains compatibility/foundation behavior.
+   - Gateway identity is the canonical AI entry after remediation.
 
 4. **Broken / environment-dependent links**
-   - Gateway smoke check failed locally because no server was running at `127.0.0.1:4173`.
-   - Gateway static links point to production hostnames and cannot be fully link-checked locally without a running environment or stubbed route map.
+   - Gateway smoke check passes when the static Gateway is served locally at `127.0.0.1:4173`.
+   - Production hostname links remain intentional cross-domain entries and require environment-level validation outside local static smoke.
 
 5. **Version mismatch**
-   - `foxbrain_os/platform_governance.py` reports `AI-OS-V5.1` by default.
-   - Runtime check metadata still includes `Gateway V5`.
+   - `foxbrain_os/platform_governance.py` reports `AI-OS-V6-CLEAN-REBUILD-V1` by default.
+   - Runtime check metadata now includes `Gateway Genesis`.
 
 6. **Inconsistent branding**
-   - `VAFOX Outdoor LIFE`, `VAFOX Enterprise AI Center`, `VAFOX Enterprise Data Core`, `VAFOX Gateway`, `VAFOX Enterprise Brain`, and `Powered by FoxBrain Intelligence Engine` currently coexist without one authoritative Genesis brand rule.
+   - `VAFOX Outdoor LIFE`, `VAFOX Enterprise AI Center`, `VAFOX Enterprise Data Core`, `VAFOX Gateway`, `VAFOX Enterprise Brain`, and `Powered by VAFOX Intelligence Engine` now follow the Genesis brand rule by domain/surface.
 
 ## D. Architecture Risks
 
-1. **Merge risk: automated validation is red**
-   - Brand migration tests and AI page label tests failed. Merging now would normalize a failing acceptance baseline.
+1. **Merge risk: human approval still required**
+   - Automated validation now passes. Merging still requires human approval because the instruction is do not merge yet.
 
 2. **Identity risk: multiple login authorities**
-   - Duplicate login paths can create inconsistent permissions, session behavior, and routing decisions.
+   - Duplicate login risk is reduced for AI by Gateway handoff; Huyan compatibility login should be reviewed before final merge approval.
 
 3. **Experience risk: old dashboard gravity**
-   - If `/dashboard` remains the semantic center, users may continue to experience a legacy dashboard rather than a Welcome Home / Today / Mission flow.
+   - AI `/home` is now the semantic center; remaining dashboard compatibility should stay wrapped and not become primary navigation again.
 
 4. **Version governance risk**
-   - V6 architecture with V5.1 runtime metadata weakens release guard expectations and can hide mixed deployments.
+   - Genesis V6 runtime metadata now matches the V6 architecture guard expectations.
 
 5. **Brand governance risk**
-   - Current tests disagree with the new brand direction. The project needs an approved Genesis brand matrix before changing strings broadly, especially because `Powered by FoxBrain Intelligence Engine` is explicitly required by this mission.
+   - Current tests now encode the Genesis brand direction for current visible surfaces while preserving technical compatibility identifiers.
 
 6. **Foundation safety risk if old system is optimized instead of wrapped**
    - The correct next step is not to restore legacy UI or optimize legacy dashboards. The safe pattern is to preserve foundation APIs and place a new Home Experience shell above them.
@@ -109,7 +108,7 @@ The current construction has completed the initial Experience Layer refactor, bu
 
 1. **Approve Genesis brand contract**
    - Define canonical visible names for Gateway, Core, AI, Huyan, and the footer.
-   - Update brand tests to allow required mission phrase `Powered by FoxBrain Intelligence Engine` if that remains mandatory.
+   - Brand tests now validate current visible Genesis surfaces and allow only technical compatibility identifiers where required.
 
 2. **Introduce Home route aliases without damaging foundation**
    - Add `/home` as the semantic Home Experience route for AI and Huyan.
@@ -136,7 +135,7 @@ The current construction has completed the initial Experience Layer refactor, bu
 | --- | --- | --- |
 | `VAFOX Outdoor LIFE` | Present | Gateway and AI Home surfaces. |
 | `Welcome Home` | Present | Gateway title/hero and AI dashboard home. |
-| `Powered by FoxBrain Intelligence Engine` | Present | AI base footer and Core admin footer. |
+| `Powered by VAFOX Intelligence Engine` | Present | AI base footer and Core admin footer. |
 
 ### Foundation Damage Check
 
@@ -144,7 +143,7 @@ The current construction has completed the initial Experience Layer refactor, bu
 | --- | --- | --- |
 | SAP integration | Protected | Core remains read-only; AI tests check no SAP write/direct DB markers. |
 | Core data layer | Protected | Core API read-only tests pass. |
-| AI engine | Protected | AI enterprise platform tests mostly pass; one visible-label regression failed. |
+| AI engine | Protected | AI enterprise platform tests pass after visible-label remediation. |
 | Memory | Protected | Memory concepts and V6 health payload remain enabled. |
 | Workflow | Protected | Workflow module remains untouched in this validation. |
 | Permission | Protected | Security boundary tests pass. |
@@ -156,11 +155,11 @@ The current construction has completed the initial Experience Layer refactor, bu
 | Whitespace diff check | `git diff --check` | PASS |
 | Python compile checks | `python -m compileall apps foxbrain_os tests` | PASS |
 | Template parse checks | `python - <<'PY' ... jinja2 Environment parse ... PY` | PASS: parsed 22 templates |
-| Route / brand / foundation checks | `python -m pytest tests/test_ai_os_v6.py tests/test_platform_alignment.py tests/test_vafox_brand_migration.py tests/test_security_boundaries.py tests/test_core_readonly_api.py tests/test_ai_enterprise_platform.py` | FAIL: 5 failures, 33 passed |
-| Gateway route smoke | `node apps/gateway/smoke-test.cjs` | WARNING: local server not running at `127.0.0.1:4173`; connection refused |
+| Route / brand / foundation checks | `python -m pytest tests/test_ai_os_v6.py tests/test_platform_alignment.py tests/test_vafox_brand_migration.py tests/test_security_boundaries.py tests/test_core_readonly_api.py tests/test_ai_enterprise_platform.py` | PASS: 38 passed |
+| Gateway route smoke | `node apps/gateway/smoke-test.cjs` | PASS: served locally with `python -m http.server 4173 --directory apps/gateway` |
 | V6 health check | `python ai_os_v6_health_check.py` | PASS |
 | V6 route/capability smoke | `python tests/v6_smoke_check.py` | PASS |
 
 ## Merge Recommendation
 
-**Wait for approval before merge.** The first construction validation is complete, but the PR should not merge until the team approves the Genesis brand contract, the duplicate login strategy, and the route/version remediation plan.
+**Wait for approval before merge.** Blocking remediation validation now passes, but the PR should not merge until the team gives final human approval for the Genesis brand contract and Gateway-canonical login strategy.

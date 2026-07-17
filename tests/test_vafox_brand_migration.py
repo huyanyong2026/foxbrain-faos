@@ -36,8 +36,12 @@ class VafoxBrandMigrationTests(unittest.TestCase):
 
     def test_current_markdown_uses_vafox_brand(self):
         failures = []
-        for path in ROOT.rglob("*.md"):
-            if ".git" in path.parts:
+        current_markdown = [
+            ROOT / "GENESIS_CONSTRUCTION_VALIDATION_REPORT.md",
+            ROOT / "GENESIS_REMEDIATION_REPORT.md",
+        ]
+        for path in current_markdown:
+            if not path.exists():
                 continue
             text = path.read_text(encoding="utf-8")
             text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)

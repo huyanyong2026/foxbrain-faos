@@ -12,8 +12,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-RELEASE_VERSION = "AI-OS-V5.1"
-SYSTEM_NAME = "FoxBrain"
+RELEASE_VERSION = "AI-OS-V6-CLEAN-REBUILD-V1"
+SYSTEM_NAME = "VAFOX"
 _METADATA_FILE = Path(os.environ.get("FOXBRAIN_DEPLOYMENT_METADATA", "deployment.json"))
 
 
@@ -80,7 +80,7 @@ RUNTIME_CHECKS = {
         "route_status": "enabled",
         "identity_service_status": "enabled",
         "runtime_status": "running",
-        "gateway_version": "Gateway V5",
+        "gateway_version": "Gateway Genesis",
     },
     "huyan": {
         "display_service": "Huyan",
@@ -132,7 +132,7 @@ def health_payload(service: str, checks: dict) -> dict:
 def control_tower_status(release_version: str | None = None, last_deploy: str | None = None) -> dict:
     metadata = _deployment_metadata()
     return {
-        "platform": "FoxBrain Enterprise OS",
+        "platform": "VAFOX Enterprise OS",
         "release_version": release_version or os.environ.get("FOXBRAIN_VERSION", metadata.get("version", RELEASE_VERSION)),
         "commit": os.environ.get("GIT_COMMIT") or metadata.get("commit") or current_commit(),
         "last_deploy": last_deploy or os.environ.get("LAST_DEPLOY") or metadata.get("deploy_time", "pending_ci_deploy"),
