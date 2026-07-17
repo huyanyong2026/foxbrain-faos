@@ -1,7 +1,8 @@
 const baseUrl = (process.env.GATEWAY_URL || "http://127.0.0.1:4173/").replace(/\/$/, "");
 
 const requiredContent = [
-  "向外探索",
+  "欢迎回家",
+  "VAFOX Identity Center",
   "VAFOX Story",
   "Adventure",
   "Brand Universe",
