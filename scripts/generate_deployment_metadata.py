@@ -22,7 +22,7 @@ def main() -> int:
     build_time = os.environ.get("BUILD_TIME", now())
     payload = {
         "system": "FoxBrain",
-        "version": os.environ.get("FOXBRAIN_VERSION", "AI-OS-V4.0"),
+        "version": os.environ.get("FOXBRAIN_VERSION", "AI-OS-V6-CLEAN-REBUILD-V1"),
         "release": os.environ.get("FOXBRAIN_RELEASE", "production"),
         "commit": git_commit(),
         "build_time": build_time,
