@@ -122,3 +122,26 @@ const applyPublicStores = async () => {
 };
 
 applyPublicStores();
+
+const identityForm = document.querySelector('[data-identity-form]');
+if (identityForm) {
+  identityForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const status = identityForm.querySelector('[data-identity-status]');
+    const data = Object.fromEntries(new FormData(identityForm).entries());
+    status.textContent = 'Verifying identity and resolving VID…';
+    try {
+      const response = await fetch('/identity/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'login_failed');
+      status.innerHTML = `VID resolved: <strong>${payload.vid}</strong><br>Role: ${payload.roles.join(', ')}<br>Home: ${payload.route}<br>No manual system selection.`;
+    } catch (error) {
+      status.textContent = `Identity verification unavailable: ${error.message}`;
+    }
+  });
+}

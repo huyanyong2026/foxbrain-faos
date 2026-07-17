@@ -47,11 +47,58 @@
         <h1 id="hero-title">🔥 VAFOX Outdoor LIFE<br>Welcome Home.</h1>
         <p class="hero-copy">One Identity. One Login. One Home. Start Today.</p>
         <div class="hero-actions">
-          <a class="button button-light" href="#adventure">向外探索 · Start Today <span aria-hidden="true">→</span></a>
-          <a class="text-link text-link-light" href="#story">Identity loads context automatically <span aria-hidden="true">↘</span></a>
+          <a class="button button-light" href="#identity-login">Login · 欢迎回家 <span aria-hidden="true">→</span></a>
+          <a class="text-link text-link-light" href="#identity-flow">Identity verification → VID resolution → automatic routing <span aria-hidden="true">↘</span></a>
         </div>
       </div>
       <a class="scroll-cue" href="#story" aria-label="继续向下浏览"><span>继续</span><b aria-hidden="true">↓</b></a>
+    </section>
+
+
+    <section class="identity-login section" id="identity-login" aria-labelledby="identity-login-title">
+      <div class="section-inner identity-grid reveal">
+        <div>
+          <p class="eyebrow dark">🔥 火狐狸 VAFOX</p>
+          <h2 id="identity-login-title">欢迎回家</h2>
+          <p class="lead">One person. One VID. Multiple roles. Gateway verifies credentials, resolves identity, loads context, and routes each person home without manual system selection.</p>
+          <p>VAFOX Outdoor LIFE · On the way · 一路有你</p>
+        </div>
+        <form class="identity-card" data-identity-form>
+          <label>Credential
+            <select name="credential_type">
+              <option value="mobile_phone">Mobile phone</option>
+              <option value="wechat">WeChat</option>
+              <option value="enterprise_wechat">Enterprise WeChat</option>
+              <option value="erp_employee_id">ERP Employee ID</option>
+              <option value="membership_id">Membership ID</option>
+              <option value="supplier_id">Supplier ID</option>
+              <option value="brand_id">Brand ID</option>
+            </select>
+          </label>
+          <label>Identity proof
+            <input name="credential_value" type="text" inputmode="text" autocomplete="username" placeholder="手机号 / WeChat / Employee ID" required>
+          </label>
+          <label>Role hint
+            <select name="role_hint">
+              <option value="employee">Employee</option>
+              <option value="ceo">Founder / CEO</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </label>
+          <button class="button button-dark" type="submit">Login <span aria-hidden="true">→</span></button>
+          <output class="identity-status" data-identity-status>Identity verification will resolve VID and route home.</output>
+        </form>
+      </div>
+    </section>
+
+    <section class="identity-flow section" id="identity-flow" aria-labelledby="identity-flow-title">
+      <div class="section-inner reveal">
+        <p class="eyebrow dark">Identity Flow</p>
+        <h2 id="identity-flow-title">Login → Verification → VID → Role → Context → Home</h2>
+        <div class="identity-steps" role="list">
+          <span role="listitem">Identity verification</span><span role="listitem">VID resolution</span><span role="listitem">Role recognition</span><span role="listitem">Context loading</span><span role="listitem">Automatic routing</span>
+        </div>
+      </div>
     </section>
 
     <section class="story section" id="story" aria-labelledby="story-title">
@@ -182,8 +229,8 @@
 
   <footer>
     <a class="wordmark footer-mark" href="#top"><img class="wordmark-logo" src="assets/images/vafox-logo.png" alt="" width="28" height="36" loading="lazy"><span>VAFOX</span></a>
-    <p>润物细无声。</p>
-    <small>© 2026 VAFOX Identity Center · VAFOX AI OS V6 · Build: __BUILD_TIME__ · Commit: __GIT_COMMIT__</small>
+    <p>On the way · 一路有你</p>
+    <small>Powered by FoxBrain Intelligence Engine · Build: __BUILD_TIME__ · Commit: __GIT_COMMIT__</small>
   </footer>
 
   <dialog id="story-dialog" class="content-dialog">
