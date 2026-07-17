@@ -1224,6 +1224,11 @@ def replenishment_center():
     )
 
 
+@app.get("/supply")
+def supply_home_alias():
+    return redirect("/replenishment")
+
+
 @app.get("/replenishment/stores/<store_code>")
 @replenishment_required
 def replenishment_store(store_code):
@@ -1604,6 +1609,11 @@ def operation_home():
     if not (permission_allowed("replenishment.read") or permission_allowed("inventory.read")):
         abort(403)
     return render_template("operation_home.html", user=current_user())
+
+
+@app.get("/store")
+def store_home_alias():
+    return redirect("/operation")
 
 
 @app.get("/operation/replenishment")

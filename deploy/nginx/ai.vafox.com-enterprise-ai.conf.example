@@ -10,7 +10,7 @@ location = / {
     add_header Cache-Control "no-store" always;
 }
 
-location ~ ^/(login|home|dashboard|version|health/version|health/runtime)$ {
+location ~ ^/(login|home|dashboard|version|health/version|health/runtime|supply|store)$ {
     proxy_pass http://127.0.0.1:5010;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
