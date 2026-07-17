@@ -175,8 +175,6 @@ services:
     restart: unless-stopped
     ports:
       - "${NGINX_LOOPBACK_PORT:-127.0.0.1:8088}:80"
-    expose:
-      - "80"
     volumes:
       - ./infra/nginx/huyan.vafox.com.conf:/etc/nginx/conf.d/default.conf:ro
       - ./data/certbot/www:/var/www/certbot
