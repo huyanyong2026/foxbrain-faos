@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: foxbrain-v4:${FOXBRAIN_VERSION:-0.20.5}
+    image: vafox-genesis:${FOXBRAIN_VERSION:-AI-OS-V6-CLEAN-REBUILD-V1}
     container_name: foxbrain-web
     restart: unless-stopped
     env_file:
@@ -36,7 +36,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: foxbrain-v4:${FOXBRAIN_VERSION:-0.20.5}
+    image: vafox-genesis:${FOXBRAIN_VERSION:-AI-OS-V6-CLEAN-REBUILD-V1}
     container_name: foxbrain-api
     restart: unless-stopped
     env_file:
@@ -66,7 +66,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: foxbrain-v4:${FOXBRAIN_VERSION:-0.20.5}
+    image: vafox-genesis:${FOXBRAIN_VERSION:-AI-OS-V6-CLEAN-REBUILD-V1}
     container_name: foxbrain-worker
     restart: unless-stopped
     env_file:
