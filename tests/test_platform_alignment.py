@@ -4,6 +4,7 @@ from foxbrain_os.platform_alignment import platform_manifest, validate_manifest
 def test_enterprise_os_manifest_covers_all_platforms():
     manifest = platform_manifest()
     assert manifest["version"] == "0.20.5"
+    assert manifest["release_name"].startswith("VAFOX Enterprise OS")
     assert set(manifest["platforms"]) == {"core", "ai", "huyan", "gateway"}
     assert manifest["data_chain"] == "SAP B1 -> SAP Mirror -> Core -> Gateway/Huyan/AI"
 
