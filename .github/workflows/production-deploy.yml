@@ -20,9 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-      PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-      PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+      PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST || secrets.SERVER_HOST }}
+      PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER || secrets.SERVER_USER }}
+      PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH || '/opt/foxbrain' }}
+      PRODUCTION_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || secrets.SERVER_PORT || '22' }}
       FOXBRAIN_VERSION: AI-OS-V6-CLEAN-REBUILD-V1
       GIT_COMMIT: ${{ github.sha }}
       BUILD_TIME: ${{ github.run_started_at }}
@@ -65,21 +66,34 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for name in PRODUCTION_SSH_HOST PRODUCTION_SSH_USER PRODUCTION_DEPLOY_PATH; do
+          for name in PRODUCTION_SSH_HOST PRODUCTION_SSH_USER PRODUCTION_DEPLOY_PATH PRODUCTION_SSH_PORT; do
             if [ -z "${!name}" ]; then
-              echo "::error title=Missing production secret::Required GitHub Secret ${name} is not configured. Add it in repository or environment secrets before deploying."
+              echo "::error title=Missing production deployment value::Required production deployment value ${name} is not configured. Configure the PRODUCTION_* secret, or keep the supported legacy SERVER_* secret fallback."
               missing=1
             fi
           done
-          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
-            echo "::error title=Missing production secret::Required GitHub Secret PRODUCTION_SSH_KEY is not configured. Add the private deploy key in repository or environment secrets before deploying."
+          if [ -z "${{ secrets.PRODUCTION_SSH_KEY || secrets.SERVER_SSH_KEY }}" ]; then
+            echo "::error title=Missing production deployment value::Required production SSH private key is not configured. Configure PRODUCTION_SSH_KEY, or keep the supported legacy SERVER_SSH_KEY fallback."
             missing=1
           fi
           if [ "$missing" -ne 0 ]; then
-            echo "Production deployment cannot continue until all required secrets exist: PRODUCTION_SSH_HOST, PRODUCTION_SSH_USER, PRODUCTION_SSH_KEY, PRODUCTION_DEPLOY_PATH."
+            echo "Production deployment cannot continue until the SSH host, user, key, port, and deploy path resolve from PRODUCTION_* secrets or legacy SERVER_* fallbacks."
             exit 1
           fi
-          echo "All required production deployment secrets are configured."
+          case "$PRODUCTION_DEPLOY_PATH" in
+            /*) ;;
+            *)
+              echo "::error title=Invalid production deploy path::PRODUCTION_DEPLOY_PATH must resolve to an absolute path. Current value is '${PRODUCTION_DEPLOY_PATH}'."
+              exit 1
+              ;;
+          esac
+          case "$PRODUCTION_SSH_PORT" in
+            ''|*[!0-9]*)
+              echo "::error title=Invalid production SSH port::PRODUCTION_SSH_PORT must resolve to a numeric TCP port. Current value is '${PRODUCTION_SSH_PORT}'."
+              exit 1
+              ;;
+          esac
+          echo "Production deployment target resolved: ${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}:${PRODUCTION_SSH_PORT}${PRODUCTION_DEPLOY_PATH}."
 
       - name: Validate Docker Compose with safe CI environment
         run: |
@@ -100,9 +114,9 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/production_deploy_key
+          printf '%s\n' "${{ secrets.PRODUCTION_SSH_KEY || secrets.SERVER_SSH_KEY }}" > ~/.ssh/production_deploy_key
           chmod 600 ~/.ssh/production_deploy_key
-          ssh-keyscan -H "$PRODUCTION_SSH_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$PRODUCTION_SSH_PORT" -H "$PRODUCTION_SSH_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy on production server
@@ -111,6 +125,7 @@ jobs:
           set -euo pipefail
           quoted_deploy_path="$(printf '%q' "$PRODUCTION_DEPLOY_PATH")"
           ssh -i ~/.ssh/production_deploy_key \
+            -p "$PRODUCTION_SSH_PORT" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}" \
