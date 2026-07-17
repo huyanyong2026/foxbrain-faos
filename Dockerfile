@@ -25,6 +25,6 @@ RUN mkdir -p /data/firefox-portal/uploads /app/logs
 EXPOSE 3000 8000 8088
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD-SHELL curl -fsS "http://127.0.0.1:${PORT:-8088}/api/health" || exit 1
+  CMD curl -fsS http://127.0.0.1:${PORT:-8088}/api/health || exit 1
 
 CMD ["python", "portal_v2.py"]
