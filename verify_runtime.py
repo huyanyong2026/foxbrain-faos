@@ -8,7 +8,9 @@ import os
 import urllib.error
 import urllib.request
 
-EXPECTED_VERSION = os.environ.get("FOXBRAIN_EXPECTED_VERSION", "AI-OS-V5")
+from foxbrain_os.platform_governance import RELEASE_VERSION
+
+EXPECTED_VERSION = os.environ.get("FOXBRAIN_EXPECTED_VERSION", RELEASE_VERSION)
 DEFAULT_ENDPOINTS = {
     "gateway": "https://gateway.vafox.com/health/runtime",
     "huyan": "https://huyan.vafox.com/health/runtime",
