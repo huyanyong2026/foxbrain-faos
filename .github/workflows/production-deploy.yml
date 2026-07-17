@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  deployments: write
 
 concurrency:
   group: production-deploy
@@ -31,11 +32,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify release commit
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GIT_COMMIT"
+          git status --short
+          test -z "$(git status --porcelain)"
+          git log --format='release commit: %H %s' -n 1 "$GIT_COMMIT"
+
       - name: Validate workflow deployment scripts
         run: python3 .github/scripts/check_workflow_scripts.py
 
-      - name: Generate deployment metadata
-        run: python scripts/generate_deployment_metadata.py
+      - name: Run release tests
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          python -m pytest \
+            tests/test_ai_os_v6.py \
+            tests/test_core_readonly_api.py
+
+      - name: Generate release metadata
+        run: |
+          set -euo pipefail
+          python scripts/generate_deployment_metadata.py
+          python -m json.tool deployment.json >/dev/null
+          test "$(python -c 'import json; print(json.load(open("deployment.json"))["commit"])')" = "$GIT_COMMIT"
         env:
           FOXBRAIN_ENV: production
 
@@ -59,6 +81,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy on production server
+        id: deploy
         run: |
           set -euo pipefail
           quoted_deploy_path="$(printf '%q' "$PRODUCTION_DEPLOY_PATH")"
@@ -71,6 +94,9 @@ jobs:
 
           cd "$PRODUCTION_DEPLOY_PATH"
           previous_commit="$(git rev-parse HEAD || true)"
+          rollback_file="/tmp/foxbrain-production-rollback-${GIT_COMMIT}.sh"
+          printf '%s\n' "#!/usr/bin/env bash" "set -euo pipefail" "cd '$PRODUCTION_DEPLOY_PATH'" "git checkout '$previous_commit'" "docker compose up -d --build --remove-orphans" > "$rollback_file"
+          chmod 700 "$rollback_file"
           export GIT_COMMIT BUILD_TIME DEPLOY_TIME FOXBRAIN_VERSION
           export FOXBRAIN_ENV=production FOXBRAIN_SYSTEM=VAFOX
 
@@ -115,5 +141,23 @@ jobs:
           curl -fsS http://127.0.0.1:8088/health/runtime >/tmp/vafox-runtime.json
           python scripts/verify_release_runtime.py --expected-commit "$GIT_COMMIT" --expected-version "$FOXBRAIN_VERSION"
           trap - ERR
+          rm -f "$rollback_file"
           echo "Deployment completed for $GIT_COMMIT."
           REMOTE_DEPLOY
+
+      - name: Verify public production runtime
+        run: |
+          set -euo pipefail
+          python scripts/verify_release_runtime.py --expected-commit "$GIT_COMMIT" --expected-version "$FOXBRAIN_VERSION"
+
+      - name: Report production deployment failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Production deployment failed"
+            echo ""
+            echo "- Commit: ${GIT_COMMIT}"
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- Rollback: the remote deploy trap automatically restores the previous checked-out release when the deploy step fails before completion."
+          } >> "$GITHUB_STEP_SUMMARY"
