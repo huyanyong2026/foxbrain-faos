@@ -1,16 +1,63 @@
 {% extends "base.html" %}
-{% block title %}Huyan V6｜CEO Autonomous Command Center{% endblock %}
+{% block title %}{% if user and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}VAFOX CEO Home{% else %}VAFOX Workforce Home{% endif %}{% endblock %}
 {% block content %}
-<section class="hero os-hero"><div><p class="eyebrow">FoxBrain AI OS V6 · CEO Today Center</p><h1>早上好，呼总。AI 已完成今日企业态势理解。</h1><p>Huyan 不再是人工浏览式 Dashboard，而是 CEO 自主指挥中心：AI 汇总 Core Enterprise Digital Twin，报告重点事件、风险、机会与建议行动，最终由 CEO 决策。</p></div><a class="primary" href="/ceo/strategy">进入 CEO Decision Center</a></section>
+<section class="home-hero">
+  <div>
+    <p class="eyebrow">🔥 火狐狸 VAFOX · On the way · 一路有你</p>
+    <h1>Welcome Home.</h1>
+    <p>VAFOX Outdoor LIFE starts from identity, understands today, creates mission, connects community, and lets AI help without manual selectors.</p>
+  </div>
+  <div class="home-card identity-card">
+    <span>WHO AM I</span>
+    <strong>{{ user.real_name or user.display_name }}</strong>
+    <small>VID · One Identity · One Home</small>
+  </div>
+</section>
+
 {% if ceo_snapshot and ('*' in user.identity.permissions or 'ai.ceo' in user.identity.permissions) %}
-<section class="section-head"><div><p class="eyebrow">Enterprise Health Score</p><h2>企业健康</h2></div><span class="status active">Core → AI → Huyan</span></section>
-<section class="health-grid"><article class="health-main health-card"><span>Enterprise Health</span><strong>{{ ceo_snapshot.enterprise_health_score }}</strong><small>Risk {{ ceo_snapshot.risk_level }} · {{ ceo_snapshot.as_of }}</small></article>{% for dimension in ceo_snapshot.health_dimensions %}<article class="health-card"><span>{{ dimension }}</span><strong>{{ [92,88,84,86,82,90,87][loop.index0] }}</strong><small>AI monitored</small></article>{% endfor %}</section>
-<section class="ux-grid two-one"><article class="panel ai-card"><p class="eyebrow">Daily Executive Briefing</p><h2>发生什么 → 为什么 → 影响 → 建议行动</h2>{% for item in ceo_snapshot.briefing.what_happened[:3] %}<p><strong>{{ item.area }}</strong>：{{ item.summary }}</p>{% endfor %}<h3>为什么</h3><ul>{% for item in ceo_snapshot.briefing.why_happened[:2] %}<li>{{ item }}</li>{% endfor %}</ul><h3>建议行动</h3><ul>{% for action in ceo_snapshot.briefing.what_should_do_next %}<li>{{ action.priority }} · {{ action.action }} — {{ action.expected_impact }}</li>{% endfor %}</ul></article><article class="panel risk-card"><p class="eyebrow">AI Risk Radar</p><h2>风险雷达</h2>{% for risk in ceo_snapshot.risks %}<div class="signal"><b>{{ risk.risk }}</b><span class="status {{ 'unavailable' if risk.level == 'High' else 'active' }}">{{ risk.level }}</span><p>{{ risk.reason }}</p><small>{{ risk.recommendation }}</small></div>{% endfor %}</article></section>
-<section class="ux-grid"><article class="panel opportunity-card"><p class="eyebrow">AI Opportunity Radar</p><h2>机会雷达</h2>{% for item in ceo_snapshot.opportunities %}<div class="signal"><b>{{ item.opportunity }}</b><p>{{ item.reason }}</p><small>{{ item.recommended_action }}</small></div>{% endfor %}</article><article class="panel decision-card"><p class="eyebrow">CEO Decision Center</p><h2>{{ ceo_snapshot.decision_center.problem }}</h2><p><strong>AI Analysis：</strong>{{ ceo_snapshot.decision_center.analysis }}</p><ol>{% for option in ceo_snapshot.decision_center.options %}<li><strong>{{ option.name }}</strong>：{{ option.tradeoff }}</li>{% endfor %}</ol><p><strong>Recommendation：</strong>{{ ceo_snapshot.decision_center.recommendation }}</p><small>{{ ceo_snapshot.decision_center.expected_result }}</small></article><article class="panel task-card"><p class="eyebrow">Recommended Actions</p><h2>CEO 待决策行动</h2>{% for action in ceo_snapshot.briefing.what_should_do_next %}<div class="signal"><b>{{ action.priority }} · {{ action.action }}</b><small>{{ action.expected_impact }}</small></div>{% endfor %}</article></section>
-<section class="section-head"><div><p class="eyebrow">Enterprise Data Pipeline Status</p><h2>自动数据状态</h2></div><span class="status active">No manual data update display</span></section>
-<section class="task-status">{% for item in ceo_snapshot.pipeline_status %}<div><span>{{ item.name }}</span><strong>✓ {{ item.status }}</strong><small>{{ item.detail }}</small></div>{% endfor %}</section>
-<section class="ux-grid two-one"><article class="panel agent-card"><p class="eyebrow">AI Router Integration</p><h2>自动多 Agent 路由</h2><p>{{ ceo_snapshot.ai_router.route }}</p><div class="agent-line"><b>Mode</b><span>{{ ceo_snapshot.ai_router.mode }}</span><small>CEO 无需手动选择 Agent。</small></div>{% for agent in ceo_snapshot.ai_router.agents %}<div class="agent-line"><b>{{ agent }}</b><span>Ready</span><small>由 Huyan 问题自动触发。</small></div>{% endfor %}</article><article class="panel health-card"><p class="eyebrow">Core Data Connection</p><h2>Core Enterprise Digital Twin</h2><p>SAP → Core → AI → Huyan。页面只展示 Core/AI 生成的企业事实、风险、机会与决策建议。</p></article></section>
+<section class="home-stack">
+  <article class="home-panel mission-panel">
+    <p class="eyebrow">VAFOX CEO Home</p>
+    <h2>Enterprise Today</h2>
+    <p>AI Briefing has read the Enterprise Data Hub and prepared today's decisions, risks, opportunities, and growth signals.</p>
+    <div class="today-priority"><b>Enterprise Health</b><strong>{{ ceo_snapshot.enterprise_health_score }}</strong><span>{{ ceo_snapshot.risk_level }} · {{ ceo_snapshot.as_of }}</span></div>
+  </article>
+  <article class="home-panel">
+    <p class="eyebrow">Today's Decisions</p>
+    <h2>{{ ceo_snapshot.decision_center.problem }}</h2>
+    <p>{{ ceo_snapshot.decision_center.recommendation }}</p>
+    <a class="primary" href="/ceo/strategy">Open AI Briefing</a>
+  </article>
+</section>
+<section class="home-grid">
+  <article class="home-panel"><p class="eyebrow">Today's Risks</p>{% for risk in ceo_snapshot.risks[:3] %}<div class="home-signal"><b>{{ risk.risk }}</b><small>{{ risk.reason }}</small></div>{% endfor %}</article>
+  <article class="home-panel"><p class="eyebrow">Today's Opportunities</p>{% for item in ceo_snapshot.opportunities[:3] %}<div class="home-signal"><b>{{ item.opportunity }}</b><small>{{ item.recommended_action }}</small></div>{% endfor %}</article>
+  <article class="home-panel"><p class="eyebrow">Today's Growth</p><h2>Community + Learning</h2><p>Grow leaders, stores, suppliers, brands, customers, clubs, coaches, and creators in one Outdoor LIFE community.</p></article>
+</section>
+{% else %}
+<section class="home-stack">
+  <article class="home-panel mission-panel">
+    <p class="eyebrow">VAFOX Workforce Home</p>
+    <h2>Today's Mission</h2>
+    <p>AI automatically understands intent, selects agents, reads the Enterprise Data Hub, creates tasks, and updates memory.</p>
+    <div class="today-priority"><b>Start Today</b><strong>{{ metrics.pending_tasks }}</strong><span>missions waiting for human approval</span></div>
+  </article>
+  <article class="home-panel">
+    <p class="eyebrow">Need Help?</p>
+    <h2>Ask AI.</h2>
+    <p>No Agent Selector. No Object Selector. No Source Selector. Say what you need; FoxBrain routes the work.</p>
+    <a class="primary" href="/workbench">Ask AI</a>
+  </article>
+</section>
+<section class="home-grid">
+  <article class="home-panel"><p class="eyebrow">Today's Growth</p><h2>Learn one useful thing.</h2><p>Role-based learning turns daily work into capability growth.</p></article>
+  <article class="home-panel"><p class="eyebrow">Today's Learning</p><h2>Enterprise Memory</h2><p>Approved knowledge and feedback become reusable memory.</p></article>
+  <article class="home-panel"><p class="eyebrow">Today's Community</p><h2>Outdoor LIFE Community</h2><p>Employees, customers, suppliers, brands, clubs, coaches, leaders, and creators belong to the same HOME.</p></article>
+</section>
 {% endif %}
-<section class="metrics"><article><span>AI Team</span><strong>{{ metrics.agents }}</strong></article><article><span>Running / Pending AI</span><strong>{{ metrics.pending_runs }}</strong></article><article><span>Human Approvals</span><strong>{{ metrics.pending_tasks }}</strong></article><article><span>Knowledge</span><strong>{{ metrics.knowledge }}</strong></article></section>
-<section class="section-head"><div><p class="eyebrow">Enterprise Connections</p><h2>数据与决策链路</h2></div></section><section class="list">{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>{{ '只读企业事实' if item.access_mode == 'read_only' else '确认后交换' if item.access_mode == 'approved_exchange' else '安全回调连接' }}</p></div><span class="status {{ item.status }}">{{ {'connected':'已连接','unavailable':'暂不可用','not_configured':'待配置'}.get(item.status,item.status) }}</span></article>{% endfor %}</section>
+
+<section class="mobile-principle"><b>Mobile First</b><span>Open phone → know today's priorities within 3 seconds.</span></section>
+<section class="metrics home-metrics"><article><span>AI Team</span><strong>{{ metrics.agents }}</strong></article><article><span>Running / Pending AI</span><strong>{{ metrics.pending_runs }}</strong></article><article><span>Human Approvals</span><strong>{{ metrics.pending_tasks }}</strong></article><article><span>Knowledge</span><strong>{{ metrics.knowledge }}</strong></article></section>
+<section class="section-head"><div><p class="eyebrow">Preserved Capability Layer</p><h2>Enterprise Data Hub → FoxBrain Intelligence</h2></div><span class="status active">No business capability rebuilt</span></section>
+<section class="list">{% for item in connections %}<article class="row"><div><strong>{{ item.name }}</strong><p>Preserved foundation for identity, permission, knowledge, workflow, automation, memory, and enterprise events.</p></div><span class="status {{ item.status }}">{{ {'connected':'active','unavailable':'waiting','not_configured':'admin only'}.get(item.status,item.status) }}</span></article>{% endfor %}</section>
 {% endblock %}
