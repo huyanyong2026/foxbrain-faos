@@ -1,0 +1,65 @@
+agent_id: agt_ceo_decision_phase1_001
+name: VAFOX CEO Agent
+version: 0.1.0
+status: Draft
+capability:
+  levels:
+    - Analyze
+    - Recommend
+  allowed_actions:
+    - report_analysis
+    - executive_summary
+    - decision_template
+  prohibited_actions:
+    - ssh
+    - remote_access
+    - huyan_access
+    - ai_access
+    - core_access
+    - sap_access
+    - database_operation
+    - tencent_cloud_access
+    - production_modification
+    - data_modification
+    - automatic_business_execution
+permission_level: L1
+data_scope:
+  classification: approved_existing_local_reports_only
+  allowed_sources:
+    - VAFOX-Control/reports/existing_approved_reports
+    - approved_agent_registry_metadata
+  prohibited_data:
+    - remote_data
+    - production_telemetry
+    - server_logs
+    - network_configuration
+    - database_data
+    - raw_business_data
+    - personal_sensitive_information
+    - credentials
+    - secrets
+    - tokens
+execution_scope:
+  environment: vafox_control_local_only
+  mode: offline_read_only_decision_analysis
+  remote_access: prohibited
+  permitted_operations:
+    - read_existing_approved_reports_from_VAFOX-Control/reports
+    - analyze_report_content
+    - generate_executive_summary
+    - generate_decision_template
+  prohibited_operations:
+    - ssh
+    - remote_access
+    - huyan_access
+    - ai_access
+    - core_access
+    - sap_access
+    - database_operation
+    - tencent_cloud_access
+    - production_modification
+    - data_modification
+    - automatic_business_execution
+    - workflow_trigger
+approval_required: true
+audit_enabled: true
