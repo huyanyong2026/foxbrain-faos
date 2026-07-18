@@ -18,6 +18,34 @@ KEEP_RUNTIME="${KEEP_RUNTIME:-0}"
 KEEP_FAILED_RELEASE="${KEEP_FAILED_RELEASE:-0}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
 
+usage() {
+  cat <<'USAGE'
+AI Genesis candidate build tooling
+
+Usage:
+  bash ai_genesis_candidate_build.sh --help
+  bash ai_genesis_candidate_build.sh [candidate-build options via environment variables]
+
+Safety guardrails:
+  - Candidate-only validation; no production cutover.
+  - Does not change /opt/ai-vafox/current-enterprise-ai.
+  - Requires current-enterprise-ai -> releases/fba3c17 before candidate build execution.
+  - No production data migration is performed by this script.
+
+Common environment variables:
+  PROD_ROOT=/opt/ai-vafox
+  EXPECTED_CURRENT_TARGET=releases/fba3c17
+  PREVIEW_HOST=127.0.0.1
+  PREVIEW_PORT=18086
+  KEEP_RUNTIME=0
+USAGE
+}
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  usage
+  exit 0
+fi
+
 BUILD_TIME_UTC="$(date -u +%Y%m%d-%H%M%S)"
 BUILD_ISO_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git -C "${SOURCE_REPO}" rev-parse HEAD)"
