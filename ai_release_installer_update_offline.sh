@@ -1,6 +1,60 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Offline updater for /opt/ai-vafox/ops/ai_release_tooling_installer.sh.
+# Safe to run directly on ai.vafox.com when SSH delivery is unavailable.
+# This script does not use ssh, git, docker, nginx, database tooling, or release cutover commands.
+
+PROD_ROOT="${PROD_ROOT:-/opt/ai-vafox}"
+OPS_DIR="${OPS_DIR:-${PROD_ROOT}/ops}"
+INSTALLER_PATH="${INSTALLER_PATH:-${OPS_DIR}/ai_release_tooling_installer.sh}"
+BACKUP_PATH="${BACKUP_PATH:-${INSTALLER_PATH}.backup}"
+CURRENT_LINK="${CURRENT_LINK:-${PROD_ROOT}/current-enterprise-ai}"
+EXPECTED_POINTER="${EXPECTED_POINTER:-${PROD_ROOT}/releases/fba3c17}"
+REPORT_PATH="${REPORT_PATH:-AI_RELEASE_INSTALLER_OFFLINE_UPDATE_REPORT.md}"
+EXPECTED_INSTALLER_SHA256="2df33663d8ae93b804ac0c6ffdfe99a72d2f5314e1ffb78442e5ee8afdcf4e44"
+TMP_INSTALLER=""
+POINTER_BEFORE=""
+POINTER_AFTER=""
+VALIDATION_RESULT="NOT_RUN"
+HELP_RESULT="NOT_RUN"
+CHECKSUM_RESULT="NOT_RUN"
+BACKUP_RESULT="NOT_RUN"
+UPDATE_RESULT="NOT_RUN"
+
+log() { printf '[%s] %s
+' "$(date -u +%H:%M:%S)" "$*"; }
+fail() { echo "ERROR: $*" >&2; write_report "FAIL"; exit 1; }
+
+cleanup() {
+  if [ -n "${TMP_INSTALLER}" ] && [ -e "${TMP_INSTALLER}" ]; then
+    rm -f "${TMP_INSTALLER}"
+  fi
+}
+trap cleanup EXIT
+
+pointer_target() {
+  if [ -e "${CURRENT_LINK}" ] || [ -L "${CURRENT_LINK}" ]; then
+    readlink -f "${CURRENT_LINK}"
+  else
+    printf '__missing__'
+  fi
+}
+
+release_count() {
+  if [ -d "${PROD_ROOT}/releases" ]; then
+    find "${PROD_ROOT}/releases" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' '
+  else
+    printf '0'
+  fi
+}
+
+write_payload() {
+  TMP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/ai_release_tooling_installer.fixed.XXXXXX")"
+  cat > "${TMP_INSTALLER}" <<'INSTALLER_PAYLOAD'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
 # Offline installer for AI release tooling on ai.vafox.com production.
 # Installer-only safety: no cutover, no data change, no Docker restart, no symlink change.
 
@@ -299,6 +353,123 @@ main() {
 
   verify_pointer
   log "Install complete: ${TOOL_PATH}"
+}
+
+main "$@"
+INSTALLER_PAYLOAD
+}
+
+write_report() {
+  local status="${1:-PASS}"
+  cat > "${REPORT_PATH}" <<REPORT
+# AI Release Installer Offline Update Report
+
+Generated UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+Target: ai.vafox.com
+Production root: \`${PROD_ROOT}\`
+
+## Backup Path
+
+- Backup path: \`${BACKUP_PATH}\`
+- Backup result: ${BACKUP_RESULT}
+
+## Updated File
+
+- Updated file: \`${INSTALLER_PATH}\`
+- Update result: ${UPDATE_RESULT}
+- Expected SHA256: \`${EXPECTED_INSTALLER_SHA256}\`
+- Checksum result: ${CHECKSUM_RESULT}
+
+## Validation Result
+
+- Syntax validation: ${VALIDATION_RESULT}
+- Fixed guard verification: requires \`EXPECTED_CURRENT_TARGET="\${PROD_ROOT}/releases/fba3c17"\` logic and \`readlink -f\` pointer resolution.
+- Help validation: ${HELP_RESULT}
+
+## Production Pointer Before/After
+
+- Before: \`${POINTER_BEFORE}\`
+- After: \`${POINTER_AFTER}\`
+- Required invariant: \`${EXPECTED_POINTER}\`
+
+## Safety Confirmation
+
+- No SSH was used.
+- No git command was used.
+- No docker restart was performed.
+- No nginx change was performed.
+- No database change was performed.
+- No release cutover was performed.
+- \`${CURRENT_LINK}\` was not changed by this updater.
+- Final status: ${status}
+REPORT
+}
+
+main() {
+  log "Starting offline installer update for ${INSTALLER_PATH}"
+  POINTER_BEFORE="$(pointer_target)"
+  local releases_before releases_after
+  releases_before="$(release_count)"
+
+  if [ "${POINTER_BEFORE}" != "${EXPECTED_POINTER}" ]; then
+    fail "production pointer before update is ${POINTER_BEFORE}, expected ${EXPECTED_POINTER}"
+  fi
+
+  write_payload
+  local payload_sha
+  payload_sha="$(sha256sum "${TMP_INSTALLER}" | awk '{print $1}')"
+  if [ "${payload_sha}" != "${EXPECTED_INSTALLER_SHA256}" ]; then
+    CHECKSUM_RESULT="FAIL: payload ${payload_sha}"
+    fail "payload checksum mismatch"
+  fi
+  CHECKSUM_RESULT="PASS: payload ${payload_sha}"
+
+  mkdir -p "${OPS_DIR}"
+  if [ -f "${INSTALLER_PATH}" ]; then
+    cp -p "${INSTALLER_PATH}" "${BACKUP_PATH}"
+  else
+    : > "${BACKUP_PATH}"
+  fi
+  BACKUP_RESULT="PASS"
+
+  install -m 0755 "${TMP_INSTALLER}" "${INSTALLER_PATH}"
+  UPDATE_RESULT="PASS"
+
+  local installed_sha
+  installed_sha="$(sha256sum "${INSTALLER_PATH}" | awk '{print $1}')"
+  if [ "${installed_sha}" != "${EXPECTED_INSTALLER_SHA256}" ]; then
+    CHECKSUM_RESULT="FAIL: installed ${installed_sha}"
+    fail "installed checksum mismatch"
+  fi
+  CHECKSUM_RESULT="PASS: payload and installed ${installed_sha}"
+
+  bash -n "${INSTALLER_PATH}"
+  VALIDATION_RESULT="PASS: bash -n ${INSTALLER_PATH}"
+
+  if ! grep -Eq 'EXPECTED_CURRENT_TARGET=.*(\$\{PROD_ROOT\}/releases/fba3c17|/opt/ai-vafox/releases/fba3c17)' "${INSTALLER_PATH}"; then
+    VALIDATION_RESULT="FAIL: fixed guard string missing"
+    fail "fixed guard string missing"
+  fi
+  if ! grep -q 'readlink -f' "${INSTALLER_PATH}"; then
+    VALIDATION_RESULT="FAIL: readlink -f missing"
+    fail "absolute-path readlink guard missing"
+  fi
+  VALIDATION_RESULT="PASS: syntax and fixed guard"
+
+  bash "${INSTALLER_PATH}" --help >/tmp/ai_release_installer_help_check.out
+  HELP_RESULT="PASS: help only"
+
+  POINTER_AFTER="$(pointer_target)"
+  releases_after="$(release_count)"
+  if [ "${POINTER_AFTER}" != "${EXPECTED_POINTER}" ]; then
+    fail "production pointer after help is ${POINTER_AFTER}, expected ${EXPECTED_POINTER}"
+  fi
+  if [ "${releases_after}" != "${releases_before}" ]; then
+    fail "release directory count changed during help check: before=${releases_before} after=${releases_after}"
+  fi
+
+  write_report "PASS"
+  log "Offline installer update complete. Report: ${REPORT_PATH}"
 }
 
 main "$@"
