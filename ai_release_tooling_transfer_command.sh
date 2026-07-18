@@ -7,7 +7,8 @@ set -Eeuo pipefail
 # no current-enterprise-ai switch, no candidate build, no nginx/data/symlink changes.
 
 TARGET_SERVER="1.13.254.217"
-TARGET_DIR="/opt/ai-vafox/ops"
+PROD_ROOT="${PROD_ROOT:-/opt/ai-vafox}"
+TARGET_DIR="${PROD_ROOT}/ops"
 PACKAGE_NAME="ai-release-tooling-installer-package.tar.gz"
 PACKAGE_PATH="${TARGET_DIR}/${PACKAGE_NAME}"
 EXPECTED_SHA256="e590711c8f11c59d55aa443a30bbe01cf5789c927923bb989180bc1034533c78"
@@ -247,16 +248,29 @@ PAYLOAD_BASE64
   tar -xzf "${PACKAGE_PATH}" -C "${TARGET_DIR}"
   chmod 0755 "${TARGET_DIR}/ai_release_tooling_installer.sh" "${TARGET_DIR}/ai_genesis_candidate_build.sh"
 
-  log "installed files:"
-  printf '%s\n' \
-    "ai_release_tooling_installer.sh" \
-    "ai_genesis_candidate_build.sh"
+  log "verifying installed files"
+  for installed_file in \
+    "${TARGET_DIR}/ai_release_tooling_installer.sh" \
+    "${TARGET_DIR}/ai_genesis_candidate_build.sh"
+  do
+    if [ ! -f "${installed_file}" ]; then
+      fail "missing installed file: ${installed_file}"
+    fi
+    if [ ! -x "${installed_file}" ]; then
+      fail "installed file is not executable: ${installed_file}"
+    fi
+    printf '%s\n' "${installed_file}"
+  done
 
   log "verifying production pointer remains unchanged"
-  pointer="$(readlink /opt/ai-vafox/current-enterprise-ai 2>/dev/null || true)"
-  printf 'readlink /opt/ai-vafox/current-enterprise-ai\n%s\n' "${pointer}"
-  if [ "${pointer}" != "${EXPECTED_CURRENT_TARGET}" ]; then
+  pointer_path="${PROD_ROOT}/current-enterprise-ai"
+  pointer="$(readlink "${pointer_path}" 2>/dev/null || true)"
+  printf 'readlink %s\n%s\n' "${pointer_path}" "${pointer}"
+  if [ "${PROD_ROOT}" = "/opt/ai-vafox" ] && [ "${pointer}" != "${EXPECTED_CURRENT_TARGET}" ]; then
     fail "current-enterprise-ai points to ${pointer:-<missing>}, expected ${EXPECTED_CURRENT_TARGET}"
+  fi
+  if [ "${PROD_ROOT}" != "/opt/ai-vafox" ] && [ "${pointer}" != "${EXPECTED_CURRENT_TARGET}" ]; then
+    fail "test current-enterprise-ai points to ${pointer:-<missing>}, expected ${EXPECTED_CURRENT_TARGET}"
   fi
   log "done; no SSH/upload/docker/candidate build/nginx/data/symlink changes performed"
 }
