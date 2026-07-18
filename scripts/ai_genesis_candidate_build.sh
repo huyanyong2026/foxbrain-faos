@@ -8,10 +8,9 @@ set -Eeuo pipefail
 TARGET_DOMAIN="${TARGET_DOMAIN:-ai.vafox.com}"
 RC_VERSION="${RC_VERSION:-AI-OS-V6-CLEAN-REBUILD-V1-RC}"
 PROD_ROOT="${PROD_ROOT:-/opt/ai-vafox}"
-SOURCE_REPO="${SOURCE_REPO:-$(git rev-parse --show-toplevel 2>/dev/null)}"
 RELEASES_DIR="${RELEASES_DIR:-${PROD_ROOT}/releases}"
 CURRENT_SYMLINK="${CURRENT_SYMLINK:-${PROD_ROOT}/current-enterprise-ai}"
-EXPECTED_CURRENT_TARGET="${EXPECTED_CURRENT_TARGET:-releases/fba3c17}"
+EXPECTED_CURRENT_TARGET="${EXPECTED_CURRENT_TARGET:-${PROD_ROOT}/releases/fba3c17}"
 PREVIEW_HOST="${PREVIEW_HOST:-127.0.0.1}"
 PREVIEW_PORT="${PREVIEW_PORT:-18086}"
 KEEP_RUNTIME="${KEEP_RUNTIME:-0}"
@@ -29,12 +28,12 @@ Usage:
 Safety guardrails:
   - Candidate-only validation; no production cutover.
   - Does not change /opt/ai-vafox/current-enterprise-ai.
-  - Requires current-enterprise-ai -> releases/fba3c17 before candidate build execution.
+  - Requires current-enterprise-ai -> /opt/ai-vafox/releases/fba3c17 before candidate build execution.
   - No production data migration is performed by this script.
 
 Common environment variables:
   PROD_ROOT=/opt/ai-vafox
-  EXPECTED_CURRENT_TARGET=releases/fba3c17
+  EXPECTED_CURRENT_TARGET=/opt/ai-vafox/releases/fba3c17
   PREVIEW_HOST=127.0.0.1
   PREVIEW_PORT=18086
   KEEP_RUNTIME=0
@@ -44,6 +43,12 @@ USAGE
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   usage
   exit 0
+fi
+
+SOURCE_REPO="${SOURCE_REPO:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+if [ -z "${SOURCE_REPO}" ]; then
+  echo "SOURCE_REPO is required when running outside a Git checkout." >&2
+  exit 2
 fi
 
 BUILD_TIME_UTC="$(date -u +%Y%m%d-%H%M%S)"
@@ -66,7 +71,7 @@ record_result() {
 }
 
 current_target() {
-  if [ -L "${CURRENT_SYMLINK}" ]; then readlink "${CURRENT_SYMLINK}"; else printf '__missing__'; fi
+  if [ -L "${CURRENT_SYMLINK}" ]; then readlink -f "${CURRENT_SYMLINK}"; else printf '__missing__'; fi
 }
 
 assert_production_pointer() {
