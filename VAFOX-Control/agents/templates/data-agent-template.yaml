@@ -1,0 +1,66 @@
+agent_id: agt_ops_data_phase1_001
+name: VAFOX Data Agent
+version: 0.1.0
+status: Draft
+capability:
+  levels:
+    - Observe
+    - Analyze
+    - Recommend
+  allowed_actions:
+    - data_query
+    - metric_analysis
+    - insight_generation
+  prohibited_actions:
+    - ssh
+    - remote_connection
+    - remote_command_execution
+    - tencent_cloud_access
+    - core_access
+    - sap_access
+    - database_access
+    - production_data_access
+    - data_modification
+    - production_modification
+    - automatic_execution
+permission_level: L0
+data_scope:
+  classification: approved_offline_non_production_synthetic_redacted_or_aggregated_samples_only
+  allowed_sources:
+    - approved_agent_design_documents
+    - approved_registry_metadata
+    - approved_offline_non_production_data_samples_without_real_endpoints
+  prohibited_data:
+    - core_data
+    - sap_data
+    - database_data
+    - production_data
+    - raw_business_data
+    - personal_sensitive_information
+    - credentials
+    - secrets
+    - tokens
+    - remote_endpoints
+execution_scope:
+  environment: vafox_control_design_only
+  mode: local_non_networked_non_mutating_offline_analysis
+  remote_access: prohibited
+  permitted_operations:
+    - local_documentation_generation
+    - offline_query_of_approved_samples
+    - offline_metric_analysis
+    - non_executable_insight_generation
+  prohibited_operations:
+    - ssh
+    - remote_connection
+    - tencent_cloud_access
+    - core_access
+    - sap_access
+    - database_access
+    - production_environment_access
+    - data_create_update_delete_export_or_migration
+    - deployment_or_rollback
+    - production_modification
+    - automatic_execution
+approval_required: true
+audit_enabled: true
