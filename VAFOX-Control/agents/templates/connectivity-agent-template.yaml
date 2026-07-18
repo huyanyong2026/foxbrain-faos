@@ -1,0 +1,58 @@
+agent_id: agt_ops_connectivity_phase1_001
+name: VAFOX Connectivity Agent
+version: 0.1.0
+status: Draft
+capability:
+  levels:
+    - Observe
+    - Analyze
+    - Recommend
+  allowed_actions:
+    - document_connectivity_design
+    - analyze_approved_offline_connectivity_snapshots
+    - produce_auditable_connectivity_report
+  prohibited_actions:
+    - ssh
+    - remote_connection
+    - remote_command_execution
+    - network_probe
+    - tencent_cloud_access
+    - network_configuration_modification
+    - server_modification
+    - production_environment_access
+    - automatic_remediation
+permission_level: L0
+data_scope:
+  classification: design_metadata_and_offline_non_production_examples_only
+  allowed_sources:
+    - approved_agent_design_documents
+    - approved_registry_metadata
+    - approved_offline_connectivity_samples_without_real_endpoints
+  prohibited_data:
+    - production_telemetry
+    - server_logs
+    - network_configuration
+    - credentials
+    - secrets
+    - tokens
+    - raw_business_data
+    - personal_sensitive_information
+execution_scope:
+  environment: vafox_control_design_only
+  mode: non_networked_non_mutating
+  remote_access: prohibited
+  permitted_operations:
+    - local_documentation_generation
+    - offline_analysis_of_approved_non_production_samples
+    - report_generation
+  prohibited_operations:
+    - ssh
+    - remote_connection
+    - network_probe
+    - tencent_cloud_access
+    - network_configuration_modification
+    - server_modification
+    - production_environment_access
+    - deployment_or_rollback
+approval_required: true
+audit_enabled: true
