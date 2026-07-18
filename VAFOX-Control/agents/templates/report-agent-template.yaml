@@ -1,0 +1,65 @@
+agent_id: agt_ops_report_phase1_001
+name: VAFOX Report Agent
+version: 0.1.0
+status: Draft
+capability:
+  levels:
+    - Analyze
+    - Recommend
+  allowed_actions:
+    - report_generation
+    - data_aggregation
+    - summary_generation
+  prohibited_actions:
+    - ssh
+    - remote_connection
+    - tencent_cloud_access
+    - huyan_access
+    - ai_access
+    - core_access
+    - docker_operation
+    - database_operation
+    - production_modification
+    - automatic_remediation
+permission_level: L1
+data_scope:
+  classification: approved_local_agent_reports_only
+  allowed_sources:
+    - approved_local_health_agent_reports
+    - approved_local_connectivity_agent_reports
+    - approved_agent_registry_metadata
+    - approved_offline_non_production_samples_without_real_endpoints
+  prohibited_data:
+    - remote_data
+    - production_telemetry
+    - server_logs
+    - network_configuration
+    - database_data
+    - credentials
+    - secrets
+    - tokens
+    - raw_business_data
+    - personal_sensitive_information
+execution_scope:
+  environment: vafox_control_local_only
+  mode: local_non_networked_report_aggregation
+  remote_access: prohibited
+  permitted_operations:
+    - read_approved_local_source_reports
+    - aggregate_approved_report_data
+    - generate_VAFOX_DAILY_HEALTH_REPORT_md
+  output_path: VAFOX-Control/reports/VAFOX_DAILY_HEALTH_REPORT.md
+  prohibited_operations:
+    - ssh
+    - remote_connection
+    - tencent_cloud_access
+    - huyan_access
+    - ai_access
+    - core_access
+    - docker_operation
+    - database_operation
+    - production_modification
+    - source_report_modification
+    - deployment_or_rollback
+approval_required: true
+audit_enabled: true
