@@ -1,0 +1,50 @@
+agent_id: agt_ops_health_phase1_001
+name: VAFOX Health Agent
+version: 0.1.0
+status: Draft
+capability:
+  levels:
+    - Observe
+    - Analyze
+    - Recommend
+  allowed_actions:
+    - read_approved_health_snapshots
+    - analyze_health_evidence
+    - produce_auditable_health_report
+  prohibited_actions:
+    - ssh
+    - remote_server_connection
+    - remote_command_execution
+    - docker_modification
+    - service_restart
+    - data_modification
+    - deployment
+    - rollback
+permission_level: read_only
+data_scope:
+  classification: internal_health_telemetry_only
+  allowed_sources:
+    - approved_control_plane_health_snapshots
+    - approved_redacted_health_metrics
+    - approved_alert_summaries
+  prohibited_data:
+    - credentials
+    - secrets
+    - tokens
+    - raw_business_data
+    - personal_sensitive_information
+execution_scope:
+  environment: vafox_control_local_only
+  mode: non_mutating
+  remote_access: prohibited
+  permitted_operations:
+    - local_read_only_analysis
+    - report_generation
+  prohibited_operations:
+    - remote_server_connection
+    - docker_modification
+    - service_start_stop_restart_reload
+    - data_create_update_delete
+    - deployment_or_rollback
+approval_required: true
+audit_enabled: true
