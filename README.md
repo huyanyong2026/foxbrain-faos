@@ -1,81 +1,56 @@
-# VAFOX Enterprise OS
+# VAFOX Enterprise AI OS Foundation
 
-**The Enterprise Second Brain for Huohu Fox / 火狐狸企业第二大脑**
+VAFOX Foundation is the deployable infrastructure skeleton for the VAFOX Enterprise AI OS. It deliberately contains **no business domain, UI, SAP integration, or WeCom integration**.
 
-This repository is the official development headquarters for the VAFOX enterprise platform.
-
-## Project Positioning
-
-VAFOX is not a normal website, ERP, OA, CRM, BI dashboard, or AI chat page.
-
-VAFOX is an **Enterprise Second Brain**:
-
-- It remembers the enterprise.
-- It understands enterprise objects.
-- It connects files, SAP data, photos, videos, contracts, employees, stores, brands, products, suppliers and customers.
-- It helps the CEO analyze, reason and make better decisions.
-
-## Current Product Surfaces
+## Repository layout
 
 ```text
-core.vafox.com  = Enterprise Data Core / enterprise facts
-ai.vafox.com    = Enterprise AI / agents, knowledge, tasks and feedback
-huyan.vafox.com = VAFOX Enterprise Brain / decisions and memory
+apps/             Reserved application delivery surfaces (no pages in Foundation)
+services/         Gateway, Auth, Core Data, AI, and Memory service processes
+packages/         Shared HTTP, JSON logging, JWT, and authorization primitives
+infrastructure/   PostgreSQL bootstrap assets and deployment infrastructure
+docs/             API contract and operational documentation
 ```
 
-`ai.vafox.com` development started only after the CEO Brain and Living Enterprise foundations were established. The three surfaces remain independently deployable and keep strict evidence and permission boundaries.
+## Included components
 
-## First 90-Day Goal
+| Component | Role | Port exposure |
+| --- | --- | --- |
+| Gateway | Single external API entry point and upstream routing | `${GATEWAY_PORT:-8080}` |
+| Auth Service | Bootstrap login and HS256 JWT issuance | internal |
+| Core Data Service | Future enterprise-data boundary | internal |
+| AI Service | Future AI-runtime boundary | internal |
+| Memory Service | Future memory boundary | internal |
+| PostgreSQL 16 | Relational persistence foundation | internal |
+| Redis 7 | Cache/session/queue foundation | internal |
+| MinIO | S3-compatible object-storage foundation | internal |
 
-Make `huyan.vafox.com` the system that the CEO opens every day to understand the enterprise.
+All application logs are structured JSON on stdout; Docker rotates JSON log files at 10 MB with three retained files per container. Every service provides `GET /health`, and Compose waits for dependency health checks before starting dependents.
 
-## Core Engines
+## Quick start
 
-VAFOX will be developed as engines, not scattered pages:
+```bash
+cp .env.example .env
+# Set non-default JWT_SECRET and BOOTSTRAP_ADMIN_PASSWORD in .env.
+docker compose up --build -d
+docker compose ps
+curl -fsS http://localhost:8080/health
+```
 
-1. Drive Engine
-2. Object Engine
-3. Knowledge Engine
-4. Memory Engine
-5. Timeline Engine
-6. Search Engine
-7. Graph Engine
-8. Agent Engine
-9. Decision Engine
-10. Dashboard Engine
-11. SAP Engine
-12. Analytics Engine
-13. OCR Engine
-14. Media Engine
-15. Workflow Engine
-16. Content Engine
-17. Permission Engine
-18. Plugin Engine
-19. API Engine
-20. Automation Engine
+Stop the stack while retaining data:
 
-## Sprint Roadmap
+```bash
+docker compose down
+```
 
-- Sprint001: VAFOX Drive Foundation
-- Sprint002: Object Engine
-- Sprint003: Knowledge Pipeline
-- Sprint004: Global Search + Timeline
-- Sprint005: CEO Dashboard
-- Sprint006: Memory Engine
-- Sprint007: SAP Connector
-- Sprint008: AI Workspace
-- Sprint009: Knowledge Graph
-- Sprint010: Decision Foundation
+Delete persistent development data as well:
 
-## Development Rule
+```bash
+docker compose down -v
+```
 
-Every sprint must be:
+## Authentication and authorization
 
-- usable
-- testable
-- deployable
-- reversible
+`POST /api/v1/auth/login` receives a JSON `username` and `password`, validates the configured bootstrap administrator, and returns an expiring HS256 bearer token. The Gateway requires that bearer token for all non-auth upstream paths. The shared `require_roles()` middleware in `packages/vafox_foundation/auth.py` is the reusable service-level enforcement primitive. Role claims use strings such as `platform:admin`; no business permissions are defined in this foundation.
 
-## Product Principle
-
-> VAFOX does not replace the CEO. VAFOX helps the CEO make better decisions by preserving enterprise knowledge, connecting enterprise data, and continuously learning from enterprise history.
+See [the API reference](docs/API.md) for the complete current API list and [the operations guide](docs/OPERATIONS.md) for health checks.
