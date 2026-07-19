@@ -21,3 +21,17 @@ curl -sS -X POST http://localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   --data '{"username":"admin","password":"replace-with-your-bootstrap-password"}'
 ```
+
+## Memory Factory V1
+
+All Memory Factory endpoints require a bearer JWT when called through the Gateway. The service accepts both multipart file uploads and JSON API input; `source` and `owner` are required, and multipart `metadata` is a JSON object string. V1 performs lexical matching on filename and metadata only; the embedding integration is intentionally reserved for a future version.
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| POST | `/api/v1/memory/receive` | Stores an uploaded file or JSON text input and returns `memory_id` and `storage_path`. |
+| GET | `/api/v1/memory/items/{memory_id}` | Reads active metadata. |
+| GET | `/api/v1/memory/items/{memory_id}/content` | Downloads the object. |
+| DELETE | `/api/v1/memory/items/{memory_id}` | Deletes the object and soft-deletes its metadata. |
+| GET | `/api/v1/memory/search?q={query}&owner={owner}` | Searches active filename and metadata; `owner` is optional. |
+
+The machine-readable contract is [`openapi-memory-v1.yaml`](openapi-memory-v1.yaml).

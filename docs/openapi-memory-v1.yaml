@@ -1,0 +1,46 @@
+openapi: 3.0.3
+info:
+  title: VAFOX Memory Factory API
+  version: 1.0.0
+  description: Enterprise memory ingestion, object storage, metadata, and lexical search. Embeddings are intentionally not implemented in V1.
+servers:
+  - url: http://localhost:8080
+security: [{ bearerAuth: [] }]
+paths:
+  /api/v1/memory/receive:
+    post:
+      summary: Receive a file or API text payload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: {$ref: '#/components/schemas/ReceiveUpload'}
+          application/json:
+            schema: {$ref: '#/components/schemas/ReceiveInput'}
+      responses: {'201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/ReceiveResult'}}}}
+  /api/v1/memory/items/{memory_id}:
+    get: {summary: Read item metadata, parameters: [{$ref: '#/components/parameters/MemoryId'}], responses: {'200': {description: Item}, '404': {description: Missing}}}
+    delete: {summary: Delete object and mark metadata deleted, parameters: [{$ref: '#/components/parameters/MemoryId'}], responses: {'204': {description: Deleted}, '404': {description: Missing}}}
+  /api/v1/memory/items/{memory_id}/content:
+    get: {summary: Download stored object, parameters: [{$ref: '#/components/parameters/MemoryId'}], responses: {'200': {description: Object bytes}, '404': {description: Missing}}}
+  /api/v1/memory/search:
+    get:
+      summary: Search active names and metadata
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string}}
+        - {name: owner, in: query, schema: {type: string}}
+      responses: {'200': {description: Matches}}
+components:
+  securitySchemes: {bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}}
+  parameters:
+    MemoryId: {name: memory_id, in: path, required: true, schema: {type: string, format: uuid}}
+  schemas:
+    ReceiveUpload:
+      type: object
+      required: [file, source, owner]
+      properties: {file: {type: string, format: binary}, source: {type: string}, owner: {type: string}, metadata: {type: string, description: JSON object}}
+    ReceiveInput:
+      type: object
+      required: [name, content, source, owner]
+      properties: {name: {type: string}, content: {type: string}, type: {type: string, default: text/plain}, source: {type: string}, owner: {type: string}, metadata: {type: object}}
+    ReceiveResult: {type: object, required: [memory_id, storage_path], properties: {memory_id: {type: string, format: uuid}, storage_path: {type: string}}}
