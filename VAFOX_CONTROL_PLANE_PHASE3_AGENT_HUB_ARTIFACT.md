@@ -1,194 +1,166 @@
-# VAFOX Control Plane Phase 3 Agent Hub 建设 Artifact
+# VAFOX Control Plane Phase 3 — Agent Hub 建设 Artifact
 
-> **状态：Draft（草案）— 未审批不可执行。**
->
-> 本 Artifact 仅定义 `control.vafox.com` Phase 3 Agent Hub 的建设边界、设计、审批门禁、验证与回滚要求。它**不构成执行授权**，不执行服务器操作、不连接目标服务器，亦不接入生产数据、SAP、Core 真实数据或业务自动执行。
+> **状态：Draft（未审批，不可执行）**
+> 本 Artifact 是 `control.vafox.com` 第一代 Agent Hub 的建设、验证与回滚基线。它只定义受控的 Phase 3 准备工作；在完成全部审批门禁前，不得执行任何部署、注册激活、网络变更或真实数据访问。
 
-## 一、Artifact Metadata
+## 1. Artifact Metadata
 
-| 字段 | 内容 |
-| --- | --- |
-| Artifact ID | `VAFOX-CONTROL-PLANE-P3-AGENT-HUB-001` |
+| 项目 | 内容 |
+|---|---|
+| Artifact ID | `VAFOX-CP-P3-AGENT-HUB-001` |
 | 标题 | VAFOX Control Plane Phase 3 Agent Hub 建设 Artifact |
-| 版本 | `v1.0.0-draft` |
-| 创建时间 | `2026-07-19 UTC` |
-| 生成工具 | Codex（文档生成；未连接目标环境） |
-| 目标服务器 | `control.vafox.com`（公网：`114.132.254.178`；内网：`172.16.16.6`）。执行前须以资产台账与服务器实际 IP 双重核验；如记录不同，以经批准核验的实际 IP 为准。 |
-| 前置状态 | Phase 1 Security Completed；Phase 2A Foundation Completed；Phase 2B Service Framework Designed。 |
-| 风险等级 | **High**：涉及 Agent 身份、权限、注册、运行时和报告链路的控制面建设。 |
-| 审批状态 | **Draft — 未审批，不可执行。** |
-| 执行窗口 | `{{APPROVED_CHANGE_WINDOW_UTC}}` |
-| 回滚位置 | `{{APPROVED_OFF_HOST_BACKUP_URI}}`；主机短期暂存仅可使用已批准的 `/opt/vafox-control/backups/`。 |
-| 关联交付物 | `VAFOX_CONTROL_PLANE_PHASE2_FOUNDATION_ARTIFACT.md`；`VAFOX_CONTROL_PLANE_PHASE2B_SERVICE_FRAMEWORK_PLAN.md`；`VAFOX_CONTROL_PLANE_PHASE3_AGENT_HUB_ACCEPTANCE_REPORT.md`。 |
+| 版本 | `0.1.0-draft` |
+| 创建日期 | 2026-07-19 (UTC) |
+| 生成工具 | Codex (GPT-5.6 Terra) |
+| 目标环境 | `control.vafox.com`；公网 `114.132.55.178`；内网 `172.16.16.6` |
+| 前置基线 | Phase 1 Security Completed；Phase 2A Foundation Completed；Phase 2B Service Framework Completed |
+| 风险等级 | Medium（控制面新增组件；范围严格限定为无生产数据、无执行能力） |
+| 审批状态 | **Draft / Not Approved / Not Executable** |
+| 回滚位置 | 经批准的变更窗口工作目录中的 Phase 3 发布包、Registry 导出、Runtime/Compose 配置快照及本 Artifact 第 8 节恢复记录 |
 
-### 1.1 责任人与停止条件
+**解释：** IP 地址仅用于已批准运行手册中的目标识别，不构成直连、SSH、端口开放或任何服务器操作授权。所有服务调用必须经受控 Gateway 与运行时策略校验。
 
-| 角色 | 审批前必须明确 | 职责 |
-| --- | --- | --- |
-| 系统负责人 | `{{SYSTEM_OWNER}}` | 确认资产、范围、窗口、业务影响及验收。 |
-| 安全审批人 | `{{SECURITY_APPROVER}}` | 审核身份、权限、网络、日志、备份及风险接受。 |
-| 执行负责人 | `{{EXECUTION_OWNER}}` | 仅在获批窗口按获批清单执行并保留证据。 |
-| 回滚负责人 | `{{ROLLBACK_OWNER}}` | 确认离机备份、恢复来源及回滚验证。 |
-| 独立复核人 | `{{REVIEWER}}` | 复核门禁、验证证据和验收报告。 |
+## 2. Phase 3 范围与硬边界
 
-任一条件发生即停止且不得继续：审批缺失、过期或范围不一致；目标服务器身份不一致；前置阶段控制失效；备份不可读；Agent 未登记、权限不匹配或审计不可用；健康检查失败；出现生产数据、SAP、Core 真实数据或自动业务动作路径。
+### 2.1 允许范围
 
-## 二、Phase 3 范围
+- Agent Hub 的受控部署与基础配置。
+- Agent Registry 初始化及空/模板化登记结构验证。
+- Agent Runtime 准备、隔离配置、身份与审计链路验证。
+- Report Center 接口、报告 schema 与脱敏输出链路准备。
 
-| 类别 | 范围 |
-| --- | --- |
-| **允许** | Agent Hub 基础部署；Registry 初始化；Agent Runtime 准备；Reports 接口准备；五个 Agent 的受控元数据迁移与只读/模拟验证。 |
-| **禁止** | 生产数据接入；SAP 接入；Core 真实数据接入；业务自动执行；未审批网络暴露；未注册 Agent 运行；权限扩大。 |
+### 2.2 明确禁止范围
 
-Phase 3 仅建立控制面能力与接口契约。所有 Agent 的任务输入均须使用合成、脱敏或空载荷测试数据；运行时默认禁用外部业务连接器与写入型工具。
+- 接入任何生产数据、生产数据副本或可反查的生产导出。
+- 访问 SAP，或建立到 SAP 的凭据、网络路由、连接器或任务。
+- 访问 Core 的真实数据、数据库、业务 API 或真实数据镜像。
+- 自动业务执行、写入、审批、任务分派、外部发送、服务控制或修复动作。
 
-## 三、Agent Hub 架构
+以上禁止项在本 Phase 中没有例外；人工批准不得将其隐式转换为允许项。范围扩大必须创建新版本 Artifact、完成风险评估并重新审批。
+
+## 3. Agent Hub 架构
 
 ```text
 Agent Hub
-    ↓
-Registry
-    ↓
-Runtime
-    ↓
-Reports
+    ↓  注册、版本、状态、策略引用
+Agent Registry
+    ↓  已核验的最小能力契约
+Agent Runtime
+    ↓  脱敏、只读、非执行性结果
+Report Center
 ```
 
-| 层 | 责任 | 安全边界 |
-| --- | --- | --- |
-| Agent Hub | 发现已登记 Agent、请求路由、策略前置校验与关联 ID 传播。 | 默认拒绝；只路由 Registry 中状态为允许的版本；不得直接授予业务系统权限。 |
-| Registry | 保存 Agent 身份、版本、状态、所有者、权限、能力及审计引用。 | 元数据最小化；不保存 Secret、生产 payload 或真实业务数据。 |
-| Runtime | 准备隔离的 Agent 执行环境、资源限制、工具策略及健康状态。 | 非 root、最小 capability、无 Docker socket、无 host network、无业务写入连接器。 |
-| Reports | 接收脱敏的状态、运行、策略拒绝及审计报告。 | 报告接口仅处理受控元数据；来源认证、完整性校验、访问控制与留存均须可验证。 |
+| 组件 | 职责 | 数据流 | 权限边界 |
+|---|---|---|---|
+| Agent Hub | 统一入口；认证、请求 schema 校验、策略决策、编排与审计关联。 | 接收受控请求；读取 Registry 决策；向 Runtime 下发最小任务；向 Report Center 提交已校验结果。 | 默认拒绝；不得直连 Agent、Core、SAP 或生产数据源；不得发放扩大权限。 |
+| Agent Registry | 唯一的 Agent 身份、版本、能力、状态、审批及权限目录。 | 向 Hub/Runtime 发布可验证的注册与撤销状态；记录变更审计。 | 未注册、非 `Active`、版本不匹配或审批失效的 Agent 一律不可运行。 |
+| Agent Runtime | 在隔离环境执行已登记的 Observe/Analyze/Recommend 能力；校验短时能力令牌。 | 仅接受 Hub 经 Gateway 授权的任务；输出契约化、脱敏结果。 | 不持有生产凭据；不允许 Execute；无直接外网、SAP/Core 或业务系统访问路径。 |
+| Report Center | 接收、验证、保存并呈现具有证据引用的非执行性报告。 | 汇总 Runtime 输出，保留 Agent/版本/时间/策略/证据关联。 | 仅接受已注册来源；不触发任务或业务动作；不展示超出授权分类的字段。 |
 
-调用顺序必须为：身份认证 → Hub 策略检查 → Registry 版本/状态/权限校验 → Runtime 策略执行 → Reports 审计与结果登记。任一环节失败均安全拒绝，不得降级绕过。
+**强制数据流：** 所有请求均为 `调用方 → Gateway → Agent Hub → Registry 校验 → Runtime → Report Center → 调用方`。Registry 状态、策略或审计任一项不可验证时必须拒绝请求。禁止绕过 Gateway、Hub 或资源侧权限校验。
 
-## 四、Registry 初始化
+## 4. 部署步骤（审批后执行）
 
-Registry 初始化只允许创建下列结构化元数据和审计记录。初始状态不得直接设为可生产运行。
+> 每一步开始前确认执行窗口、负责人、变更单、备份与紧急停止路径；任一退出条件不满足即停止，不进入下一步。
 
-| 字段 | 要求 |
-| --- | --- |
-| Agent ID | 全局唯一、不可复用的稳定标识，例如 `health-agent`。 |
-| Version | 已批准的语义版本或不可变 release/digest 引用；禁止 `latest`。 |
-| Status | `draft`、`registered`、`disabled`、`retired`；仅获批后可转换为 `registered`，且仍不等同生产执行授权。 |
-| Permission | L0–L4 级别、RBAC 角色、ABAC 属性和有效期；默认 L0。 |
-| Capability | 明确列出允许的只读查询、健康检查、报告生成或模拟能力；未列出即拒绝。 |
-| Audit | 创建/变更主体、时间（UTC）、审批引用、变更原因、前后版本、请求关联 ID 与结果。 |
+| 步骤 | 工作内容 | 验证与退出条件 | 安全限制 |
+|---|---|---|---|
+| Step 1：Registry 初始化 | 部署/初始化 Registry schema、不可复用 ID 规则、版本记录、生命周期、审计字段及撤销状态；仅建立 Draft 模板记录。 | Registry 可用；Draft 记录可查询；审计事件可检索；无 Agent 为 Active。 | 不导入生产数据或生产凭据；不激活 Agent。 |
+| Step 2：Agent Hub Core 部署 | 部署 Hub、Gateway 集成、认证、RBAC/ABAC 策略加载、关联 ID、限流、拒绝与审计处理。 | 未注册和未授权请求被拒绝并审计；Hub 无直连下游路径。 | 不配置 Core/SAP 连接器；不得绕过 Gateway。 |
+| Step 3：Runtime 部署 | 部署隔离 Runtime、服务身份、短时能力令牌校验、输出 schema 校验、健康端点与紧急停止。 | Runtime 仅接受已授权模拟请求；无 Execute capability；默认网络拒绝策略生效。 | 不加载真实业务数据、密钥或执行工具。 |
+| Step 4：Health Check | 验证 Hub、Registry、Runtime、Report Center 健康、证书/身份、策略拒绝、审计与告警。 | 所有健康检查通过；故障/策略不可用场景 fail-closed；报告输出可追溯。 | Health Check 只使用合成或脱敏测试数据。 |
+| Step 5：第一个 Agent 接入 | 按第 5 节接入 `health-agent` 的 Draft/Registered 验证版本，完成能力、权限、输入输出及回滚验证。 | 注册成功；未获 Active 与审批前不得接收生产任务；验证报告生成成功。 | 仅 Observe/Analyze/Recommend 的模拟健康快照；不执行修复。 |
 
-| 初始化检查 | 通过标准 | 证据 |
-| --- | --- | --- |
-| Schema | 必填字段、状态转换、版本不可变性及输入校验已验证。 | `{{REGISTRY_SCHEMA_EVIDENCE}}` |
-| 初始条目 | 五个 Agent 均唯一登记，默认最小权限，无生产连接器。 | `{{REGISTRY_SEED_EVIDENCE}}` |
-| 审计 | 新增、查询、拒绝和状态变更均形成脱敏审计记录。 | `{{REGISTRY_AUDIT_EVIDENCE}}` |
-| 备份 | Registry 快照已校验、加密并存至批准的离机位置。 | `{{REGISTRY_BACKUP_EVIDENCE}}` |
+## 5. Agent 迁移计划（顺序固定）
 
-## 五、五个 Agent 迁移计划
+所有迁移均遵循 `Draft → Registered → Approved → Active` 生命周期；本 Draft Artifact 只允许完成受控登记与非生产验证，**不授权 Active 或生产运行**。每次迁移必须建立独立审批、测试证据和回滚点，前一 Agent 验收完成后才可开始下一 Agent。
 
-| Agent | 迁移方式 | 权限 | 输入 | 输出 | 风险 |
-| --- | --- | --- | --- | --- | --- |
-| `health-agent` | 迁移元数据、健康检查契约和模拟探针；先以 `draft` 登记。 | L1，只读内部健康摘要。 | 合成或脱敏服务状态、测试探针结果。 | 脱敏健康摘要、告警候选和审计事件。 | 探针越权读取、健康结论误判。 |
-| `connectivity-agent` | 迁移连接策略模板与模拟连通性检查；不配置外部生产端点。 | L1，只读批准的内部测试端点。 | 测试端点、网络策略元数据、模拟响应。 | 连通性报告、失败分类、审计事件。 | 枚举内部网络或意外探测未批准目标。 |
-| `report-agent` | 迁移报告 schema、模板和空载荷生成流程。 | L1，可写入自身受控报告暂存区；无审批写权限。 | 已脱敏运行元数据、报告模板、模拟事件。 | 报告草稿、完整性摘要、审计引用。 | 敏感字段泄露或报告篡改。 |
-| `data-agent` | 仅迁移元数据和合成数据契约；所有真实数据连接器保持禁用。 | L0，默认不访问数据源。 | 合成数据集、schema、无敏感样例。 | Schema 验证结果、模拟数据质量报告。 | 被误配为真实数据读取或接入 Core/SAP。 |
-| `ceo-agent` | 迁移 Agent 定义、只读汇总提示契约和模拟决策报告；不赋予执行工具。 | L1，仅读取获准的脱敏模拟报告。 | 模拟 KPI、合成报告、策略限制。 | 建议草稿、风险提示、不可执行摘要。 | 被误解为决策授权或触发业务动作。 |
+| 顺序 / Agent | Agent ID | 初始版本 | 权限（上限） | Capability | 输入 | 输出 | 风险 |
+|---|---|---|---|---|---|---|---|
+| 1. health-agent | `agt_ops_health_phase3_001` | `0.1.0` | L1；仅 Hub→Runtime；合成/脱敏健康快照只读 | Observe, Analyze, Recommend | 合成或脱敏的服务健康快照 | 健康状态、证据引用、异常与人工建议 | Low：错误状态判断；无修复权限。 |
+| 2. connectivity-agent | `agt_ops_connectivity_phase3_001` | `0.1.0` | L1；仅已批准的离线连接状态样本 | Observe, Analyze, Recommend | 合成/脱敏连接状态快照 | 链路风险、覆盖范围、不确定性 | Low：误判风险；禁止探测、DNS/HTTP、远程连接及网络配置。 |
+| 3. report-agent | `agt_ops_report_phase3_001` | `0.1.0` | L1；读取已批准、脱敏的 Agent 报告 | Analyze, Recommend | 已校验报告信封和测试证据 | 汇总报告、来源、新鲜度、限制 | Low：错误汇总；禁止修改源报告或触发任务。 |
+| 4. data-agent | `agt_ops_data_phase3_001` | `0.1.0` | L1；仅合成/脱敏非生产数据集 | Observe, Analyze, Recommend | 批准的合成或脱敏样本 | 聚合指标、口径、置信度、限制 | Medium：数据泄露/误读；禁止原始生产数据、Core/SAP、导出和写入。 |
+| 5. ceo-agent | `agt_ceo_decision_phase3_001` | `0.1.0` | L1；只读已批准报告摘要 | Analyze, Recommend | Report Center 的脱敏、可追溯报告 | CEO 决策辅助、风险、机会、待人工决策事项 | Medium：建议误用；禁止自动决策、审批、分派、通知或执行。 |
 
-每项迁移的共同门禁：登记条目、版本、能力、权限、运行时隔离和报告字段均经安全审批；迁移验证只在隔离环境进行；任一 Agent 状态异常时设为 `disabled` 并停止路由。
+## 6. 权限控制
 
-## 六、权限配置
+### 6.1 L0–L4 权限等级
 
-### 6.1 权限级别
+| 等级 | 定义 | Phase 3 状态 |
+|---|---|---|
+| L0 | 无访问；仅文档与审计元数据查看。 | 可用于审计员。 |
+| L1 | 受控 Observe/Analyze/Recommend；仅合成或脱敏非生产输入；无写入。 | **Phase 3 Agent 的最高允许等级。** |
+| L2 | 已批准的受限只读业务数据访问。 | 禁止。 |
+| L3 | 受限写入或受控业务动作。 | 禁止。 |
+| L4 | 高风险、跨系统或生产执行。 | 禁止。 |
 
-| 级别 | 定义 | Phase 3 适用性 |
-| --- | --- | --- |
-| L0 | 无数据访问、无工具调用；仅登记、配置校验或离线 schema 验证。 | `data-agent` 默认级别。 |
-| L1 | 只读访问已批准的内部测试/脱敏元数据；可生成脱敏报告。 | 五个 Agent 的最高默认级别。 |
-| L2 | 受控写入非生产、服务专属暂存区；须审批、范围绑定和完整审计。 | 不默认授予；单项书面批准后方可使用。 |
-| L3 | 对受控非生产工作流提出需人工确认的变更请求；不自行执行。 | 本 Artifact 不启用。 |
-| L4 | 可执行高影响业务或生产动作。 | **Phase 3 绝对禁止。** |
+### 6.2 决策模型与禁止权限扩大
 
-### 6.2 RBAC、ABAC 与 Capability
+- **RBAC：** 平台管理员仅管理基础设施；Registry 管理员仅管理登记；审计员只读审计；Agent Owner 只能提交本 Agent 变更。职责必须分离。
+- **ABAC：** 每个请求同时校验环境、目的、数据分类、Agent ID/版本/状态、审批有效期、风险、时间、来源和输出目的地。
+- **Capability：** Runtime 只接受 Hub 签发的短时、不可转授、受众绑定、最小范围能力令牌；令牌必须绑定 Agent、版本、任务、输入 schema 和过期时间。
+- **最终授权：** `RBAC ∩ ABAC ∩ Registry capability ∩ 批准范围 ∩ 当前状态`；任一项未知或拒绝即拒绝。
+- 不得通过角色、属性、令牌、配置、缓存、人工口头指令或 Agent 间转发扩大任何权限。能力、数据、环境、输出目标或动作范围扩大必须作为新 Agent 版本重新注册、验证与审批。
 
-| 控制 | 要求 |
-| --- | --- |
-| RBAC | 使用 `registry-reader`、`registry-admin`、`hub-operator`、`runtime-operator`、`report-writer`、`auditor` 等最小角色；角色管理权不等同于运行或执行权。 |
-| ABAC | 每次请求验证 Agent ID、环境、数据分类、目标、时间窗、审批引用、所有者、网络来源和有效期；属性不符即拒绝。 |
-| Capability | 为每个版本签发显式、短时、受众和资源受限的能力令牌；仅列出允许的动作/资源。禁止通配符、共享静态密钥与隐式继承。 |
+## 7. 备份方案
 
-所有权限按默认拒绝、最小权限、职责分离、短时有效和可撤销原则配置。权限变更属于受控变更，必须具有审批、前后差异及审计记录。
+所有备份必须在变更前完成、加密、访问受控、记录校验和与恢复演练结果；备份中不得包含明文密钥、令牌或真实生产数据。
 
-## 七、部署流程
+| 备份对象 | 最小内容 | 时点与保留 | 恢复验证 |
+|---|---|---|---|
+| Registry 备份 | schema、登记记录、版本、生命周期、审批引用、策略版本、审计索引与撤销清单 | 每次 Registry 变更前后；按经批准保留策略保存 | 在隔离环境校验完整性并恢复只读副本。 |
+| Agent 配置备份 | 每个 Agent manifest、能力、权限、输入输出 schema、负责人、风险和状态 | 每次版本/权限变更前后 | 校验 manifest 签名/校验和与 Registry 版本一致。 |
+| Runtime 配置备份 | 镜像版本/摘要、环境模板、网络策略、身份引用、健康与紧急停止配置 | 部署前、配置变更前后 | 隔离环境启动并验证默认拒绝、健康与审计。 |
+| Compose 备份 | 已批准 Compose 文件、覆盖文件、变量键名清单（不含秘密值）、部署版本与校验和 | 每次部署前后 | 以隔离变量文件执行配置解析与版本比对。 |
 
-> 以下为获批后的受控流程模板，并非操作指令。每步都需要在批准窗口内由指定负责人记录实际证据。
+## 8. 回滚方案
 
-| 阶段 | 允许的受控活动 | 放行标准 |
-| --- | --- | --- |
-| 备份 | 创建 Registry、Agent 配置、Compose 和 Artifact 的加密校验快照，并验证可读。 | 离机副本、清单、校验和与恢复责任人均已确认。 |
-| 准备 | 核验服务器实际身份/IP、Phase 1 控制、Phase 2A 基础、Phase 2B 框架、固定版本/digest、网络和 Secret 引用。 | 审批有效；无未批准端口、连接器或权限例外。 |
-| 部署 | 按 Registry → Hub → Runtime → Reports 顺序部署获批的最小组件和受控配置。 | 每层健康且审计可用后才可进入下一层。 |
-| 验证 | 执行无生产数据的注册、拒绝、最小权限、健康、日志和恢复验证。 | 验收报告全部必填项有证据并由独立复核人通过。 |
-| 上线 | 仅将已批准的 Agent 标记为 `registered` 并允许 L0/L1 隔离测试路由。 | 负责人确认、执行窗口有效、Artifact Approved；不构成生产业务上线。 |
+**触发条件：** 权限校验失败、未授权访问尝试、错误激活、审计缺失、健康检查失败、报告 schema 违规、异常网络出口或任何范围违反。触发后立即停止新增任务、撤销短时令牌、将受影响 Agent 置为 `Suspended`，并保留证据。
 
-## 八、备份方案
+| 恢复对象 | 回滚动作 | 完成判定 |
+|---|---|---|
+| Agent 版本回退 | 停止新版本任务；撤销其令牌；将 Registry 指针恢复至上一已批准版本；重新校验 manifest 与审计。 | 旧版本状态、能力和审批引用一致；新版本无法接收任务。 |
+| Registry 恢复 | 冻结写入；恢复最近已验证 Registry 备份；重放经批准且有审计证据的必要变更；校验撤销清单。 | Registry 完整性通过；所有非 Active/撤销 Agent 均被拒绝。 |
+| Runtime 恢复 | 停止受影响 Runtime；恢复已验证镜像和配置；重新应用默认拒绝网络与身份策略。 | 健康、令牌校验、审计和紧急停止验证均通过。 |
+| 配置恢复 | 恢复已批准 Compose、Hub、Gateway、策略和 Report Center 配置快照；不得从未知工作目录复制配置。 | 配置校验和匹配；未产生新增端口、路由、权限或数据源。 |
 
-| 备份对象 | 内容 | 最低要求 |
-| --- | --- | --- |
-| Registry 备份 | Agent 元数据、schema、版本、状态、权限/能力引用及审计引用。 | 部署前后快照；加密、SHA-256 校验、离机副本、读取/恢复验证；不含 Secret 或真实 payload。 |
-| Agent 配置备份 | Agent 定义、策略、模板、非敏感运行时配置及 Secret 引用。 | 版本化、审批关联、最小访问；实际 Secret 值不导出。 |
-| Compose 备份 | 获批 Compose 定义、镜像 digest 清单、网络/volume 声明与配置引用。 | Git 版本及批准的独立副本；可定位上一稳定 release。 |
-| Artifact 备份 | 本 Artifact、验收报告、审批记录引用、证据清单与校验和。 | 加密归档至批准位置，保留策略与访问审计可追溯。 |
+回滚不是范围扩大或继续执行的授权。恢复后必须生成异常记录、完成根因分析，并在新的审批后才可重新尝试。
 
-每份备份必须记录创建时间（UTC）、创建人、来源版本、内容清单、哈希、加密状态、保留期限、离机 URI、读取验证结果和恢复负责人。主机本地暂存副本不能作为唯一备份。
+## 9. 验收标准
 
-## 九、回滚方案
+| 验收项 | 通过标准 | 证据 |
+|---|---|---|
+| Agent Hub 运行 | Hub 可用、仅经 Gateway 接收请求、默认拒绝未知请求。 | 健康响应、Gateway 日志、拒绝审计。 |
+| Registry 正常 | 记录、版本、状态、审批和撤销状态可验证；未注册 Agent 被拒绝。 | 查询结果、签名/完整性校验、审计事件。 |
+| Agent 注册成功 | `health-agent` 按顺序完成 Draft/Registered 验证，元数据与 schema 完整。 | Registry 记录、负责人确认、注册审计。 |
+| Health Check 通过 | Hub、Registry、Runtime 与 Report Center 均健康；策略/Registry 故障 fail-closed。 | 健康检查报告与故障注入结果。 |
+| Report 生成成功 | Report Center 生成含 Agent ID、版本、时间、证据、新鲜度、限制和审计引用的脱敏测试报告。 | 报告 ID、schema 验证、审计关联。 |
+| 权限验证通过 | L0–L4、RBAC、ABAC、Capability 的允许与拒绝路径均测试；无 L2+、SAP/Core/生产数据或 Execute 权限。 | 授权测试矩阵、拒绝日志、配置审查。 |
 
-触发条件包括健康失败、权限越界、审计不可用、未批准网络暴露、注册数据不一致、检测到生产数据路径或任何自动业务动作。触发后应停止扩大影响、保留脱敏诊断证据、将相关 Agent 设为 `disabled`，并由获批回滚负责人执行恢复。
+任何一项失败或证据缺失，Phase 3 验收不通过，系统保持/恢复为不可执行状态。
 
-| 回滚域 | 回滚方法 | 回滚后验证 |
-| --- | --- | --- |
-| Agent 版本回退 | 停止异常版本路由，恢复上一获批不可变版本/digest 与其 Capability 清单；保留异常版本证据。 | Agent 版本、状态、权限、隔离和健康检查与批准基线一致。 |
-| Registry 恢复 | 使用已验证的部署前 Registry 快照恢复元数据和审计引用；不得恢复未知或未批准条目。 | 条目完整性、版本唯一性、状态转换、审计连续性和备份校验通过。 |
-| 配置恢复 | 恢复上一获批 Compose、Agent 非敏感配置、策略和 Secret **引用版本**；不得写入明文 Secret。 | 配置校验、最小权限、网络隔离、日志和健康检查通过。 |
+## 10. 审批门禁
 
-回滚不得通过降低安全控制、开放 SSH/UFW、使用浮动镜像、关闭审计或绕过审批来完成。回滚完成后必须在验收报告记录触发原因、影响、恢复来源、起止时间、验证证据、遗留风险和后续审批结论。
+执行前必须逐项确认并在执行报告中记录：
 
-## 十、验收报告模板
+- [ ] **Artifact Approved：** 本 Artifact 的明确版本已由授权审批人批准，Draft 状态已解除。
+- [ ] **执行窗口确认：** 已确认开始/结束时间、影响范围、监控、值守、停止条件与回滚窗口。
+- [ ] **负责人确认：** 变更负责人、平台负责人、Registry Owner、安全/权限责任人、验证人及回滚负责人已确认可用。
 
-执行结束后必须创建并归档 `VAFOX_CONTROL_PLANE_PHASE3_AGENT_HUB_ACCEPTANCE_REPORT.md`。模板已随本 Artifact 提供；报告不完整、无证据或未经独立复核，不得宣告 Phase 3 验收通过。
+任何一项未确认，**不得执行**。审批仅授权本 Artifact 明确范围内的步骤，不授权生产数据、SAP/Core 访问或自动业务执行。
 
-## 十一、审批门禁
+## 11. 执行报告
 
-以下门禁必须**全部**满足，才可由指定负责人在批准窗口执行：
+实际执行必须使用并完整填写：[`VAFOX_CONTROL_PLANE_PHASE3_AGENT_HUB_ACCEPTANCE_REPORT.md`](VAFOX_CONTROL_PLANE_PHASE3_AGENT_HUB_ACCEPTANCE_REPORT.md)。报告未完成、证据缺失或验收不通过时，不得将 Artifact 标记为已完成或批准上线。
 
-1. **Artifact Approved：** 本 Artifact ID、版本、范围、风险、版本/digest 清单、备份与回滚计划已获有效书面批准。
-2. **执行窗口确认：** 变更窗口、时区、影响范围、停止条件、通讯路径及回滚窗口均已确认。
-3. **负责人确认：** 系统负责人、安全审批人、执行负责人、回滚负责人和独立复核人均已确认职责与可用性。
+## 12. 禁止事项
 
-| 门禁 | 状态 | 证据/确认人 |
-| --- | --- | --- |
-| Artifact Approved | `{{PENDING}}` | `{{APPROVAL_REFERENCE}}` |
-| 执行窗口确认 | `{{PENDING}}` | `{{WINDOW_CONFIRMATION}}` |
-| 负责人确认 | `{{PENDING}}` | `{{OWNER_CONFIRMATIONS}}` |
+以下行为绝对禁止：
 
-## 十二、禁止事项
-
-以下事项绝对禁止；发现时立即停止、记录异常并通知安全审批人和回滚负责人：
-
-1. **绕过审批。** 未批准、窗口外、审批过期、范围不一致或门禁失败时不得执行。
-2. **未注册 Agent 运行。** 不得由 Hub 或 Runtime 加载、路由或执行未在 Registry 受控登记的 Agent/版本。
-3. **权限扩大。** 不得提升 L0/L1 权限、增加角色/属性/能力范围、引入通配符或共享凭据，除非另有审批。
-4. **生产数据接入。** 不得接入、复制、查询或处理生产数据、SAP 或 Core 真实数据。
-5. **自动执行业务操作。** 不得允许 Agent 触发业务写入、审批替代、生产变更、任务执行或外部自动化动作。
-6. **Secret 与审计绕过。** 不得记录明文 Secret、禁用审计、删除证据，或以任何恢复便利为由降低安全控制。
-
-## 十三、审批与签署
-
-| 角色 | 姓名/标识 | 确认内容 | 时间（UTC） | 审批/记录引用 |
-| --- | --- | --- | --- | --- |
-| 系统负责人 | `{{SYSTEM_OWNER}}` | 目标、范围、窗口、影响与验收标准已确认。 | `{{UTC}}` | `{{REFERENCE}}` |
-| 安全审批人 | `{{SECURITY_APPROVER}}` | 身份、权限、网络、日志、备份和风险控制已批准。 | `{{UTC}}` | `{{REFERENCE}}` |
-| 执行负责人 | `{{EXECUTION_OWNER}}` | 已理解门禁、停止条件、验证及报告义务。 | `{{UTC}}` | `{{REFERENCE}}` |
-| 回滚负责人 | `{{ROLLBACK_OWNER}}` | 离机备份、恢复位置、责任与验证方式已确认。 | `{{UTC}}` | `{{REFERENCE}}` |
-| 独立复核人 | `{{REVIEWER}}` | 已复核门禁与最终验收证据。 | `{{UTC}}` | `{{REFERENCE}}` |
-
-**执行授权声明：** 在所有签署、变更单和批准窗口均有效前，本 Artifact 始终为 Draft，不得用于执行任何服务器或环境操作。
+1. 绕过审批或在 Draft/未批准状态下执行。
+2. 运行未注册、非 Active、版本不匹配、审批失效或被暂停的 Agent。
+3. 绕过 Gateway、Hub、Registry、策略决策或资源侧校验。
+4. 绕过 RBAC、ABAC、Capability 或借用/转授其他主体权限。
+5. 接入生产数据、SAP、Core 真实数据或其访问路径。
+6. 自动业务执行，或以建议、报告、重试、批处理、脚本或人工口头指令间接触发执行。
