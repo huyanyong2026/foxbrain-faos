@@ -1,98 +1,83 @@
-# VAFOX Control Plane Phase 3 Agent Hub 验收报告
+# VAFOX Control Plane Phase 3 — Agent Hub 验收执行报告模板
 
-> **模板状态：Draft。** 本报告仅在 `VAFOX_CONTROL_PLANE_PHASE3_AGENT_HUB_ARTIFACT.md` 已获批准、执行完成并收集证据后填写。未完成审批与验证前，不得标记为通过，不得据此授权生产数据接入或业务自动执行。
+> **模板状态：未执行。** 仅在 `VAFOX_CONTROL_PLANE_PHASE3_AGENT_HUB_ARTIFACT.md` 已获批准、执行窗口与负责人均确认后填写。不得用本模板替代审批或授权范围。
 
-## 一、报告 Metadata
+## 1. 执行基本信息
 
-| 字段 | 内容 |
-| --- | --- |
-| 报告 ID | `{{ACCEPTANCE_REPORT_ID}}` |
-| 关联 Artifact | `VAFOX-CONTROL-PLANE-P3-AGENT-HUB-001` / `{{ARTIFACT_VERSION}}` |
-| 目标服务器 | `control.vafox.com`（已核验公网 IP：`{{VERIFIED_PUBLIC_IP}}`；内网 IP：`{{VERIFIED_PRIVATE_IP}}`） |
-| 执行窗口（UTC） | `{{APPROVED_CHANGE_WINDOW_UTC}}` |
-| 实际执行时间（UTC） | `{{START_UTC}}` — `{{END_UTC}}` |
-| 执行负责人 | `{{EXECUTION_OWNER}}` |
-| 独立复核人 | `{{REVIEWER}}` |
-| 最终状态 | `{{PASS / FAIL / CONDITIONAL}}` |
+| 项目 | 填写内容 |
+|---|---|
+| 报告 ID | `VAFOX-CP-P3-AH-ACCEPTANCE-____` |
+| 执行时间（UTC，开始—结束） | 待填写 |
+| 执行人 | 待填写 |
+| 复核人 | 待填写 |
+| Artifact ID / 版本 | `VAFOX-CP-P3-AGENT-HUB-001` / 待填写 |
+| Artifact 审批引用 | 待填写（必填） |
+| 执行窗口确认引用 | 待填写（必填） |
+| 负责人确认 | 待填写（必填） |
+| 目标环境 | `control.vafox.com`（公网 `114.132.55.178`；内网 `172.16.16.6`） |
+| 变更单 / 关联 ID | 待填写 |
+| 最终结论 | ☐ 通过　☐ 不通过　☐ 已回滚　☐ 待复核 |
 
-## 二、部署状态
+## 2. 部署内容
 
-| 检查项 | 预期 | 实际结果 | 状态 | 证据引用/复核人 |
-| --- | --- | --- | --- | --- |
-| 审批门禁 | Artifact Approved、窗口和负责人确认均有效。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Hub | 仅加载获批最小组件；无未批准公网暴露。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Registry | Schema、状态转换和审计可用。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Runtime | 隔离、非 root、资源限制和工具策略符合基线。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Reports | 来源认证、脱敏和访问控制可用。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
+| 步骤 | 实际部署/验证内容 | 版本或校验和 | 执行结果 | 证据/审计引用 |
+|---|---|---|---|---|
+| Step 1：Registry 初始化 | 待填写 | 待填写 | ☐ 通过 ☐ 不通过 ☐ 未执行 | 待填写 |
+| Step 2：Agent Hub Core 部署 | 待填写 | 待填写 | ☐ 通过 ☐ 不通过 ☐ 未执行 | 待填写 |
+| Step 3：Runtime 部署 | 待填写 | 待填写 | ☐ 通过 ☐ 不通过 ☐ 未执行 | 待填写 |
+| Step 4：Health Check | 待填写 | 待填写 | ☐ 通过 ☐ 不通过 ☐ 未执行 | 待填写 |
+| Step 5：第一个 Agent 接入 | 待填写 | 待填写 | ☐ 通过 ☐ 不通过 ☐ 未执行 | 待填写 |
 
-## 三、Agent 注册
+## 3. Agent 状态
 
-| Agent | Agent ID/版本 | 状态 | 权限级别 | 能力范围 | 注册与审计证据 | 结果 |
-| --- | --- | --- | --- | --- | --- | --- |
-| health-agent | `{{ID_VERSION}}` | `{{STATUS}}` | `{{L0_L4}}` | `{{CAPABILITY}}` | `{{EVIDENCE}}` | `{{PASS_FAIL}}` |
-| connectivity-agent | `{{ID_VERSION}}` | `{{STATUS}}` | `{{L0_L4}}` | `{{CAPABILITY}}` | `{{EVIDENCE}}` | `{{PASS_FAIL}}` |
-| report-agent | `{{ID_VERSION}}` | `{{STATUS}}` | `{{L0_L4}}` | `{{CAPABILITY}}` | `{{EVIDENCE}}` | `{{PASS_FAIL}}` |
-| data-agent | `{{ID_VERSION}}` | `{{STATUS}}` | `{{L0_L4}}` | `{{CAPABILITY}}` | `{{EVIDENCE}}` | `{{PASS_FAIL}}` |
-| ceo-agent | `{{ID_VERSION}}` | `{{STATUS}}` | `{{L0_L4}}` | `{{CAPABILITY}}` | `{{EVIDENCE}}` | `{{PASS_FAIL}}` |
+| 固定顺序 | Agent | Agent ID | 版本 | Registry 状态 | Runtime 状态 | 权限/Capability 验证 | 备注 |
+|---:|---|---|---|---|---|---|---|
+| 1 | health-agent | `agt_ops_health_phase3_001` | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
+| 2 | connectivity-agent | `agt_ops_connectivity_phase3_001` | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
+| 3 | report-agent | `agt_ops_report_phase3_001` | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
+| 4 | data-agent | `agt_ops_data_phase3_001` | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
+| 5 | ceo-agent | `agt_ceo_decision_phase3_001` | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
 
-验收要求：每项均为唯一登记的获批版本；默认仅 L0/L1；不存在未注册版本、`latest`、生产连接器、SAP/Core 真实数据路径或业务执行能力。
+> 只有经单独批准且状态为 `Active` 的版本才能运行。Phase 3 初始验收不得接入生产数据、SAP、Core 真实数据或 Execute 能力。
 
-## 四、权限验证
+## 4. 验证结果
 
-| 验证域 | 通过标准 | 实际结果 | 状态 | 证据 |
-| --- | --- | --- | --- |
-| RBAC | 每个服务/Agent 仅持有获批最小角色；管理权不等同执行权。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| ABAC | 环境、数据分类、目标、时间窗、审批引用和所有者属性不匹配时请求被拒绝。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Capability | 能力令牌为显式、短时、受众/资源受限；无通配符或共享静态凭据。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| 越权拒绝 | L2/L3/L4、未登记 Agent、未批准工具和生产数据访问请求均被安全拒绝并审计。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
+| 验收项 | 预期 | 实际结果 | 结果 | 证据/审计引用 |
+|---|---|---|---|---|
+| Agent Hub 运行 | 仅经 Gateway 接收受控请求；未知请求默认拒绝。 | 待填写 | ☐ 通过 ☐ 不通过 | 待填写 |
+| Registry 正常 | 状态、版本、审批和撤销可验证；未注册 Agent 被拒绝。 | 待填写 | ☐ 通过 ☐ 不通过 | 待填写 |
+| Agent 注册成功 | health-agent 完成受控 Draft/Registered 验证。 | 待填写 | ☐ 通过 ☐ 不通过 | 待填写 |
+| Health Check 通过 | Hub、Registry、Runtime、Report Center 健康；故障 fail-closed。 | 待填写 | ☐ 通过 ☐ 不通过 | 待填写 |
+| Report 生成成功 | 脱敏测试报告包含可追溯来源与审计引用。 | 待填写 | ☐ 通过 ☐ 不通过 | 待填写 |
+| 权限验证通过 | RBAC、ABAC、Capability 与 L0–L4 拒绝/允许测试符合 Artifact。 | 待填写 | ☐ 通过 ☐ 不通过 | 待填写 |
+| 禁止项验证 | 无生产数据、SAP/Core 访问、绕过 Gateway/权限或自动执行。 | 待填写 | ☐ 通过 ☐ 不通过 | 待填写 |
 
-## 五、健康检查
+## 5. 异常
 
-| 组件 | Liveness | Readiness | Dependency | 版本/配置一致性 | 状态 | 证据 |
-| --- | --- | --- | --- | --- | --- |
-| Agent Hub | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Registry | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Runtime | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Reports | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
+| 时间（UTC） | 异常描述 | 影响范围 | 处置措施 | 是否触发停止/回滚 | 证据/工单 |
+|---|---|---|---|---|---|
+| 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
 
-## 六、日志状态
+## 6. 回滚情况
 
-| 日志类别 | 通过标准 | 实际结果 | 状态 | 证据 |
-| --- | --- | --- | --- |
-| Agent/Hub 日志 | 含 UTC、Agent ID、版本、请求关联 ID、结果与错误分类；不含 Secret 或真实 payload。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Registry 审计 | 注册、状态/权限变更、拒绝与查询操作可追溯且完整。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Runtime 日志 | 隔离策略、工具拒绝、资源/健康事件和版本可追溯。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
-| Reports 日志 | 来源身份、完整性、脱敏、访问控制和保留/轮转状态已验证。 | `{{RESULT}}` | `{{PASS_FAIL}}` | `{{EVIDENCE}}` |
+| 项目 | 是否执行 | 使用的备份/版本 | 结果 | 验证证据 |
+|---|---|---|---|---|
+| Agent 版本回退 | ☐ 是 ☐ 否 | 待填写 | 待填写 | 待填写 |
+| Registry 恢复 | ☐ 是 ☐ 否 | 待填写 | 待填写 | 待填写 |
+| Runtime 恢复 | ☐ 是 ☐ 否 | 待填写 | 待填写 | 待填写 |
+| 配置恢复（含 Compose） | ☐ 是 ☐ 否 | 待填写 | 待填写 | 待填写 |
 
-## 七、回滚状态
+## 7. 最终确认与签署
 
-| 回滚域 | 备份/恢复来源 | 读取或演练验证 | 当前状态 | 责任人 | 证据 |
-| --- | --- | --- | --- | --- | --- |
-| Agent 版本回退 | `{{APPROVED_PREVIOUS_RELEASE}}` | `{{RESULT}}` | `{{READY_USED_NOT_NEEDED}}` | `{{ROLLBACK_OWNER}}` | `{{EVIDENCE}}` |
-| Registry 恢复 | `{{REGISTRY_BACKUP_URI}}` | `{{RESULT}}` | `{{READY_USED_NOT_NEEDED}}` | `{{ROLLBACK_OWNER}}` | `{{EVIDENCE}}` |
-| 配置恢复 | `{{CONFIG_COMPOSE_BACKUP_URI}}` | `{{RESULT}}` | `{{READY_USED_NOT_NEEDED}}` | `{{ROLLBACK_OWNER}}` | `{{EVIDENCE}}` |
+- [ ] Artifact 批准、执行窗口及负责人确认在执行前均已完成。
+- [ ] 备份、审计、健康、Registry、报告与权限验证证据已附上。
+- [ ] 未发生生产数据接入、SAP/Core 真实数据访问、自动业务执行或任何绕过路径。
+- [ ] 若存在异常，已完成停止、回滚或已批准的风险处置。
+- [ ] 验收结论与下一步建议已由负责人和复核人确认。
 
-如已实际回滚，补充：触发时间、原因、影响范围、恢复版本、实际步骤、验证结果、遗留风险及后续批准结论：`{{ROLLBACK_DETAILS}}`。
-
-## 八、异常、范围确认与结论
-
-| 项目 | 记录 |
-| --- | --- |
-| 异常/偏差 | `{{EXCEPTIONS_OR_NONE}}` |
-| 生产数据/SAP/Core 真实数据接入确认 | `{{CONFIRM_NONE}}` |
-| 自动执行业务操作确认 | `{{CONFIRM_NONE}}` |
-| 未注册 Agent 或权限扩大确认 | `{{CONFIRM_NONE}}` |
-| 遗留风险与整改计划 | `{{RISKS_AND_ACTIONS}}` |
-| 最终验收结论 | `{{FINAL_CONCLUSION}}` |
-
-## 九、签署
-
-| 角色 | 姓名/标识 | 结论 | 时间（UTC） | 签署/记录引用 |
-| --- | --- | --- | --- |
-| 执行负责人 | `{{EXECUTION_OWNER}}` | `{{CONCLUSION}}` | `{{UTC}}` | `{{REFERENCE}}` |
-| 回滚负责人 | `{{ROLLBACK_OWNER}}` | `{{CONCLUSION}}` | `{{UTC}}` | `{{REFERENCE}}` |
-| 安全审批人 | `{{SECURITY_APPROVER}}` | `{{CONCLUSION}}` | `{{UTC}}` | `{{REFERENCE}}` |
-| 独立复核人 | `{{REVIEWER}}` | `{{CONCLUSION}}` | `{{UTC}}` | `{{REFERENCE}}` |
-| 系统负责人 | `{{SYSTEM_OWNER}}` | `{{CONCLUSION}}` | `{{UTC}}` | `{{REFERENCE}}` |
-
-**验收限制：** 即使本报告通过，Phase 3 也只表明 Agent Hub 的受控基础能力通过验收；不授权生产数据、SAP、Core 真实数据接入或任何自动业务操作。上述能力均须另行设计、审批、实施和验收。
+| 角色 | 姓名/标识 | 时间（UTC） | 签署/确认 |
+|---|---|---|---|
+| 执行人 | 待填写 | 待填写 | 待填写 |
+| 负责人 | 待填写 | 待填写 | 待填写 |
+| 安全/权限责任人 | 待填写 | 待填写 | 待填写 |
+| 复核人 | 待填写 | 待填写 | 待填写 |
