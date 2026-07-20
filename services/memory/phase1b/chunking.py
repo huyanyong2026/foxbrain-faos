@@ -7,11 +7,18 @@ import unicodedata
 import uuid
 from dataclasses import dataclass
 
-CHUNKER_VERSION = "recursive-whitespace-v1"
+CHUNKER_VERSION = "recursive-whitespace-v2"
 
 @dataclass(frozen=True)
 class Chunk:
     id: str; index: int; text: str; char_start: int; char_end: int; token_count: int; content_sha256: str
+
+    def payload(self, memory_id: str, *, page: int | None = None, section: str | None = None) -> dict:
+        """The portable, auditable chunk representation used by the index."""
+        return {"chunk_id": self.id, "memory_id": memory_id, "content": self.text,
+                "offset": self.char_start, "token_count": self.token_count,
+                "content_hash": self.content_sha256, "page": page,
+                "section": section}
 
 def normalize_text(text: str) -> str:
     return unicodedata.normalize("NFC", text.replace("\x00", "").replace("\r\n", "\n").replace("\r", "\n"))

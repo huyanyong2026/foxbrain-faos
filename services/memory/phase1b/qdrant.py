@@ -12,10 +12,10 @@ from urllib.request import Request, urlopen
 
 
 PAYLOAD_FIELDS = frozenset({
-    "memory_id", "chunk_id", "owner", "tags", "source", "created_at",
-    "content_hash", "embedding_profile",
+    "memory_id", "chunk_id", "content", "offset", "token_count", "content_hash", "page", "section",
+    "document_name", "owner", "tags", "source", "created_at", "embedding_profile",
 })
-PAYLOAD_INDEX_FIELDS = ("memory_id", "chunk_id", "owner", "tags", "source", "created_at", "content_hash", "embedding_profile")
+PAYLOAD_INDEX_FIELDS = ("memory_id", "chunk_id", "owner", "tags", "source", "created_at", "content_hash", "embedding_profile", "document_name")
 
 
 class QdrantAdapter:
@@ -53,12 +53,24 @@ class QdrantAdapter:
 
     @staticmethod
     def validate_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        # Accept pre-recovery points while always writing the complete v1 shape.
+        legacy = {"memory_id", "chunk_id", "owner", "tags", "source", "created_at", "content_hash", "embedding_profile"}
+        if set(payload) == legacy:
+            payload = {**payload, "content": "[legacy chunk]", "offset": 0, "token_count": 1,
+                       "page": None, "section": None, "document_name": payload["memory_id"]}
         if set(payload) != PAYLOAD_FIELDS:
             raise ValueError("payload must contain exactly the Phase 1B payload fields")
-        if not all(isinstance(payload[key], str) and payload[key] for key in PAYLOAD_FIELDS - {"tags"}):
+        required_strings = PAYLOAD_FIELDS - {"tags", "page", "section", "offset", "token_count"}
+        if not all(isinstance(payload[key], str) and payload[key] for key in required_strings):
             raise ValueError("payload string fields must be non-empty strings")
         if not isinstance(payload["tags"], list) or any(not isinstance(tag, str) or not tag for tag in payload["tags"]):
             raise ValueError("tags must be an array of non-empty strings")
+        if not isinstance(payload["offset"], int) or payload["offset"] < 0 or not isinstance(payload["token_count"], int) or payload["token_count"] < 1:
+            raise ValueError("chunk offset and token_count are invalid")
+        if payload["page"] is not None and (not isinstance(payload["page"], int) or payload["page"] < 1):
+            raise ValueError("page must be a positive integer or null")
+        if payload["section"] is not None and not isinstance(payload["section"], str):
+            raise ValueError("section must be a string or null")
         try:
             datetime.fromisoformat(payload["created_at"].replace("Z", "+00:00"))
         except ValueError as error:
@@ -103,6 +115,12 @@ class QdrantAdapter:
         self.create_collection(collection, dimension, distance)
         self.set_alias(collection)
         return {"collection": collection, "alias": self.collection_alias, "dimension": dimension, "distance": distance}
+
+    def ensure_initialized(self, dimension: int, distance: str = "Cosine"):
+        """Create the required v1 collection once; safe for repeated job runs."""
+        if any(item.get("name") in {self.collection_alias, f"{self.collection_alias}__default"} for item in self.collections()):
+            return {"collection": self.collection_alias, "alias": self.collection_alias}
+        return self.initialize(dimension, distance=distance)
 
     def upsert(self, points: list[dict[str, Any]], wait: bool = True):
         normalized = []

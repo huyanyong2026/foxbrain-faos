@@ -21,11 +21,17 @@ from packages.vafox_foundation.http import json_response, service_app
 class ObjectStorage:
     """Small dependency-free S3-compatible client for the existing MinIO service."""
     def __init__(self, endpoint, access_key, secret_key, region="us-east-1"):
+        if not endpoint or not access_key or not secret_key:
+            raise ValueError("MinIO endpoint, access key, and secret key are required")
         self.endpoint, self.access_key, self.secret_key, self.region = endpoint.rstrip("/"), access_key, secret_key, region
     def request(self, method, bucket, key="", body=b"", content_type="application/octet-stream"):
         now = datetime.now(timezone.utc); stamp, amz_date = now.strftime("%Y%m%d"), now.strftime("%Y%m%dT%H%M%SZ")
-        target = f"/{quote(bucket, safe='')}/{quote(key, safe='/') if key else ''}"
-        parsed = urlparse(self.endpoint); host = parsed.netloc; payload_hash = hashlib.sha256(body).hexdigest()
+        parsed = urlparse(self.endpoint)
+        # A reverse proxy may publish MinIO below a path prefix.  SigV4 signs
+        # that prefix too, otherwise MinIO returns SignatureDoesNotMatch.
+        base_path = parsed.path.rstrip("/")
+        target = f"{base_path}/{quote(bucket, safe='')}/{quote(key, safe='/') if key else ''}"
+        host = parsed.netloc; payload_hash = hashlib.sha256(body).hexdigest()
         headers = {"host": host, "x-amz-content-sha256": payload_hash, "x-amz-date": amz_date}
         if body: headers["content-type"] = content_type
         canonical_headers = "".join(f"{key}:{value}\n" for key, value in sorted(headers.items()))
@@ -35,7 +41,7 @@ class ObjectStorage:
         def sign(key, value): return hmac.new(key, value.encode(), hashlib.sha256).digest()
         signing_key = sign(sign(sign(sign(("AWS4" + self.secret_key).encode(), stamp), self.region), "s3"), "aws4_request")
         headers["Authorization"] = f"AWS4-HMAC-SHA256 Credential={self.access_key}/{scope}, SignedHeaders={signed_headers}, Signature={hmac.new(signing_key, string_to_sign.encode(), hashlib.sha256).hexdigest()}"
-        request = Request(self.endpoint + target, data=body if method in {"PUT", "POST"} else None, method=method, headers=headers)
+        request = Request(f"{parsed.scheme}://{parsed.netloc}{target}", data=body if method in {"PUT", "POST"} else None, method=method, headers=headers)
         try:
             return urlopen(request, timeout=float(os.getenv("STORAGE_TIMEOUT_SECONDS", "10")))
         except HTTPError as error:

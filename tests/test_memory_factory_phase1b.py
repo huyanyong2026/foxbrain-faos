@@ -12,6 +12,8 @@ from services.memory.app import create_app
 from services.memory.phase1b.chunking import chunk_text, normalize_text
 from services.memory.phase1b.config import Phase1BSettings
 from services.memory.phase1b.qdrant import QdrantAdapter
+from services.memory.phase1b.indexing import InMemoryIndexJobs, IndexWorker
+from services.memory.phase1b.retrieval import RetrievalService
 
 
 def request(app, method, path, payload=b"", headers=None):
@@ -95,3 +97,34 @@ def test_vector_foundation_api_is_explicitly_injected():
     status, body = request(app, "POST", "/collections/init", json.dumps({"dimension": 1024}).encode())
     assert status == 201 and body["dimension"] == 1024
     assert request(create_app(FakeMemory()), "GET", "/health/vector")[0] == 503
+
+
+class PipelineMemory:
+    def content(self, memory_id):
+        return ({"name": "strategy.md", "type": "text/markdown", "source": "upload", "tags": ["plan"]}, b"# Strategy\nRevenue plan is approved.\n")
+
+
+class PipelineEmbedding:
+    def embed(self, text): return [float(len(text)), 1.0]
+    def embed_batch(self, texts): return [self.embed(text) for text in texts]
+
+
+class PipelineQdrant:
+    collection_alias = "memory_chunks_v1"
+    def __init__(self): self.points = []; self.initialized = []
+    def ensure_initialized(self, dimension): self.initialized.append(dimension)
+    def upsert(self, points): self.points.extend(points)
+    def search(self, vector, owners, limit, **filters):
+        return [{"score": .99, "payload": point["payload"]} for point in self.points if point["payload"]["owner"] in owners][:limit]
+
+
+def test_real_worker_indexes_chunks_and_returns_complete_citation():
+    jobs, store, embedding = InMemoryIndexJobs(), PipelineQdrant(), PipelineEmbedding()
+    job, _ = jobs.create("m-strategy", "alice", "openai@v1", "recursive-whitespace-v2", "rev-1")
+    completed = IndexWorker(PipelineMemory(), jobs, embedding, store, "openai@v1", chunk_size=3, overlap=1).run(job.id)
+    assert completed.status == "completed" and completed.chunk_count > 0 and store.initialized == [2]
+    payload = store.points[0]["payload"]
+    assert {"chunk_id", "memory_id", "content", "offset", "token_count", "content_hash", "page", "section", "owner", "tags"} <= set(payload)
+    result = RetrievalService(embedding, store, "openai@v1").vector_search("Revenue", 1, ("alice",))
+    assert result["results"][0]["citation"] == {"document_name": "strategy.md", "page": None, "section": "Strategy", "chunk_id": payload["chunk_id"], "source": "upload"}
+    assert RetrievalService(embedding, store, "openai@v1").vector_search("Revenue", 1, ("bob",))["results"] == []
