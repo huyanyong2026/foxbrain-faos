@@ -159,7 +159,7 @@ def _receive(service: MemoryService):
     return handler
 
 
-def create_app(memory_service: MemoryService | None = None, retrieval_service=None, qdrant_client=None):
+def create_app(memory_service: MemoryService | None = None, retrieval_service=None, qdrant_client=None, index_jobs=None, dify_adapter=None):
     service = memory_service or MemoryService()
     class UnavailableRetrieval:
         def vector_search(self, **kwargs): raise RuntimeError("phase1b_not_configured")
@@ -168,6 +168,8 @@ def create_app(memory_service: MemoryService | None = None, retrieval_service=No
     # The Qdrant client is also injected.  Consequently this API never discovers
     # or connects to an environment's Qdrant instance during Phase 1A startup.
     qdrant = qdrant_client
+    jobs = index_jobs
+    adapter = dify_adapter
     # Phase 1B is deliberately opt-in through dependency injection.  This keeps
     # Phase 1A startup and its production topology untouched.
     def authorized_owners(environ):
@@ -187,11 +189,45 @@ def create_app(memory_service: MemoryService | None = None, retrieval_service=No
             return json_response(start_response, 403, {"error": "owner_not_authorized"}), 403
         try:
             result = retrieval.vector_search(query=query, top_k=top_k, owners=tuple(requested) if requested is not None else owners,
-                tags_any=tuple(filters.get("tags_any", ())), source=filters.get("source"), created_at_gte=filters.get("created_at_gte"),
+                tags_any=tuple(filters.get("tags", filters.get("tags_any", ()))), source=filters.get("source"), created_at_gte=filters.get("created_after", filters.get("created_at_gte")), created_at_lte=filters.get("created_before"), exclude_memory_id=filters.get("exclude_memory_id"), memory_id=filters.get("memory_id"),
                 include_text=bool(payload.get("include_text", False)), embedding_profile=payload.get("embedding_profile"))
+        except ValueError as error:
+            return json_response(start_response, 400, {"error": str(error)}), 400
         except RuntimeError as error:
             return json_response(start_response, 503, {"error": str(error)}), 503
         return json_response(start_response, 200, result), 200
+    def require_item_owner(memory_id, environ):
+        record = service.get(memory_id)
+        if not record: return None, (404, {"error": "memory_not_found"})
+        if record["owner"] not in authorized_owners(environ): return None, (403, {"error": "forbidden"})
+        return record, None
+    def reindex(environ, start_response):
+        if jobs is None: return json_response(start_response, 503, {"error": "phase1b_not_configured"}), 503
+        memory_id = environ["PATH_INFO"].split("/")[4]; record, failure = require_item_owner(memory_id, environ)
+        if failure: return json_response(start_response, *failure), failure[0]
+        try: payload = json.loads(_body(environ) or b"{}")
+        except json.JSONDecodeError: return json_response(start_response, 400, {"error": "invalid_json"}), 400
+        profile, chunk_profile = payload.get("embedding_profile", "default"), payload.get("chunk_profile", "recursive-whitespace-v1")
+        if not isinstance(profile, str) or not isinstance(chunk_profile, str) or not isinstance(payload.get("force", False), bool):
+            return json_response(start_response, 400, {"error": "invalid_reindex_request"}), 400
+        job, created = jobs.create(memory_id, record["owner"], profile, chunk_profile, record["updated_at"], payload.get("force", False))
+        return json_response(start_response, 202, {"job_id": job.id, "status": job.status, "created": created}), 202
+    def job_status(environ, start_response):
+        if jobs is None: return json_response(start_response, 503, {"error": "phase1b_not_configured"}), 503
+        job = jobs.get(environ["PATH_INFO"].rsplit("/", 1)[-1])
+        if not job: return json_response(start_response, 404, {"error": "not_found"}), 404
+        if job.owner not in authorized_owners(environ): return json_response(start_response, 403, {"error": "forbidden"}), 403
+        return json_response(start_response, 200, job.__dict__), 200
+    def dify_retrieve(environ, start_response):
+        if adapter is None: return json_response(start_response, 503, {"error": "phase1b_not_configured"}), 503
+        try: payload = json.loads(_body(environ) or b"{}")
+        except json.JSONDecodeError: return json_response(start_response, 400, {"error": "invalid_json"}), 400
+        query, top_k, filters = payload.get("query"), payload.get("top_k", 5), payload.get("filters", {})
+        if not isinstance(query, str) or not query.strip() or not isinstance(top_k, int) or not 1 <= top_k <= 50 or not isinstance(filters, dict):
+            return json_response(start_response, 400, {"error": "invalid_retrieve_request"}), 400
+        try: return json_response(start_response, 200, adapter.retrieve(environ.get("HTTP_AUTHORIZATION", "").removeprefix("Bearer "), query, top_k, filters)), 200
+        except PermissionError: return json_response(start_response, 401, {"error": "invalid_service_credential"}), 401
+        except RuntimeError as error: return json_response(start_response, 503, {"error": str(error)}), 503
     def related(environ, start_response):
         memory_id = environ["PATH_INFO"].split("/")[4]
         from urllib.parse import parse_qs
@@ -274,6 +310,12 @@ def create_app(memory_service: MemoryService | None = None, retrieval_service=No
             return collections_init(environ, start_response)[0]
         if path == "/api/v1/search/vector" and method == "POST":
             return vector_search(environ, start_response)[0]
+        if path.startswith("/api/v1/memory/") and path.endswith("/reindex") and method == "POST":
+            return reindex(environ, start_response)[0]
+        if path.startswith("/api/v1/index-jobs/") and method == "GET":
+            return job_status(environ, start_response)[0]
+        if path == "/api/v1/adapters/dify/retrieve" and method == "POST":
+            return dify_retrieve(environ, start_response)[0]
         if path.startswith("/api/v1/memory/") and path.endswith("/related") and method == "GET":
             return related(environ, start_response)[0]
         if path.startswith("/api/v1/memory/items/") and path.endswith("/content") and method == "GET":
