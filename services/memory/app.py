@@ -159,12 +159,15 @@ def _receive(service: MemoryService):
     return handler
 
 
-def create_app(memory_service: MemoryService | None = None, retrieval_service=None):
+def create_app(memory_service: MemoryService | None = None, retrieval_service=None, qdrant_client=None):
     service = memory_service or MemoryService()
     class UnavailableRetrieval:
         def vector_search(self, **kwargs): raise RuntimeError("phase1b_not_configured")
         def related(self, **kwargs): raise RuntimeError("phase1b_not_configured")
     retrieval = retrieval_service or UnavailableRetrieval()
+    # The Qdrant client is also injected.  Consequently this API never discovers
+    # or connects to an environment's Qdrant instance during Phase 1A startup.
+    qdrant = qdrant_client
     # Phase 1B is deliberately opt-in through dependency injection.  This keeps
     # Phase 1A startup and its production topology untouched.
     def authorized_owners(environ):
@@ -219,6 +222,38 @@ def create_app(memory_service: MemoryService | None = None, retrieval_service=No
         tag = parse_qs(environ.get("QUERY_STRING", "")).get("tag", [None])[0]
         if not query: return json_response(start_response, 400, {"error": "query_required"}), 400
         return json_response(start_response, 200, {"items": service.search(query, owner, tag)}), 200
+    def vector_health(environ, start_response):
+        if qdrant is None:
+            return json_response(start_response, 503, {"status": "unavailable", "error": "phase1b_not_configured"}), 503
+        try:
+            return json_response(start_response, 200, qdrant.health()), 200
+        except Exception:
+            return json_response(start_response, 503, {"status": "unavailable", "error": "qdrant_unavailable"}), 503
+    def collections(environ, start_response):
+        if qdrant is None:
+            return json_response(start_response, 503, {"error": "phase1b_not_configured"}), 503
+        try:
+            return json_response(start_response, 200, {"collections": qdrant.collections(), "alias": qdrant.collection_alias}), 200
+        except Exception:
+            return json_response(start_response, 503, {"error": "qdrant_unavailable"}), 503
+    def collections_init(environ, start_response):
+        if qdrant is None:
+            return json_response(start_response, 503, {"error": "phase1b_not_configured"}), 503
+        try:
+            payload = json.loads(_body(environ) or b"{}")
+            dimension = payload["dimension"]
+            collection = payload.get("collection")
+            distance = payload.get("distance", "Cosine")
+            if not isinstance(dimension, int) or isinstance(dimension, bool) or not isinstance(collection, (str, type(None))) or not isinstance(distance, str):
+                raise ValueError
+        except (json.JSONDecodeError, KeyError, ValueError):
+            return json_response(start_response, 400, {"error": "invalid_collection_init_request"}), 400
+        try:
+            return json_response(start_response, 201, qdrant.initialize(dimension, collection, distance)), 201
+        except ValueError as error:
+            return json_response(start_response, 400, {"error": str(error)}), 400
+        except Exception:
+            return json_response(start_response, 503, {"error": "qdrant_unavailable"}), 503
     routes = {("POST", "/api/v1/memory/receive"): _receive(service), ("GET", "/api/v1/memory/search"): search}
     base = service_app("memory", routes)
     def content(environ, start_response):
@@ -231,6 +266,12 @@ def create_app(memory_service: MemoryService | None = None, retrieval_service=No
         return [raw], 200
     def app(environ, start_response):
         path, method = environ["PATH_INFO"], environ["REQUEST_METHOD"]
+        if path == "/health/vector" and method == "GET":
+            return vector_health(environ, start_response)[0]
+        if path == "/collections" and method == "GET":
+            return collections(environ, start_response)[0]
+        if path == "/collections/init" and method == "POST":
+            return collections_init(environ, start_response)[0]
         if path == "/api/v1/search/vector" and method == "POST":
             return vector_search(environ, start_response)[0]
         if path.startswith("/api/v1/memory/") and path.endswith("/related") and method == "GET":

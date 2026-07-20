@@ -37,6 +37,31 @@ def test_qdrant_filter_always_enforces_authorized_owner():
     else: assert False, "owner filtering must never be optional"
 
 
+def test_qdrant_collection_alias_point_lifecycle_and_health():
+    calls = []
+    def transport(method, path, payload):
+        calls.append((method, path, payload))
+        if path == "/collections": return {"result": {"collections": [{"name": "memory_chunks_v1__default"}]}}
+        if path == "/healthz": return {"result": {"title": "qdrant"}}
+        if path.endswith("/points/search"): return {"result": [{"id": "p1", "score": .9, "payload": {"owner": "finance"}}]}
+        return {"result": True}
+    adapter = QdrantAdapter("http://qdrant.test", request=transport)
+    initialized = adapter.initialize(3)
+    assert initialized["collection"] == "memory_chunks_v1__default"
+    assert initialized["alias"] == "memory_chunks_v1"
+    assert ("POST", "/aliases", {"actions": [{"create_alias": {"collection_name": "memory_chunks_v1__default", "alias_name": "memory_chunks_v1"}}]}) in calls
+    adapter.switch_alias("memory_chunks_v2__default")
+    assert ("POST", "/aliases", {"actions": [{"delete_alias": {"alias_name": "memory_chunks_v1"}}, {"create_alias": {"collection_name": "memory_chunks_v2__default", "alias_name": "memory_chunks_v1"}}]}) in calls
+    payload = {"memory_id": "m1", "chunk_id": "c1", "owner": "finance", "tags": ["plan"], "source": "manual", "created_at": "2026-07-20T00:00:00Z", "content_hash": "a" * 64, "embedding_profile": "bge-m3@v1"}
+    adapter.upsert([{"id": adapter.point_id("c1", "bge-m3@v1"), "vector": [.1, .2, .3], "payload": payload}])
+    adapter.search([.1, .2, .3], ["finance"], 1)
+    adapter.delete(memory_id="m1")
+    assert adapter.collections()[0]["name"] == "memory_chunks_v1__default"
+    assert adapter.health()["status"] == "ok"
+    assert any(method == "PUT" and "/points?wait=true" in path for method, path, _ in calls)
+    assert any(method == "POST" and path.endswith("/points/delete?wait=true") for method, path, _ in calls)
+
+
 class FakeMemory: pass
 class FakeRetrieval:
     def vector_search(self, **kwargs):
@@ -53,3 +78,20 @@ def test_vector_api_uses_trusted_owner_claim_and_related_skeleton():
     assert request(app, "POST", "/api/v1/search/vector", denied, {"HTTP_X_VAFOX_AUTHORIZED_OWNERS": "finance"})[0] == 403
     assert request(app, "POST", "/api/v1/search/vector", payload)[0] == 401
     assert request(app, "GET", "/api/v1/memory/m1/related?top_k=5", headers={"HTTP_X_VAFOX_AUTHORIZED_OWNERS": "finance"})[0] == 200
+
+
+class FakeQdrant:
+    collection_alias = "memory_chunks_v1"
+    def health(self): return {"status": "ok", "qdrant": {"title": "qdrant"}}
+    def collections(self): return [{"name": "memory_chunks_v1__default"}]
+    def initialize(self, dimension, collection, distance): return {"collection": collection or "memory_chunks_v1__default", "alias": self.collection_alias, "dimension": dimension, "distance": distance}
+
+
+def test_vector_foundation_api_is_explicitly_injected():
+    app = create_app(FakeMemory(), qdrant_client=FakeQdrant())
+    assert request(app, "GET", "/health/vector")[0] == 200
+    status, body = request(app, "GET", "/collections")
+    assert status == 200 and body["alias"] == "memory_chunks_v1"
+    status, body = request(app, "POST", "/collections/init", json.dumps({"dimension": 1024}).encode())
+    assert status == 201 and body["dimension"] == 1024
+    assert request(create_app(FakeMemory()), "GET", "/health/vector")[0] == 503
