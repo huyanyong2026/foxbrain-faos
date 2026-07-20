@@ -7,6 +7,29 @@ servers:
   - url: http://localhost:8080
 security: [{ bearerAuth: [] }]
 paths:
+  /health/vector:
+    get:
+      summary: Check the explicitly injected Phase 1B Qdrant client
+      responses: {'200': {description: Qdrant healthy}, '503': {description: Phase 1B not configured or Qdrant unavailable}}
+  /collections:
+    get:
+      summary: List Phase 1B Qdrant collections and active alias
+      responses: {'200': {description: Collections}, '503': {description: Phase 1B not configured or Qdrant unavailable}}
+  /collections/init:
+    post:
+      summary: Create a versioned Qdrant collection and assign memory_chunks_v1 alias
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dimension]
+              properties:
+                dimension: {type: integer, minimum: 1}
+                collection: {type: string, example: memory_chunks_v1__default}
+                distance: {type: string, enum: [Cosine, Dot, Euclid, Manhattan], default: Cosine}
+      responses: {'201': {description: Collection initialized}, '400': {description: Invalid collection configuration}, '503': {description: Phase 1B not configured or Qdrant unavailable}}
   /api/v1/memory/receive:
     post:
       summary: Receive a file or API text payload with business metadata
