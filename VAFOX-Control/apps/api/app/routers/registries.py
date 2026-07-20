@@ -3,8 +3,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.registry import (Deployment, DeploymentRegistration, HealthCheck,
-                                  Server, ServerRegistration, Service,
-                                  ServiceRegistration)
+                                  LifecycleStatus, Server, ServerRegistration,
+                                  Service, ServiceRegistration)
 from app.store import deployments, servers, services
 
 router = APIRouter(tags=["registries"])
@@ -29,7 +29,9 @@ def list_servers() -> list[Server]:
 @router.post("/servers/{server_id}/health", response_model=Server)
 def report_server_health(server_id: UUID, check: HealthCheck) -> Server:
     server = require(servers.get(server_id), server_id)
-    return servers.replace(server.model_copy(update={"health_status": check.status}))
+    # The V1 server record intentionally has no remote-probe capability.
+    # Recording a report only confirms that a registered server remains active.
+    return servers.replace(server.model_copy(update={"status": LifecycleStatus.ACTIVE}))
 
 
 @router.post("/services", response_model=Service, status_code=status.HTTP_201_CREATED)
@@ -51,7 +53,6 @@ def report_service_health(service_id: UUID, check: HealthCheck) -> Service:
 
 @router.post("/deployments", response_model=Deployment, status_code=status.HTTP_201_CREATED)
 def register_deployment(request: DeploymentRegistration) -> Deployment:
-    require(services.get(request.service_id), request.service_id)
     return deployments.create(Deployment(**request.model_dump()))
 
 
