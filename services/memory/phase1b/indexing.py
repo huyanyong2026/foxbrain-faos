@@ -16,12 +16,34 @@ from .qdrant import QdrantAdapter
 class IndexingError(RuntimeError): pass
 
 def extract_text(raw: bytes, media_type: str, name: str) -> tuple[str, list[dict]]:
-    """Return text and optional source locations; binary parsers stay optional."""
+    """Extract supported enterprise formats without silently treating binaries as text.
+
+    PDF and DOCX support is deliberately dependency-optional so the service can
+    start in the minimal Phase 1A image; a clear ``extract_failed`` job error is
+    emitted when the parser extra has not been installed.
+    """
     suffix = name.rsplit(".", 1)[-1].lower() if "." in name else ""
     if media_type.startswith("text/") or suffix in {"txt", "md", "markdown"}:
         return raw.decode("utf-8"), []
-    if suffix in {"pdf", "docx"}:
-        raise IndexingError("extract_failed")
+    if suffix == "pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(__import__("io").BytesIO(raw))
+            pages = [{"page": number, "offset": 0} for number, _ in enumerate(reader.pages, 1)]
+            return "\n\f\n".join(page.extract_text() or "" for page in reader.pages), pages
+        except ImportError as error:
+            raise IndexingError("extractor_not_installed:pdf") from error
+        except Exception as error:
+            raise IndexingError("extract_failed") from error
+    if suffix == "docx":
+        try:
+            from docx import Document
+            document = Document(__import__("io").BytesIO(raw))
+            return "\n".join(paragraph.text for paragraph in document.paragraphs), []
+        except ImportError as error:
+            raise IndexingError("extractor_not_installed:docx") from error
+        except Exception as error:
+            raise IndexingError("extract_failed") from error
     if suffix in {"xls", "xlsx"}:
         raise IndexingError("unsupported_file_type")
     raise IndexingError("unsupported_file_type")
@@ -57,7 +79,9 @@ class IndexWorker:
         try:
             item, raw = self.memory_service.content(job.memory_id) or (None, None)
             if not item: raise IndexingError("memory_not_found")
-            text, _ = extract_text(raw, item["type"], item["name"]); text = normalize_text(text)
+            text, locations = extract_text(raw, item["type"], item["name"]); text = normalize_text(text)
+            # Form-feed separators preserve deterministic page boundaries after extraction.
+            page_starts = [(number, position) for number, position in enumerate([0] + [match.end() for match in __import__("re").finditer("\\f", text)], 1)]
             if not text.strip(): raise IndexingError("empty_document")
             chunks = chunk_text(job.memory_id, job.source_version, text, self.chunk_size, self.overlap)
             if len(chunks) > self.max_chunks: raise IndexingError("document_too_large")
@@ -65,9 +89,13 @@ class IndexWorker:
             for start in range(0, len(chunks), self.batch_size):
                 batch = chunks[start:start + self.batch_size]; vectors = self.embedding_provider.embed_batch([c.text for c in batch])
                 if len(vectors) != len(batch): raise IndexingError("embedding_failed")
+                if start == 0 and hasattr(self.qdrant, "ensure_initialized"):
+                    self.qdrant.ensure_initialized(len(vectors[0]))
                 for chunk, vector in zip(batch, vectors):
                     if not isinstance(vector, list) or not vector: raise IndexingError("dimension_mismatch")
-                    payload = {"memory_id": job.memory_id, "chunk_id": chunk.id, "owner": job.owner, "tags": item["tags"], "source": item["source"], "created_at": now, "content_hash": chunk.content_sha256, "embedding_profile": job.embedding_profile}
+                    page = next((number for number, position in reversed(page_starts) if chunk.char_start >= position), None) if locations else None
+                    section = next((line.lstrip("#").strip() for line in reversed(text[:chunk.char_start].splitlines() + chunk.text.splitlines()) if line.startswith("#")), None)
+                    payload = {**chunk.payload(job.memory_id, page=page, section=section), "document_name": item["name"], "owner": job.owner, "tags": item["tags"], "source": item["source"], "created_at": now, "embedding_profile": job.embedding_profile}
                     points.append({"id": QdrantAdapter.point_id(chunk.id, job.embedding_profile), "vector": vector, "payload": payload})
                 self.qdrant.upsert(points); points = []
             job.status, job.chunk_count, job.error_code = "completed", len(chunks), None

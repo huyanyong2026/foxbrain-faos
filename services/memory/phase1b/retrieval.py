@@ -20,9 +20,10 @@ class RetrievalService:
         results = []
         for row in points:
             p = row["payload"]; mid, cid = p["memory_id"], p["chunk_id"]
-            content = self.content_resolver(mid, cid) if include_text else ""
-            citation = {key: p.get(key) for key in ("memory_id", "chunk_id", "source", "page", "section")}
-            results.append({"memory_id": mid, "chunk_id": cid, "content": content, "score": row["score"], "source": p["source"], "document_title": p.get("document_title", ""), "page": p.get("page"), "section": p.get("section"), "tags": p["tags"], "created_at": p["created_at"], "citation": citation})
+            content = (self.content_resolver(mid, cid) or p.get("content", "")) if include_text else ""
+            citation = {"document_name": p.get("document_name", ""), "page": p.get("page"),
+                        "section": p.get("section"), "chunk_id": cid, "source": p["source"]}
+            results.append({"memory_id": mid, "chunk_id": cid, "content": content, "score": row["score"], "source": p["source"], "document_name": p.get("document_name", ""), "page": p.get("page"), "section": p.get("section"), "tags": p["tags"], "created_at": p["created_at"], "citation": citation})
         return {"query": query, "query_hash": hashlib.sha256(query.encode()).hexdigest(), "results": results, "top_k": top_k, "embedding_profile": self.profile_id, "collection_alias": self.qdrant.collection_alias, "elapsed_ms": round((time.monotonic() - started) * 1000, 2)}
 
     def related(self, memory_id, top_k, owners, embedding_profile=None):
