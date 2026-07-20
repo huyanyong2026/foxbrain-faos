@@ -1,6 +1,6 @@
 # VAFOX Memory Factory
 
-VAFOX Memory Factory is the backend-only enterprise-memory service. It receives files and API text, stores objects in MinIO, records metadata in PostgreSQL, and provides filename and metadata search.
+VAFOX Memory Factory is the backend-only enterprise-memory service. It receives files and API text, stores objects in MinIO, records file, owner, source, tags, free-form metadata, and timestamps in PostgreSQL, and provides filename and metadata search.
 
 ## Phase 1A Foundation Layer
 
@@ -32,7 +32,7 @@ Send a file to the Memory API:
 ```bash
 curl -X POST http://localhost:8080/api/v1/memory/receive \
   -F file=@./example.txt -F source=manual -F owner=engineering \
-  -F 'metadata={"project":"memory-factory"}'
+  -F 'metadata={"project":"memory-factory"}' -F 'tags=["example"]'
 ```
 
 Run the deployment health check:
@@ -59,3 +59,5 @@ Phase 1B is reserved for AI retrieval capabilities, including embedding generati
 ## API
 
 The API contract is in [`docs/openapi-memory-v1.yaml`](docs/openapi-memory-v1.yaml). The available endpoints are documented in [`docs/API.md`](docs/API.md).
+
+For Phase 1A validation coverage and results, see [`docs/MEMORY_FACTORY_PHASE_1A_TEST_REPORT.md`](docs/MEMORY_FACTORY_PHASE_1A_TEST_REPORT.md). This repository does not connect to production SAP or Dify and does not modify servers.

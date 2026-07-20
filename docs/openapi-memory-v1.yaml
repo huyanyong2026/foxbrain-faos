@@ -9,7 +9,7 @@ security: [{ bearerAuth: [] }]
 paths:
   /api/v1/memory/receive:
     post:
-      summary: Receive a file or API text payload
+      summary: Receive a file or API text payload with business metadata
       requestBody:
         required: true
         content:
@@ -28,7 +28,8 @@ paths:
       summary: Search active names and metadata
       parameters:
         - {name: q, in: query, required: true, schema: {type: string}}
-        - {name: owner, in: query, schema: {type: string}}
+        - {name: owner, in: query, schema: {type: string}, description: Exact owner filter}
+        - {name: tag, in: query, schema: {type: string}, description: Exact tag filter}
       responses: {'200': {description: Matches}}
 components:
   securitySchemes: {bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}}
@@ -38,9 +39,9 @@ components:
     ReceiveUpload:
       type: object
       required: [file, source, owner]
-      properties: {file: {type: string, format: binary}, source: {type: string}, owner: {type: string}, metadata: {type: string, description: JSON object}}
+      properties: {file: {type: string, format: binary}, source: {type: string}, owner: {type: string}, metadata: {type: string, description: JSON object}, tags: {type: string, description: JSON array of non-empty tag strings}}
     ReceiveInput:
       type: object
       required: [name, content, source, owner]
-      properties: {name: {type: string}, content: {type: string}, type: {type: string, default: text/plain}, source: {type: string}, owner: {type: string}, metadata: {type: object}}
+      properties: {name: {type: string}, content: {type: string}, type: {type: string, default: text/plain}, source: {type: string}, owner: {type: string}, metadata: {type: object}, tags: {type: array, items: {type: string}, description: Optional non-empty tag strings}}
     ReceiveResult: {type: object, required: [memory_id, storage_path], properties: {memory_id: {type: string, format: uuid}, storage_path: {type: string}}}

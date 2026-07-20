@@ -10,7 +10,7 @@ Requests for unlisted paths return `404`.
 
 ## Memory Factory V1
 
-The service accepts both multipart file uploads and JSON API input; `source` and `owner` are required, and multipart `metadata` is a JSON object string. Phase 1A performs lexical matching on filename and metadata only. Embedding generation, vector storage, and AI retrieval are reserved for Phase 1B.
+The service accepts both multipart file uploads and JSON API input. Every item records the file name and media type, required `source` and `owner`, a free-form metadata object, optional tags, and server-managed `created_at`/`updated_at` timestamps. In multipart requests, `metadata` and `tags` are JSON strings; in JSON requests they are an object and an array respectively. Phase 1A performs lexical matching on filename and metadata only; `owner` and exact `tag` are optional result filters. Embedding generation, vector storage, and AI retrieval are reserved for Phase 1B.
 
 | Method | Path | Behavior |
 | --- | --- | --- |
@@ -18,6 +18,22 @@ The service accepts both multipart file uploads and JSON API input; `source` and
 | GET | `/api/v1/memory/items/{memory_id}` | Reads active metadata. |
 | GET | `/api/v1/memory/items/{memory_id}/content` | Downloads the object. |
 | DELETE | `/api/v1/memory/items/{memory_id}` | Deletes the object and soft-deletes its metadata. |
-| GET | `/api/v1/memory/search?q={query}&owner={owner}` | Searches active filename and metadata; `owner` is optional. |
+| GET | `/api/v1/memory/search?q={query}&owner={owner}&tag={tag}` | Searches active filename and metadata; `owner` and exact `tag` are optional filters. |
+
+### Receive examples
+
+```bash
+# File upload. `metadata` and `tags` must be valid JSON values.
+curl -X POST http://localhost:8080/api/v1/memory/receive \
+  -F file=@./brief.pdf -F source=manual -F owner=finance \
+  -F 'metadata={"period":"2026-Q3"}' -F 'tags=["planning","quarterly"]'
+
+# JSON text input.
+curl -X POST http://localhost:8080/api/v1/memory/receive \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"note.txt","content":"approved","source":"api","owner":"finance","metadata":{"project":"factory"},"tags":["approval"]}'
+```
+
+`tags` is optional and must be an array of non-empty strings. Successful item and search responses include `tags`, `created_at`, and `updated_at` alongside the stored metadata. Invalid JSON input returns `400 invalid_json`; invalid metadata and tag shapes return `400 metadata_must_be_object` and `400 tags_must_be_string_array`.
 
 The machine-readable contract is [`openapi-memory-v1.yaml`](openapi-memory-v1.yaml).
