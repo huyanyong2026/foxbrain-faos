@@ -1,4 +1,4 @@
-"""Temporary in-memory repositories for the V1 scaffold.
+"""Temporary in-memory repositories for the local-only V1 application.
 
 Production persistence is intentionally not wired. PostgreSQL DDL is maintained
 in infra/postgres and will be adopted through a reviewed persistence adapter.

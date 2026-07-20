@@ -3,21 +3,19 @@ CREATE TYPE lifecycle_status AS ENUM ('pending', 'active', 'disabled', 'retired'
 CREATE TYPE health_status AS ENUM ('unknown', 'healthy', 'degraded', 'unhealthy');
 
 CREATE TABLE servers (
-  id UUID PRIMARY KEY, name TEXT NOT NULL UNIQUE, environment TEXT NOT NULL,
-  region TEXT NOT NULL, endpoint TEXT NOT NULL, labels JSONB NOT NULL DEFAULT '{}',
-  status lifecycle_status NOT NULL DEFAULT 'pending', health_status health_status NOT NULL DEFAULT 'unknown',
+  id UUID PRIMARY KEY, hostname TEXT NOT NULL UNIQUE, ip INET NOT NULL,
+  provider TEXT NOT NULL, role TEXT NOT NULL,
+  status lifecycle_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE services (
-  id UUID PRIMARY KEY, server_id UUID NOT NULL REFERENCES servers(id), name TEXT NOT NULL,
-  version TEXT NOT NULL, endpoint TEXT NOT NULL, capabilities JSONB NOT NULL DEFAULT '[]',
-  status lifecycle_status NOT NULL DEFAULT 'pending', health_status health_status NOT NULL DEFAULT 'unknown',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(server_id, name)
+  id UUID PRIMARY KEY, server_id UUID NOT NULL REFERENCES servers(id), service_name TEXT NOT NULL,
+  version TEXT NOT NULL, health_status health_status NOT NULL DEFAULT 'unknown',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(server_id, service_name)
 );
 CREATE TABLE deployments (
-  id UUID PRIMARY KEY, service_id UUID NOT NULL REFERENCES services(id), version TEXT NOT NULL,
-  artifact_digest TEXT NOT NULL, environment TEXT NOT NULL, change_reference TEXT NOT NULL,
-  status lifecycle_status NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  id UUID PRIMARY KEY, version TEXT NOT NULL, deploy_time TIMESTAMPTZ NOT NULL,
+  operator TEXT NOT NULL, rollback_version TEXT
 );
 CREATE TABLE health_checks (
   id UUID PRIMARY KEY, resource_kind TEXT NOT NULL CHECK (resource_kind IN ('server', 'service')),

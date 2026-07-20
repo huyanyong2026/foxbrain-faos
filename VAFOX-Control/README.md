@@ -7,7 +7,7 @@
 - **不接入 SAP**：没有 SAP 客户端、凭据或数据模型。
 - **不接入 Dify 生产**：没有 Dify URL、token 或生产适配器。
 - **不修改服务器**：Server Registry 只保存声明式元数据；不会 SSH、探测或配置任何主机。
-- **不连接生产**：Deployment Registry 只接受 `local`、`development`、`staging`；生产环境输入会被 API 验证拒绝。
+- **不连接生产**：所有 Registry 都是本地内存元数据；没有生产 endpoint、数据库连接或部署执行逻辑。
 
 ## Monorepo 目录
 
@@ -27,16 +27,16 @@ VAFOX-Control/
 
 | Registry | 主数据 | V1 职责 | 明确不做 |
 | --- | --- | --- | --- |
-| Server Registry | 名称、环境、区域、受控 endpoint、标签、状态 | 服务宿主的可发现性元数据 | SSH、服务器扫描、修改服务器 |
-| Service Registry | `server_id`、版本、endpoint、能力、状态 | 已注册服务的目录 | 调用 SAP 或 Dify |
-| Health Check | 资源类型、资源 ID、状态、延迟、详情、时间 | 接收受控健康上报并维护当前状态 | 主动探测生产依赖 |
-| Deployment Registry | `service_id`、版本、artifact digest、环境、变更单、状态 | 保存非生产发布意图与审计关联 | 构建、发布、流量切换或生产部署 |
+| Server Registry | `hostname`、`ip`、`provider`、`role`、`status` | 服务宿主的声明式目录 | SSH、服务器扫描、修改服务器 |
+| Service Registry | `service_name`、`server_id`、`version`、`health_status` | 已注册服务的目录 | 调用 SAP 或 Dify |
+| Health Check | 状态、延迟、详情、时间 | 接收本地健康上报并维护 Service 当前状态 | 主动探测生产依赖 |
+| Deployment Registry | `version`、`deploy_time`、`operator`、`rollback_version` | 保存发布记录元数据 | 构建、发布、流量切换或生产部署 |
 
-`servers → services → deployments` 是外键关系。`health_checks` 为 Server/Service 的历史附表，当前状态冗余在两张 registry 表中，便于控制台读取。完整 DDL 见 [`infra/postgres/001-control-plane.sql`](infra/postgres/001-control-plane.sql)。V1 运行时刻意采用内存 repository；尚未配置数据库连接。
+`services.server_id` 关联 Server Registry。`health_checks` 为 Server/Service 的历史附表，Service 的当前健康状态保留在 registry 行中，便于控制台读取。完整 DDL 见 [`infra/postgres/001-control-plane.sql`](infra/postgres/001-control-plane.sql)。V1 运行时刻意采用内存 repository；尚未配置数据库连接。
 
 ## Control API
 
-接口、请求约束和安全边界见 [`docs/API.md`](docs/API.md)。API 统一使用 `/api/v1` 前缀；本地运行时还公开 `/health/live` 与 `/health/ready`。FastAPI 会生成 `/api/v1/openapi.json`。
+接口、请求约束和安全边界见 [`docs/API.md`](docs/API.md)。Registry 查询接口为 `GET /api/servers`、`GET /api/services`、`GET /api/deployments`；本地运行时还公开 `GET /health/live` 与 `GET /health/ready`。FastAPI 会生成 `/api/v1/openapi.json`。
 
 ### 本地运行（不连接任何生产系统）
 
