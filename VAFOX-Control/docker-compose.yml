@@ -1,0 +1,61 @@
+name: vafox-orchestrator
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vafox_orchestrator}
+      POSTGRES_USER: ${POSTGRES_USER:-vafox_orchestrator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - vafox-orchestrator-pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [orchestrator_default]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  orchestrator-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    ports: ["${ORCHESTRATOR_API_PORT:-8001}:8001"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [orchestrator_default]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8001/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  orchestrator-web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports: ["${ORCHESTRATOR_WEB_PORT:-3001}:3001"]
+    depends_on:
+      orchestrator-api: {condition: service_healthy}
+    networks: [orchestrator_default]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3001/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+networks:
+  orchestrator_default:
+    name: orchestrator_default
+    driver: bridge
+
+volumes:
+  vafox-orchestrator-pgdata:
+    name: vafox-orchestrator-pgdata
