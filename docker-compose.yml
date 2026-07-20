@@ -1,4 +1,4 @@
-name: vafox-foundation
+name: vafox-memory-factory
 
 x-service: &service
   build:
@@ -12,48 +12,21 @@ x-service: &service
     options: {max-size: "10m", max-file: "3"}
 
 services:
-  gateway:
+  memory-api:
     <<: *service
     build:
       context: .
       dockerfile: services/Dockerfile
-      args: {SERVICE_MODULE: gateway}
-    ports: ["${GATEWAY_PORT:-8080}:8080"]
-    depends_on:
-      auth: {condition: service_healthy}
-      core-data: {condition: service_healthy}
-      ai: {condition: service_healthy}
-      memory: {condition: service_healthy}
-
-  auth:
-    <<: *service
-    build: {context: ., dockerfile: services/Dockerfile, args: {SERVICE_MODULE: auth}}
+      args: {SERVICE_MODULE: memory}
+    ports: ["${MEMORY_API_PORT:-8080}:8080"]
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
-
-  core-data:
-    <<: *service
-    build: {context: ., dockerfile: services/Dockerfile, args: {SERVICE_MODULE: core_data}}
-    depends_on:
-      postgres: {condition: service_healthy}
       minio: {condition: service_healthy}
-
-  ai:
-    <<: *service
-    build: {context: ., dockerfile: services/Dockerfile, args: {SERVICE_MODULE: ai}}
-    depends_on:
-      redis: {condition: service_healthy}
-
-  memory:
-    <<: *service
-    build: {context: ., dockerfile: services/Dockerfile, args: {SERVICE_MODULE: memory}}
-    depends_on:
-      postgres: {condition: service_healthy}
-      redis: {condition: service_healthy}
 
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -68,6 +41,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes: [redis_data:/data]
     networks: [vafox]
@@ -79,6 +53,7 @@ services:
 
   minio:
     image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+    restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}

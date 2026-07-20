@@ -4,9 +4,9 @@ Use:
 
 ```bash
 bash backup.sh
-bash restore.sh /opt/foxbrain/backups/BACKUP_DIR
+bash restore.sh /opt/vafox-memory-factory/backups/BACKUP_DIR
+bash rollback.sh /opt/vafox-memory-factory/backups/BACKUP_DIR
 ```
 
-Backups cover PostgreSQL, MinIO files, Qdrant data, portal data and `.env`.
+Phase 1A backups cover PostgreSQL, MinIO objects, and `.env`. `rollback.sh` restores a selected backup and then runs the Phase 1A health check.
 Do not commit backup files to GitHub.
-
