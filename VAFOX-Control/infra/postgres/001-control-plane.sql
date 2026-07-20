@@ -1,6 +1,10 @@
 -- V1 canonical PostgreSQL schema. Migration is intentionally not executed by this scaffold.
 CREATE TYPE lifecycle_status AS ENUM ('pending', 'active', 'disabled', 'retired');
 CREATE TYPE health_status AS ENUM ('unknown', 'healthy', 'degraded', 'unhealthy');
+CREATE TYPE result_executor AS ENUM ('codex', 'workbuddy', 'marvis');
+CREATE TYPE result_type AS ENUM ('delivery', 'analysis', 'report', 'test');
+CREATE TYPE risk_level AS ENUM ('low', 'medium', 'high', 'critical');
+CREATE TYPE result_approval_status AS ENUM ('review_pending', 'cto_approved');
 
 CREATE TABLE servers (
   id UUID PRIMARY KEY, hostname TEXT NOT NULL UNIQUE, ip INET NOT NULL,
@@ -23,3 +27,12 @@ CREATE TABLE health_checks (
   detail TEXT, checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX health_checks_resource_checked_idx ON health_checks(resource_kind, resource_id, checked_at DESC);
+
+CREATE TABLE task_results (
+  id UUID PRIMARY KEY, task_id UUID NOT NULL, executor result_executor NOT NULL,
+  result_type result_type NOT NULL, summary TEXT NOT NULL, artifact_url TEXT,
+  log_url TEXT, test_result TEXT, risk_level risk_level NOT NULL DEFAULT 'low',
+  approval_status result_approval_status NOT NULL DEFAULT 'review_pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX task_results_task_created_idx ON task_results(task_id, created_at DESC);
