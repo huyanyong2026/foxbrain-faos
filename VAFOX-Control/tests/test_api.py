@@ -56,6 +56,39 @@ def test_result_submission_review_and_task_result_query():
     assert approved.json()["approval_status"] == "cto_approved"
 
 
+def test_result_management_review_dashboard_and_cto_approval_lifecycle():
+    """Exercise the complete local-only business result review lifecycle."""
+    task_id = "00000000-0000-0000-0000-000000000012"
+    submitted = client.post("/api/results", json={
+        "task_id": task_id,
+        "executor": "workbuddy",
+        "result_type": "test",
+        "summary": "VAFOX Orchestrator business-layer integration verification.",
+        "test_result": "integration lifecycle passed",
+        "risk_level": "low",
+    })
+    assert submitted.status_code == 201
+    result = submitted.json()
+    assert result["approval_status"] == "review_pending"
+
+    # The review-dashboard API must expose the newly submitted pending item.
+    review_queue = client.get("/api/results")
+    assert review_queue.status_code == 200
+    reviewed_result = next(item for item in review_queue.json() if item["id"] == result["id"])
+    assert reviewed_result["approval_status"] == "review_pending"
+    assert reviewed_result["task_id"] == task_id
+
+    approved = client.post(f"/api/results/{result['id']}/approve")
+    assert approved.status_code == 200
+    assert approved.json()["approval_status"] == "cto_approved"
+
+    # Approval is idempotent and the task-scoped view reflects the final state.
+    assert client.post(f"/api/results/{result['id']}/approve").json() == approved.json()
+    task_results = client.get(f"/api/tasks/{task_id}/results")
+    assert task_results.status_code == 200
+    assert task_results.json() == [approved.json()]
+
+
 def test_result_submission_rejects_unapproved_executor():
     response = client.post("/api/results", json={
         "task_id": "00000000-0000-0000-0000-000000000011",
