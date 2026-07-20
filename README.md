@@ -56,6 +56,8 @@ See [README_BACKUP_RESTORE.md](README_BACKUP_RESTORE.md) for details.
 
 Phase 1B is reserved for AI retrieval capabilities, including embedding generation and a vector database. It is not part of this Compose deployment and must be designed, deployed, and operated as a separate phase.
 
+The non-deployment architecture proposal—embedding provider abstraction and selection, Qdrant collection/payload schema, chunk pipeline, Retrieval API contracts, Dify boundary, staging guidance, and risks—is in [`docs/MEMORY_FACTORY_PHASE_1B_ARCHITECTURE.md`](docs/MEMORY_FACTORY_PHASE_1B_ARCHITECTURE.md). It deliberately does not modify Dify, SAP, Core, or production infrastructure.
+
 ## API
 
 The API contract is in [`docs/openapi-memory-v1.yaml`](docs/openapi-memory-v1.yaml). The available endpoints are documented in [`docs/API.md`](docs/API.md).
