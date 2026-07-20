@@ -28,3 +28,30 @@ def test_server_service_and_deployment_registry_flow():
 def test_unknown_server_is_rejected_for_service_registration():
     response = client.post("/api/services", json={"server_id": "00000000-0000-0000-0000-000000000001", "service_name": "registry-api", "version": "1"})
     assert response.status_code == 404
+
+
+def test_result_management_and_cto_review_flow():
+    result = client.post("/api/results", json={
+        "task_id": "TASK-2026-001", "executor": "codex", "result_type": "codex_pr",
+        "summary": "Adds the review dashboard.", "artifact_url": "https://github.com/vafox/control/pull/1",
+        "log_url": "https://ci.vafox.example/logs/1", "test_result": "passed", "risk_level": "medium",
+    })
+    assert result.status_code == 201
+    assert set(result.json()) >= {"task_id", "executor", "result_type", "summary", "artifact_url", "log_url", "test_result", "risk_level", "created_at"}
+
+    reviews = client.get("/api/reviews")
+    assert reviews.status_code == 200
+    review = next(item for item in reviews.json() if item["id"] == result.json()["id"])
+    assert review["status"] == "pending_review"
+
+    approved = client.post(f"/api/reviews/{review['id']}/approve")
+    assert approved.status_code == 200
+    assert approved.json()["approval"] == "approved"
+    assert client.post(f"/api/reviews/{review['id']}/approve").status_code == 409
+
+
+def test_dispatcher_is_design_only():
+    response = client.get("/api/dispatcher")
+    assert response.status_code == 200
+    assert [stage["name"] for stage in response.json()] == ["task", "executor", "result"]
+    assert "no external agent is called" in response.json()[1]["phase_one_behavior"]

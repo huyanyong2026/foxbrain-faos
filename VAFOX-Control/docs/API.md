@@ -1,6 +1,6 @@
 # Control API V1
 
-All application routes are versioned at the V1 `/api` boundary; the OpenAPI document is available at `/api/v1/openapi.json` when the local API is running. V1 is a registry/control metadata API, **not** an orchestration or remote-execution API.
+All application routes are versioned at the V1 `/api` boundary; the OpenAPI document is available at `/api/v1/openapi.json` when the local API is running. V1 is a registry/control metadata API and an agent-work **management** surface, **not** an orchestration or remote-execution API.
 
 | Resource | Endpoints | Responsibility |
 | --- | --- | --- |
@@ -8,6 +8,27 @@ All application routes are versioned at the V1 `/api` boundary; the OpenAPI docu
 | Service Registry | `POST`, `GET /api/services`; `POST /api/services/{id}/health` | Associate `service_name`, `server_id`, `version`, and `health_status` with a registered server. |
 | Deployment Registry | `POST`, `GET /api/deployments` | Record `version`, `deploy_time`, `operator`, and optional `rollback_version`; it does not deploy anything. |
 | Platform health | `GET /health/live`, `GET /health/ready` | Container liveness/readiness only; no dependency or remote host probes. |
+| Result Management | `POST`, `GET /api/results` | Record a Codex PR, WorkBuddy deployment report, or Marvis status report. Submission only stores typed metadata. |
+| CTO Review Dashboard | `GET /api/reviews`; `POST /api/reviews/{id}/approve` | List submitted work with task, executor, test result, risk, and approval state; record a one-way approval. |
+| Dispatcher design | `GET /api/dispatcher` | Publish the future `Task → Executor → Result` stages without creating work or contacting an executor. |
+
+## Result and review contract
+
+`POST /api/results` accepts `task_id`, `executor`, `result_type`, `summary`, `artifact_url`, `log_url`, `test_result`, and `risk_level`. `executor` is one of `codex`, `workbuddy`, or `marvis`; supported result types are `codex_pr`, `deployment_report`, and `status_report`. Creating a result creates one `pending_review` CTO review record with the same ID. Approval is explicit through `POST /api/reviews/{id}/approve`; repeating an approval returns `409` to preserve a clear audit transition.
+
+The review dashboard projection displays task, status, risk, result summary, test result, and approval. `artifact_url` and `log_url` remain on the result record so a reviewer can access its evidence. V1 has no rejection, rerun, task creation, or dispatch endpoint: those changes are intentionally deferred with the execution capability.
+
+### State flow
+
+```text
+Registered Task (existing Phase 1 record)
+  → executor selected (future only: Codex | WorkBuddy | Marvis)
+  → externally submitted TaskResult
+  → pending_review
+  → approved
+```
+
+The executor-selection step is documentary in this release. The API does not automatically invoke, poll, authenticate to, or otherwise connect with an external agent.
 
 ## Health check contract
 
@@ -18,3 +39,4 @@ A service reports `{ "status": "healthy|degraded|unhealthy", "latency_ms": 12, "
 - No endpoint accepts credentials, SSH commands, SAP payloads, or Dify configuration.
 - The API never opens production, SAP, or Dify connections. Registry submission is local metadata storage, not a deployment or integration action.
 - The present repository adapter is in-memory. The PostgreSQL model in `infra/postgres/001-control-plane.sql` is an unexecuted migration specification.
+- Result and approval endpoints manage submitted records only. They never turn an approval into an external execution request.
