@@ -54,7 +54,11 @@ See [README_BACKUP_RESTORE.md](README_BACKUP_RESTORE.md) for details.
 
 ## Phase 1B AI Retrieval Layer
 
-Phase 1B is reserved for AI retrieval capabilities, including embedding generation and a vector database. It is not part of this Compose deployment and must be designed, deployed, and operated as a separate phase.
+Phase 1B preparation code is present but inactive by default: it adds provider contracts/adapters for BGE-M3, OpenAI, and Jina; deterministic text chunking; a Qdrant REST adapter; and protected retrieval-route skeletons. It is not part of this Compose deployment, does not connect to Dify, and does not modify SAP/Core or Phase 1A persistence.
+
+Enablement is deliberately deployment-injected rather than automatic. `EMBEDDING_PROFILE_REGISTRY` must contain versioned JSON profiles, while provider endpoints/credentials and `QDRANT_URL` remain external secrets. `/api/v1/search/vector` requires the authentication middleware's trusted `X-VAFOX-Authorized-Owners` claim; requested owners can only narrow that set. Without an injected retrieval implementation the routes return `503 phase1b_not_configured`, so no vector dependency is contacted by Phase 1A.
+
+The retrieval endpoints prepared for the next implementation step are `POST /api/v1/search/vector` and `GET /api/v1/memory/{id}/related`. The Qdrant adapter constructs an owner payload filter on every query and the production worker/ledger remains a future, separately deployed work item.
 
 The non-deployment architecture proposal—embedding provider abstraction and selection, Qdrant collection/payload schema, chunk pipeline, Retrieval API contracts, Dify boundary, staging guidance, and risks—is in [`docs/MEMORY_FACTORY_PHASE_1B_ARCHITECTURE.md`](docs/MEMORY_FACTORY_PHASE_1B_ARCHITECTURE.md). It deliberately does not modify Dify, SAP, Core, or production infrastructure.
 
