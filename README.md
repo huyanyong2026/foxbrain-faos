@@ -62,6 +62,8 @@ The Qdrant foundation endpoints are `GET /health/vector`, `GET /collections`, an
 
 The non-deployment architecture proposal—embedding provider abstraction and selection, Qdrant collection/payload schema, chunk pipeline, Retrieval API contracts, Dify boundary, staging guidance, and risks—is in [`docs/MEMORY_FACTORY_PHASE_1B_ARCHITECTURE.md`](docs/MEMORY_FACTORY_PHASE_1B_ARCHITECTURE.md). It deliberately does not modify Dify, SAP, Core, or production infrastructure.
 
+M3 Alpha delivery adds an opt-in asynchronous index-job/worker contract, owner-scoped retrieval citations, and the read-only Dify HTTP adapter. The full handoff, staging checklist, and known gaps are in [`VAFOX_OS_V2_ALPHA_M3_DELIVERY_SUMMARY.md`](VAFOX_OS_V2_ALPHA_M3_DELIVERY_SUMMARY.md); Dify setup is in [`DIFY_ADAPTER_INTEGRATION_GUIDE.md`](DIFY_ADAPTER_INTEGRATION_GUIDE.md). These additions do not alter the Phase 1A startup path.
+
 ## API
 
 The API contract is in [`docs/openapi-memory-v1.yaml`](docs/openapi-memory-v1.yaml). The available endpoints are documented in [`docs/API.md`](docs/API.md).

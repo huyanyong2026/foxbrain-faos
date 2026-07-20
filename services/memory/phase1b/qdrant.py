@@ -122,7 +122,7 @@ class QdrantAdapter:
         return response.get("result", response)
 
     @staticmethod
-    def filter_for(owners, tags_any=(), source=None, created_at_gte=None, exclude_memory_id=None):
+    def filter_for(owners, tags_any=(), source=None, created_at_gte=None, exclude_memory_id=None, created_at_lte=None, memory_id=None):
         if not owners:
             raise PermissionError("authorized owners required")
         must = [{"key": "owner", "match": {"any": sorted(set(owners))}}]
@@ -132,6 +132,10 @@ class QdrantAdapter:
             must.append({"key": "source", "match": {"value": source}})
         if created_at_gte:
             must.append({"key": "created_at", "range": {"gte": created_at_gte}})
+        if created_at_lte:
+            must.append({"key": "created_at", "range": {"lte": created_at_lte}})
+        if memory_id:
+            must.append({"key": "memory_id", "match": {"value": memory_id}})
         result = {"must": must}
         if exclude_memory_id:
             result["must_not"] = [{"key": "memory_id", "match": {"value": exclude_memory_id}}]
