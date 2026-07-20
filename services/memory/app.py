@@ -159,8 +159,48 @@ def _receive(service: MemoryService):
     return handler
 
 
-def create_app(memory_service: MemoryService | None = None):
+def create_app(memory_service: MemoryService | None = None, retrieval_service=None):
     service = memory_service or MemoryService()
+    class UnavailableRetrieval:
+        def vector_search(self, **kwargs): raise RuntimeError("phase1b_not_configured")
+        def related(self, **kwargs): raise RuntimeError("phase1b_not_configured")
+    retrieval = retrieval_service or UnavailableRetrieval()
+    # Phase 1B is deliberately opt-in through dependency injection.  This keeps
+    # Phase 1A startup and its production topology untouched.
+    def authorized_owners(environ):
+        # Authentication middleware supplies this trusted, comma-separated claim.
+        # A client body field is never used to expand the authorization boundary.
+        return tuple(owner.strip() for owner in environ.get("HTTP_X_VAFOX_AUTHORIZED_OWNERS", "").split(",") if owner.strip())
+    def vector_search(environ, start_response):
+        try: payload = json.loads(_body(environ) or b"{}")
+        except json.JSONDecodeError: return json_response(start_response, 400, {"error": "invalid_json"}), 400
+        query, top_k, filters = payload.get("query"), payload.get("top_k", 10), payload.get("filters", {})
+        if not isinstance(query, str) or not query.strip() or len(query) > 4096 or not isinstance(top_k, int) or not 1 <= top_k <= 50 or not isinstance(filters, dict):
+            return json_response(start_response, 400, {"error": "invalid_vector_search_request"}), 400
+        owners = authorized_owners(environ)
+        requested = filters.get("owners")
+        if not owners: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        if requested is not None and (not isinstance(requested, list) or not set(requested).issubset(owners)):
+            return json_response(start_response, 403, {"error": "owner_not_authorized"}), 403
+        try:
+            result = retrieval.vector_search(query=query, top_k=top_k, owners=tuple(requested) if requested is not None else owners,
+                tags_any=tuple(filters.get("tags_any", ())), source=filters.get("source"), created_at_gte=filters.get("created_at_gte"),
+                include_text=bool(payload.get("include_text", False)), embedding_profile=payload.get("embedding_profile"))
+        except RuntimeError as error:
+            return json_response(start_response, 503, {"error": str(error)}), 503
+        return json_response(start_response, 200, result), 200
+    def related(environ, start_response):
+        memory_id = environ["PATH_INFO"].split("/")[4]
+        from urllib.parse import parse_qs
+        args = parse_qs(environ.get("QUERY_STRING", "")); top_k = int(args.get("top_k", ["5"])[0]) if args.get("top_k", ["5"])[0].isdigit() else 0
+        owners = authorized_owners(environ)
+        if not owners: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        if not 1 <= top_k <= 20: return json_response(start_response, 400, {"error": "invalid_top_k"}), 400
+        try: result = retrieval.related(memory_id=memory_id, top_k=top_k, owners=owners, embedding_profile=args.get("embedding_profile", [None])[0])
+        except KeyError: return json_response(start_response, 404, {"error": "not_found"}), 404
+        except PermissionError: return json_response(start_response, 403, {"error": "forbidden"}), 403
+        except RuntimeError as error: return json_response(start_response, 503, {"error": str(error)}), 503
+        return json_response(start_response, 200, result), 200
     def item(environ, start_response):
         memory_id = environ["PATH_INFO"].rsplit("/", 1)[-1]
         if environ["REQUEST_METHOD"] == "GET":
@@ -191,6 +231,10 @@ def create_app(memory_service: MemoryService | None = None):
         return [raw], 200
     def app(environ, start_response):
         path, method = environ["PATH_INFO"], environ["REQUEST_METHOD"]
+        if path == "/api/v1/search/vector" and method == "POST":
+            return vector_search(environ, start_response)[0]
+        if path.startswith("/api/v1/memory/") and path.endswith("/related") and method == "GET":
+            return related(environ, start_response)[0]
         if path.startswith("/api/v1/memory/items/") and path.endswith("/content") and method == "GET":
             return content(environ, start_response)[0]
         if path.startswith("/api/v1/memory/items/") and method in {"GET", "DELETE"}:
