@@ -39,12 +39,14 @@ VAFOX-Control/
 | Service Registry | `service_name`、`server_id`、`version`、`health_status` | 已注册服务的目录 | 调用 SAP 或 Dify |
 | Health Check | 状态、延迟、详情、时间 | 接收本地健康上报并维护 Service 当前状态 | 主动探测生产依赖 |
 | Deployment Registry | `version`、`deploy_time`、`operator`、`rollback_version` | 保存发布记录元数据 | 构建、发布、流量切换或生产部署 |
+| Result Management | `task_id`、`executor`、`result_type`、证据 URL、测试与风险 | 管理 Codex PR、WorkBuddy 部署报告、Marvis 状态报告 | 调用、轮询或认证外部 Agent |
+| CTO Review Dashboard | 任务、状态、风险、结果、审批 | 审阅已提交结果并记录批准 | 自动执行批准后的任务 |
 
 `services.server_id` 关联 Server Registry。`health_checks` 为 Server/Service 的历史附表，Service 的当前健康状态保留在 registry 行中，便于控制台读取。Compose 首次创建本地 PostgreSQL 卷时会执行 [`infra/postgres/init.sql`](infra/postgres/init.sql)；V1 运行时仍刻意采用内存 repository，尚未配置数据库连接。
 
 ## Control API
 
-接口、请求约束和安全边界见 [`docs/API.md`](docs/API.md)。Registry 查询接口为 `GET /api/servers`、`GET /api/services`、`GET /api/deployments`；本地运行时还公开 `GET /health/live` 与 `GET /health/ready`。FastAPI 会生成 `/api/v1/openapi.json`。
+接口、请求约束和安全边界见 [`docs/API.md`](docs/API.md)。除 Registry 查询接口外，业务层提供 `GET` / `POST /api/results`、`GET /api/reviews` 和 `POST /api/reviews/{id}/approve`。`GET /api/dispatcher` 只公开未来 `Task → Executor → Result` 的设计阶段；它不会派发任务。本地运行时还公开 `GET /health/live` 与 `GET /health/ready`。FastAPI 会生成 `/api/v1/openapi.json`。
 
 ### 本地运行（不连接任何生产系统）
 
