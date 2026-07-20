@@ -59,22 +59,29 @@ class MemoryService:
         import psycopg2
         return psycopg2.connect(self.database_url)
     def _ensure_bucket(self): self.storage.ensure_bucket(self.bucket)
-    def create(self, name, content, content_type, source, owner, metadata):
+    def create(self, name, content, content_type, source, owner, metadata, tags=()):
         memory_id = str(uuid.uuid4()); storage_path = f"memory/{memory_id}/{name}"
         self._ensure_bucket(); self.storage.put_object(self.bucket, storage_path, content, content_type)
         try:
             with self._connection() as connection, connection.cursor() as cursor:
                 cursor.execute("INSERT INTO memory_items (id,name,type,size,source,owner,metadata,storage_path) VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb,%s)", (memory_id, name, content_type, len(content), source, owner, json.dumps(metadata), storage_path))
                 cursor.execute("INSERT INTO storage_objects (id,memory_id,storage_path,bucket,size) VALUES (%s,%s,%s,%s,%s)", (str(uuid.uuid4()), memory_id, storage_path, self.bucket, len(content)))
+                cursor.executemany("INSERT INTO memory_tags (memory_id,tag) VALUES (%s,%s)", [(memory_id, tag) for tag in tags])
         except Exception:
             self.storage.delete_object(self.bucket, storage_path); raise
         return {"memory_id": memory_id, "storage_path": storage_path}
+    def _tags(self, cursor, memory_id):
+        cursor.execute("SELECT tag FROM memory_tags WHERE memory_id=%s ORDER BY tag", (memory_id,))
+        return [row[0] for row in cursor.fetchall()]
     def get(self, memory_id):
         with self._connection() as connection, connection.cursor() as cursor:
             cursor.execute("SELECT id,name,type,size,source,owner,metadata,storage_path,status,created_at,updated_at FROM memory_items WHERE id=%s", (memory_id,)); row = cursor.fetchone()
+            tags = self._tags(cursor, memory_id) if row else []
         if not row or row[8] == "deleted": return None
         keys = ("id", "name", "type", "size", "source", "owner", "metadata", "storage_path", "status", "created_at", "updated_at")
-        return {key: value.isoformat() if isinstance(value, datetime) else str(value) if isinstance(value, uuid.UUID) else value for key, value in zip(keys, row)}
+        result = {key: value.isoformat() if isinstance(value, datetime) else str(value) if isinstance(value, uuid.UUID) else value for key, value in zip(keys, row)}
+        result["tags"] = tags
+        return result
     def content(self, memory_id):
         item = self.get(memory_id)
         if not item: return None
@@ -87,13 +94,17 @@ class MemoryService:
         with self._connection() as connection, connection.cursor() as cursor:
             cursor.execute("UPDATE memory_items SET status='deleted',updated_at=now() WHERE id=%s", (memory_id,)); cursor.execute("UPDATE storage_objects SET deleted_at=now() WHERE memory_id=%s", (memory_id,))
         return True
-    def search(self, query, owner=None):
+    def search(self, query, owner=None, tag=None):
         clause = "status='active' AND (name ILIKE %s OR metadata::text ILIKE %s)"; params = [f"%{query}%", f"%{query}%"]
         if owner: clause += " AND owner=%s"; params.append(owner)
+        if tag: clause += " AND EXISTS (SELECT 1 FROM memory_tags WHERE memory_tags.memory_id=memory_items.id AND tag=%s)"; params.append(tag)
         with self._connection() as connection, connection.cursor() as cursor:
             cursor.execute(f"SELECT id,name,type,size,source,owner,metadata,storage_path,status,created_at,updated_at FROM memory_items WHERE {clause} ORDER BY created_at DESC LIMIT 100", params); rows = cursor.fetchall()
+            tags_by_item = {str(row[0]): self._tags(cursor, row[0]) for row in rows}
         keys = ("id", "name", "type", "size", "source", "owner", "metadata", "storage_path", "status", "created_at", "updated_at")
-        return [{key: value.isoformat() if isinstance(value, datetime) else str(value) if isinstance(value, uuid.UUID) else value for key, value in zip(keys, row)} for row in rows]
+        results = [{key: value.isoformat() if isinstance(value, datetime) else str(value) if isinstance(value, uuid.UUID) else value for key, value in zip(keys, row)} for row in rows]
+        for result in results: result["tags"] = tags_by_item[result["id"]]
+        return results
 
 def _body(environ):
     return environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH") or 0))
@@ -119,11 +130,14 @@ def _receive(service: MemoryService):
             source = fields.get("source").get_payload(decode=True).decode("utf-8").strip() if fields.get("source") else None
             owner = fields.get("owner").get_payload(decode=True).decode("utf-8").strip() if fields.get("owner") else None
             metadata_text = fields.get("metadata").get_payload(decode=True).decode("utf-8") if fields.get("metadata") else "{}"
+            tags_text = fields.get("tags").get_payload(decode=True).decode("utf-8") if fields.get("tags") else "[]"
         elif content_type.startswith("application/json"):
-            payload = json.loads(_body(environ) or b"{}")
+            try: payload = json.loads(_body(environ) or b"{}")
+            except json.JSONDecodeError: return json_response(start_response, 400, {"error": "invalid_json"}), 400
             raw = str(payload.get("content", "")).encode("utf-8")
             name, media_type = payload.get("name"), payload.get("type", "text/plain")
             source, owner, metadata_text = payload.get("source"), payload.get("owner"), json.dumps(payload.get("metadata", {}))
+            tags_text = json.dumps(payload.get("tags", []))
         else:
             return json_response(start_response, 415, {"error": "unsupported_media_type"}), 415
         if not name or not source or not owner:
@@ -135,7 +149,13 @@ def _receive(service: MemoryService):
             if not isinstance(metadata, dict): raise ValueError()
         except (TypeError, ValueError, json.JSONDecodeError):
             return json_response(start_response, 400, {"error": "metadata_must_be_object"}), 400
-        return json_response(start_response, 201, service.create(name, raw, media_type, source, owner, metadata)), 201
+        try:
+            tags = json.loads(tags_text)
+            if not isinstance(tags, list) or any(not isinstance(tag, str) or not tag.strip() for tag in tags): raise ValueError()
+            tags = sorted(set(tag.strip() for tag in tags))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return json_response(start_response, 400, {"error": "tags_must_be_string_array"}), 400
+        return json_response(start_response, 201, service.create(name, raw, media_type, source, owner, metadata, tags)), 201
     return handler
 
 
@@ -156,8 +176,9 @@ def create_app(memory_service: MemoryService | None = None):
         from urllib.parse import parse_qs
         query = parse_qs(environ.get("QUERY_STRING", "")).get("q", [""])[0]
         owner = parse_qs(environ.get("QUERY_STRING", "")).get("owner", [None])[0]
+        tag = parse_qs(environ.get("QUERY_STRING", "")).get("tag", [None])[0]
         if not query: return json_response(start_response, 400, {"error": "query_required"}), 400
-        return json_response(start_response, 200, {"items": service.search(query, owner)}), 200
+        return json_response(start_response, 200, {"items": service.search(query, owner, tag)}), 200
     routes = {("POST", "/api/v1/memory/receive"): _receive(service), ("GET", "/api/v1/memory/search"): search}
     base = service_app("memory", routes)
     def content(environ, start_response):
