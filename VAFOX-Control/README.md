@@ -1,6 +1,6 @@
 # VAFOX Control Plane V1
 
-`VAFOX-Control/` 是 `control.vafox.com` 的第一版**架构与代码框架**。它提供控制平面元数据的统一边界，不包含生产连接、远程命令执行或部署执行器。
+`VAFOX-Control/` 是 `control.vafox.com` 的第一版**架构与代码框架**。它提供控制平面元数据的统一边界，不包含生产连接、远程命令执行或部署执行器。V1 Business Layer 将其升级为 VAFOX AI Team Management Center：已完成的工作可由 Codex、WorkBuddy 或 Marvis 提交为结果，随后由 CTO 显式审核。
 
 ## 硬性边界
 
@@ -8,6 +8,7 @@
 - **不接入 Dify 生产**：没有 Dify URL、token 或生产适配器。
 - **不修改服务器**：Server Registry 只保存声明式元数据；不会 SSH、探测或配置任何主机。
 - **不连接生产**：所有 Registry 都是本地内存元数据；没有生产 endpoint、数据库连接或部署执行逻辑。
+- **不自动执行外部 Agent**：结果 API 只接收已经完成工作的元数据，绝不调用 Codex、WorkBuddy、Marvis 或其他外部 Agent。
 
 ## 技术栈确认
 
@@ -45,6 +46,18 @@ VAFOX-Control/
 ## Control API
 
 接口、请求约束和安全边界见 [`docs/API.md`](docs/API.md)。Registry 查询接口为 `GET /api/servers`、`GET /api/services`、`GET /api/deployments`；本地运行时还公开 `GET /health/live` 与 `GET /health/ready`。FastAPI 会生成 `/api/v1/openapi.json`。
+
+## Result Management 与 CTO Review
+
+Task Result 包含 `task_id`、执行结果来源、结果类型、摘要、制品/日志链接、测试结果、风险等级、审批状态和创建时间。支持的来源为 `codex`、`workbuddy` 与 `marvis`。使用 `POST /api/results` 提交后，结果固定进入 `review_pending`；CTO 必须调用 `POST /api/results/{id}/approve` 才会进入 `cto_approved`（业务上即 Completed）。可通过 `GET /api/results` 或 `GET /api/tasks/{id}/results` 查询。
+
+CTO 控制台位于 [`/reviews`](/reviews)：显示任务数量、结果列表、风险标签和审批状态。其审批流为：
+
+```text
+Result Submitted -> Review Pending -> CTO Approved -> Completed
+```
+
+完整请求契约、状态流和不可执行边界见 [`docs/API.md`](docs/API.md)。
 
 ### 本地运行（不连接任何生产系统）
 

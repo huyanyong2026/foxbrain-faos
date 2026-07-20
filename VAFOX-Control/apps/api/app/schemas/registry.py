@@ -19,6 +19,33 @@ class HealthStatus(StrEnum):
     UNHEALTHY = "unhealthy"
 
 
+class ResultExecutor(StrEnum):
+    """Approved result reporters. This is not an agent execution allow-list."""
+
+    CODEX = "codex"
+    WORKBUDDY = "workbuddy"
+    MARVIS = "marvis"
+
+
+class ResultType(StrEnum):
+    DELIVERY = "delivery"
+    ANALYSIS = "analysis"
+    REPORT = "report"
+    TEST = "test"
+
+
+class RiskLevel(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class ResultApprovalStatus(StrEnum):
+    REVIEW_PENDING = "review_pending"
+    CTO_APPROVED = "cto_approved"
+
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -66,3 +93,26 @@ class HealthCheck(BaseModel):
     checked_at: datetime = Field(default_factory=datetime.utcnow)
     latency_ms: int | None = Field(default=None, ge=0)
     detail: str | None = Field(default=None, max_length=500)
+
+
+class TaskResultSubmission(BaseModel):
+    """A result submitted by an external team member after work has finished.
+
+    Submission only records metadata. It deliberately cannot start, invoke, or
+    otherwise control Codex, WorkBuddy, Marvis, or any other external agent.
+    """
+
+    task_id: UUID
+    executor: ResultExecutor
+    result_type: ResultType
+    summary: str = Field(min_length=1, max_length=4000)
+    artifact_url: str | None = Field(default=None, max_length=2048)
+    log_url: str | None = Field(default=None, max_length=2048)
+    test_result: str | None = Field(default=None, max_length=4000)
+    risk_level: RiskLevel = RiskLevel.LOW
+
+
+class TaskResult(TaskResultSubmission):
+    id: UUID = Field(default_factory=uuid4)
+    approval_status: ResultApprovalStatus = ResultApprovalStatus.REVIEW_PENDING
+    created_at: datetime = Field(default_factory=utc_now)

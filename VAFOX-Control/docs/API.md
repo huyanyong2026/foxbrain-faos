@@ -8,6 +8,27 @@ All application routes are versioned at the V1 `/api` boundary; the OpenAPI docu
 | Service Registry | `POST`, `GET /api/services`; `POST /api/services/{id}/health` | Associate `service_name`, `server_id`, `version`, and `health_status` with a registered server. |
 | Deployment Registry | `POST`, `GET /api/deployments` | Record `version`, `deploy_time`, `operator`, and optional `rollback_version`; it does not deploy anything. |
 | Platform health | `GET /health/live`, `GET /health/ready` | Container liveness/readiness only; no dependency or remote host probes. |
+| Result Management | `POST`, `GET /api/results`; `GET /api/tasks/{id}/results`; `POST /api/results/{id}/approve` | Record an already-submitted result and hold it for explicit CTO approval. It never invokes an external agent. |
+
+## Result Management contract
+
+`POST /api/results` accepts a result submitted by one of the recognised reporters: `codex`, `workbuddy`, or `marvis`. Required fields are `task_id`, `executor`, `result_type` (`delivery`, `analysis`, `report`, or `test`), and `summary`. Optional evidence fields are `artifact_url`, `log_url`, and `test_result`; `risk_level` is one of `low`, `medium`, `high`, or `critical` and defaults to `low`.
+
+Every new result receives an API-generated `id`, `created_at`, and `approval_status: "review_pending"`. `GET /api/results` returns the review queue, and `GET /api/tasks/{id}/results` filters it for a task. A CTO explicitly moves a result to `cto_approved` with `POST /api/results/{id}/approve`; the operation is idempotent. There is intentionally no endpoint that starts a task, calls an external agent, or changes an external system.
+
+### Approval state flow
+
+```text
+Result Submitted
+      |
+      v
+Review Pending  -- CTO POST /api/results/{id}/approve -->  CTO Approved
+                                                            |
+                                                            v
+                                                        Completed
+```
+
+`Completed` is the business meaning of an approved result; it does not cause automatic deployment or execution.
 
 ## Health check contract
 

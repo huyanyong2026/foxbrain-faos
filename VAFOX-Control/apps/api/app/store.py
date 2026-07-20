@@ -32,3 +32,4 @@ class RegistryStore(Generic[T]):
 servers = RegistryStore()
 services = RegistryStore()
 deployments = RegistryStore()
+results = RegistryStore()
