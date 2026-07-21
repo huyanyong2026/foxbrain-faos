@@ -26,6 +26,7 @@ def test_brand_schema_exposes_all_required_fields_and_three_phase_one_brands():
     store = BrandKnowledgeStore()
     assert set(store.brands) == {"kailas", "mammut", "osprey"}
     assert set(store.brands["kailas"].payload()) == set(BRAND_FIELDS)
+    assert store.brands["kailas"].source_traceability[0]["location"] == "brand:kailas"
 
 
 def test_markdown_docx_import_generates_metadata_citation_and_acl(tmp_path):
