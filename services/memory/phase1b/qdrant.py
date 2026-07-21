@@ -123,15 +123,23 @@ class QdrantAdapter:
             return {"collection": self.collection_alias, "alias": self.collection_alias}
         return self.initialize(dimension, distance=distance)
 
-    def upsert(self, points: list[dict[str, Any]], wait: bool = True):
+    def upsert(self, points: list[dict[str, Any]], wait: bool = True, collection: str | None = None):
         normalized = []
         for point in points:
             vector, payload = point.get("vector"), point.get("payload")
             if not isinstance(point.get("id"), str) or not isinstance(vector, list) or not vector:
                 raise ValueError("point id and vector are required")
             normalized.append({"id": point["id"], "vector": {"content": vector}, "payload": self.validate_payload(payload)})
-        response = self._request("PUT", f"/collections/{self.collection_alias}/points?wait={'true' if wait else 'false'}", {"points": normalized})
+        target = collection or self.collection_alias
+        response = self._request("PUT", f"/collections/{target}/points?wait={'true' if wait else 'false'}", {"points": normalized})
         return response.get("result", response)
+
+    def count(self, collection: str | None = None) -> int:
+        """Return the exact point count used to gate an alias cutover."""
+        target = collection or self.collection_alias
+        response = self._request("POST", f"/collections/{target}/points/count", {"exact": True})
+        result = response.get("result", response)
+        return int(result.get("count", 0)) if isinstance(result, dict) else 0
 
     def delete(self, point_ids: list[str] | None = None, memory_id: str | None = None, wait: bool = True):
         if bool(point_ids) == bool(memory_id):

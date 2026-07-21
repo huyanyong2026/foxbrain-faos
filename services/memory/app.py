@@ -112,6 +112,18 @@ class MemoryService:
         results = [{key: value.isoformat() if isinstance(value, datetime) else str(value) if isinstance(value, uuid.UUID) else value for key, value in zip(keys, row)} for row in rows]
         for result in results: result["tags"] = tags_by_item[result["id"]]
         return results
+    def iter_active(self, batch_size=200):
+        """Yield all active memories for offline reindexing; never exposes deleted data."""
+        offset = 0
+        while True:
+            with self._connection() as connection, connection.cursor() as cursor:
+                cursor.execute("SELECT id FROM memory_items WHERE status='active' ORDER BY id LIMIT %s OFFSET %s", (batch_size, offset))
+                identifiers = [str(row[0]) for row in cursor.fetchall()]
+            if not identifiers: return
+            for memory_id in identifiers:
+                item = self.get(memory_id)
+                if item: yield item
+            offset += len(identifiers)
 
 def _body(environ):
     return environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH") or 0))
