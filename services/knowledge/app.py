@@ -10,6 +10,7 @@ from wsgiref.simple_server import make_server
 from packages.vafox_foundation.http import json_response, service_app
 from services.memory.acl import auth_context, can_access
 from services.memory.app import MemoryService
+from .brand import BrandKnowledgeStore
 
 DOMAINS = frozenset({"company", "brand", "product", "sales", "store", "sop", "activity"})
 
@@ -40,9 +41,10 @@ def _knowledge_fields(record):
     return knowledge if isinstance(knowledge, dict) else {}
 
 
-def create_app(memory_service=None, retrieval_service=None):
+def create_app(memory_service=None, retrieval_service=None, brand_store=None):
     memory = memory_service or MemoryService()
     retrieval = retrieval_service or MemoryRetrievalClient()
+    brands = brand_store or BrandKnowledgeStore()
 
     def item_from_result(result, record):
         fields = _knowledge_fields(record)
@@ -121,11 +123,39 @@ def create_app(memory_service=None, retrieval_service=None):
                   "citations": [{"memory_id": record["id"], "source": record["source"]}], "metadata": fields}
         return json_response(start_response, 200, result), 200
 
+    def brand_search(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        args = _query(environ); query = args.get("query", "").strip()
+        try: limit = int(args.get("limit", "10"))
+        except ValueError: limit = 0
+        if not query or len(query) > 4096 or not 1 <= limit <= 50:
+            return json_response(start_response, 400, {"error": "invalid_brand_query"}), 400
+        return json_response(start_response, 200, {"query": query, "items": brands.search(query, context, args.get("brand_id"), limit)}), 200
+
+    def brand_compare(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        brand_ids = tuple(item.strip() for item in _query(environ).get("brands", "").split(",") if item.strip())
+        try: result = brands.compare(brand_ids)
+        except ValueError: return json_response(start_response, 400, {"error": "invalid_brand_comparison"}), 400
+        return json_response(start_response, 200, {"brands": result, "comparison_fields": ["positioning", "origin", "product_lines", "scenarios", "selling_points", "sales_tips", "recommendations"]}), 200
+
+    def brand_recommend(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        scenario = _query(environ).get("scenario", "").strip()
+        if not scenario or len(scenario) > 200: return json_response(start_response, 400, {"error": "invalid_scenario"}), 400
+        return json_response(start_response, 200, {"scenario": scenario, "items": brands.recommend(scenario, context)}), 200
+
     base = service_app("knowledge")
     def app(environ, start_response):
         path, method = environ["PATH_INFO"], environ["REQUEST_METHOD"]
         if method == "GET" and path == "/api/knowledge/search": return search(environ, start_response)[0]
         if method == "GET" and path == "/api/knowledge/recommend": return search(environ, start_response, True)[0]
+        if method == "GET" and path == "/api/brands/search": return brand_search(environ, start_response)[0]
+        if method == "GET" and path == "/api/brands/compare": return brand_compare(environ, start_response)[0]
+        if method == "GET" and path == "/api/brands/recommend": return brand_recommend(environ, start_response)[0]
         if method == "GET" and path.startswith("/api/knowledge/"): return detail(environ, start_response)[0]
         return base(environ, start_response)
     return app
