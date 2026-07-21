@@ -13,6 +13,7 @@ The starter catalog contains **KAILAS**, **MAMMUT**, and **OSPREY**. Each `Brand
 | `positioning`, `origin`, `target_user` | Brand identity and intended customer. |
 | `product_lines`, `scenarios`, `selling_points` | Product and use-case discovery. |
 | `competitors`, `sales_tips`, `recommendations` | Comparison and assisted sales guidance. |
+| `source_traceability` | Versioned source and location metadata for every seeded brand claim set. |
 
 The starter content is deliberately retailer-facing and concise. Brand-document evidence is returned alongside claims so additional authorized source material can supersede or enrich the starter catalog.
 
@@ -22,7 +23,7 @@ The starter content is deliberately retailer-facing and concise. Brand-document 
 
 * **Markdown** (`.md`, `.markdown`) with line citations.
 * **DOCX** (`.docx`) with paragraph citations, using standard-library ZIP/XML parsing.
-* **PDF** (`.pdf`) with page citations when the optional `pypdf` extraction dependency is installed; a clear `pdf_import_requires_pypdf` error is returned otherwise instead of silently ingesting empty content.
+* **PDF** (`.pdf`) with page citations through the pinned `pypdf` extraction dependency.
 
 Every import automatically produces SHA-256 content metadata, MIME type, original filename, importer, UTC timestamp, deterministic document ID, and citation locations. ACL is derived from the trusted `AuthContext`: organization is always required, department documents additionally require a matching department (unless owner/admin), and private documents remain owner/admin-only.
 
