@@ -11,6 +11,7 @@ from packages.vafox_foundation.http import json_response, service_app
 from services.memory.acl import auth_context, can_access
 from services.memory.app import MemoryService
 from .brand import BrandKnowledgeStore
+from .product_intelligence import ProductIntelligenceStore
 
 DOMAINS = frozenset({"company", "brand", "product", "sales", "store", "sop", "activity"})
 
@@ -41,10 +42,11 @@ def _knowledge_fields(record):
     return knowledge if isinstance(knowledge, dict) else {}
 
 
-def create_app(memory_service=None, retrieval_service=None, brand_store=None):
+def create_app(memory_service=None, retrieval_service=None, brand_store=None, product_store=None):
     memory = memory_service or MemoryService()
     retrieval = retrieval_service or MemoryRetrievalClient()
     brands = brand_store or BrandKnowledgeStore()
+    products = product_store or ProductIntelligenceStore()
 
     def item_from_result(result, record):
         fields = _knowledge_fields(record)
@@ -148,9 +150,79 @@ def create_app(memory_service=None, retrieval_service=None, brand_store=None):
         if not scenario or len(scenario) > 200: return json_response(start_response, 400, {"error": "invalid_scenario"}), 400
         return json_response(start_response, 200, {"scenario": scenario, "items": brands.recommend(scenario, context)}), 200
 
+    def product_upload(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        try:
+            from email.parser import BytesParser
+            from email.policy import default
+            content_type = environ.get("CONTENT_TYPE", "")
+            if "multipart/form-data" not in content_type or "boundary=" not in content_type: raise KeyError("file")
+            raw = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH", "0") or 0))
+            message = BytesParser(policy=default).parsebytes(b"Content-Type: " + content_type.encode() + b"\r\nMIME-Version: 1.0\r\n\r\n" + raw)
+            parts = {part.get_param("name", header="content-disposition"): part for part in message.iter_parts()}
+            file_part = parts["file"]
+            filename, content = file_part.get_filename(), file_part.get_payload(decode=True)
+            metadata = {key: (parts[key].get_content() if key in parts else None) for key in ("asset_type", "brand_id", "source", "effective_from")}
+            asset = products.upload(context, filename, content, metadata)
+        except KeyError: return json_response(start_response, 400, {"error": "file_required"}), 400
+        except PermissionError as error: return json_response(start_response, 403, {"error": str(error)}), 403
+        except ValueError as error:
+            status = 415 if str(error) == "unsupported_media_type" else 413 if str(error) == "invalid_asset_size" else 422
+            return json_response(start_response, status, {"error": str(error)}), status
+        return json_response(start_response, 202, {key: asset[key] for key in ("asset_id", "asset_version", "review_status", "processing_status", "content_sha256")}), 202
+
+    def product_asset(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        asset = products.asset(context, environ["PATH_INFO"].rsplit("/", 1)[-1])
+        if not asset: return json_response(start_response, 404, {"error": "not_found_or_not_authorized"}), 404
+        safe = {key: value for key, value in asset.items() if key not in {"content"}}
+        return json_response(start_response, 200, safe), 200
+
+    def product_review(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        try: payload = json.loads(environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH", "0") or 0)) or b"{}")
+        except (ValueError, TypeError): return json_response(start_response, 400, {"error": "invalid_json"}), 400
+        try: asset = products.review(context, environ["PATH_INFO"].split("/")[-2], payload.get("decision"))
+        except PermissionError as error: return json_response(start_response, 403, {"error": str(error)}), 403
+        except ValueError as error: return json_response(start_response, 422, {"error": str(error)}), 422
+        if not asset: return json_response(start_response, 404, {"error": "not_found_or_not_authorized"}), 404
+        return json_response(start_response, 200, {"asset_id": asset["asset_id"], "review_status": asset["review_status"]}), 200
+
+    def product_detail(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        card = products.get_card(context, environ["PATH_INFO"].rsplit("/", 1)[-1])
+        if card: return json_response(start_response, 200, card), 200
+        return json_response(start_response, 404, {"error": "not_found_or_not_authorized"}), 404
+
+    def product_search(environ, start_response):
+        context = auth_context(environ); args = _query(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        query = args.get("query", "").strip()
+        if not query: return json_response(start_response, 400, {"error": "invalid_query"}), 400
+        return json_response(start_response, 200, {"items": products.search(context, query), "query": query, "advisory_only_requires_human_approval": True}), 200
+
+    def product_recommend(environ, start_response):
+        context = auth_context(environ)
+        if not context: return json_response(start_response, 401, {"error": "authentication_required"}), 401
+        try: payload = json.loads(environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH", "0") or 0)) or b"{}")
+        except (ValueError, TypeError): return json_response(start_response, 400, {"error": "invalid_json"}), 400
+        scenario, need = str(payload.get("scenario", "")).strip(), str(payload.get("need", "")).strip()
+        if not scenario or not need: return json_response(start_response, 400, {"error": "scenario_and_need_required"}), 400
+        return json_response(start_response, 200, products.recommend(context, scenario, need)), 200
+
     base = service_app("knowledge")
     def app(environ, start_response):
         path, method = environ["PATH_INFO"], environ["REQUEST_METHOD"]
+        if method == "POST" and path == "/api/product-assets/upload": return product_upload(environ, start_response)[0]
+        if method == "GET" and path.startswith("/api/product-assets/"): return product_asset(environ, start_response)[0]
+        if method == "POST" and path.startswith("/api/product-assets/") and path.endswith("/review"): return product_review(environ, start_response)[0]
+        if method == "GET" and path == "/api/product-intelligence/search": return product_search(environ, start_response)[0]
+        if method == "POST" and path == "/api/product-intelligence/recommend": return product_recommend(environ, start_response)[0]
+        if method == "GET" and path.startswith("/api/product-intelligence/"): return product_detail(environ, start_response)[0]
         if method == "GET" and path == "/api/knowledge/search": return search(environ, start_response)[0]
         if method == "GET" and path == "/api/knowledge/recommend": return search(environ, start_response, True)[0]
         if method == "GET" and path == "/api/brands/search": return brand_search(environ, start_response)[0]
