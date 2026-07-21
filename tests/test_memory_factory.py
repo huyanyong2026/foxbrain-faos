@@ -13,8 +13,8 @@ from services.memory.app import create_app
 
 class FakeMemoryService:
     def __init__(self): self.items = {}; self.deleted = []
-    def create(self, name, content, content_type, source, owner, metadata, tags=()):
-        memory_id = "memory-1"; self.items[memory_id] = {"id": memory_id, "name": name, "type": content_type, "size": len(content), "source": source, "owner": owner, "metadata": metadata, "tags": list(tags), "storage_path": "memory/memory-1/" + name, "status": "active", "content": content}; return {"memory_id": memory_id, "storage_path": self.items[memory_id]["storage_path"]}
+    def create(self, name, content, content_type, source, acl, metadata, tags=()):
+        memory_id = "memory-1"; self.items[memory_id] = {"id": memory_id, "name": name, "type": content_type, "size": len(content), "source": source, "owner": acl.owner_id, "organization_id": acl.organization_id, "department_id": acl.department_id, "owner_id": acl.owner_id, "role_scope": acl.upload_role_scope, "visibility": acl.upload_visibility, "metadata": metadata, "tags": list(tags), "storage_path": "memory/memory-1/" + name, "status": "active", "content": content}; return {"memory_id": memory_id, "storage_path": self.items[memory_id]["storage_path"]}
     def get(self, memory_id):
         item = self.items.get(memory_id)
         return {key: value for key, value in item.items() if key != "content"} if item and item["status"] == "active" else None
@@ -27,15 +27,17 @@ class FakeMemoryService:
         return (self.get(memory_id), self.items[memory_id]["content"]) if self.get(memory_id) else None
 
 
-def request(app, method, path, payload=b"", content_type="application/json"):
+AUTH = {"HTTP_X_VAFOX_ORGANIZATION_ID": "org-1", "HTTP_X_VAFOX_DEPARTMENT_ID": "R&D", "HTTP_X_VAFOX_USER_ID": "alice"}
+
+def request(app, method, path, payload=b"", content_type="application/json", headers=None):
     environ = {}; setup_testing_defaults(environ); environ.update({"REQUEST_METHOD": method, "PATH_INFO": path.split("?", 1)[0], "QUERY_STRING": path.partition("?")[2], "CONTENT_TYPE": content_type, "CONTENT_LENGTH": str(len(payload)), "wsgi.input": io.BytesIO(payload)})
-    captured = {}; body = b"".join(app(environ, lambda status, headers: captured.update(status=status, headers=headers)))
+    environ.update(headers or AUTH); captured = {}; body = b"".join(app(environ, lambda status, headers: captured.update(status=status, headers=headers)))
     return int(captured["status"][:3]), body
 
 
 def test_receive_search_read_delete_and_health():
     service = FakeMemoryService(); app = create_app(service)
-    status, body = request(app, "GET", "/health")
+    status, body = request(app, "GET", "/health", headers={})
     assert status == 200 and json.loads(body)["service"] == "memory"
     boundary = "MemoryFactoryBoundary"
     payload = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"source\"\r\n\r\ntest\r\n"
