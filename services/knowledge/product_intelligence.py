@@ -18,6 +18,11 @@ from services.memory.acl import can_access
 SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".md", ".markdown", ".png", ".jpg", ".jpeg", ".webp"}
 ALLOWED_UPLOAD_ROLES = frozenset({"brand_partner", "procurement", "product_manager", "operation", "admin"})
 ADVISORY_NOTICE = "库存、价格、尺码及实时场景请由员工核实；本建议需人工确认后使用。"
+SALES_KNOWLEDGE_FIELDS = (
+    "scenario", "customer_type", "customer_need", "discovery_questions",
+    "recommendation_logic", "product_bundle", "sales_script",
+    "objection_handling", "cross_sell",
+)
 
 
 def now():
@@ -77,11 +82,14 @@ class ProductIntelligenceStore:
         model = self._find_value(lines, "model") or self._find_value(lines, "产品")
         series = self._find_value(lines, "series")
         category = self._find_value(lines, "category")
+        citation = self._citation(asset, asset["chunks"][0] if asset["chunks"] else None)
+        sales_knowledge = self._sales_knowledge(lines, asset, citation)
+        if sales_knowledge:
+            asset["entities"].append(sales_knowledge)
         if brand or model:
-            citation = self._citation(asset, asset["chunks"][0] if asset["chunks"] else None)
-            asset["entities"] = [{"entity_type": "Brand Entity", "value": brand, "citation": citation},
-                                 {"entity_type": "Product Entity", "value": model, "citation": citation},
-                                 {"entity_type": "Scenario Entity", "value": self._find_value(lines, "scenario"), "citation": citation}]
+            asset["entities"][:0] = [{"entity_type": "Brand Entity", "value": brand, "citation": citation},
+                                      {"entity_type": "Product Entity", "value": model, "citation": citation},
+                                      {"entity_type": "Scenario Entity", "value": self._find_value(lines, "scenario"), "citation": citation}]
             asset["candidate"] = {"brand": brand or "unknown", "series": series or "unknown", "model": model or "unknown", "category": category or "unknown", "citation": citation}
         asset["processing_status"] = "Review"
         asset["review_status"] = "Review"
@@ -100,6 +108,18 @@ class ProductIntelligenceStore:
         return {"citation_id": identifier("cit"), "asset_id": asset["asset_id"], "asset_version": asset["asset_version"],
                 "content_sha256": asset["content_sha256"], "chunk_id": chunk.get("chunk_id") if chunk else None,
                 "locator": chunk.get("locator") if chunk else "#document", "source": asset["filename"]}
+
+    def _sales_knowledge(self, lines, asset, citation):
+        """Extract a traceable SalesKnowledgeEntity only from explicit source fields."""
+        values = {field: self._find_value(lines, field) for field in SALES_KNOWLEDGE_FIELDS}
+        # Scenario is shared with Product Intelligence; do not create an empty sales entity
+        # merely because a product happens to name a use scenario.
+        if not any(values[field] for field in SALES_KNOWLEDGE_FIELDS if field != "scenario"):
+            return None
+        return {"entity_type": "SalesKnowledgeEntity", "knowledge_id": identifier("skn"),
+                **values, "citation": citation, "version": asset["asset_version"],
+                "confidence": {"level": "low", "score": 0.4,
+                               "limitations": ["MVP parser only extracted explicitly declared fields"]}}
 
     def asset(self, context, asset_id):
         asset = self.assets.get(asset_id)
@@ -126,10 +146,12 @@ class ProductIntelligenceStore:
     def _card_from_candidate(self, asset, candidate):
         citation = candidate["citation"]
         model = candidate["model"]
+        sales_knowledge = [entity for entity in asset["entities"] if entity["entity_type"] == "SalesKnowledgeEntity"]
         return {"card_id": identifier("pcd"), "product_id": f"prd:{candidate['brand']}:{model}".lower().replace(" ", "-"),
                 "knowledge_version": "1", "review_status": "Published", "brand": candidate["brand"], "series": candidate["series"],
                 "model": model, "category": candidate["category"], "positioning": "unknown", "technology": [], "scenario": [],
                 "customer_profile": [], "selling_points": [], "gear_package": [], "citation": [citation],
+                "sales_knowledge": sales_knowledge,
                 "confidence": {"level": "low", "score": 0.4, "limitations": ["MVP parser only extracted explicitly declared fields"]},
                 "version": "1", "knowledge_as_of": now(), "asset_id": asset["asset_id"],
                 "advisory_only_requires_human_approval": True, "human_review_required": True, "notice": ADVISORY_NOTICE}
