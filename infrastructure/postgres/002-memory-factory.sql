@@ -21,6 +21,15 @@ CREATE INDEX IF NOT EXISTS memory_items_name_search_idx ON memory_items USING GI
 CREATE INDEX IF NOT EXISTS memory_items_metadata_search_idx ON memory_items USING GIN (metadata);
 CREATE INDEX IF NOT EXISTS memory_items_owner_idx ON memory_items (owner);
 
+-- Enterprise ACL fields are additive so deployments with Phase 1A data remain valid.
+ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT 'legacy';
+ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS department_id TEXT;
+ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT 'legacy';
+ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS role_scope TEXT NOT NULL DEFAULT 'owner';
+ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private'
+  CHECK (visibility IN ('private', 'department', 'organization'));
+CREATE INDEX IF NOT EXISTS memory_items_acl_idx ON memory_items (organization_id, department_id, owner_id, visibility);
+
 CREATE TABLE IF NOT EXISTS storage_objects (
   id UUID PRIMARY KEY,
   memory_id UUID NOT NULL REFERENCES memory_items(id) ON DELETE CASCADE,
@@ -40,3 +49,4 @@ CREATE TABLE IF NOT EXISTS memory_tags (
 );
 
 INSERT INTO schema_migrations(version) VALUES ('002-memory-factory') ON CONFLICT DO NOTHING;
+INSERT INTO schema_migrations(version) VALUES ('004-memory-enterprise-acl') ON CONFLICT DO NOTHING;

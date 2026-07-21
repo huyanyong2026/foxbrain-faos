@@ -95,7 +95,7 @@ class IndexWorker:
                     if not isinstance(vector, list) or not vector: raise IndexingError("dimension_mismatch")
                     page = next((number for number, position in reversed(page_starts) if chunk.char_start >= position), None) if locations else None
                     section = next((line.lstrip("#").strip() for line in reversed(text[:chunk.char_start].splitlines() + chunk.text.splitlines()) if line.startswith("#")), None)
-                    payload = {**chunk.payload(job.memory_id, page=page, section=section), "document_name": item["name"], "owner": job.owner, "tags": item["tags"], "source": item["source"], "created_at": now, "embedding_profile": job.embedding_profile}
+                    payload = {**chunk.payload(job.memory_id, page=page, section=section), "document_name": item["name"], "owner": item["owner_id"], "organization_id": item["organization_id"], "department_id": item["department_id"], "owner_id": item["owner_id"], "role_scope": item["role_scope"], "visibility": item["visibility"], "tags": item["tags"], "source": item["source"], "created_at": now, "embedding_profile": job.embedding_profile}
                     points.append({"id": QdrantAdapter.point_id(chunk.id, job.embedding_profile), "vector": vector, "payload": payload})
                 self.qdrant.upsert(points); points = []
             job.status, job.chunk_count, job.error_code = "completed", len(chunks), None

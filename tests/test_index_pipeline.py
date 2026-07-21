@@ -1,7 +1,7 @@
 from services.memory.phase1b.indexing import InMemoryIndexJobs, IndexWorker, extract_text
 
 class Memory:
-    def content(self, _): return ({"type": "text/plain", "name": "guide.txt", "tags": ["safe"], "source": "handbook", "owner": "acme"}, b"one two three four")
+    def content(self, _): return ({"type": "text/plain", "name": "guide.txt", "tags": ["safe"], "source": "handbook", "owner_id": "acme", "organization_id": "org-1", "department_id": "ops", "role_scope": "private", "visibility": "private"}, b"one two three four")
 class Embeddings:
     def embed_batch(self, rows): return [[0.1, 0.2] for _ in rows]
 class Qdrant:

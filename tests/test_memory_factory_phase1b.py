@@ -14,6 +14,7 @@ from services.memory.phase1b.config import Phase1BSettings
 from services.memory.phase1b.qdrant import QdrantAdapter
 from services.memory.phase1b.indexing import InMemoryIndexJobs, IndexWorker
 from services.memory.phase1b.retrieval import RetrievalService
+from services.memory.acl import AuthContext
 
 
 def request(app, method, path, payload=b"", headers=None):
@@ -30,11 +31,12 @@ def test_phase1b_config_and_deterministic_chunk_pipeline():
     assert chunk_text("memory-1", 1, "one two three four", 2, 1) == chunk_text("memory-1", 1, "one two three four", 2, 1)
 
 
-def test_qdrant_filter_always_enforces_authorized_owner():
-    payload = QdrantAdapter.filter_for(["finance"], ["plan"], "manual", "2026-01-01T00:00:00Z", "current")
-    assert payload["must"][0] == {"key": "owner", "match": {"any": ["finance"]}}
+def test_qdrant_filter_always_enforces_enterprise_permission_scope():
+    context = AuthContext("org-1", "finance", "finance-user", frozenset())
+    payload = QdrantAdapter.filter_for(context, ["plan"], "manual", "2026-01-01T00:00:00Z", "current")
+    assert payload["must"][0] == {"key": "organization_id", "match": {"value": "org-1"}}
     assert payload["must_not"][0]["key"] == "memory_id"
-    try: QdrantAdapter.filter_for([])
+    try: QdrantAdapter.filter_for(None)
     except PermissionError: pass
     else: assert False, "owner filtering must never be optional"
 
@@ -56,7 +58,7 @@ def test_qdrant_collection_alias_point_lifecycle_and_health():
     assert ("POST", "/aliases", {"actions": [{"delete_alias": {"alias_name": "memory_chunks_v1"}}, {"create_alias": {"collection_name": "memory_chunks_v2__default", "alias_name": "memory_chunks_v1"}}]}) in calls
     payload = {"memory_id": "m1", "chunk_id": "c1", "owner": "finance", "tags": ["plan"], "source": "manual", "created_at": "2026-07-20T00:00:00Z", "content_hash": "a" * 64, "embedding_profile": "bge-m3@v1"}
     adapter.upsert([{"id": adapter.point_id("c1", "bge-m3@v1"), "vector": [.1, .2, .3], "payload": payload}])
-    adapter.search([.1, .2, .3], ["finance"], 1)
+    adapter.search([.1, .2, .3], AuthContext("org-1", "finance", "finance", frozenset()), 1)
     adapter.delete(memory_id="m1")
     assert adapter.collections()[0]["name"] == "memory_chunks_v1__default"
     assert adapter.health()["status"] == "ok"
@@ -67,19 +69,19 @@ def test_qdrant_collection_alias_point_lifecycle_and_health():
 class FakeMemory: pass
 class FakeRetrieval:
     def vector_search(self, **kwargs):
-        return {"query_id": "query-1", "embedding_profile": "bge-m3@v1", "results": [{"memory_id": "m2", "score": .9}], "owners_seen": list(kwargs["owners"])}
+        return {"query_id": "query-1", "embedding_profile": "bge-m3@v1", "results": [{"memory_id": "m2", "score": .9}], "context_owner": kwargs["context"].owner_id}
     def related(self, **kwargs): return {"memory_id": kwargs["memory_id"], "results": []}
 
 
-def test_vector_api_uses_trusted_owner_claim_and_related_skeleton():
+def test_vector_api_uses_trusted_auth_context_and_ignores_client_owner_filter():
     app = create_app(FakeMemory(), FakeRetrieval())
     payload = json.dumps({"query": "plan", "filters": {"owners": ["finance"]}}).encode()
-    status, body = request(app, "POST", "/api/v1/search/vector", payload, {"HTTP_X_VAFOX_AUTHORIZED_OWNERS": "finance,hr"})
-    assert status == 200 and body["owners_seen"] == ["finance"]
+    headers = {"HTTP_X_VAFOX_ORGANIZATION_ID": "org-1", "HTTP_X_VAFOX_DEPARTMENT_ID": "finance", "HTTP_X_VAFOX_USER_ID": "finance-user"}
+    status, body = request(app, "POST", "/api/v1/search/vector", payload, headers)
+    assert status == 200 and body["context_owner"] == "finance-user"
     denied = json.dumps({"query": "plan", "filters": {"owners": ["engineering"]}}).encode()
-    assert request(app, "POST", "/api/v1/search/vector", denied, {"HTTP_X_VAFOX_AUTHORIZED_OWNERS": "finance"})[0] == 403
+    assert request(app, "POST", "/api/v1/search/vector", denied, headers)[0] == 200
     assert request(app, "POST", "/api/v1/search/vector", payload)[0] == 401
-    assert request(app, "GET", "/api/v1/memory/m1/related?top_k=5", headers={"HTTP_X_VAFOX_AUTHORIZED_OWNERS": "finance"})[0] == 200
 
 
 class FakeQdrant:
@@ -101,7 +103,7 @@ def test_vector_foundation_api_is_explicitly_injected():
 
 class PipelineMemory:
     def content(self, memory_id):
-        return ({"name": "strategy.md", "type": "text/markdown", "source": "upload", "tags": ["plan"]}, b"# Strategy\nRevenue plan is approved.\n")
+        return ({"name": "strategy.md", "type": "text/markdown", "source": "upload", "tags": ["plan"], "organization_id": "org-1", "department_id": "strategy", "owner_id": "alice", "role_scope": "private", "visibility": "private"}, b"# Strategy\nRevenue plan is approved.\n")
 
 
 class PipelineEmbedding:
@@ -114,8 +116,8 @@ class PipelineQdrant:
     def __init__(self): self.points = []; self.initialized = []
     def ensure_initialized(self, dimension): self.initialized.append(dimension)
     def upsert(self, points): self.points.extend(points)
-    def search(self, vector, owners, limit, **filters):
-        return [{"score": .99, "payload": point["payload"]} for point in self.points if point["payload"]["owner"] in owners][:limit]
+    def search(self, vector, context, limit, **filters):
+        return [{"score": .99, "payload": point["payload"]} for point in self.points if point["payload"]["owner_id"] == context.owner_id][:limit]
 
 
 def test_real_worker_indexes_chunks_and_returns_complete_citation():
@@ -125,6 +127,6 @@ def test_real_worker_indexes_chunks_and_returns_complete_citation():
     assert completed.status == "completed" and completed.chunk_count > 0 and store.initialized == [2]
     payload = store.points[0]["payload"]
     assert {"chunk_id", "memory_id", "content", "offset", "token_count", "content_hash", "page", "section", "owner", "tags"} <= set(payload)
-    result = RetrievalService(embedding, store, "openai@v1").vector_search("Revenue", 1, ("alice",))
+    result = RetrievalService(embedding, store, "openai@v1").vector_search("Revenue", 1, AuthContext("org-1", "strategy", "alice", frozenset()))
     assert result["results"][0]["citation"] == {"document_name": "strategy.md", "page": None, "section": "Strategy", "chunk_id": payload["chunk_id"], "source": "upload"}
-    assert RetrievalService(embedding, store, "openai@v1").vector_search("Revenue", 1, ("bob",))["results"] == []
+    assert RetrievalService(embedding, store, "openai@v1").vector_search("Revenue", 1, AuthContext("org-1", "strategy", "bob", frozenset()))["results"] == []

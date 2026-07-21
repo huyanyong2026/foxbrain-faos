@@ -13,9 +13,9 @@ from urllib.request import Request, urlopen
 
 PAYLOAD_FIELDS = frozenset({
     "memory_id", "chunk_id", "content", "offset", "token_count", "content_hash", "page", "section",
-    "document_name", "owner", "tags", "source", "created_at", "embedding_profile",
+    "document_name", "owner", "organization_id", "department_id", "owner_id", "role_scope", "visibility", "tags", "source", "created_at", "embedding_profile",
 })
-PAYLOAD_INDEX_FIELDS = ("memory_id", "chunk_id", "owner", "tags", "source", "created_at", "content_hash", "embedding_profile", "document_name")
+PAYLOAD_INDEX_FIELDS = ("memory_id", "chunk_id", "owner", "organization_id", "department_id", "owner_id", "role_scope", "visibility", "tags", "source", "created_at", "content_hash", "embedding_profile", "document_name")
 
 
 class QdrantAdapter:
@@ -57,10 +57,11 @@ class QdrantAdapter:
         legacy = {"memory_id", "chunk_id", "owner", "tags", "source", "created_at", "content_hash", "embedding_profile"}
         if set(payload) == legacy:
             payload = {**payload, "content": "[legacy chunk]", "offset": 0, "token_count": 1,
-                       "page": None, "section": None, "document_name": payload["memory_id"]}
+                       "page": None, "section": None, "document_name": payload["memory_id"], "organization_id": "legacy", "department_id": None,
+                       "owner_id": payload["owner"], "role_scope": "owner", "visibility": "private"}
         if set(payload) != PAYLOAD_FIELDS:
             raise ValueError("payload must contain exactly the Phase 1B payload fields")
-        required_strings = PAYLOAD_FIELDS - {"tags", "page", "section", "offset", "token_count"}
+        required_strings = PAYLOAD_FIELDS - {"tags", "page", "section", "department_id", "offset", "token_count"}
         if not all(isinstance(payload[key], str) and payload[key] for key in required_strings):
             raise ValueError("payload string fields must be non-empty strings")
         if not isinstance(payload["tags"], list) or any(not isinstance(tag, str) or not tag for tag in payload["tags"]):
@@ -140,10 +141,15 @@ class QdrantAdapter:
         return response.get("result", response)
 
     @staticmethod
-    def filter_for(owners, tags_any=(), source=None, created_at_gte=None, exclude_memory_id=None, created_at_lte=None, memory_id=None):
-        if not owners:
-            raise PermissionError("authorized owners required")
-        must = [{"key": "owner", "match": {"any": sorted(set(owners))}}]
+    def filter_for(context, tags_any=(), source=None, created_at_gte=None, exclude_memory_id=None, created_at_lte=None, memory_id=None):
+        if not context or not context.organization_id or not context.owner_id:
+            raise PermissionError("authorization context required")
+        must = [{"key": "organization_id", "match": {"value": context.organization_id}}]
+        if not context.is_admin:
+            scope = [{"key": "owner_id", "match": {"value": context.owner_id}}, {"key": "visibility", "match": {"value": "organization"}}]
+            if context.department_id:
+                scope.append({"nested": {"must": [{"key": "visibility", "match": {"value": "department"}}, {"key": "department_id", "match": {"value": context.department_id}}]}})
+            must.append({"should": scope, "min_should": 1})
         if tags_any:
             must.append({"key": "tags", "match": {"any": sorted(set(tags_any))}})
         if source:
@@ -159,9 +165,9 @@ class QdrantAdapter:
             result["must_not"] = [{"key": "memory_id", "match": {"value": exclude_memory_id}}]
         return result
 
-    def search(self, vector, owners, limit, **filters):
+    def search(self, vector, context, limit, **filters):
         if not 1 <= limit <= 50:
             raise ValueError("limit must be between 1 and 50")
         payload = {"vector": {"name": "content", "vector": vector}, "limit": limit, "with_payload": True,
-                   "filter": self.filter_for(owners, **filters)}
+                   "filter": self.filter_for(context, **filters)}
         return self._request("POST", f"/collections/{self.collection_alias}/points/search", payload).get("result", [])
