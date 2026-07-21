@@ -116,6 +116,23 @@ class OpenAICompatibleEmbeddingProvider:
         raise AssertionError("unreachable")
 
 
+class BGEM3EmbeddingProvider(OpenAICompatibleEmbeddingProvider):
+    """BGE-M3 adapter.
+
+    BGE-M3 deployments commonly expose the OpenAI embeddings contract (TEI,
+    vLLM, and Xinference do).  Keeping this subclass explicit makes profiles
+    auditable while preserving the application-facing EmbeddingProvider API.
+    """
+
+
+class HunyuanEmbeddingProvider(OpenAICompatibleEmbeddingProvider):
+    """Hunyuan embedding adapter for its OpenAI-compatible gateway endpoint."""
+
+
+class DeepSeekCompatibleEmbeddingProvider(OpenAICompatibleEmbeddingProvider):
+    """Adapter for DeepSeek-compatible embedding gateways."""
+
+
 class EmbeddingProviderRouter:
     """Thread-safe active-provider selector for explicit runtime switching."""
     def __init__(self, providers: dict[str, EmbeddingProvider], active_provider: str):
@@ -152,7 +169,14 @@ class EmbeddingProviderRouter:
 
 # Backward-compatible factory name.  All supported legacy labels use OpenAI wire format.
 def provider_for(profile: EmbeddingProfile, endpoint: str, api_key: str | None = None, **kwargs) -> OpenAICompatibleEmbeddingProvider:
-    return OpenAICompatibleEmbeddingProvider(profile, endpoint, api_key, **kwargs)
+    """Return a vendor adapter without changing the EmbeddingProvider contract."""
+    provider_type = profile.provider
+    providers = {
+        "deepseek-compatible": DeepSeekCompatibleEmbeddingProvider,
+        "hunyuan": HunyuanEmbeddingProvider,
+        "bge-m3": BGEM3EmbeddingProvider,
+    }
+    return providers.get(provider_type, OpenAICompatibleEmbeddingProvider)(profile, endpoint, api_key, **kwargs)
 
 
 def router_from_settings(settings, environ=None) -> EmbeddingProviderRouter:

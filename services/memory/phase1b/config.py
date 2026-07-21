@@ -53,7 +53,7 @@ class Phase1BSettings:
                     max_retries=int(value.get("max_retries", 2)), health_endpoint=value.get("health_endpoint"))
             except (KeyError, TypeError, ValueError) as error:
                 raise ValueError(f"invalid embedding profile: {profile_id}") from error
-            if profile.provider not in {"openai-compatible", "bge-m3", "openai", "jina"} or profile.dimension < 1 or profile.timeout_seconds <= 0 or profile.max_retries < 0:
+            if profile.provider not in {"openai-compatible", "deepseek-compatible", "hunyuan", "bge-m3", "openai", "jina"} or profile.dimension < 1 or profile.timeout_seconds <= 0 or profile.max_retries < 0:
                 raise ValueError(f"invalid embedding profile: {profile_id}")
             profiles[profile_id] = profile
         target, overlap = int(environ.get("MEMORY_CHUNK_TARGET_TOKENS", "512")), int(environ.get("MEMORY_CHUNK_OVERLAP_TOKENS", "64"))

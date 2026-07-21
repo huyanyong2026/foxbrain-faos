@@ -69,9 +69,9 @@ class InMemoryIndexJobs:
 
 
 class IndexWorker:
-    def __init__(self, memory_service, jobs, embedding_provider, qdrant, profile_id, chunk_size=512, overlap=64, batch_size=32, max_chunks=10000):
+    def __init__(self, memory_service, jobs, embedding_provider, qdrant, profile_id, chunk_size=512, overlap=64, batch_size=32, max_chunks=10000, target_collection=None):
         self.memory_service, self.jobs, self.embedding_provider, self.qdrant = memory_service, jobs, embedding_provider, qdrant
-        self.profile_id, self.chunk_size, self.overlap, self.batch_size, self.max_chunks = profile_id, chunk_size, overlap, batch_size, max_chunks
+        self.profile_id, self.chunk_size, self.overlap, self.batch_size, self.max_chunks, self.target_collection = profile_id, chunk_size, overlap, batch_size, max_chunks, target_collection
     def run(self, job_id):
         job = self.jobs.get(job_id)
         if not job: raise KeyError(job_id)
@@ -89,7 +89,7 @@ class IndexWorker:
             for start in range(0, len(chunks), self.batch_size):
                 batch = chunks[start:start + self.batch_size]; vectors = self.embedding_provider.embed_batch([c.text for c in batch])
                 if len(vectors) != len(batch): raise IndexingError("embedding_failed")
-                if start == 0 and hasattr(self.qdrant, "ensure_initialized"):
+                if start == 0 and hasattr(self.qdrant, "ensure_initialized") and not self.target_collection:
                     self.qdrant.ensure_initialized(len(vectors[0]))
                 for chunk, vector in zip(batch, vectors):
                     if not isinstance(vector, list) or not vector: raise IndexingError("dimension_mismatch")
@@ -97,7 +97,11 @@ class IndexWorker:
                     section = next((line.lstrip("#").strip() for line in reversed(text[:chunk.char_start].splitlines() + chunk.text.splitlines()) if line.startswith("#")), None)
                     payload = {**chunk.payload(job.memory_id, page=page, section=section), "document_name": item["name"], "owner": item["owner_id"], "organization_id": item["organization_id"], "department_id": item["department_id"], "owner_id": item["owner_id"], "role_scope": item["role_scope"], "visibility": item["visibility"], "tags": item["tags"], "source": item["source"], "created_at": now, "embedding_profile": job.embedding_profile}
                     points.append({"id": QdrantAdapter.point_id(chunk.id, job.embedding_profile), "vector": vector, "payload": payload})
-                self.qdrant.upsert(points); points = []
+                if self.target_collection:
+                    self.qdrant.upsert(points, collection=self.target_collection)
+                else:
+                    self.qdrant.upsert(points)
+                points = []
             job.status, job.chunk_count, job.error_code = "completed", len(chunks), None
         except IndexingError as error: job.status, job.error_code = "failed", str(error)
         except Exception: job.status, job.error_code = "failed", "index_failed"

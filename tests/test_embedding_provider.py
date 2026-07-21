@@ -6,7 +6,8 @@ import pytest
 
 from services.memory.phase1b.config import EmbeddingProfile, Phase1BSettings
 from services.memory.phase1b.embedding import (EmbeddingError, EmbeddingProviderRouter,
-    EmbeddingTimeoutError, OpenAICompatibleEmbeddingProvider, router_from_settings)
+    EmbeddingTimeoutError, OpenAICompatibleEmbeddingProvider, BGEM3EmbeddingProvider,
+    DeepSeekCompatibleEmbeddingProvider, HunyuanEmbeddingProvider, provider_for, router_from_settings)
 
 
 class Response:
@@ -63,3 +64,13 @@ def test_settings_select_default_provider_and_build_router():
     settings = Phase1BSettings.from_env({"EMBEDDING_PROFILE_REGISTRY": json.dumps(raw), "EMBEDDING_DEFAULT_PROFILE": "second"})
     router = router_from_settings(settings, {})
     assert router.active_provider == "second"
+
+
+@pytest.mark.parametrize(("vendor", "provider_type"), [
+    ("deepseek-compatible", DeepSeekCompatibleEmbeddingProvider),
+    ("hunyuan", HunyuanEmbeddingProvider),
+    ("bge-m3", BGEM3EmbeddingProvider),
+])
+def test_semantic_v2_vendor_adapters_preserve_embedding_provider_contract(vendor, provider_type):
+    selected = provider_for(EmbeddingProfile("semantic_v2", vendor, "model", "v2", 3, 8192), "https://embedding.example/v1/embeddings")
+    assert isinstance(selected, provider_type)
