@@ -357,6 +357,8 @@ def create_app(memory_service: MemoryService | None = None, retrieval_service=No
     return app
 
 
-app = create_app()
+def app(environ, start_response):
+    """Lazy production entry point so dependency-injected consumers can import safely."""
+    return create_app()(environ, start_response)
 if __name__ == "__main__":
     make_server("0.0.0.0", 8080, app).serve_forever()

@@ -24,6 +24,24 @@ services:
       redis: {condition: service_healthy}
       minio: {condition: service_healthy}
 
+  embedding-api:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: {SERVICE_MODULE: embedding}
+    ports: ["${EMBEDDING_API_PORT:-8083}:8080"]
+
+  knowledge-api:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: {SERVICE_MODULE: knowledge}
+    ports: ["${KNOWLEDGE_API_PORT:-8084}:8080"]
+    depends_on:
+      memory-api: {condition: service_started}
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
