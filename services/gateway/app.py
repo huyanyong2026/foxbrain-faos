@@ -13,6 +13,7 @@ UPSTREAMS = {
     "/api/v1/core": "http://core-data:8080",
     "/api/v1/ai": "http://ai:8080",
     "/api/v1/memory": "http://memory:8080",
+    "/api/knowledge": "http://knowledge:8080",
 }
 
 
@@ -21,14 +22,22 @@ def proxy(environ, start_response):
     upstream = next((value for prefix, value in UPSTREAMS.items() if path.startswith(prefix)), None)
     if not upstream:
         return json_response(start_response, 404, {"error": "route_not_found"}), 404
+    claims = None
     if not path.startswith("/api/v1/auth"):
         authorization = environ.get("HTTP_AUTHORIZATION", "")
         try:
-            verify_token(authorization.removeprefix("Bearer ")) if authorization.startswith("Bearer ") else (_ for _ in ()).throw(PermissionError())
+            claims = verify_token(authorization.removeprefix("Bearer ")) if authorization.startswith("Bearer ") else (_ for _ in ()).throw(PermissionError())
         except PermissionError:
             return json_response(start_response, 401, {"error": "unauthorized"}), 401
     body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH") or 0))
-    request = Request(upstream + path, data=body if body else None, method=environ["REQUEST_METHOD"], headers={"Content-Type": environ.get("CONTENT_TYPE", "application/json")})
+    headers = {"Content-Type": environ.get("CONTENT_TYPE", "application/json")}
+    if claims:
+        # Only the verified gateway claim set is forwarded to internal services.
+        headers.update({"X-VAFOX-Organization-ID": str(claims.get("organization_id", claims.get("org_id", ""))),
+                        "X-VAFOX-User-ID": str(claims.get("sub", "")),
+                        "X-VAFOX-Department-ID": str(claims.get("department_id", "")),
+                        "X-VAFOX-Role-Scope": ",".join(str(role) for role in claims.get("role_scopes", claims.get("roles", [])))})
+    request = Request(upstream + path, data=body if body else None, method=environ["REQUEST_METHOD"], headers=headers)
     try:
         with urlopen(request, timeout=float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "5"))) as response:
             payload, status = response.read(), response.status
