@@ -51,3 +51,23 @@ def test_upload_role_acl_and_unpublished_content_are_not_exposed():
     assert call(app, "POST", "/api/product-assets/upload", headers("operation"), body, content_type)[0] == 202
     assert call(app, "POST", "/api/product-assets/upload", headers("sales"), body, content_type)[0] == 403
     assert call(app, "GET", "/api/product-intelligence/search", headers(), b"", "")[0] == 400
+
+
+def test_explicit_sales_fields_create_versioned_cited_sales_knowledge():
+    store = ProductIntelligenceStore(); app = create_app(memory_service=object(), retrieval_service=object(), product_store=store)
+    source = (b"brand: kailas\nmodel: MONT\nscenario: hiking\ncustomer_type: beginner\n"
+              b"customer_need: stay dry\ndiscovery_questions: Where will you hike?\n"
+              b"recommendation_logic: Recommend a shell for rain\nproduct_bundle: MONT + rain pants\n"
+              b"sales_script: This shell keeps you dry.\nobjection_handling: Explain the waterproof rating\n"
+              b"cross_sell: Add rain pants")
+    body, content_type = multipart("sales.md", source)
+    status, uploaded = call(app, "POST", "/api/product-assets/upload", headers(), body, content_type)
+    assert status == 202
+    _, asset = call(app, "GET", f"/api/product-assets/{uploaded['asset_id']}", headers())
+    sales = next(entity for entity in asset["entities"] if entity["entity_type"] == "SalesKnowledgeEntity")
+    assert set(sales) == {"entity_type", "knowledge_id", "scenario", "customer_type", "customer_need", "discovery_questions", "recommendation_logic", "product_bundle", "sales_script", "objection_handling", "cross_sell", "citation", "version", "confidence"}
+    assert sales["customer_type"] == "beginner" and sales["citation"]["asset_id"] == uploaded["asset_id"]
+    assert sales["version"] == "1" and sales["confidence"]["score"] == 0.4
+    assert call(app, "POST", f"/api/product-assets/{uploaded['asset_id']}/review", headers(), b'{"decision":"approved"}')[0] == 200
+    card = store.cards[next(iter(store.cards))]
+    assert card["sales_knowledge"] == [sales]
