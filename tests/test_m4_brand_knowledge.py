@@ -1,4 +1,4 @@
-"""M4.2 Brand Knowledge: schema, import, ACL, retrieval, and 20 sales questions."""
+"""M4.2 Brand Knowledge: schema, import, ACL, retrieval, and 24 sales questions."""
 import io
 import json
 import zipfile
@@ -49,22 +49,46 @@ def test_imported_brand_document_enforces_organization_and_department_acl(tmp_pa
     assert any(item["citation"]["source"] == "osprey.md" for item in store.search("背负系统", AuthContext("org-a", "sales", "bob", frozenset())))
 
 
-@pytest.mark.parametrize("path, expected_brand", [
-    ("/api/brands/search?query=专业山地", "kailas"), ("/api/brands/search?query=瑞士", "mammut"),
-    ("/api/brands/search?query=背负系统", "osprey"), ("/api/brands/search?query=攀岩", "kailas"),
-    ("/api/brands/search?query=冰雪", "mammut"), ("/api/brands/search?query=旅行", "osprey"),
-    ("/api/brands/search?query=越野跑", "kailas"), ("/api/brands/search?query=硬壳服装", "mammut"),
-    ("/api/brands/search?query=水袋", "osprey"), ("/api/brands/search?query=分层穿衣", "kailas"),
-    ("/api/brands/search?query=安全装备", "mammut"), ("/api/brands/search?query=躯干长度", "osprey"),
-    ("/api/brands/recommend?scenario=高海拔登山", "kailas"), ("/api/brands/recommend?scenario=技术登山", "mammut"),
-    ("/api/brands/recommend?scenario=多日徒步", "osprey"), ("/api/brands/search?query=跑山", "kailas"),
-    ("/api/brands/search?query=雪地装备", "mammut"), ("/api/brands/search?query=容量", "osprey"),
-    ("/api/brands/search?query=登山", "kailas"), ("/api/brands/search?query=收纳组织", "osprey"),
+@pytest.mark.parametrize("category, path, expected_brand", [
+    # 品牌定位
+    ("positioning", "/api/brands/search?query=专业山地", "kailas"),
+    ("positioning", "/api/brands/search?query=瑞士", "mammut"),
+    ("positioning", "/api/brands/search?query=背负系统", "osprey"),
+    # 用户画像
+    ("user", "/api/brands/search?query=徒步爱好者", "kailas"),
+    ("user", "/api/brands/search?query=重视安全性能", "mammut"),
+    ("user", "/api/brands/search?query=背负舒适度", "osprey"),
+    # 产品线
+    ("product", "/api/brands/search?query=跑山", "kailas"),
+    ("product", "/api/brands/search?query=硬壳服装", "mammut"),
+    ("product", "/api/brands/search?query=水袋", "osprey"),
+    ("product", "/api/brands/search?query=雪地装备", "mammut"),
+    # 使用场景
+    ("scenario", "/api/brands/search?query=高海拔登山", "kailas"),
+    ("scenario", "/api/brands/search?query=冰雪", "mammut"),
+    ("scenario", "/api/brands/search?query=多日露营", "osprey"),
+    ("scenario", "/api/brands/search?query=旅行", "osprey"),
+    # 竞品比较（按品牌过滤，避免只验证共享竞品词）
+    ("competition", "/api/brands/search?query=MAMMUT&brand_id=kailas", "kailas"),
+    ("competition", "/api/brands/search?query=KAILAS&brand_id=mammut", "mammut"),
+    ("competition", "/api/brands/search?query=DEUTER&brand_id=osprey", "osprey"),
+    # 销售建议
+    ("sales", "/api/brands/search?query=分层穿衣", "kailas"),
+    ("sales", "/api/brands/search?query=暴露环境", "mammut"),
+    ("sales", "/api/brands/search?query=躯干长度", "osprey"),
+    ("sales", "/api/brands/search?query=试背调节", "osprey"),
+    # 场景推荐
+    ("recommendation", "/api/brands/recommend?scenario=高海拔登山", "kailas"),
+    ("recommendation", "/api/brands/recommend?scenario=技术登山", "mammut"),
+    ("recommendation", "/api/brands/recommend?scenario=多日徒步", "osprey"),
 ])
-def test_twenty_brand_questions_cover_positioning_product_scenario_and_sales(path, expected_brand):
+def test_twenty_four_brand_questions_cover_required_sales_dimensions(category, path, expected_brand):
     app = create_app(memory_service=object(), retrieval_service=object(), brand_store=BrandKnowledgeStore())
     status, payload = request(app, path, headers())
-    assert status == 200 and any(item["brand"]["brand_id"] == expected_brand for item in payload["items"])
+    assert status == 200, category
+    matched = [item for item in payload["items"] if item["brand"]["brand_id"] == expected_brand]
+    assert matched, category
+    assert all(item["citation"].get("source") and item["citation"].get("location") for item in matched)
 
 
 def test_brand_compare_requires_auth_and_returns_comparison_fields():
@@ -72,3 +96,12 @@ def test_brand_compare_requires_auth_and_returns_comparison_fields():
     assert request(app, "/api/brands/compare?brands=kailas,mammut", {})[0] == 401
     status, payload = request(app, "/api/brands/compare?brands=kailas,mammut", headers())
     assert status == 200 and len(payload["brands"]) == 2 and "sales_tips" in payload["comparison_fields"]
+
+
+@pytest.mark.parametrize("brand_ids", ["kailas,mammut", "kailas,osprey", "mammut,osprey"])
+def test_brand_comparison_returns_traceable_records_for_each_pair(brand_ids):
+    app = create_app(memory_service=object(), retrieval_service=object(), brand_store=BrandKnowledgeStore())
+    status, payload = request(app, f"/api/brands/compare?brands={brand_ids}", headers())
+    assert status == 200
+    assert {brand["brand_id"] for brand in payload["brands"]} == set(brand_ids.split(","))
+    assert all(brand["source_traceability"][0]["location"] == f"brand:{brand['brand_id']}" for brand in payload["brands"])
