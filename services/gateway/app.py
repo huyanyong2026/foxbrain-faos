@@ -18,6 +18,9 @@ UPSTREAMS = {
     "/api/ceo": "http://business:8080",
     "/api/kailas": "http://business:8080",
     "/api/wechat": "http://business:8080",
+    "/api/customer": "http://business:8080",
+    "/api/retail": "http://business:8080",
+    "/api/store": "http://business:8080",
 }
 
 

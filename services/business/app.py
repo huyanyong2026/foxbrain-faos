@@ -49,6 +49,7 @@ class BusinessStore:
     """Small deterministic read model with an append-only audit trail."""
     def __init__(self, core_client=None):
         self.core_client, self.audit_events = core_client, []
+        self.customers, self.retail = CustomerProfileStore(), RetailInsightStore()
 
     def audit(self, context, action, detail=None):
         self.audit_events.append({"at": _now(), "action": action, "actor_id": context.owner_id,
@@ -59,6 +60,37 @@ class BusinessStore:
         if "store_manager" in context.role_scopes:
             items.append({"type": "store", "title": "门店防雨装备关注", "store_id": context.department_id or "assigned-store", "reason": "请核实热销尺码与雨天陈列。"})
         return items
+
+
+
+STORE_NAMES = {"nanshan": "南山店", "hangyuan": "航苑店", "zhenxing": "振兴店"}
+STORE_ALIASES = {**{code: code for code in STORE_NAMES}, **{name: code for code, name in STORE_NAMES.items()}}
+
+
+class CustomerProfileStore:
+    """Immutable MVP read model; all methods return copies, never write Core data."""
+    def __init__(self):
+        self.profiles = {
+            "C1": {"customer_id": "C1", "name": "李然", "member_level": "Gold", "city": "深圳", "activity_interest": ["徒步", "川西旅行"], "experience_level": "进阶", "brand_preference": ["KAILAS"]},
+            "C2": {"customer_id": "C2", "name": "陈默", "member_level": "Silver", "city": "深圳", "activity_interest": ["周末徒步"], "experience_level": "入门", "brand_preference": ["KAILAS", "LOWA"]},
+        }
+        self.purchases = {"C1": [{"customer_id": "C1", "product": "MONT冲锋衣", "brand": "KAILAS", "store": "nanshan", "purchase_date": "2026-07-05", "amount": 1299}], "C2": [{"customer_id": "C2", "product": "徒步鞋", "brand": "LOWA", "store": "hangyuan", "purchase_date": "2026-06-20", "amount": 1099}]}
+        self.equipment = {"C1": [{"customer_id": "C1", "product": "MONT冲锋衣", "brand": "KAILAS", "purchase_time": "2026-07-05", "usage_scenario": "川西7天", "equipment_level": "进阶", "upgrade_opportunity": "补充保暖中层与防水徒步鞋。"}], "C2": [{"customer_id": "C2", "product": "徒步鞋", "brand": "LOWA", "purchase_time": "2026-06-20", "usage_scenario": "深圳周末徒步", "equipment_level": "入门", "upgrade_opportunity": "可在确认路线后考虑轻量防雨外层。"}]}
+
+    def customer_store(self, customer_id):
+        records = self.purchases.get(customer_id, [])
+        return records[-1]["store"] if records else None
+
+
+class RetailInsightStore:
+    """Read-only sales and inventory snapshot. No mutation method is provided."""
+    def __init__(self):
+        self.sales = {"nanshan": {"sales_trend": "较昨日 +12%，防雨外层带动增长。", "brand_contribution": [{"brand": "KAILAS", "share": 42}], "category_contribution": [{"category": "冲锋衣", "share": 38}], "average_ticket_change": "+8%"}, "hangyuan": {"sales_trend": "较昨日 +5%，徒步鞋表现稳定。", "brand_contribution": [{"brand": "LOWA", "share": 35}], "category_contribution": [{"category": "徒步鞋", "share": 33}], "average_ticket_change": "+3%"}, "zhenxing": {"sales_trend": "较昨日 -3%，需关注KAILAS转化。", "brand_contribution": [{"brand": "KAILAS", "share": 31}], "category_contribution": [{"category": "服装", "share": 29}], "average_ticket_change": "-2%"}}
+        self.alerts = {"nanshan": [{"type": "low_stock", "product": "KAILAS MONT M码", "severity": "high", "message": "可售库存偏低，请人工核实补货节奏。"}], "hangyuan": [{"type": "high_stock", "product": "徒步鞋", "severity": "medium", "message": "库存偏高，请评估陈列和销售节奏。"}], "zhenxing": [{"type": "turnover_risk", "product": "KAILAS马甲", "severity": "medium", "message": "周转偏慢，请人工评估商品经营方案。"}]}
+
+
+def _store_code(value):
+    return STORE_ALIASES.get(str(value or "").strip().lower()) or STORE_ALIASES.get(str(value or "").strip())
 
 
 def create_app(store=None):
@@ -129,10 +161,97 @@ def create_app(store=None):
         else: reply = "重点客户机会：可回访近期购买冲锋衣的客户，确认实际场景与搭配需求。"
         store.audit(ctx, "wechat_message", {"message_type": "ceo" if "今日经营" in message else "employee"}); return json_response(start_response, 200, {"reply": reply, "identity": {"user_id": ctx.owner_id, "role_scopes": sorted(ctx.role_scopes)}, "audit_logged": True, "advisory_only": True, "notice": ADVISORY_NOTICE})
 
-    routes = {("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat}
+    def customer_access(ctx, customer_id):
+        if not ({"customers:read", "customer:read"} & ctx.role_scopes or ctx.is_admin):
+            return (403, {"error": "customer_scope_required"})
+        assigned_store = store.customers.customer_store(customer_id)
+        requested_scope = _store_code(ctx.department_id)
+        if not ctx.is_admin and assigned_store and requested_scope != assigned_store:
+            return (403, {"error": "data_scope_denied"})
+        return None
+
+    def customer_profile(environ, start_response):
+        ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
+        if error: return json_response(start_response, *error)
+        customer_id = environ["PATH_INFO"].rsplit("/", 1)[-1]
+        denied = customer_access(ctx, customer_id)
+        if denied: return json_response(start_response, *denied)
+        profile = store.customers.profiles.get(customer_id)
+        if not profile: return json_response(start_response, 404, {"error": "customer_not_found"})
+        payload = {"profile": profile, "purchase_history": store.customers.purchases.get(customer_id, []), "data_scope": {"department_id": ctx.department_id}, "read_only": True, "notice": ADVISORY_NOTICE}
+        store.audit(ctx, "customer_profile_read", {"customer_id": customer_id}); return json_response(start_response, 200, payload)
+
+    def equipment(environ, start_response):
+        ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
+        if error: return json_response(start_response, *error)
+        customer_id = environ["PATH_INFO"].rsplit("/", 1)[-1]
+        denied = customer_access(ctx, customer_id)
+        if denied: return json_response(start_response, *denied)
+        if customer_id not in store.customers.profiles: return json_response(start_response, 404, {"error": "customer_not_found"})
+        equipment_items = store.customers.equipment.get(customer_id, [])
+        opportunities = [{"type": "equipment_upgrade", "customer_id": customer_id, "recommendation": item["upgrade_opportunity"]} for item in equipment_items]
+        opportunities += [{"type": "activity", "customer_id": customer_id, "recommendation": "可邀请客户了解与其兴趣匹配的活动；须由员工人工确认。"}, {"type": "repurchase", "customer_id": customer_id, "recommendation": "根据购买时间与实际损耗人工判断复购时机。"}]
+        store.audit(ctx, "customer_equipment_read", {"customer_id": customer_id}); return json_response(start_response, 200, {"customer_id": customer_id, "equipment": equipment_items, "opportunities": opportunities, "data_scope": {"department_id": ctx.department_id}, "read_only": True, "notice": ADVISORY_NOTICE})
+
+    def retail_access(ctx, store_code):
+        if not (ctx.is_admin or "ceo" in ctx.role_scopes or "store_manager" in ctx.role_scopes or "retail:read" in ctx.role_scopes): return (403, {"error": "retail_scope_required"})
+        if not ctx.is_admin and "ceo" not in ctx.role_scopes and _store_code(ctx.department_id) != store_code: return (403, {"error": "data_scope_denied"})
+        return None
+
+    def requested_store(environ): return _store_code(_query(environ).get("store") or _query(environ).get("store_id") or environ.get("HTTP_X_VAFOX_DEPARTMENT_ID"))
+
+    def store_insight(environ, start_response):
+        ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
+        if error: return json_response(start_response, *error)
+        code = requested_store(environ); denied = retail_access(ctx, code)
+        if denied: return json_response(start_response, *denied)
+        if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found", "supported": list(STORE_NAMES)})
+        payload = {"store": {"id": code, "name": STORE_NAMES[code]}, "sales_insight": store.retail.sales[code], "product_opportunities": ["结合KAILAS商品资料，优先讲解防护场景和分层搭配。"], "read_only": True, "notice": ADVISORY_NOTICE}
+        store.audit(ctx, "retail_store_insight_read", {"store_id": code}); return json_response(start_response, 200, payload)
+
+    def inventory_alerts(environ, start_response):
+        ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
+        if error: return json_response(start_response, *error)
+        code = requested_store(environ); denied = retail_access(ctx, code)
+        if denied: return json_response(start_response, *denied)
+        if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
+        store.audit(ctx, "retail_inventory_alerts_read", {"store_id": code}); return json_response(start_response, 200, {"store": {"id": code, "name": STORE_NAMES[code]}, "alerts": store.retail.alerts[code], "read_only": True, "inventory_mutation_allowed": False, "notice": ADVISORY_NOTICE})
+
+    def store_dashboard(environ, start_response):
+        ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
+        if error: return json_response(start_response, *error)
+        code = requested_store(environ); denied = retail_access(ctx, code)
+        if denied: return json_response(start_response, *denied)
+        if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
+        customer_opportunities = [{"customer_id": cid, "type": "follow_up", "reason": "近期购买后可由员工人工确认使用体验。"} for cid in store.customers.purchases if store.customers.customer_store(cid) == code]
+        payload = {"store": {"id": code, "name": STORE_NAMES[code]}, "sales_summary": store.retail.sales[code], "product_opportunities": ["围绕KAILAS防护装备建立场景化讲解。"], "inventory_alerts": store.retail.alerts[code], "customer_opportunities": customer_opportunities, "ai_recommendations": ["先核实当日销售、可售库存和客户授权范围，再由店长人工安排任务。"], "read_only": True, "notice": ADVISORY_NOTICE}
+        store.audit(ctx, "store_dashboard_read", {"store_id": code}); return json_response(start_response, 200, payload)
+
+    def feedback(environ, start_response):
+        ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
+        if error: return json_response(start_response, *error)
+        try: request = _body(environ)
+        except ValueError as error: return json_response(start_response, 400, {"error": str(error)})
+        code = _store_code(request.get("store") or request.get("store_id") or ctx.department_id); denied = retail_access(ctx, code)
+        if denied: return json_response(start_response, *denied)
+        feedback_text = str(request.get("feedback", "")).strip()
+        if not feedback_text: return json_response(start_response, 400, {"error": "feedback_required"})
+        store.audit(ctx, "store_feedback_submitted", {"store_id": code, "feedback": feedback_text[:500]}); return json_response(start_response, 202, {"accepted": True, "store_id": code, "notice": "反馈已记录用于人工复盘，不会触发自动执行。", "advisory_only": True})
+
+    def wechat_store_report(environ, start_response):
+        ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
+        if error: return json_response(start_response, *error)
+        code = requested_store(environ); denied = retail_access(ctx, code)
+        if denied: return json_response(start_response, *denied)
+        store.audit(ctx, "wechat_store_report_generated", {"store_id": code}); return json_response(start_response, 200, {"report_type": "store_manager_daily", "store": {"id": code, "name": STORE_NAMES[code]}, "sales": store.retail.sales[code], "inventory_alerts": store.retail.alerts[code], "customer_opportunities": ["人工跟进已授权重点客户。"], "tasks": ["核实重点尺码库存", "复核今日销售节奏"], "delivery": "manual_or_scheduled_wecom_push", "advisory_only": True, "notice": ADVISORY_NOTICE})
+
+    routes = {("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
     health = service_app("business")
     def app(environ, start_response):
-        handler = routes.get((environ["REQUEST_METHOD"], environ["PATH_INFO"]))
+        path = environ["PATH_INFO"]; method = environ["REQUEST_METHOD"]
+        if method == "GET" and path.startswith("/api/customer/profile/"): return customer_profile(environ, start_response)
+        if method == "GET" and path.startswith("/api/customer/equipment/"): return equipment(environ, start_response)
+        handler = routes.get((method, path))
         return handler(environ, start_response) if handler else health(environ, start_response)
     return app
 
