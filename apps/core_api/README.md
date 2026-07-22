@@ -19,6 +19,15 @@ The governed five-domain Business Data Core contract, evidence envelope, and
 runtime role mapping are documented in
 [`docs/CORE_BUSINESS_DATA_PLATFORM.md`](../../docs/CORE_BUSINESS_DATA_PLATFORM.md).
 
+## Sales sync and evidence
+
+`GET /api/v1/sales` reads only the SAP Mirror projection tables
+`dbo.sap_sales_orders` and `dbo.sap_sales_order_lines`; it does not read SAP B1
+directly. Apply [`infra/sap-mirror/sales-sync.sql`](../../infra/sap-mirror/sales-sync.sql)
+before enabling the sync worker. Every response has the line-level fields
+`order_id`, `store`, `sku`, `quantity`, `amount`, `margin`, and `date`, plus
+the evidence envelope `source`, `timestamp`, `version`, and `confidence`.
+
 - `GET /api/v1/objects/stores`
 - `GET /api/v1/objects/products`
 - `GET /api/v1/objects/brands`

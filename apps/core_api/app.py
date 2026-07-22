@@ -23,6 +23,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from zoneinfo import ZoneInfo
 
 from foxbrain_os.platform_governance import health_payload, runtime_payload, version_payload
+from apps.core_api.sales_adapter import SalesDomainAdapter
 
 
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_@$#]*$")
@@ -669,10 +670,9 @@ class CoreService:
                      "purchase_history": row.get("purchase_history", {"documents_365d": row.get("purchase_documents_365d"), "amount_365d": row.get("purchase_amount_365d")}), "equipment_profile": row.get("equipment_profile"),
                      "activity_interest": row.get("activity_interest")} for row in rows]
         elif name == "sales":
-            rows = self._query("""select top %s cast(h.DocEntry as varchar(32)) order_id,l.WhsCode store_id,l.ItemCode sku,
-                l.LineTotal amount,l.LineTotal-l.GrossBuyPr*l.Quantity margin,h.DocDate date
-                from dbo.OINV h join dbo.INV1 l on l.DocEntry=h.DocEntry where h.CANCELED='N' order by h.DocDate desc,h.DocEntry desc""", (limit,))
-            data = [{key: json_value(value) for key, value in row.items()} for row in rows if not store_ids or str(row.get("store_id")) in store_ids]
+            return SalesDomainAdapter(
+                self._query, lambda: self.status().get("mirror", {}).get("finished_at") or utc_now()
+            ).read(store_ids, limit)
         elif name == "inventory":
             rows = self._query("""select top %s w.ItemCode sku,w.WhsCode store_id,w.OnHand quantity,
                 cast(null as int) age,cast(null as decimal(19,6)) turnover,
