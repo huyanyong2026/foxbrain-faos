@@ -1,7 +1,7 @@
 import io
 import json
 
-from services.runtime.app import EvidenceRepository, RuntimeRouter, create_app
+from services.runtime.app import CoreEvidenceAdapter, EvidenceRepository, RuntimeRouter, create_app
 
 
 class Evidence(EvidenceRepository):
@@ -27,3 +27,24 @@ def test_role_routes_and_missing_evidence_never_create_facts():
     status, response = request(create_app(), payload)
     assert status == 200 and response["citation"]["route"] == "procurement-intelligence"
     assert "没有可验证的经营数据" in response["answer"] and response["confidence"] == "low"
+
+
+def test_core_evidence_adapter_uses_role_domains_and_preserves_evidence_metadata():
+    calls = []
+    def reader(domain, scope):
+        calls.append((domain, scope))
+        return {"data": [{"id": "verified"}], "source": "core." + domain,
+                "timestamp": "2026-07-14T00:00:00+00:00", "version": "v1", "confidence": .95}
+    router = RuntimeRouter(CoreEvidenceAdapter(reader))
+    cases = [
+        ("ceo", ["enterprise:read"], ("sales", "inventory", "customers"), "今天公司最重要三件事？"),
+        ("buyer", ["procurement:read"], ("products", "inventory"), "KAILAS MONT目前经营情况？"),
+        ("store_manager", ["store:read"], ("stores", "sales", "customers"), "南山店今天重点是什么？"),
+    ]
+    for role, permissions, domains, query in cases:
+        calls.clear()
+        response = router.query({"user_id": "u", "wecom_user_id": "wx", "role": role,
+                                 "scope": {"permissions": permissions, "data_scope": "NS"}, "query": query})
+        assert tuple(domain for domain, _ in calls) == domains
+        assert all({"source", "timestamp", "version", "confidence"} <= set(item) for item in response["citation"]["evidence"])
+        assert all(section in response["answer"] for section in ("经营摘要", "数据依据", "风险", "AI建议", "Citation"))

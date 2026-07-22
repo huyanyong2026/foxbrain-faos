@@ -76,17 +76,31 @@ class FakeService:
     def data_health(self):
         return {"status": "healthy", "object_counts": {"stores": 2}, "problems": []}
 
+    def domain(self, name, store_ids=None, limit=100):
+        samples = {
+            "products": {"product_id": "A1", "sku": "A1", "brand": "KAILAS", "category": "outer", "cost": 1, "price": 2, "status": "active", "lifecycle": "active"},
+            "sales": {"order_id": "1", "store_id": "NS", "sku": "A1", "amount": 2, "margin": 1, "date": "2026-07-14"},
+            "inventory": {"sku": "A1", "store_id": "NS", "quantity": 1, "age": 3, "turnover": 2, "risk": "normal"},
+            "customers": {"customer_id": "C1", "member_level": "gold", "purchase_history": [], "equipment_profile": None, "activity_interest": None},
+            "stores": {"store_id": "NS", "name": "南山店", "region": "深圳", "sales": 2, "target": 3},
+        }
+        data = [samples[name]]
+        if store_ids and name in {"sales", "inventory", "stores"}:
+            data = [row for row in data if row.get("store_id") in store_ids]
+        return {"data": data, "source": "core." + name, "timestamp": "2026-07-14T00:00:00+00:00", "version": "v1", "confidence": .95, "mode": "read_only"}
+
 
 class CoreApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         policy = TokenPolicy(json.dumps({
             "huyan": {"token": "facts-token", "role": "ceo", "scopes": ["facts:read", "objects:read", "customers:read", "health:read"]},
-            "store": {"token": "store-token", "role": "store_manager", "store_ids": ["NS"], "scopes": ["objects:read"]},
+            "store": {"token": "store-token", "role": "store_manager", "store_ids": ["NS"], "scopes": ["objects:read", "store:read"]},
             "ai": {"token": "ai-token", "role": "purchasing", "scopes": ["objects:read", "health:read"]},
             "operator": {"token": "raw-token", "role": "core_operator", "scopes": ["raw:read"]},
             "gateway": {"token": "public-token", "scopes": ["public:read"]},
             "explorer": {"token": "explorer-token", "role": "explorer_service", "scopes": ["explorer:match"]},
+            "domains": {"token": "domain-token", "role": "buyer", "scopes": ["product:read", "inventory:read", "sales:read", "customer:assigned", "store:read"]},
         }))
         cls.server = create_server("127.0.0.1", 0, FakeService(), policy)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -188,6 +202,23 @@ class CoreApiTests(unittest.TestCase):
             status = CoreService(path, "dbo.OITM", connector=lambda: None).status()
             self.assertEqual(status["mirror"]["status"], "completed")
             self.assertEqual(status["mirror"]["completed_tables"], 2120)
+
+    def test_business_data_core_domains_have_evidence_envelopes(self):
+        required = {
+            "products": "product_id", "sales": "order_id", "inventory": "quantity",
+            "customers": "customer_id", "stores": "store_id",
+        }
+        for domain, field in required.items():
+            status, payload = self.request("/api/v1/" + domain, "domain-token")
+            self.assertEqual(status, 200)
+            self.assertIn(field, payload["data"][0])
+            self.assertEqual({"source", "timestamp", "version", "confidence"}, set(payload) & {"source", "timestamp", "version", "confidence"})
+
+    def test_domain_rbac_is_default_deny_and_store_scope_is_enforced(self):
+        self.assertEqual(self.request("/api/v1/inventory", "store-token")[0], 401)
+        status, payload = self.request("/api/v1/stores", "store-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"][0]["store_id"], "NS")
 
 
 if __name__ == "__main__":
