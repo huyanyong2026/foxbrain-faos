@@ -67,7 +67,7 @@ jobs:
           username: ${{ secrets.CORE_SERVER_USER }}
           key: ${{ secrets.CORE_SERVER_SSH_KEY }}
           port: ${{ secrets.CORE_SERVER_PORT || 22 }}
-          source: "apps/core_api/app.py,apps/core_api/__init__.py"
+          source: "apps/core_api/app.py,apps/core_api/__init__.py,apps/core_api/sales_adapter.py"
           target: "/tmp/foxbrain-core-${{ github.sha }}"
       - name: Deploy read-only Core endpoint
         uses: appleboy/ssh-action@v1.0.3
@@ -87,12 +87,14 @@ jobs:
             BACKUP_DIR=/opt/foxbrain-core/backups/actions-$(date +%Y%m%d%H%M%S)
             test -f "$STAGE_DIR/app.py"
             test -f "$STAGE_DIR/__init__.py"
+            test -f "$STAGE_DIR/sales_adapter.py"
             sudo install -d -m 0750 "$API_DIR" "$BACKUP_DIR"
             test -f "$API_DIR/core-api.env"
             if [ -f "$API_DIR/app.py" ]; then sudo cp -a "$API_DIR/app.py" "$BACKUP_DIR/app.py"; fi
             sudo cp -a "$API_DIR/core-api.env" "$BACKUP_DIR/core-api.env"
             sudo install -m 0644 "$STAGE_DIR/app.py" "$API_DIR/app.py"
             sudo install -m 0644 "$STAGE_DIR/__init__.py" "$API_DIR/__init__.py"
+            sudo install -m 0644 "$STAGE_DIR/sales_adapter.py" "$API_DIR/sales_adapter.py"
             sudo env CORE_STORE_MAP_JSON="$CORE_STORE_MAP_JSON" python3 - <<'PY'
             import os
             from pathlib import Path

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.0-core-release
+
+- Core Data API v2.0.
+- Five Business Domains: Product, Inventory, Customer, Store, and Sales.
+- Evidence Layer for governed, attributable runtime responses.
+- RBAC and data-scope enforcement.
+- SAP Read Only Boundary: application requests use the SAP Mirror and have no
+  SAP production write path.
+
 ## [v1.0.0] - 2026-07-22
 
 ### Added
