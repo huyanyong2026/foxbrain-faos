@@ -14,6 +14,10 @@ UPSTREAMS = {
     "/api/v1/ai": "http://ai:8080",
     "/api/v1/memory": "http://memory:8080",
     "/api/knowledge": "http://knowledge:8080",
+    "/api/workspace": "http://business:8080",
+    "/api/ceo": "http://business:8080",
+    "/api/kailas": "http://business:8080",
+    "/api/wechat": "http://business:8080",
 }
 
 
