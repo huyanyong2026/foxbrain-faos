@@ -1,0 +1,1 @@
+"""Enterprise WeCom integration boundary."""
