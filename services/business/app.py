@@ -98,8 +98,10 @@ def create_app(store=None):
 
     def context(environ, start_response, allowed):
         value = auth_context(environ)
-        if not value: return None, (401, {"error": "authentication_required"})
+        if not value:
+            return None, (401, {"error": "authentication_required"})
         if not (value.role_scopes & allowed) and not value.is_admin:
+            store.audit(value, "api_access_denied", {"reason": "permission_denied"})
             return None, (403, {"error": "permission_denied"})
         return value, None
 
@@ -163,10 +165,12 @@ def create_app(store=None):
 
     def customer_access(ctx, customer_id):
         if not ({"customers:read", "customer:read"} & ctx.role_scopes or ctx.is_admin):
+            store.audit(ctx, "api_access_denied", {"reason": "customer_scope_required", "customer_id": customer_id})
             return (403, {"error": "customer_scope_required"})
         assigned_store = store.customers.customer_store(customer_id)
         requested_scope = _store_code(ctx.department_id)
         if not ctx.is_admin and assigned_store and requested_scope != assigned_store:
+            store.audit(ctx, "api_access_denied", {"reason": "data_scope_denied", "customer_id": customer_id})
             return (403, {"error": "data_scope_denied"})
         return None
 
@@ -194,8 +198,12 @@ def create_app(store=None):
         store.audit(ctx, "customer_equipment_read", {"customer_id": customer_id}); return json_response(start_response, 200, {"customer_id": customer_id, "equipment": equipment_items, "opportunities": opportunities, "data_scope": {"department_id": ctx.department_id}, "read_only": True, "notice": ADVISORY_NOTICE})
 
     def retail_access(ctx, store_code):
-        if not (ctx.is_admin or "ceo" in ctx.role_scopes or "store_manager" in ctx.role_scopes or "retail:read" in ctx.role_scopes): return (403, {"error": "retail_scope_required"})
-        if not ctx.is_admin and "ceo" not in ctx.role_scopes and _store_code(ctx.department_id) != store_code: return (403, {"error": "data_scope_denied"})
+        if not (ctx.is_admin or "ceo" in ctx.role_scopes or "store_manager" in ctx.role_scopes or "retail:read" in ctx.role_scopes):
+            store.audit(ctx, "api_access_denied", {"reason": "retail_scope_required", "store_id": store_code})
+            return (403, {"error": "retail_scope_required"})
+        if not ctx.is_admin and "ceo" not in ctx.role_scopes and _store_code(ctx.department_id) != store_code:
+            store.audit(ctx, "api_access_denied", {"reason": "data_scope_denied", "store_id": store_code})
+            return (403, {"error": "data_scope_denied"})
         return None
 
     def requested_store(environ): return _store_code(_query(environ).get("store") or _query(environ).get("store_id") or environ.get("HTTP_X_VAFOX_DEPARTMENT_ID"))
@@ -234,6 +242,7 @@ def create_app(store=None):
         except ValueError as error: return json_response(start_response, 400, {"error": str(error)})
         code = _store_code(request.get("store") or request.get("store_id") or ctx.department_id); denied = retail_access(ctx, code)
         if denied: return json_response(start_response, *denied)
+        if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
         feedback_text = str(request.get("feedback", "")).strip()
         if not feedback_text: return json_response(start_response, 400, {"error": "feedback_required"})
         store.audit(ctx, "store_feedback_submitted", {"store_id": code, "feedback": feedback_text[:500]}); return json_response(start_response, 202, {"accepted": True, "store_id": code, "notice": "反馈已记录用于人工复盘，不会触发自动执行。", "advisory_only": True})
@@ -243,6 +252,7 @@ def create_app(store=None):
         if error: return json_response(start_response, *error)
         code = requested_store(environ); denied = retail_access(ctx, code)
         if denied: return json_response(start_response, *denied)
+        if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
         store.audit(ctx, "wechat_store_report_generated", {"store_id": code}); return json_response(start_response, 200, {"report_type": "store_manager_daily", "store": {"id": code, "name": STORE_NAMES[code]}, "sales": store.retail.sales[code], "inventory_alerts": store.retail.alerts[code], "customer_opportunities": ["人工跟进已授权重点客户。"], "tasks": ["核实重点尺码库存", "复核今日销售节奏"], "delivery": "manual_or_scheduled_wecom_push", "advisory_only": True, "notice": ADVISORY_NOTICE})
 
     routes = {("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
