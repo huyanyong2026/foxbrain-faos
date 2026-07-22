@@ -1,5 +1,19 @@
 "use client";
 import { useState } from "react";
-const destinations = { CEO: "https://huyan.vafox.com", Employee: "https://ai.vafox.com", Admin: "https://control.vafox.com" } as const;
-type Role = keyof typeof destinations;
-export default function GatewayPage() { const [role, setRole] = useState<Role>("Employee"); const [message, setMessage] = useState("选择身份后继续登录。"); function continueToWorkspace() { setMessage(`身份已确认：${role}。生产环境将跳转至 ${destinations[role]}。`); } return <main><header><span className="brand">VAFOX / FOXBRAIN</span><span className="status">● Identity Gateway Online</span></header><section className="hero"><div><p className="eyebrow">ONE IDENTITY · ONE INTELLIGENCE SYSTEM</p><h1>进入你的<br />FoxBrain。</h1><p className="lead">通过统一身份与权限上下文，进入适合你职责的工作空间。所有产品数据和 AI 请求均经由安全 API Gateway。</p></div><aside className="context"><p className="eyebrow">CURRENT CONTEXT</p><strong>VAFOX China</strong><span>请选择工作角色以载入授权范围。</span></aside></section><p className="eyebrow">SELECT YOUR WORKSPACE</p><section className="roles">{(Object.keys(destinations) as Role[]).map(item => <button key={item} className={`role ${role === item ? "active" : ""}`} onClick={() => setRole(item)}><b>{item}</b><small>{item === "CEO" ? "虎眼 · CEO Intelligence Center" : item === "Employee" ? "AI · Digital Employee Workspace" : "Control · Platform Administration"}</small></button>)}</section><button className="login" onClick={continueToWorkspace}>使用 VAFOX Identity 继续</button><p className="notice" aria-live="polite">{message} RBAC 会在登录后校验角色、组织与资源权限。</p></main>; }
+import type { RbacRole, WorkspaceDestination } from "@foxbrain/types";
+
+const portals: { name: string; destination: WorkspaceDestination; roles: RbacRole[]; href: string; description: string }[] = [
+  { name: "Outdoor LIFE", destination: "outdoor", roles: ["employee", "ceo"], href: "https://outdoor.vafox.com", description: "探索、装备与户外生活方式" },
+  { name: "FoxBrain", destination: "ai", roles: ["employee", "ceo", "admin"], href: "https://ai.vafox.com", description: "每位员工的 AI 工作操作系统" },
+  { name: "Huyan Intelligence", destination: "huyan", roles: ["ceo"], href: "https://huyan.vafox.com", description: "CEO 的实时经营智能中心" },
+  { name: "Control", destination: "control", roles: ["admin"], href: "https://control.vafox.com", description: "组织、权限与运行控制平面" },
+];
+export default function GatewayPage() {
+  const [role, setRole] = useState<RbacRole>("employee");
+  const [message, setMessage] = useState("选择身份后，由 Gateway 验证可访问的 VAFOX 宇宙入口。");
+  function enter(portal: typeof portals[number]) {
+    if (!portal.roles.includes(role)) return setMessage(`${portal.name} 需要 ${portal.roles.join(" / ")} 权限；RBAC 已阻止此次跳转。`);
+    setMessage(`身份已确认：${role}。生产环境将通过 Identity Gateway 跳转至 ${portal.href}。`);
+  }
+  return <main className="portal"><header><a className="brand" href="#top">VAFOX <span>OUTDOOR LIFE OS</span></a><span className="online">● GATEWAY / ONLINE</span></header><section id="top" className="portal-hero"><div><p className="eyebrow">NATURE × INTELLIGENCE</p><h1>VAFOX<br/><i>OUTDOOR LIFE OS</i></h1><p>一个以自然为灵感、以智能为驱动的户外生活宇宙。统一身份、安全网关和可解释的 AI 决策，让每一次探索与经营都连接起来。</p></div><aside><p className="eyebrow">IDENTITY CONTEXT</p><strong>VAFOX China</strong><span>选择当前角色，预览 RBAC 授权入口。</span><div className="role-switch" aria-label="身份角色">{(["employee", "ceo", "admin"] as RbacRole[]).map(value => <button className={role === value ? "selected" : ""} key={value} onClick={() => setRole(value)}>{value}</button>)}</div></aside></section><section><div className="section-title"><p className="eyebrow">UNIVERSE PORTAL</p><h2>从你的权限范围开始</h2></div><div className="portal-grid">{portals.map((portal, index) => <button className="portal-card" key={portal.destination} onClick={() => enter(portal)}><span>0{index + 1}</span><h2>{portal.name}</h2><p>{portal.description}</p><small>{portal.roles.join(" · ")} →</small></button>)}</div></section><p className="portal-notice" aria-live="polite">{message}</p></main>;
+}
