@@ -1,32 +1,17 @@
 # Deployment
 
-First install on Ubuntu:
+## Environment contract
+
+| Environment | `NEXT_PUBLIC_API_BASE_URL` |
+| --- | --- |
+| development | local API Gateway URL |
+| test | test API Gateway URL |
+| production | production API Gateway URL |
+
+Environment variables are supplied by the deployment platform; `.env` files and credentials are never committed. Validate compose topology with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/huyanyong2026/foxbrain-v4/main/install.sh -o install.sh
-chmod +x install.sh
-sudo APP_DIR=/opt/foxbrain REPO_URL=https://github.com/huyanyong2026/foxbrain-v4.git ./install.sh
+docker compose --env-file test.env.example config --quiet
 ```
 
-Update:
-
-```bash
-cd /opt/foxbrain
-bash deploy.sh
-```
-
-Other deployment modes:
-
-```bash
-bash deploy.sh --pull
-bash deploy.sh --build
-bash deploy.sh --rollback
-```
-
-Health check:
-
-```bash
-bash healthcheck.sh
-docker compose ps
-```
-
+Frontend images are built with `infrastructure/docker/frontend.Dockerfile` and `APP=ai-web` or `APP=huyan-web`.

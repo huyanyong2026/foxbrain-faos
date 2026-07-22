@@ -1,37 +1,23 @@
-# Architecture
+# FoxBrain Architecture Freeze
 
-VAFOX is currently a cloud-deployable Python portal with Docker Compose infrastructure.
+## Monorepo boundaries
 
-## Runtime
+| Boundary | Responsibility |
+| --- | --- |
+| `apps/` | Web experiences; only call the API Gateway. |
+| `services/` | Identity, runtime, knowledge, product intelligence, customer/retail brain, and core data bounded contexts. |
+| `packages/` | Shared design system, API client, and types. |
+| `infrastructure/` | Docker, edge proxy, Kubernetes, and monitoring configuration. |
+| `docs/` | Architecture, API, deployment, and governance records. |
 
-- `foxbrain-web`: main web portal.
-- `foxbrain-api`: API process using the same application image.
-- `foxbrain-worker`: scheduled background jobs.
-- `postgres`: production database foundation.
-- `redis`: cache and job foundation.
-- `minio`: document storage foundation.
-- `qdrant`: vector search foundation.
-- `nginx`: public HTTP/HTTPS entry.
-- Optional: n8n, Dify placeholder, Wiki.js, Ollama.
+## Frontend data boundary
 
-## Application Layers
+`ai-web` and `huyan-web` use `NEXT_PUBLIC_API_BASE_URL` through `@foxbrain/api-client`. It is intentionally the only client data transport. Direct database access is prohibited in frontend code.
 
-- Login and role permissions.
-- Archive objects.
-- Knowledge center.
-- SAP sync.
-- AI CEO, Jarvis and agent framework.
-- Workflow, task, reporting, memory and graph engines.
-- V5/V6 operating system layer, action board and autonomous worker.
+## Branch strategy
 
-## Safety Rule
-
-AI can draft and suggest. Sensitive business actions require human approval.
-
-## Enterprise Pack 01 Principles
-
-- SAP remains the authoritative ERP system of record.
-- VAFOX provides AI, knowledge management and orchestration around SAP.
-- Architecture should evolve toward modular services without breaking the current portal.
-- Security by design, mobile-first and AI-first.
-- Documentation, tests and deployment scripts must move with code changes.
+- `main`: production, protected, and release-tagged only.
+- `develop`: integration branch.
+- `feature/<work-item>`: short-lived feature branches merged by pull request.
+- `release/<version>`: stabilization and release-note preparation.
+- `hotfix/<work-item>`: production fixes branched from `main`, then back-merged to `develop`.
