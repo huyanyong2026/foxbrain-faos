@@ -16,13 +16,16 @@ All endpoints return the same evidence envelope: `data`, `source`, `timestamp`,
 | API | Domain fields | Required scopes |
 | --- | --- | --- |
 | `GET /api/v1/products` | `product_id`, `sku`, `brand`, `category`, `cost`, `price`, `status`, `lifecycle` | `product:read` or `enterprise:read` |
-| `GET /api/v1/sales` | `order_id`, `store_id`, `sku`, `amount`, `margin`, `date` | `sales:read`, `store:read`, or `enterprise:read` |
+| `GET /api/v1/sales` | `order_id`, `store`, `sku`, `quantity`, `amount`, `margin`, `date` | `sales:read`, `store:read`, or `enterprise:read` |
 | `GET /api/v1/inventory` | `sku`, `store_id`, `quantity`, `age`, `turnover`, `risk` | `inventory:read` or `enterprise:read` |
 | `GET /api/v1/customers` | `customer_id`, `member_level`, `purchase_history`, `equipment_profile`, `activity_interest` | `customer:assigned`, `customers:read`, or `enterprise:read` |
 | `GET /api/v1/stores` | `store_id`, `name`, `region`, `sales`, `target` | `store:read` or `enterprise:read` |
 
 The token policy applies RBAC before a reader is called. A `store_manager` is
 further restricted to assigned `store_ids` for store and sales domain data.
+
+Sales facts are read from the synchronized `sap_sales_orders` and
+`sap_sales_order_lines` projection in SAP Mirror, not from SAP B1 directly.
 
 ## Runtime evidence adapter
 

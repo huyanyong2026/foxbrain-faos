@@ -9,6 +9,7 @@ import urllib.request
 from pathlib import Path
 
 from apps.core_api.app import CoreService, TokenPolicy, create_server, quote_identifier
+from apps.core_api.sales_adapter import SalesDomainAdapter
 
 
 class FakeService:
@@ -79,7 +80,7 @@ class FakeService:
     def domain(self, name, store_ids=None, limit=100):
         samples = {
             "products": {"product_id": "A1", "sku": "A1", "brand": "KAILAS", "category": "outer", "cost": 1, "price": 2, "status": "active", "lifecycle": "active"},
-            "sales": {"order_id": "1", "store_id": "NS", "sku": "A1", "amount": 2, "margin": 1, "date": "2026-07-14"},
+            "sales": {"order_id": "1", "store": "NS", "sku": "A1", "quantity": 1, "amount": 2, "margin": 1, "date": "2026-07-14"},
             "inventory": {"sku": "A1", "store_id": "NS", "quantity": 1, "age": 3, "turnover": 2, "risk": "normal"},
             "customers": {"customer_id": "C1", "member_level": "gold", "purchase_history": [], "equipment_profile": None, "activity_interest": None},
             "stores": {"store_id": "NS", "name": "南山店", "region": "深圳", "sales": 2, "target": 3},
@@ -213,6 +214,12 @@ class CoreApiTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertIn(field, payload["data"][0])
             self.assertEqual({"source", "timestamp", "version", "confidence"}, set(payload) & {"source", "timestamp", "version", "confidence"})
+
+    def test_sales_api_returns_the_line_level_contract_and_evidence(self):
+        status, payload = self.request("/api/v1/sales", "domain-token")
+        self.assertEqual(status, 200)
+        self.assertEqual(set(payload["data"][0]), {"order_id", "store", "sku", "quantity", "amount", "margin", "date"})
+        self.assertTrue({"source", "timestamp", "version", "confidence"} <= set(payload))
 
     def test_domain_rbac_is_default_deny_and_store_scope_is_enforced(self):
         self.assertEqual(self.request("/api/v1/inventory", "store-token")[0], 401)
