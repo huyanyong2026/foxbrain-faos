@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-RELEASE_VERSION = "AI-OS-V6-CLEAN-REBUILD-V1"
+RELEASE_VERSION = "v1.0.0"
 SYSTEM_NAME = "VAFOX"
 _METADATA_FILE = Path(os.environ.get("FOXBRAIN_DEPLOYMENT_METADATA", "deployment.json"))
 

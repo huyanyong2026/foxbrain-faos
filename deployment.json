@@ -1,10 +1,10 @@
 {
   "system": "VAFOX",
-  "version": "AI-OS-V6-CLEAN-REBUILD-V1",
+  "version": "v1.0.0",
   "release": "production",
-  "commit": "2f8ddedc0419",
-  "build_time": "2026-07-16T12:54:07+00:00",
-  "deploy_time": "2026-07-16T12:54:07+00:00",
+  "commit": "generated-at-deployment",
+  "build_time": "generated-at-deployment",
+  "deploy_time": "generated-at-deployment",
   "environment": "production",
   "services": [
     "gateway",
