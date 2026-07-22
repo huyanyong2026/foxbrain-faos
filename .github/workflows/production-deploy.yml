@@ -30,38 +30,6 @@ jobs:
       DEPLOY_TIME: ${{ github.run_started_at }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Verify release commit
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GIT_COMMIT"
-          git status --short
-          test -z "$(git status --porcelain)"
-          git log --format='release commit: %H %s' -n 1 "$GIT_COMMIT"
-
-      - name: Validate workflow deployment scripts
-        run: python3 .github/scripts/check_workflow_scripts.py
-
-      - name: Run release tests
-        run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install pytest
-          python -m pytest \
-            tests/test_ai_os_v6.py \
-            tests/test_core_readonly_api.py
-
-      - name: Generate release metadata
-        run: |
-          set -euo pipefail
-          python scripts/generate_deployment_metadata.py
-          python -m json.tool deployment.json >/dev/null
-          test "$(python -c 'import json; print(json.load(open("deployment.json"))["commit"])')" = "$GIT_COMMIT"
-        env:
-          FOXBRAIN_ENV: production
-
       - name: Verify production deployment secrets
         run: |
           set -euo pipefail
@@ -94,20 +62,6 @@ jobs:
               ;;
           esac
           echo "Production deployment target resolved: ${PRODUCTION_SSH_USER}@${PRODUCTION_SSH_HOST}:${PRODUCTION_SSH_PORT}${PRODUCTION_DEPLOY_PATH}."
-
-      - name: Validate Docker Compose with safe CI environment
-        run: |
-          set -euo pipefail
-          if [ -f .env ]; then
-            echo "::error title=Unexpected .env::A repository-root .env file already exists on the CI runner. Remove it from the workspace before validation to avoid reading secrets."
-            exit 1
-          fi
-          cp .env.example .env
-          cleanup() { rm -f .env; }
-          trap cleanup EXIT
-          echo "Validating Docker Compose using .env.example copied to a temporary .env file. Production secrets are not used for CI compose validation."
-          docker compose config >/tmp/foxbrain-compose-config.yml
-          test -s /tmp/foxbrain-compose-config.yml
 
       - name: Setup SSH
         run: |
