@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish release metadata
+    runs-on: ubuntu-latest
+    env:
+      FOXBRAIN_VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release metadata, changelog, and deployment record
+        run: |
+          set -euo pipefail
+          git fetch --force --tags
+          previous_tag="$(git tag --sort=-version:refname | grep -Fxv "$FOXBRAIN_VERSION" | head -n 1 || true)"
+          if [ -n "$previous_tag" ]; then
+            changes="${previous_tag}..${FOXBRAIN_VERSION}"
+          else
+            changes="$FOXBRAIN_VERSION"
+          fi
+          cat > release-metadata.json <<EOF
+          {
+            "version": "${FOXBRAIN_VERSION}",
+            "commit": "${GITHUB_SHA}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "previous_tag": "${previous_tag}",
+            "created_at": "$(date --utc +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          {
+            echo "# ${FOXBRAIN_VERSION}"
+            echo
+            echo "## Changes"
+            git log --no-merges --pretty=format:'- %s (%h)' "$changes"
+            echo
+          } > CHANGELOG.md
+          cat > deployment-record.json <<EOF
+          {
+            "version": "${FOXBRAIN_VERSION}",
+            "commit": "${GITHUB_SHA}",
+            "source": "github-actions",
+            "release_workflow_run": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "status": "release-created"
+          }
+          EOF
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$FOXBRAIN_VERSION" \
+            --title "FoxBrain ${FOXBRAIN_VERSION}" \
+            --notes-file CHANGELOG.md \
+            release-metadata.json deployment-record.json
+
+      - name: Upload release records
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: |
+            CHANGELOG.md
+            release-metadata.json
+            deployment-record.json

@@ -1,11 +1,10 @@
 name: Continuous Integration
 
 on:
-  push:
-    branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  workflow_dispatch:
+  push:
+    branches: [develop]
 
 permissions:
   contents: read
@@ -23,21 +22,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install frontend dependencies
+      - name: Install Node dependencies
         run: npm install --no-audit --no-fund
       - name: Lint
         run: npm run lint
       - name: Run repository tests
         run: npm run test:repository
 
-  pytest:
+  python-tests:
     name: Python tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -58,23 +57,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install frontend dependencies
+      - name: Install Node dependencies
         run: npm install --no-audit --no-fund
       - name: Build frontends
         run: npm run build
 
-  docker:
-    name: Docker Compose and image builds
+  compose-and-workflow-guard:
+    name: Docker Compose and workflow guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
       - name: Validate Docker Compose configuration
-        run: |
-          cp .env.example .env
-          trap 'rm -f .env' EXIT
-          docker compose config --quiet
-      - name: Build frontend Docker images
-        run: |
-          docker build --build-arg APP=ai-web -f infrastructure/docker/frontend.Dockerfile .
-          docker build --build-arg APP=huyan-web -f infrastructure/docker/frontend.Dockerfile .
+        run: docker compose --env-file .env.example config --quiet
+      - name: Guard workflow shell scripts
+        run: python3 .github/scripts/check_workflow_scripts.py

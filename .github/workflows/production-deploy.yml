@@ -30,6 +30,18 @@ jobs:
       DEPLOY_TIME: ${{ github.run_started_at }}
 
     steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release commit
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor "$GIT_COMMIT" origin/main
+          echo "Verified production commit ${GIT_COMMIT} is reachable from main."
+
       - name: Verify production deployment secrets
         run: |
           set -euo pipefail
@@ -114,8 +126,7 @@ jobs:
           python scripts/generate_deployment_metadata.py
           echo "Validating Docker Compose on production server with the server-managed .env file."
           docker compose config >/dev/null
-          docker compose build --pull foxbrain-web foxbrain-api foxbrain-worker
-          docker compose up -d --remove-orphans
+          docker compose up -d --build --remove-orphans
 
           required_services="foxbrain-web foxbrain-api foxbrain-worker postgres redis minio qdrant nginx"
           max_attempts=24

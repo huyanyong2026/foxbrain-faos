@@ -8,6 +8,36 @@
 - No SAP credential is required by the Sprint 3 services. The Business API is
   read-only and must not be configured with SAP write credentials.
 
+## Production CI/CD
+
+GitHub Actions separates validation, release publication, and production
+deployment:
+
+1. **Continuous Integration** (`.github/workflows/ci.yml`) runs for pull
+   requests to `main` and `develop`, and for pushes to `develop`. It installs
+   Node.js 22 dependencies, runs lint and repository tests, runs `pytest`,
+   builds both frontends, validates Docker Compose, and checks workflow shell
+   scripts. Configure these checks as required branch-protection checks so a
+   failing check blocks merge.
+2. **Release** (`.github/workflows/release.yml`) runs only when a semantic
+   version tag such as `v1.0.0` is pushed. It creates the GitHub release and
+   attaches generated metadata, a changelog, and a deployment record.
+3. **Production Deploy** (`.github/workflows/production-deploy.yml`) runs on
+   a push to `main` or through `workflow_dispatch`. It is assigned to the
+   protected `production` GitHub Environment, verifies the release commit and
+   deployment secrets, deploys over SSH with Docker Compose, checks health,
+   and restores the prior commit if deployment fails.
+
+`FOXBRAIN_VERSION` is the single runtime release identifier. The production
+baseline is `v1.0.0`; a tagged release supplies its tag as the release
+workflow's version. Do not duplicate CI builds or tests in the production
+deployment workflow.
+
+GitHub secrets and the protected environment hold production host details, SSH
+keys, and all credentials. Never add `.env`, production passwords, SAP
+credentials, or private keys to the repository, workflow output, release
+metadata, or changelogs.
+
 ## Configure the environment
 
 1. Copy `production.env.example` to a secret-managed deployment `.env`.
