@@ -24,7 +24,7 @@ jobs:
       PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER || secrets.SERVER_USER }}
       PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH || '/opt/foxbrain' }}
       PRODUCTION_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || secrets.SERVER_PORT || '22' }}
-      FOXBRAIN_VERSION: AI-OS-V6-CLEAN-REBUILD-V1
+      FOXBRAIN_VERSION: v1.0.0
       GIT_COMMIT: ${{ github.sha }}
       BUILD_TIME: ${{ github.run_started_at }}
       DEPLOY_TIME: ${{ github.run_started_at }}
