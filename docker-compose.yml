@@ -61,6 +61,15 @@ services:
       dockerfile: services/Dockerfile
       args: {SERVICE_MODULE: business}
 
+  wecom-integration:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: {SERVICE_MODULE: wecom}
+    depends_on:
+      redis: {condition: service_healthy}
+
   ai-web:
     build: {context: ., dockerfile: infrastructure/docker/frontend.Dockerfile, args: {APP: ai-web}}
     restart: unless-stopped
