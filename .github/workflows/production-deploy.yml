@@ -24,12 +24,24 @@ jobs:
       PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER || secrets.SERVER_USER }}
       PRODUCTION_DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH || '/opt/foxbrain' }}
       PRODUCTION_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || secrets.SERVER_PORT || '22' }}
-      FOXBRAIN_VERSION: AI-OS-V6-CLEAN-REBUILD-V1
+      FOXBRAIN_VERSION: v1.0.0
       GIT_COMMIT: ${{ github.sha }}
       BUILD_TIME: ${{ github.run_started_at }}
       DEPLOY_TIME: ${{ github.run_started_at }}
 
     steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release commit
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor "$GIT_COMMIT" origin/main
+          echo "Verified production commit ${GIT_COMMIT} is reachable from main."
+
       - name: Verify production deployment secrets
         run: |
           set -euo pipefail
@@ -114,8 +126,7 @@ jobs:
           python scripts/generate_deployment_metadata.py
           echo "Validating Docker Compose on production server with the server-managed .env file."
           docker compose config >/dev/null
-          docker compose build --pull foxbrain-web foxbrain-api foxbrain-worker
-          docker compose up -d --remove-orphans
+          docker compose up -d --build --remove-orphans
 
           required_services="foxbrain-web foxbrain-api foxbrain-worker postgres redis minio qdrant nginx"
           max_attempts=24

@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-EXPECTED_VERSION = "AI-OS-V6-CLEAN-REBUILD-V1"
+EXPECTED_VERSION = "v1.0.0"
 LEGACY_VERSION_TOKENS = ("AI-OS-V4", "AI-OS-V5", "AI-OS-V5.1", "FoxBrain Enterprise OS")
 REQUIRED_SERVICES = ("gateway", "huyan", "ai", "core")
 REQUIRED_KEYS = ("frontend_version", "backend_version", "api_version", "database_schema_version")

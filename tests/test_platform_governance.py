@@ -2,11 +2,11 @@ from foxbrain_os.platform_governance import control_tower_status, health_payload
 
 
 def test_version_payload_has_standard_metadata(monkeypatch):
-    monkeypatch.setenv("FOXBRAIN_VERSION", "AI-OS-V6-CLEAN-REBUILD-V1")
+    monkeypatch.setenv("FOXBRAIN_VERSION", "v1.0.0")
     payload = version_payload("foxbrain-core")
     assert set(payload) == {"system", "service", "version", "release", "commit", "build_time", "deploy_time", "environment", "status"}
     assert payload["service"] == "foxbrain-core"
-    assert payload["version"] == "AI-OS-V6-CLEAN-REBUILD-V1"
+    assert payload["version"] == "v1.0.0"
 
 
 def test_health_payload_requires_process_database_dependencies():
@@ -17,9 +17,9 @@ def test_health_payload_requires_process_database_dependencies():
 
 
 def test_control_tower_displays_enterprise_status(monkeypatch):
-    monkeypatch.setenv("FOXBRAIN_VERSION", "AI-OS-V6-CLEAN-REBUILD-V1")
+    monkeypatch.setenv("FOXBRAIN_VERSION", "v1.0.0")
     payload = control_tower_status(last_deploy="2026-07-16T00:00:00+00:00")
     assert payload["platform"] == "VAFOX Enterprise OS"
-    assert payload["release_version"] == "AI-OS-V6-CLEAN-REBUILD-V1"
+    assert payload["release_version"] == "v1.0.0"
     assert payload["components"]["core"]["status"] == "Healthy"
     assert payload["components"]["sap_sync"]["status"] == "Healthy"
