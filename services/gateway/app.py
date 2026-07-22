@@ -19,6 +19,7 @@ UPSTREAMS = {
     "/api/kailas": "http://business:8080",
     "/api/wechat": "http://business:8080",
     "/api/wecom": "http://wecom-integration:8080",
+    "/api/wework": "http://wecom-integration:8080",
     "/api/customer": "http://business:8080",
     "/api/retail": "http://business:8080",
     "/api/store": "http://business:8080",
@@ -32,7 +33,7 @@ def proxy(environ, start_response):
         return json_response(start_response, 404, {"error": "route_not_found"}), 404
     claims = None
     # WeCom signs its callback itself; it cannot provide a FoxBrain bearer token.
-    if not (path.startswith("/api/v1/auth") or path == "/api/wecom/message"):
+    if not (path.startswith("/api/v1/auth") or path in {"/api/wecom/message", "/api/wework/callback"}):
         authorization = environ.get("HTTP_AUTHORIZATION", "")
         try:
             claims = verify_token(authorization.removeprefix("Bearer ")) if authorization.startswith("Bearer ") else (_ for _ in ()).throw(PermissionError())

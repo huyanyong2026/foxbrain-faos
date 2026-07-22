@@ -22,3 +22,11 @@ def test_ceo_runtime_uses_huyan_intelligence_for_supported_operating_questions()
 def test_ceo_runtime_only_reports_permission_error_when_enterprise_access_is_missing():
     status, payload = call({"question": "当前最大风险？", "agent": "huyan-ai", "role": "ceo", "permission_scope": []})
     assert (status, payload) == (403, {"error": "enterprise_permission_required"})
+
+
+def test_ceo_role_overrides_a_generic_agent_and_never_uses_fallback():
+    status, payload = call({"question": "当前最大风险？", "agent": "sales-ai", "role": "ceo", "permission_scope": ["enterprise:read"]})
+    assert status == 200
+    assert payload["agent"] == "huyan-ceo-intelligence"
+    for section in ("经营摘要", "数据依据", "风险", "AI建议", "Citation"):
+        assert section in payload["content"]

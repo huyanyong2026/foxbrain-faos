@@ -11,9 +11,9 @@ def signature(**values):
     return hashlib.sha1("".join(sorted((os.environ["WECHAT_TOKEN"], values["timestamp"], values["nonce"], values.get("echostr", "")))).encode()).hexdigest()
 
 
-def call(app, method, query, body=b""):
+def call(app, method, query, body=b"", path="/api/wecom/message"):
     result = []
-    output = b"".join(app({"REQUEST_METHOD": method, "PATH_INFO": "/api/wecom/message", "QUERY_STRING": query, "wsgi.input": io.BytesIO(body), "CONTENT_LENGTH": str(len(body))}, lambda status, headers: result.append((status, headers))))
+    output = b"".join(app({"REQUEST_METHOD": method, "PATH_INFO": path, "QUERY_STRING": query, "wsgi.input": io.BytesIO(body), "CONTENT_LENGTH": str(len(body))}, lambda status, headers: result.append((status, headers))))
     return int(result[0][0].split()[0]), output
 
 
@@ -54,8 +54,8 @@ def test_rbac_denies_mapping_without_required_permission():
 def test_ceo_wecom_message_routes_to_huyan_with_business_data_and_citations():
     class Runtime:
         def __init__(self): self.calls = []
-        def respond(self, mapping, question, agent):
-            self.calls.append((mapping.role, question, agent))
+        def respond(self, mapping, question, agent, is_ceo_identity=False):
+            self.calls.append((mapping.wecom_userid, mapping.role, question, agent, is_ceo_identity))
             return CEOQueryHandler().handle(question)
 
     runtime = Runtime()
@@ -63,9 +63,30 @@ def test_ceo_wecom_message_routes_to_huyan_with_business_data_and_citations():
     app = create_app(WeComIntegration(IdentityMappings([mapping]), runtime=runtime))
     sig = signature(timestamp="1", nonce="n")
     body = "<xml><FromUserName>ceo-1</FromUserName><MsgType>text</MsgType><Content>今天公司最重要三件事？</Content></xml>".encode()
-    status, output = call(app, "POST", f"timestamp=1&nonce=n&msg_signature={sig}", body)
+    status, output = call(app, "POST", f"timestamp=1&nonce=n&msg_signature={sig}", body, path="/api/wework/callback")
     assert status == 200
-    assert runtime.calls == [("ceo", "今天公司最重要三件事？", "huyan-ai")]
+    assert runtime.calls == [("ceo-1", "ceo", "今天公司最重要三件事？", "huyan-ceo-intelligence", True)]
     content = json.loads(output)["reply"]["content"]
     for section in ("经营摘要", "数据依据", "风险", "AI建议", "Citation", "Core Data API", "Retail Brain", "Customer Brain"):
         assert section in content
+
+
+def test_ceo_identity_mapping_forces_ceo_route_before_role_claim_refresh():
+    class Runtime:
+        def __init__(self): self.calls = []
+        def respond(self, mapping, question, agent, is_ceo_identity=False):
+            self.calls.append((agent, is_ceo_identity))
+            return CEOQueryHandler().handle(question)
+
+    runtime = Runtime()
+    mapping = IdentityMapping("ceo-mapped", "fb-ceo", "employee", None, frozenset({"enterprise:read"}))
+    integration = WeComIntegration(IdentityMappings([mapping], ceo_userids=["ceo-mapped"]), runtime=runtime)
+    status, payload = integration.handle_message("ceo-mapped", "经营情况？")
+    assert status == 200 and runtime.calls == [("huyan-ceo-intelligence", True)]
+    assert payload["reply"]["agent"] == "huyan-ceo-intelligence"
+
+
+def test_ceo_never_receives_generic_fallback_when_intelligence_is_unavailable():
+    mapping = IdentityMapping("ceo-2", "fb-ceo-2", "ceo", None, frozenset({"enterprise:read"}))
+    status, payload = WeComIntegration(IdentityMappings([mapping])).handle_message("ceo-2", "经营情况？")
+    assert (status, payload) == (503, {"error": "ceo_intelligence_unavailable"})
