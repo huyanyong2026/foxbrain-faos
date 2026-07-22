@@ -9,6 +9,7 @@ business data.
 from __future__ import annotations
 
 import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -62,6 +63,132 @@ def _product(row: dict) -> str:
 
 def _brand(row: dict) -> str:
     return str(row.get("brand") or row.get("brand_name") or "Other")
+
+
+_CHUANXI_EQUIPMENT_ROLES = (
+    ("shell", "防风防雨层", ("冲锋衣", "硬壳", "shell", "jacket")),
+    ("hiking_boots", "徒步鞋", ("徒步鞋", "登山鞋", "hiking", "boot", "shoe")),
+    ("backpack", "背包", ("背包", "backpack", "pack")),
+)
+
+
+def _catalog_sku(product: dict) -> str:
+    return str(product.get("sku") or product.get("sku_code") or product.get("product_id") or "").strip()
+
+
+def _catalog_name(product: dict) -> str:
+    return str(product.get("product_name") or product.get("name") or "").strip()
+
+
+def _available_inventory(inventory_domain: list[dict]) -> dict[str, dict]:
+    """Return sellable inventory by SKU, keeping only a real inventory record."""
+    records = {}
+    for row in inventory_domain:
+        sku = _catalog_sku(row)
+        if not sku:
+            continue
+        available = _number(row.get("available_qty"))
+        if "available_qty" not in row:
+            available = _number(row.get("inventory_qty")) - _number(row.get("committed_qty"))
+        existing = records.get(sku)
+        if existing is None or available > existing["available_qty"]:
+            records[sku] = {
+                "available_qty": max(0, available),
+                "store_code": row.get("store_code") or row.get("store") or "",
+                "updated_at": row.get("updated_at") or row.get("update_time") or "",
+                "source": row.get("source") or CORE_SOURCE,
+            }
+    return records
+
+
+def _matches_equipment_role(product: dict, keywords: tuple[str, ...]) -> bool:
+    text = " ".join(str(product.get(key) or "") for key in ("category", "category_name", "tags", "product_name", "name")).lower()
+    return any(keyword.lower() in text for keyword in keywords)
+
+
+def recommend_wecom_sales_equipment(
+    customer_request: str,
+    product_domain: list[dict],
+    inventory_domain: list[dict],
+    brand_knowledge: list[dict] | None = None,
+) -> dict:
+    """Build a grounded WeCom equipment recommendation from the three VAFOX domains.
+
+    A recommendation is emitted only when its SKU exists in Product Domain and has
+    a positive, matching sellable quantity in Inventory Domain.  This deliberately
+    prevents the assistant from inventing products, prices, or stock positions.
+    """
+    request = str(customer_request or "").strip()
+    normalized = request.lower()
+    budget = 0.0
+    for token in normalized.replace("￥", "¥").split():
+        candidate = token.replace("¥", "").replace(",", "")
+        if candidate.isdigit():
+            budget = max(budget, float(candidate))
+    # Support natural phrasing such as “预算10000” without requiring whitespace.
+    match = re.search(r"(?:预算|¥|￥)\s*(\d+(?:\.\d+)?)", request)
+    if match:
+        budget = float(match.group(1))
+
+    is_chuanxi = "川西" in request
+    requested_brand = "KAILAS" if "kailas" in normalized or "凯乐石" in request else ""
+    inventory = _available_inventory(inventory_domain)
+    brand_rules = {str(item.get("brand") or item.get("brand_name") or "").upper(): item for item in (brand_knowledge or [])}
+    roles = _CHUANXI_EQUIPMENT_ROLES if is_chuanxi else ()
+    chosen, missing = [], []
+    used_skus: set[str] = set()
+
+    for role, label, keywords in roles:
+        candidates = []
+        for product in product_domain:
+            sku, name = _catalog_sku(product), _catalog_name(product)
+            stock = inventory.get(sku)
+            if not sku or not name or sku in used_skus or not stock or stock["available_qty"] <= 0:
+                continue
+            if not _matches_equipment_role(product, keywords):
+                continue
+            price = _number(product.get("price") or product.get("retail_price"))
+            brand = _brand(product)
+            if requested_brand and brand.upper() != requested_brand:
+                continue
+            candidates.append((0 if brand.upper() == "KAILAS" else 1, price, sku, product, stock))
+        if not candidates:
+            missing.append(label)
+            continue
+        _, price, sku, product, stock = sorted(candidates, key=lambda item: item[:3])[0]
+        if budget and sum(item["price"] for item in chosen) + price > budget:
+            missing.append(f"{label}（超出预算）")
+            continue
+        used_skus.add(sku)
+        chosen.append({
+            "role": role,
+            "role_label": label,
+            "sku": sku,
+            "product_name": _catalog_name(product),
+            "brand": _brand(product),
+            "price": round(price, 2),
+            "inventory": stock,
+            "brand_knowledge": brand_rules.get(_brand(product).upper(), {}),
+        })
+
+    total = round(sum(item["price"] for item in chosen), 2)
+    no_match = not chosen
+    reason = "未在 VAFOX 商品与库存数据中找到可售的匹配商品。" if no_match else ""
+    scenario = "川西高海拔、多变天气的 7 天行程；优先防风防雨、稳定行走与负重能力。" if is_chuanxi else "未识别到可执行的户外场景，请补充目的地、天数和活动强度。"
+    return {
+        "channel": "WeCom AI",
+        "customer_scenario_analysis": {"request": request, "analysis": scenario, "budget": budget or None},
+        "recommended_equipment": chosen,
+        "combination_amount": total,
+        "current_inventory": [{"sku": item["sku"], **item["inventory"]} for item in chosen],
+        "sales_advice": "先确认尺码、脚型与是否已有保暖层；库存紧张的 SKU 请先为客户锁定。" if chosen else "请勿以替代名称下单；补齐商品或库存数据后再推荐。",
+        "cross_sell_opportunities": ["袜子、雨罩与保温水具可在试穿后连带推荐。"] if chosen else [],
+        "missing_equipment": missing,
+        "no_match": no_match,
+        "no_match_reason": reason,
+        "domains_consulted": ["Product Domain", "Inventory Domain", "Brand Knowledge"],
+        "source": WECOM_SOURCE,
+    }
 
 
 def authorize_store_ai(context: StoreAIContext, permission: str, store_code: str | None = None, region_code: str | None = None) -> dict:
