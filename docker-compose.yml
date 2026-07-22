@@ -42,6 +42,45 @@ services:
     depends_on:
       memory-api: {condition: service_started}
 
+  # Pilot entry point. The gateway verifies bearer tokens before forwarding
+  # Customer Brain, Retail Brain, and Store Manager requests to business-api.
+  gateway:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: {SERVICE_MODULE: gateway}
+    ports: ["${GATEWAY_PORT:-8088}:8080"]
+    depends_on:
+      business-api: {condition: service_started}
+
+  business-api:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: {SERVICE_MODULE: business}
+
+  ai-web:
+    build: {context: ./apps/ai-web}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8088}
+    ports: ["${AI_WEB_PORT:-3000}:3000"]
+    networks: [vafox]
+    depends_on:
+      gateway: {condition: service_started}
+
+  huyan-web:
+    build: {context: ./apps/huyan-web}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8088}
+    ports: ["${HUYAN_WEB_PORT:-3001}:3000"]
+    networks: [vafox]
+    depends_on:
+      gateway: {condition: service_started}
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped

@@ -33,3 +33,13 @@ def test_retail_dashboard_alert_feedback_wechat_and_permissions():
     assert call(app, "GET", "/api/wechat/store-report")[1]["report_type"] == "store_manager_daily"
     assert call(app, "GET", "/api/store/dashboard", roles="employee,customers:read")[0] == 403
     assert {event["action"] for event in store.audit_events} >= {"retail_store_insight_read", "retail_inventory_alerts_read", "store_dashboard_read", "store_feedback_submitted", "wechat_store_report_generated"}
+
+
+def test_sprint3_api_rejects_unauthorized_invalid_and_out_of_scope_requests_with_audit():
+    store = BusinessStore(); app = create_app(store)
+    assert call(app, "GET", "/api/customer/profile/C1", roles="employee", department="nanshan")[0] == 403
+    assert call(app, "GET", "/api/retail/store-insight?store=hangyuan")[0] == 403
+    assert call(app, "POST", "/api/store/feedback", roles="ceo", body={"store": "unknown", "feedback": "test"})[0] == 404
+    assert call(app, "GET", "/api/wechat/store-report?store=unknown", roles="ceo")[0] == 404
+    denied = [event for event in store.audit_events if event["action"] == "api_access_denied"]
+    assert {event["detail"]["reason"] for event in denied} == {"customer_scope_required", "data_scope_denied"}

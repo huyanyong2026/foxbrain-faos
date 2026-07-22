@@ -26,7 +26,7 @@ UPSTREAMS = {
 
 def proxy(environ, start_response):
     path = environ["PATH_INFO"]
-    upstream = next((value for prefix, value in UPSTREAMS.items() if path.startswith(prefix)), None)
+    upstream = next((value for prefix, value in UPSTREAMS.items() if path == prefix or path.startswith(prefix + "/")), None)
     if not upstream:
         return json_response(start_response, 404, {"error": "route_not_found"}), 404
     claims = None
@@ -50,7 +50,7 @@ def proxy(environ, start_response):
             payload, status = response.read(), response.status
     except HTTPError as error:
         payload, status = error.read(), error.code
-    except URLError:
+    except (URLError, TimeoutError):
         return json_response(start_response, 503, {"error": "upstream_unavailable"}), 503
     start_response(f"{status} OK", [("Content-Type", "application/json"), ("Content-Length", str(len(payload)))])
     return [payload], status
