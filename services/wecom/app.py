@@ -21,7 +21,7 @@ from packages.vafox_foundation.http import json_response, service_app
 
 REQUIRED_ENVIRONMENT = ("WECHAT_CORP_ID", "WECHAT_AGENT_ID", "WECHAT_SECRET", "WECHAT_TOKEN", "WECHAT_ENCODING_AES_KEY")
 CEO_AGENT = "huyan-ceo-intelligence"
-ROLE_AGENT = {"ceo": CEO_AGENT, "store_manager": "store-ai", "buyer": "product-procurement-ai", "employee": "sales-ai"}
+ROLE_AGENT = {"ceo": CEO_AGENT, "store_manager": "store-intelligence", "buyer": "procurement-intelligence", "purchaser": "procurement-intelligence", "employee": "sales-intelligence"}
 ROLE_PERMISSIONS = {
     "ceo": frozenset({"enterprise:read"}), "store_manager": frozenset({"store:read"}),
     "buyer": frozenset({"procurement:read"}), "employee": frozenset({"sales:read"}),
@@ -98,19 +98,20 @@ class AuditLog:
 
 class AIRuntime:
     def __init__(self, endpoint=None, opener=urlopen): self.endpoint, self.opener = endpoint or os.getenv("AI_RUNTIME_URL", "http://ai-runtime:8080"), opener
-    def respond(self, mapping, question, agent, is_ceo_identity=False):
-        request = Request(f"{self.endpoint.rstrip('/')}/api/v1/ai/respond", data=json.dumps({"question": question, "agent": agent,
-                          "foxbrain_user_id": mapping.foxbrain_user_id, "role": mapping.role,
-                          "permission_scope": sorted(mapping.permission_scope), "store_scope": mapping.store_scope,
-                          "route": CEO_AGENT if is_ceo_identity else agent,
-                          "is_ceo_identity": is_ceo_identity}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+    def query(self, mapping, question, agent, is_ceo_identity=False):
+        """Call the FoxBrain Runtime boundary; this adapter never calls Dify."""
+        role = "ceo" if is_ceo_identity else mapping.role
+        payload = {"user_id": mapping.foxbrain_user_id, "wecom_user_id": mapping.wecom_userid,
+                   "role": role, "scope": {"permissions": sorted(mapping.permission_scope), "data_scope": mapping.store_scope}, "query": question}
+        request = Request(f"{self.endpoint.rstrip('/')}/api/runtime/wecom/query", data=json.dumps(payload).encode(),
+                          headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with self.opener(request, timeout=5) as response: payload = json.loads(response.read())
-        except (HTTPError, OSError, ValueError) as error: raise RuntimeError("ai_runtime_unavailable") from error
-        if not all(payload.get(key) for key in ("title", "content", "source", "confidence")): raise RuntimeError("ai_runtime_invalid_response")
-        return payload
-
-
+            with self.opener(request, timeout=5) as response: result = json.loads(response.read())
+        except (HTTPError, OSError, ValueError) as error: raise RuntimeError("foxbrain_runtime_unavailable") from error
+        if not all(key in result for key in ("answer", "sources", "citation", "confidence", "audit_id")):
+            raise RuntimeError("foxbrain_runtime_invalid_response")
+        return {"title": agent, "content": result["answer"], "source": "FoxBrain Runtime", "confidence": result["confidence"],
+                "sources": result["sources"], "citation": result["citation"], "audit_id": result["audit_id"]}
 def _required_environment(): return [name for name in REQUIRED_ENVIRONMENT if not os.getenv(name)]
 def _query(environ): return {key: values[-1] for key, values in parse_qs(environ.get("QUERY_STRING", "")).items()}
 def _signature_valid(values, encrypted=""):
@@ -147,8 +148,18 @@ class WeComIntegration:
         # intelligence runtime is unavailable.
         if is_ceo_identity and not self.runtime:
             raise RuntimeError("ceo_intelligence_unavailable")
-        response = self.runtime.respond(mapping, question, agent, is_ceo_identity) if self.runtime else {"title": agent, "content": f"{agent}：已收到您的问题“{question}”。请结合实时经营数据进行人工核实。", "source": "FoxBrain AI Runtime", "confidence": "medium"}
-        return {**response, "agent": agent}
+        # ``respond`` remains as an injection seam for legacy test doubles only.
+        # Production AIRuntime uses the Runtime query contract above.
+        if self.runtime and hasattr(self.runtime, "query"):
+            response = self.runtime.query(mapping, question, agent, is_ceo_identity)
+        elif self.runtime:
+            response = self.runtime.respond(mapping, question, agent, is_ceo_identity)
+        else:
+            response = {"title": agent, "content": f"经营摘要：暂无可验证的经营数据。\n数据依据：未返回业务证据。\n风险：数据缺失。\nAI建议：请先同步数据。\nCitation：FoxBrain Runtime", "source": "FoxBrain AI Runtime", "confidence": "low"}
+        # Kept only for downstream clients that still display the former label;
+        # routing itself is always the explicit FoxBrain Intelligence route.
+        legacy_agent = {"store-intelligence": "store-ai", "procurement-intelligence": "product-procurement-ai", "sales-intelligence": "sales-ai"}.get(agent)
+        return {**response, "agent": agent, **({"legacy_agent": legacy_agent} if legacy_agent else {})}
     def handle_message(self, userid, question):
         mapping = self.mappings.get(userid)
         if not mapping: return 403, {"error": "identity_mapping_not_found"}
