@@ -20,7 +20,8 @@ from wsgiref.simple_server import make_server
 from packages.vafox_foundation.http import json_response, service_app
 
 REQUIRED_ENVIRONMENT = ("WECHAT_CORP_ID", "WECHAT_AGENT_ID", "WECHAT_SECRET", "WECHAT_TOKEN", "WECHAT_ENCODING_AES_KEY")
-ROLE_AGENT = {"ceo": "huyan-ai", "store_manager": "store-ai", "buyer": "product-procurement-ai", "employee": "sales-ai"}
+CEO_AGENT = "huyan-ceo-intelligence"
+ROLE_AGENT = {"ceo": CEO_AGENT, "store_manager": "store-ai", "buyer": "product-procurement-ai", "employee": "sales-ai"}
 ROLE_PERMISSIONS = {
     "ceo": frozenset({"enterprise:read"}), "store_manager": frozenset({"store:read"}),
     "buyer": frozenset({"procurement:read"}), "employee": frozenset({"sales:read"}),
@@ -38,8 +39,15 @@ class IdentityMapping:
 
 class IdentityMappings:
     """Repository seam; production implementations may hydrate this from Identity."""
-    def __init__(self, mappings=()): self._mappings = {item.wecom_userid: item for item in mappings}
+    def __init__(self, mappings=(), ceo_userids=()):
+        self._mappings = {item.wecom_userid: item for item in mappings}
+        # An identity source may explicitly designate the CEO before its role
+        # claims are refreshed.  This must still take the CEO-only route.
+        self._ceo_userids = frozenset(ceo_userids) | frozenset(
+            item.wecom_userid for item in self._mappings.values() if item.role.lower() == "ceo"
+        )
     def get(self, wecom_userid): return self._mappings.get(wecom_userid)
+    def is_ceo(self, mapping): return mapping.wecom_userid in self._ceo_userids or mapping.role.lower() == "ceo"
 
 
 class RedisTokenCache:
@@ -90,11 +98,12 @@ class AuditLog:
 
 class AIRuntime:
     def __init__(self, endpoint=None, opener=urlopen): self.endpoint, self.opener = endpoint or os.getenv("AI_RUNTIME_URL", "http://ai-runtime:8080"), opener
-    def respond(self, mapping, question, agent):
+    def respond(self, mapping, question, agent, is_ceo_identity=False):
         request = Request(f"{self.endpoint.rstrip('/')}/api/v1/ai/respond", data=json.dumps({"question": question, "agent": agent,
                           "foxbrain_user_id": mapping.foxbrain_user_id, "role": mapping.role,
                           "permission_scope": sorted(mapping.permission_scope), "store_scope": mapping.store_scope,
-                          "route": "huyan-ceo-intelligence" if mapping.role == "ceo" else agent}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+                          "route": CEO_AGENT if is_ceo_identity else agent,
+                          "is_ceo_identity": is_ceo_identity}).encode(), headers={"Content-Type": "application/json"}, method="POST")
         try:
             with self.opener(request, timeout=5) as response: payload = json.loads(response.read())
         except (HTTPError, OSError, ValueError) as error: raise RuntimeError("ai_runtime_unavailable") from error
@@ -132,14 +141,26 @@ class WeComIntegration:
     def __init__(self, mappings=None, client=None, audit=None, runtime=None):
         self.mappings = mappings or IdentityMappings(); self.client = client; self.audit = audit or AuditLog(); self.runtime = runtime
     def response(self, mapping, question):
-        agent = ROLE_AGENT[mapping.role]
-        response = self.runtime.respond(mapping, question, agent) if self.runtime else {"title": agent, "content": f"{agent}：已收到您的问题“{question}”。请结合实时经营数据进行人工核实。", "source": "FoxBrain AI Runtime", "confidence": "medium"}
+        is_ceo_identity = self.mappings.is_ceo(mapping)
+        agent = CEO_AGENT if is_ceo_identity else ROLE_AGENT[mapping.role]
+        # A CEO message must never be replaced by a generic response when the
+        # intelligence runtime is unavailable.
+        if is_ceo_identity and not self.runtime:
+            raise RuntimeError("ceo_intelligence_unavailable")
+        response = self.runtime.respond(mapping, question, agent, is_ceo_identity) if self.runtime else {"title": agent, "content": f"{agent}：已收到您的问题“{question}”。请结合实时经营数据进行人工核实。", "source": "FoxBrain AI Runtime", "confidence": "medium"}
         return {**response, "agent": agent}
     def handle_message(self, userid, question):
         mapping = self.mappings.get(userid)
         if not mapping: return 403, {"error": "identity_mapping_not_found"}
-        if mapping.role not in ROLE_AGENT or not ROLE_PERMISSIONS[mapping.role].issubset(mapping.permission_scope): return 403, {"error": "rbac_denied"}
-        response = self.response(mapping, question)
+        is_ceo_identity = self.mappings.is_ceo(mapping)
+        required_permissions = ROLE_PERMISSIONS["ceo"] if is_ceo_identity else ROLE_PERMISSIONS.get(mapping.role)
+        if not required_permissions or not required_permissions.issubset(mapping.permission_scope): return 403, {"error": "rbac_denied"}
+        try:
+            response = self.response(mapping, question)
+        except RuntimeError as error:
+            if is_ceo_identity:
+                return 503, {"error": "ceo_intelligence_unavailable"}
+            raise error
         if self.client: self.client.send_text(mapping.wecom_userid, response["content"])
         audit = self.audit.record(mapping, question, response)
         return 200, {"reply": response, "identity": {"foxbrain_user_id": mapping.foxbrain_user_id, "role": mapping.role, "store_scope": mapping.store_scope, "permission_scope": sorted(mapping.permission_scope)}, "audit_id": audit["audit_id"]}
@@ -169,7 +190,10 @@ def create_app(integration=None):
         if message_type != "text" or not userid or not question: return json_response(start_response, 400, {"error": "text_message_required"}), 400
         status, payload = integration.handle_message(userid, question)
         return json_response(start_response, status, payload), status
-    return service_app("wecom", {("GET", "/api/wecom/message"): message, ("POST", "/api/wecom/message"): message})
+    return service_app("wecom", {
+        ("GET", "/api/wecom/message"): message, ("POST", "/api/wecom/message"): message,
+        ("GET", "/api/wework/callback"): message, ("POST", "/api/wework/callback"): message,
+    })
 
 
 app = create_app()

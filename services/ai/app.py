@@ -98,7 +98,10 @@ def create_app(ceo_handler=None):
         if not question or not agent:
             return json_response(start_response, 400, {"error": "question_and_agent_required"}), 400
         role, permissions = str(request.get("role", "")).lower(), set(request.get("permission_scope", []))
-        if agent == "huyan-ai" and role == "ceo":
+        # CEO identity/role takes priority over a caller-supplied generic agent.
+        # This is deliberately evaluated before the generic fallback below.
+        is_ceo_request = role == "ceo" or bool(request.get("is_ceo_identity"))
+        if is_ceo_request:
             if CEO_PERMISSION not in permissions:
                 return json_response(start_response, 403, {"error": "enterprise_permission_required"}), 403
             payload = ceo_handler.handle(question)
