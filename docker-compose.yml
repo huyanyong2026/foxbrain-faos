@@ -68,7 +68,15 @@ services:
       dockerfile: services/Dockerfile
       args: {SERVICE_MODULE: wecom}
     depends_on:
+      ai-runtime: {condition: service_started}
       redis: {condition: service_healthy}
+
+  ai-runtime:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: {SERVICE_MODULE: ai}
 
   ai-web:
     build: {context: ., dockerfile: infrastructure/docker/frontend.Dockerfile, args: {APP: ai-web}}
