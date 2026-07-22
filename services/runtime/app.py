@@ -7,18 +7,27 @@ never allowed to invent a business fact or initiate an operational action.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from urllib.request import Request, urlopen
 
 from packages.vafox_foundation.http import json_response, service_app
 
 
 ROLE_ROUTES = {
     "ceo": ("huyan-ceo-intelligence", ("Core Data", "Retail Brain", "Customer Brain"), "enterprise:read"),
-    "store_manager": ("store-intelligence", ("Retail Brain", "Store Data"), "store:read"),
-    "buyer": ("procurement-intelligence", ("Product Intelligence", "Inventory", "Brand Knowledge"), "procurement:read"),
-    "purchaser": ("procurement-intelligence", ("Product Intelligence", "Inventory", "Brand Knowledge"), "procurement:read"),
-    "employee": ("sales-intelligence", ("Product Intelligence", "Customer Brain"), "sales:read"),
+    "store_manager": ("store-intelligence", ("Store", "Sales", "Customer"), "store:read"),
+    "buyer": ("procurement-intelligence", ("Product", "Inventory"), "procurement:read"),
+    "purchaser": ("procurement-intelligence", ("Product", "Inventory"), "procurement:read"),
+    "employee": ("sales-intelligence", ("Product", "Customer"), "sales:read"),
+}
+
+ROLE_DOMAINS = {
+    "ceo": ("sales", "inventory", "customers"),
+    "buyer": ("products", "inventory"), "purchaser": ("products", "inventory"),
+    "store_manager": ("stores", "sales", "customers"), "employee": ("products", "customers"),
 }
 
 
@@ -35,6 +44,52 @@ class EvidenceRepository:
     """Read-only evidence seam for Core/Retail/Customer and related brains."""
     def collect(self, identity, route, sources, query):
         return []
+
+
+class CoreEvidenceAdapter(EvidenceRepository):
+    """Adapt governed Core Data domain responses into runtime citations.
+
+    ``reader`` is injected by deployment (HTTP client, SDK, or test double).
+    The adapter deliberately returns no evidence for an unavailable or malformed
+    domain instead of substituting generated business facts.
+    """
+    def __init__(self, reader):
+        self.reader = reader
+
+    @classmethod
+    def from_environment(cls):
+        """Create the production reader only when an explicit core token exists."""
+        base_url, token = os.getenv("CORE_DATA_URL", "").rstrip("/"), os.getenv("CORE_DATA_TOKEN", "")
+        if not base_url or not token:
+            return EvidenceRepository()
+
+        def reader(domain, data_scope):
+            headers = {"Authorization": "Bearer " + token}
+            request = Request(base_url + "/api/v1/" + domain, headers=headers, method="GET")
+            try:
+                with urlopen(request, timeout=3) as response:
+                    return json.loads(response.read())
+            except (OSError, ValueError):
+                return None
+        return cls(reader)
+
+    def collect(self, identity, route, sources, query):
+        evidence = []
+        for domain in ROLE_DOMAINS.get(identity.role, ()):
+            payload = self.reader(domain, identity.data_scope)
+            if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+                continue
+            timestamp = payload.get("timestamp")
+            version = payload.get("version")
+            confidence = payload.get("confidence")
+            if not (payload.get("source") and timestamp and version and isinstance(confidence, (int, float))):
+                continue
+            if not payload["data"]:
+                continue
+            evidence.append({"source": payload["source"], "citation": f"{payload['source']}@{timestamp}",
+                             "summary": f"已验证 {domain} 数据（{len(payload['data'])} 条）。",
+                             "timestamp": timestamp, "version": version, "confidence": confidence})
+        return evidence
 
 
 class RuntimeRouter:
@@ -72,7 +127,9 @@ def _business_response(route, source_names, evidence):
     for item in evidence:
         if not isinstance(item, dict) or not item.get("citation") or not item.get("summary"):
             continue
-        citations.append({"source": item.get("source", "Business Evidence"), "citation": item["citation"], "summary": item["summary"]})
+        citations.append({"source": item.get("source", "Business Evidence"), "citation": item["citation"], "summary": item["summary"],
+                          "timestamp": item.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                          "version": item.get("version", "v1"), "confidence": item.get("confidence", 0.0)})
     if citations:
         summary = "；".join(item["summary"] for item in citations)
         basis = "；".join(f"{item['source']}: {item['citation']}" for item in citations)
@@ -91,7 +148,7 @@ def _business_response(route, source_names, evidence):
 
 
 def create_app(router=None):
-    router = router or RuntimeRouter()
+    router = router or RuntimeRouter(CoreEvidenceAdapter.from_environment())
     def wecom_query(environ, start_response):
         try:
             body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH") or 0))

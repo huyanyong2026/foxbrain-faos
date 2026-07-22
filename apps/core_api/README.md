@@ -15,6 +15,10 @@ never be committed.
 
 Applications consume normalized objects instead of SAP tables:
 
+The governed five-domain Business Data Core contract, evidence envelope, and
+runtime role mapping are documented in
+[`docs/CORE_BUSINESS_DATA_PLATFORM.md`](../../docs/CORE_BUSINESS_DATA_PLATFORM.md).
+
 - `GET /api/v1/objects/stores`
 - `GET /api/v1/objects/products`
 - `GET /api/v1/objects/brands`
