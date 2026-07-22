@@ -1,7 +1,9 @@
 import hashlib
 import io
+import json
 import os
 
+from services.ai.app import CEOQueryHandler
 from services.wecom.app import AuditLog, IdentityMapping, IdentityMappings, WeComClient, WeComIntegration, create_app
 
 
@@ -47,3 +49,23 @@ def test_rbac_denies_mapping_without_required_permission():
     body = "<xml><FromUserName>u2</FromUserName><MsgType>text</MsgType><Content>经营</Content></xml>".encode()
     status, _ = call(app, "POST", f"timestamp=1&nonce=n&msg_signature={sig}", body)
     assert status == 403
+
+
+def test_ceo_wecom_message_routes_to_huyan_with_business_data_and_citations():
+    class Runtime:
+        def __init__(self): self.calls = []
+        def respond(self, mapping, question, agent):
+            self.calls.append((mapping.role, question, agent))
+            return CEOQueryHandler().handle(question)
+
+    runtime = Runtime()
+    mapping = IdentityMapping("ceo-1", "fb-ceo-1", "ceo", None, frozenset({"enterprise:read"}))
+    app = create_app(WeComIntegration(IdentityMappings([mapping]), runtime=runtime))
+    sig = signature(timestamp="1", nonce="n")
+    body = "<xml><FromUserName>ceo-1</FromUserName><MsgType>text</MsgType><Content>今天公司最重要三件事？</Content></xml>".encode()
+    status, output = call(app, "POST", f"timestamp=1&nonce=n&msg_signature={sig}", body)
+    assert status == 200
+    assert runtime.calls == [("ceo", "今天公司最重要三件事？", "huyan-ai")]
+    content = json.loads(output)["reply"]["content"]
+    for section in ("经营摘要", "数据依据", "风险", "AI建议", "Citation", "Core Data API", "Retail Brain", "Customer Brain"):
+        assert section in content

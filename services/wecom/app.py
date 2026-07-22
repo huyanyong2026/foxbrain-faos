@@ -89,10 +89,12 @@ class AuditLog:
 
 
 class AIRuntime:
-    def __init__(self, endpoint=None, opener=urlopen): self.endpoint, self.opener = endpoint or os.getenv("AI_RUNTIME_URL", "http://ai:8080"), opener
+    def __init__(self, endpoint=None, opener=urlopen): self.endpoint, self.opener = endpoint or os.getenv("AI_RUNTIME_URL", "http://ai-runtime:8080"), opener
     def respond(self, mapping, question, agent):
         request = Request(f"{self.endpoint.rstrip('/')}/api/v1/ai/respond", data=json.dumps({"question": question, "agent": agent,
-                          "foxbrain_user_id": mapping.foxbrain_user_id, "store_scope": mapping.store_scope}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+                          "foxbrain_user_id": mapping.foxbrain_user_id, "role": mapping.role,
+                          "permission_scope": sorted(mapping.permission_scope), "store_scope": mapping.store_scope,
+                          "route": "huyan-ceo-intelligence" if mapping.role == "ceo" else agent}).encode(), headers={"Content-Type": "application/json"}, method="POST")
         try:
             with self.opener(request, timeout=5) as response: payload = json.loads(response.read())
         except (HTTPError, OSError, ValueError) as error: raise RuntimeError("ai_runtime_unavailable") from error
