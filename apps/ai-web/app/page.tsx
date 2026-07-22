@@ -3,12 +3,16 @@ import { useState } from "react";
 import { gatewayFetch } from "@foxbrain/api-client";
 import { AICard, CustomerCard, DecisionCard, ProductCard } from "@foxbrain/ui";
 
+const modules = ["Sales AI", "Store AI", "Product AI", "Learning AI"];
 export default function WorkspacePage() {
-  const [query, setQuery] = useState("MONT适合什么客户？");
-  const [result, setResult] = useState("输入问题后获取只读建议。");
-  const [store, setStore] = useState("nanshan");
-  const [briefing, setBriefing] = useState("选择门店后获取店长今日重点。");
-  async function ask() { const response = await gatewayFetch("/api/workspace/advice", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "product", query }) }); setResult(response.ok ? "已生成带 Citation 的产品建议；请人工核实价格、库存和尺码。" : "暂时无法获取建议。"); }
-  async function loadBriefing() { const response = await gatewayFetch(`/api/store/dashboard?store=${store}`); setBriefing(response.ok ? "已加载销售摘要、商品机会、库存提醒与客户机会；请店长人工确认后安排任务。" : "暂时无法获取门店摘要或您没有该门店权限。"); }
-  return <main><p className="eyebrow">FOX BRAIN / EMPLOYEE WORKSPACE</p><h1>员工 AI 工作台</h1><p className="lead">所有读取请求经由 API Gateway；工作台不直接访问数据库，也不执行业务写入。</p><div className="grid"><AICard title="Store Manager Workspace"><label htmlFor="store">门店</label><select id="store" value={store} onChange={e => setStore(e.target.value)}><option value="nanshan">南山店</option><option value="hangyuan">航苑店</option><option value="zhenxing">振兴店</option></select><button onClick={loadBriefing}>今天重点是什么？</button><p>{briefing}</p></AICard><AICard title="Product Assistant"><input aria-label="AI 问题" value={query} onChange={e => setQuery(e.target.value)} /><button onClick={ask}>获取建议</button><p>{result}</p></AICard><ProductCard product="KAILAS MONT" /><CustomerCard customer="授权客户查询" /><DecisionCard title="人工决策关口"><p>AI 输出是建议，价格、库存和客户动作须由授权员工确认。</p></DecisionCard></div></main>;
+  const [query, setQuery] = useState("哪位客户最适合本周的轻量徒步装备？");
+  const [answer, setAnswer] = useState("准备好基于授权范围生成建议。");
+  const [loading, setLoading] = useState(false);
+  async function ask() {
+    setLoading(true);
+    try { const response = await gatewayFetch("/api/workspace/advice", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "sales", query }) }); setAnswer(response.ok ? "建议已生成，并等待员工确认下一步动作。" : "暂时无法获取建议，请稍后再试。"); }
+    catch { setAnswer("无法连接 API Gateway，请检查网络或权限。"); }
+    finally { setLoading(false); }
+  }
+  return <main className="app-shell"><header className="topbar"><a className="brand" href="#top">VAFOX <span>FOX BRAIN</span></a><nav aria-label="工作台模块">{modules.map((item, index) => <a className={index === 0 ? "active" : ""} href={`#${item}`} key={item}>{item}</a>)}</nav><button className="avatar" aria-label="打开个人菜单">LX</button></header><section id="top" className="hero"><p className="eyebrow">DIGITAL EMPLOYEE / 07.22</p><div><h1>让今天的每一次服务<br />都更接近成交。</h1><p className="lead">早上好，林晓。FoxBrain 已为你梳理今日最值得行动的客户、商品与门店信号。</p></div><aside className="today"><span>今日任务</span><strong>06</strong><p>3 项客户跟进 · 2 项库存处理 · 1 项学习任务</p></aside></section><section className="section-heading"><div><p className="eyebrow">PRIORITY QUEUE</p><h2>从一个高价值机会开始</h2></div><button className="text-button">查看全部任务 →</button></section><section className="workspace-grid"><CustomerCard customer="陈奕 · 南山店" profile="周末轻徒步爱好者，近 30 天到店 2 次" equipment="MONT 25L 背包、徒步鞋" opportunity="推荐新到防水外壳；预计机会 ¥1,680" /><ProductCard product="MONT 轻量防水外壳" brand="KAILAS" scenario="周末轻徒步 / 15–22°C 阵雨" recommendation="优先向陈奕等 12 位相似客户展示" /><AICard question="今天先联系谁？" analysis="陈奕的兴趣与库存可售尺码高度匹配，且最近浏览过同系列装备。" recommendation="在午间发送一次个性化搭配建议。" citation="Customer Brain · Retail Brain" confidence="置信度 89%" /></section><section className="assistant"><div><p className="eyebrow">ASK FOXBRAIN</p><h2>你的 AI 助手</h2><p>所有业务数据均通过 API Gateway 在当前授权范围内读取。</p></div><div className="ask-box"><label htmlFor="question">问一个与工作相关的问题</label><div><input id="question" value={query} onChange={(event) => setQuery(event.target.value)} /><button onClick={ask} disabled={loading}>{loading ? "分析中…" : "发送"}</button></div><p aria-live="polite">{answer}</p></div></section><section className="workspace-grid"><DecisionCard problem="南山店 M 尺码库存偏低" options="调拨 8 件 / 建立预售名单" impact="避免本周末潜在流失，预计保护 ¥6,400 销售机会" approval="需要店长确认后执行" /></section></main>;
 }
