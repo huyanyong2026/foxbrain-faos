@@ -1,0 +1,27 @@
+name: vafox-foxbrain-sprint1
+services:
+  foundation:
+    build:
+      context: .
+      dockerfile: apps/foundation/Dockerfile
+    environment:
+      FOXBRAIN_TOKEN_SECRET: ${FOXBRAIN_TOKEN_SECRET:?set_a_long_random_secret}
+      DATABASE_URL: postgresql://foxbrain:${POSTGRES_PASSWORD:?set_postgres_password}@postgres:5432/foxbrain
+    ports: ["${FOXBRAIN_FOUNDATION_PORT:-8000}:8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: foxbrain
+      POSTGRES_USER: foxbrain
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set_postgres_password}
+    volumes: [postgres_data:/var/lib/postgresql/data, ./apps/foundation/schema.sql:/docker-entrypoint-initdb.d/001-foundation.sql:ro]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foxbrain -d foxbrain"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  postgres_data:
