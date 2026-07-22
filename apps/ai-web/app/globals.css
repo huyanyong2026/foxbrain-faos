@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root { --ink:#13211b; --pine:#1e4a3b; --mint:#dff4e8; --line:#c8ddd1; --canvas:#f5f8f6; }
+* { box-sizing:border-box; } body { margin:0; background:var(--canvas); color:var(--ink); font-family:Arial,"PingFang SC",sans-serif; }
+main { max-width:1120px; margin:auto; padding:48px 24px; } h1 { margin:0 0 8px; font-size:clamp(2rem,5vw,3.5rem); } h2 { margin:0 0 12px; font-size:1.25rem; } p { line-height:1.6; } .lead { color:#52655c; margin-bottom:32px; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; } .brain-card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:0 8px 24px #173a2910; } .eyebrow { color:var(--pine); font-size:.72rem; font-weight:700; letter-spacing:.12em; margin:0 0 8px; } input,select { border:1px solid var(--line); border-radius:8px; padding:10px; width:100%; margin:8px 0; } button { border:0; border-radius:8px; background:var(--pine); color:white; cursor:pointer; padding:10px 14px; } small { color:#52655c; }

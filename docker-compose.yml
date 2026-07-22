@@ -62,7 +62,7 @@ services:
       args: {SERVICE_MODULE: business}
 
   ai-web:
-    build: {context: ./apps/ai-web}
+    build: {context: ., dockerfile: infrastructure/docker/frontend.Dockerfile, args: {APP: ai-web}}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8088}
@@ -72,7 +72,7 @@ services:
       gateway: {condition: service_started}
 
   huyan-web:
-    build: {context: ./apps/huyan-web}
+    build: {context: ., dockerfile: infrastructure/docker/frontend.Dockerfile, args: {APP: huyan-web}}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8088}

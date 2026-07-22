@@ -1,0 +1,39 @@
+name: Architecture Freeze CI
+on:
+  push:
+    branches: [main, develop, 'release/**', 'feature/**']
+  pull_request:
+    branches: [main, develop]
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: Lint, repository tests, and frontend builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run test:repository
+      - run: npm run build
+      - run: docker compose --env-file test.env.example config --quiet
+  docker:
+    name: Docker build (${{ matrix.app }})
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: {app: [ai-web, huyan-web]}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker build --build-arg APP=${{ matrix.app }} -f infrastructure/docker/frontend.Dockerfile .
+  deploy:
+    name: Deploy
+    needs: docker
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - run: echo "Deploy is performed by the protected environment after required approvals."

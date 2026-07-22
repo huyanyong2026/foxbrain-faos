@@ -1,0 +1,13 @@
+{
+  "name": "foxbrain",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present",
+    "test:repository": "node --test tests/repository-structure.test.mjs",
+    "build": "npm run build --workspace=@foxbrain/ai-web && npm run build --workspace=@foxbrain/huyan-web",
+    "test": "npm run test:repository"
+  },
+  "engines": {"node": ">=22.0.0", "npm": ">=10.0.0"}
+}
