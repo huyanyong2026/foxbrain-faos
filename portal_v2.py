@@ -16805,32 +16805,30 @@ where ki.deleted_at is null"""
                     writer.writerows(rows)
 
     def ensure_enterprise_sync_defaults(self, conn):
-        self.ensure_enterprise_sync_fixture_data()
         now = ts()
-        sql_path = str(self.enterprise_sync_sql_fixture_path())
-        export_dir = str(self.enterprise_sync_export_fixture_dir())
-        seeds = [
-            ("Local SQL Replica Fixture", "sap_b1_sql_replica", "local_fixture", sql_path, "ENV:SPRINT016_SQL_REPLICA_DSN", "active"),
-            ("Safe Export Folder Fixture", "sap_b1_export_folder", "local_fixture", export_dir, "", "active"),
-            ("Production SAP Readonly Placeholder", "sap_b1_sql_readonly", "SAP-PROD-READONLY", "ENV:SAP_READONLY_DATABASE", "ENV:SAP_READONLY_DSN", "disabled"),
+        legacy_names = (
+            "Local SQL Replica Fixture",
+            "Safe Export Folder Fixture",
+            "Production SAP Readonly Placeholder",
+        )
+        placeholders = ",".join("?" for _ in legacy_names)
+        legacy_ids = [
+            row["id"]
+            for row in conn.execute(
+                "select id from sync_connections where name in ({})".format(placeholders),
+                legacy_names,
+            ).fetchall()
         ]
-        for name, source_type, host, database_ref, credential_ref, status in seeds:
-            exists = conn.execute("select id from sync_connections where name=?", (name,)).fetchone()
-            if not exists:
-                conn.execute(
-                    "insert into sync_connections(name,source_type,host_reference,database_reference,credential_reference,status,read_only_verified,last_tested_at,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?)",
-                    (name, source_type, host, database_ref, credential_ref, status, 0, None, now, now),
-                )
-        active = conn.execute("select id from sync_connections where name='Local SQL Replica Fixture'").fetchone()
-        if active:
-            for dataset in ["sales", "inventory", "products", "brands", "stores"]:
-                job_key = "sap_" + dataset + "_manual"
-                exists = conn.execute("select id from sync_jobs where job_key=?", (job_key,)).fetchone()
-                if not exists:
-                    conn.execute(
-                        "insert into sync_jobs(job_key,job_id,source_key,job_name,connection_id,dataset_type,sync_mode,schedule_expression,schedule_rule,status,is_enabled,last_cursor_json,last_success_at,last_failure_at,created_at,updated_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        (job_key, job_key, "enterprise_sync", job_key, active["id"], dataset, "incremental_sync" if dataset in ("sales", "inventory") else "full_sync", "manual_disabled", "manual_disabled", "manual_only", 0, "{}", None, None, now, now),
-                    )
+        if legacy_ids:
+            job_placeholders = ",".join("?" for _ in legacy_ids)
+            conn.execute(
+                "delete from sync_jobs where connection_id in ({})".format(job_placeholders),
+                legacy_ids,
+            )
+            conn.execute(
+                "delete from sync_connections where id in ({})".format(job_placeholders),
+                legacy_ids,
+            )
         mapping_defs = {
             "sales": ("sales", "sap_sales", {"source_key": "sync_source_key", "sale_date": "sale_date", "store_name": "store_name", "brand_name": "brand_name", "product_code": "product_code", "amount": "amount", "quantity": "quantity", "gross_profit": "gross_profit"}, "source_key", "updated_at", "ready"),
             "inventory": ("inventory", "sap_inventory", {"source_key": "sync_source_key", "snapshot_date": "snapshot_date", "store_name": "store_name", "brand_name": "brand_name", "product_code": "product_code", "quantity": "quantity", "retail_amount": "retail_amount", "cost_amount": "cost_amount"}, "source_key", "updated_at", "ready"),
@@ -16850,8 +16848,8 @@ where ki.deleted_at is null"""
                 )
 
     def enterprise_sync_environment_status(self):
-        mode = os.environ.get("FOX_SYNC_MODE", "fixture").strip() or "fixture"
-        required = [] if mode == "fixture" else ["FOX_SYNC_MODE"]
+        mode = os.environ.get("FOX_SYNC_MODE", "core_readonly").strip() or "core_readonly"
+        required = ["CORE_BASE_URL", "CORE_API_TOKEN"] if mode == "core_readonly" else ["FOX_SYNC_MODE"]
         if mode in ("sql_replica", "sql_readonly"):
             required += ["FOX_SYNC_SQL_HOST", "FOX_SYNC_SQL_PORT", "FOX_SYNC_SQL_DATABASE", "FOX_SYNC_SQL_USER", "FOX_SYNC_SQL_PASSWORD"]
         if mode == "export_folder":
@@ -16865,7 +16863,7 @@ where ki.deleted_at is null"""
             "timeout_configured": bool(os.environ.get("FOX_SYNC_TIMEOUT_SECONDS")),
             "query_timeout_configured": bool(os.environ.get("FOX_SYNC_QUERY_TIMEOUT_SECONDS") or os.environ.get("FOX_SYNC_TIMEOUT_SECONDS")),
             "secrets_visible": False,
-            "message": "fixture mode only" if mode == "fixture" else ("ready" if not missing else "missing environment variables"),
+            "message": "Core read-only mode" if mode == "core_readonly" and not missing else ("ready" if not missing else "missing environment variables"),
         }
 
     def enterprise_sync_reconciliation_metrics(self, dataset, rows):
