@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 
 from foxbrain_os.platform_governance import health_payload, runtime_payload, version_payload
 from apps.core_api.sales_adapter import SalesDomainAdapter
+from apps.core_api.sap_mirror_adapter import SAPMirrorAdapter
 
 
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_@$#]*$")
@@ -650,39 +651,13 @@ class CoreService:
         This intentionally composes the existing read-only SAP mirror readers;
         it is not a second source of truth and has no write capability.
         """
-        limit = max(1, min(int(limit), 200))
-        store_ids = {str(item) for item in (store_ids or ())}
-        as_of = self.status().get("mirror", {}).get("finished_at") or utc_now()
-        source = "core." + name
-        if name == "products":
-            rows = self.business_objects("products", limit, 0)["items"]
-            data = [{"product_id": row.get("id"), "sku": row.get("sku", row.get("id")), "brand": row.get("brand"),
-                     "category": row.get("category"), "cost": row.get("avg_cost", row.get("stock_amount")),
-                     "price": row.get("price"), "status": row.get("status", "active"),
-                     "lifecycle": row.get("lifecycle", "active")} for row in rows]
-        elif name == "stores":
-            rows = self.business_objects("stores", limit, 0, "", store_ids)["items"]
-            data = [{"store_id": row.get("id"), "name": row.get("name"), "region": row.get("region"),
-                     "sales": row.get("sales_90d"), "target": row.get("target")} for row in rows]
-        elif name == "customers":
-            rows = self.business_objects("customers", limit, 0)["items"]
-            data = [{"customer_id": row.get("id"), "member_level": row.get("member_level", "unclassified"),
-                     "purchase_history": row.get("purchase_history", {"documents_365d": row.get("purchase_documents_365d"), "amount_365d": row.get("purchase_amount_365d")}), "equipment_profile": row.get("equipment_profile"),
-                     "activity_interest": row.get("activity_interest")} for row in rows]
-        elif name == "sales":
-            return SalesDomainAdapter(
-                self._query, lambda: self.status().get("mirror", {}).get("finished_at") or utc_now()
-            ).read(store_ids, limit)
-        elif name == "inventory":
-            rows = self._query("""select top %s w.ItemCode sku,w.WhsCode store_id,w.OnHand quantity,
-                cast(null as int) age,cast(null as decimal(19,6)) turnover,
-                case when w.OnHand<0 then 'negative_stock' when w.OnHand=0 then 'out_of_stock' else 'normal' end risk
-                from dbo.OITW w order by w.OnHand desc""", (limit,))
-            data = [{key: json_value(value) for key, value in row.items()} for row in rows if not store_ids or str(row.get("store_id")) in store_ids]
-        else:
-            raise ValueError("unknown_domain")
-        return {"data": data, "source": source, "timestamp": as_of, "version": "v1", "confidence": 0.95,
-                "mode": "read_only"}
+        aliases = {"products": "product", "customers": "customer", "suppliers": "supplier"}
+        adapter = SAPMirrorAdapter(
+            self._query, self.business_objects,
+            lambda: self.status().get("mirror", {}).get("finished_at") or utc_now(),
+            lambda stores, maximum: SalesDomainAdapter(self._query, utc_now).read(stores, maximum),
+        )
+        return adapter.read(aliases.get(name, name), store_ids, limit)
 
 
 class CoreApiHandler(BaseHTTPRequestHandler):
@@ -781,24 +756,26 @@ class CoreApiHandler(BaseHTTPRequestHandler):
                 if not self._authorized_any("objects:read", "facts:read"):
                     return
                 return self._reply(200, self.server.service.business_summary())
-            match = re.fullmatch(r"/api/v1/(products|sales|inventory|customers|stores)", parsed.path)
+            match = re.fullmatch(r"/api/v1/(product|products|sales|inventory|customer|customers|supplier|suppliers|stores)", parsed.path)
             if match:
                 domain = match.group(1)
+                canonical_domain = {"product": "products", "customer": "customers", "supplier": "suppliers"}.get(domain, domain)
                 required_scopes = {
                     "products": ("product:read", "enterprise:read"),
                     "sales": ("sales:read", "enterprise:read", "store:read"),
                     "inventory": ("inventory:read", "enterprise:read"),
                     "customers": ("customer:assigned", "customers:read", "enterprise:read"),
+                    "suppliers": ("supplier:read", "procurement:read", "enterprise:read"),
                     "stores": ("store:read", "enterprise:read"),
-                }[domain]
+                }[canonical_domain]
                 principal = self._authorized_any(*required_scopes)
                 if not principal:
                     return
                 store_ids = principal.get("store_ids", set()) if principal.get("role") == "store_manager" else set()
-                if principal.get("role") == "store_manager" and domain not in {"sales", "stores"}:
+                if principal.get("role") == "store_manager" and canonical_domain not in {"sales", "stores"}:
                     return self._reply(403, {"error": "scope_forbidden"})
                 query = parse_qs(parsed.query)
-                return self._reply(200, self.server.service.domain(domain, store_ids, int(query.get("limit", [100])[0])))
+                return self._reply(200, self.server.service.domain(canonical_domain, store_ids, int(query.get("limit", [100])[0])))
             if parsed.path == "/api/v1/explorer/customer-match":
                 if not self._authorized("explorer:match"):
                     return
