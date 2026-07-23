@@ -28,6 +28,15 @@ before enabling the sync worker. Every response has the line-level fields
 `order_id`, `store`, `sku`, `quantity`, `amount`, `margin`, and `date`, plus
 the evidence envelope `source`, `timestamp`, `version`, and `confidence`.
 
+## SAP Mirror Core Adapter
+
+`SAPMirrorAdapter` is the single read-only projection boundary for Core
+Product, Sales, Inventory, Customer, and Supplier data. It reads only the SQL
+Server `SAP_MIRROR` query seam and adds the evidence envelope
+`source=sap_mirror`, `timestamp`, `version`, and `confidence`. Both singular
+and legacy plural routes are available: `/api/v1/product`, `/api/v1/sales`,
+`/api/v1/inventory`, `/api/v1/customer`, and `/api/v1/supplier`.
+
 - `GET /api/v1/objects/stores`
 - `GET /api/v1/objects/products`
 - `GET /api/v1/objects/brands`
