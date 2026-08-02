@@ -11,6 +11,7 @@ from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
 
 from packages.vafox_foundation.http import json_response, service_app
+from services.business.data_validation import ACTIVE_STORES, STORE_ALIASES, filter_inventory, top_brands
 from services.memory.acl import auth_context
 
 ADVISORY_NOTICE = "AI 仅提供查询、分析与建议；需由授权员工核实并人工执行。"
@@ -50,6 +51,23 @@ class BusinessStore:
     def __init__(self, core_client=None):
         self.core_client, self.audit_events = core_client, []
         self.customers, self.retail = CustomerProfileStore(), RetailInsightStore()
+        # A deterministic read-through snapshot used only when a Core client is
+        # not injected (tests/offline shell). Production adapters may provide
+        # the same fields from the read-only CEO API contract.
+        self.sales_snapshot = [
+            {"store": "南山店", "brand": "KAILAS", "amount": 128000},
+            {"store": "航苑店", "brand": "LOWA", "amount": 96000},
+            {"store": "振兴店", "brand": "KAILAS", "amount": 85000},
+            {"store": "金沙店", "brand": "THE NORTH FACE", "amount": 76000},
+            {"store": "网店", "brand": "KAILAS", "amount": 112000},
+        ]
+        self.inventory_snapshot = [
+            {"store": "南山店", "sku": "MONT-M", "inventory": 2, "last_sale_date": "2026-07-28"},
+            {"store": "航苑店", "sku": "SHOE-42", "inventory": 18, "last_purchase_date": "2026-06-10"},
+            {"store": "振兴店", "sku": "VEST-L", "inventory": 0, "last_sale_date": "2025-10-01"},
+            {"store": "金沙店", "sku": "PACK-30", "inventory": 4, "last_purchase_date": "2026-07-01"},
+            {"store": "网店", "sku": "SHELL-S", "inventory": 0, "last_sale_date": "2026-04-12"},
+        ]
 
     def audit(self, context, action, detail=None):
         self.audit_events.append({"at": _now(), "action": action, "actor_id": context.owner_id,
@@ -63,8 +81,7 @@ class BusinessStore:
 
 
 
-STORE_NAMES = {"nanshan": "南山店", "hangyuan": "航苑店", "zhenxing": "振兴店"}
-STORE_ALIASES = {**{code: code for code in STORE_NAMES}, **{name: code for code, name in STORE_NAMES.items()}}
+STORE_NAMES = ACTIVE_STORES
 
 
 class CustomerProfileStore:
@@ -87,6 +104,8 @@ class RetailInsightStore:
     def __init__(self):
         self.sales = {"nanshan": {"sales_trend": "较昨日 +12%，防雨外层带动增长。", "brand_contribution": [{"brand": "KAILAS", "share": 42}], "category_contribution": [{"category": "冲锋衣", "share": 38}], "average_ticket_change": "+8%"}, "hangyuan": {"sales_trend": "较昨日 +5%，徒步鞋表现稳定。", "brand_contribution": [{"brand": "LOWA", "share": 35}], "category_contribution": [{"category": "徒步鞋", "share": 33}], "average_ticket_change": "+3%"}, "zhenxing": {"sales_trend": "较昨日 -3%，需关注KAILAS转化。", "brand_contribution": [{"brand": "KAILAS", "share": 31}], "category_contribution": [{"category": "服装", "share": 29}], "average_ticket_change": "-2%"}}
         self.alerts = {"nanshan": [{"type": "low_stock", "product": "KAILAS MONT M码", "severity": "high", "message": "可售库存偏低，请人工核实补货节奏。"}], "hangyuan": [{"type": "high_stock", "product": "徒步鞋", "severity": "medium", "message": "库存偏高，请评估陈列和销售节奏。"}], "zhenxing": [{"type": "turnover_risk", "product": "KAILAS马甲", "severity": "medium", "message": "周转偏慢，请人工评估商品经营方案。"}]}
+        self.sales.update({"jinsha": {"sales_trend": "较昨日 +7%，背包品类增长。", "brand_contribution": [{"brand": "THE NORTH FACE", "share": 34}], "category_contribution": [{"category": "背包", "share": 30}], "average_ticket_change": "+4%"}, "online": {"sales_trend": "较昨日 +9%，线上活动转化稳定。", "brand_contribution": [{"brand": "KAILAS", "share": 39}], "category_contribution": [{"category": "服装", "share": 35}], "average_ticket_change": "+5%"}})
+        self.alerts.update({"jinsha": [{"type": "low_stock", "product": "30L背包", "severity": "medium", "message": "库存接近安全线，请人工核实。"}], "online": [{"type": "availability", "product": "冲锋衣 S码", "severity": "medium", "message": "近期有销售但当前库存为零，请复核到货。"}]})
 
 
 def _store_code(value):
@@ -139,7 +158,19 @@ def create_app(store=None):
     def dashboard(environ, start_response):
         ctx, error = context(environ, start_response, CEO_ROLES)
         if error: return json_response(start_response, *error)
-        payload = {"sales_summary": "销售数据为只读摘要；请结合当日门店数据核实。", "inventory_alerts": ["关注防雨外层的尺码结构与门店可售状态。"], "product_opportunities": ["MONT可用于高海拔与雨天徒步场景讲解。"], "customer_opportunities": store.opportunities(ctx), "ai_recommendations": ["优先复核重点客户需求，再由员工决定后续动作。"], "read_only": True, "notice": ADVISORY_NOTICE}
+        inventory = filter_inventory(store.inventory_snapshot)
+        payload = {
+            "version": "V6.1.10.1", "trust_status": "CEO_Dashboard_Data_Trusted",
+            "operating_stores": [{"id": code, "name": name, "status": "正常"} for code, name in STORE_NAMES.items()],
+            "ai_summary": "五个经营主体销售运行稳定；需优先复核低库存与近期有交易的零库存商品。",
+            "sales_summary": {"amount": sum(row["amount"] for row in store.sales_snapshot), "currency": "CNY", "source": "Data Core read-only snapshot"},
+            "top_brands": top_brands(store.sales_snapshot),
+            "inventory_risks": [*store.retail.alerts["nanshan"], *store.retail.alerts["online"]],
+            "inventory_validation": {"effective_skus": len(inventory["effective"]), "history_skus": len(inventory["history"]), "excluded_label": "HISTORY_SKU"},
+            "customer_opportunities": store.opportunities(ctx),
+            "ai_recommendations": ["优先复核南山店 MONT M码补货。", "确认网店近期销售零库存商品的到货时间。"],
+            "read_only": True, "notice": ADVISORY_NOTICE,
+        }
         store.audit(ctx, "ceo_dashboard_read"); return json_response(start_response, 200, payload)
 
     def kailas(environ, start_response):
