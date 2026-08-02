@@ -1,4 +1,4 @@
-from services.business.data_validation import ACTIVE_STORES, build_consistency_report, filter_inventory, store_code
+from services.business.data_validation import ACTIVE_STORES, build_consistency_report, filter_inventory, reconcile_invoice_lines, store_code
 
 
 def test_only_five_current_operating_units_are_accepted():
@@ -27,3 +27,15 @@ def test_full_chain_must_match_for_trusted_status():
     layers["dashboard"]["inventory"] = 39
     report = build_consistency_report(layers)
     assert report["status"] == "mismatch" and not report["checks"]["inventory"]["consistent"]
+
+
+def test_online_aliases_are_active_and_invoice_line_difference_is_explained():
+    assert store_code("网店") == store_code("线上店") == store_code("ONLINE STORE") == "online"
+    result = reconcile_invoice_lines(
+        [{"DocEntry": 1, "DocTotal": 402215, "CANCELED": "N"}, {"DocEntry": 2, "DocTotal": 99, "CANCELED": "Y"}],
+        [{"DocEntry": 1, "LineTotal": 400000}, {"DocEntry": 2, "LineTotal": 99}],
+    )
+    assert result["oinv_document_total"] == 402215
+    assert result["inv1_sales_line_total"] == 400000
+    assert result["settlement_components"] == 2215
+    assert result["orphan_or_cancelled_line_documents"] == ["2"] and result["read_only"]
