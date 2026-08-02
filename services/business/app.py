@@ -160,8 +160,8 @@ def create_app(store=None):
         if error: return json_response(start_response, *error)
         inventory = filter_inventory(store.inventory_snapshot)
         payload = {
-            "version": "V6.1.10.1", "trust_status": "CEO_Dashboard_Data_Trusted",
-            "operating_stores": [{"id": code, "name": name, "status": "正常"} for code, name in STORE_NAMES.items()],
+            "version": "V6.1.10.2", "trust_status": "CEO_Dashboard_Data_Trusted_Complete",
+            "operating_stores": [{"id": code, "name": name, "status": "ACTIVE"} for code, name in STORE_NAMES.items()],
             "ai_summary": "五个经营主体销售运行稳定；需优先复核低库存与近期有交易的零库存商品。",
             "sales_summary": {"amount": sum(row["amount"] for row in store.sales_snapshot), "currency": "CNY", "source": "Data Core read-only snapshot"},
             "top_brands": top_brands(store.sales_snapshot),
@@ -172,6 +172,30 @@ def create_app(store=None):
             "read_only": True, "notice": ADVISORY_NOTICE,
         }
         store.audit(ctx, "ceo_dashboard_read"); return json_response(start_response, 200, payload)
+
+    def ceo_stores(environ, start_response):
+        ctx, error = context(environ, start_response, CEO_ROLES)
+        if error: return json_response(start_response, *error)
+        items = []
+        for code, name in STORE_NAMES.items():
+            amount = sum(float(row.get("amount", 0) or 0) for row in store.sales_snapshot if _store_code(row.get("store")) == code)
+            items.append({"id": code, "name": name, "operating_status": "ACTIVE", "sales_amount": amount})
+        store.audit(ctx, "ceo_stores_read")
+        return json_response(start_response, 200, {"items": items, "includes_online_store": True, "read_only": True})
+
+    def daily_report(environ, start_response):
+        ctx, error = context(environ, start_response, CEO_ROLES)
+        if error: return json_response(start_response, *error)
+        inventory = filter_inventory(store.inventory_snapshot)
+        business = {"version": "V6.1.10.2", "trust_status": "CEO_Dashboard_Data_Trusted_Complete",
+                    "operating_stores": [{"id": code, "name": name, "status": "ACTIVE"} for code, name in STORE_NAMES.items()],
+                    "sales_summary": {"amount": sum(row["amount"] for row in store.sales_snapshot), "currency": "CNY", "source": "Data Core read-only snapshot"},
+                    "inventory_validation": {"effective_skus": len(inventory["effective"]), "history_skus": len(inventory["history"])},
+                    "ai_summary": "五个经营主体销售已纳入日报，包括网店。", "top_brands": top_brands(store.sales_snapshot),
+                    "inventory_risks": [*store.retail.alerts["nanshan"], *store.retail.alerts["online"]],
+                    "customer_opportunities": store.opportunities(ctx), "ai_recommendations": ["复核销售与库存风险。"]}
+        store.audit(ctx, "ceo_daily_report_read")
+        return json_response(start_response, 200, {"report_type": "ceo_daily", "generated_at": _now(), "business": business, "read_only": True, "notice": ADVISORY_NOTICE})
 
     def kailas(environ, start_response):
         ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
@@ -286,7 +310,7 @@ def create_app(store=None):
         if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
         store.audit(ctx, "wechat_store_report_generated", {"store_id": code}); return json_response(start_response, 200, {"report_type": "store_manager_daily", "store": {"id": code, "name": STORE_NAMES[code]}, "sales": store.retail.sales[code], "inventory_alerts": store.retail.alerts[code], "customer_opportunities": ["人工跟进已授权重点客户。"], "tasks": ["核实重点尺码库存", "复核今日销售节奏"], "delivery": "manual_or_scheduled_wecom_push", "advisory_only": True, "notice": ADVISORY_NOTICE})
 
-    routes = {("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
+    routes = {("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/ceo/overview"): dashboard, ("GET", "/api/ceo/business"): dashboard, ("GET", "/api/ceo/stores"): ceo_stores, ("GET", "/api/ceo/daily-report"): daily_report, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
     health = service_app("business")
     def app(environ, start_response):
         path = environ["PATH_INFO"]; method = environ["REQUEST_METHOD"]

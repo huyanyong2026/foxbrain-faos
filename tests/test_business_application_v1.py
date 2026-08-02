@@ -37,3 +37,16 @@ def test_ceo_wechat_kailas_and_audit():
     status, wechat = call(app, "POST", "/api/wechat/message", roles="store_manager", body={"message": "南山店今天关注什么？"})
     assert status == 200 and wechat["audit_logged"] and "门店建议" in wechat["reply"]
     assert {event["action"] for event in store.audit_events} >= {"ceo_dashboard_read", "kailas_product_read", "wechat_message"}
+
+
+def test_ceo_correction_routes_include_active_online_sales_and_daily_report():
+    app = create_app()
+    for path in ("/api/ceo/overview", "/api/ceo/business"):
+        status, payload = call(app, "GET", path, roles="ceo")
+        assert status == 200 and payload["trust_status"] == "CEO_Dashboard_Data_Trusted_Complete"
+        assert any(item["id"] == "online" for item in payload["operating_stores"])
+    status, stores = call(app, "GET", "/api/ceo/stores", roles="ceo")
+    online = next(item for item in stores["items"] if item["id"] == "online")
+    assert status == 200 and stores["includes_online_store"] and online["operating_status"] == "ACTIVE" and online["sales_amount"] > 0
+    status, report = call(app, "GET", "/api/ceo/daily-report", roles="ceo")
+    assert status == 200 and report["business"]["sales_summary"]["amount"] >= online["sales_amount"]
