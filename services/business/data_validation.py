@@ -71,6 +71,23 @@ def top_brands(sales, limit=3):
     return [{"brand": brand, "sales": amount} for brand, amount in totals.most_common(limit)]
 
 
+def cost_governance(sales, limit=5):
+    """Rank the material brand/SKU cost gaps without changing source records."""
+    groups = defaultdict(lambda: {"sales": 0.0, "cost": 0.0, "units": 0.0})
+    for row in sales:
+        if not store_code(row.get("store_code") or row.get("store")):
+            continue
+        key = (str(row.get("brand") or "未分类"), str(row.get("sku") or "未归集 SKU"))
+        groups[key]["sales"] += float(row.get("amount", 0) or 0)
+        groups[key]["cost"] += float(row.get("cost", 0) or 0)
+        groups[key]["units"] += float(row.get("units", 0) or 0)
+    ranked = sorted(groups.items(), key=lambda item: item[1]["sales"], reverse=True)[:limit]
+    return [{"brand": key[0], "sku": key[1], **values,
+             "gross_margin_rate": round((values["sales"] - values["cost"]) / values["sales"], 4) if values["sales"] else None,
+             "cost_status": "complete" if values["cost"] > 0 else "cost_pending"}
+            for key, values in ranked]
+
+
 def reconcile_invoice_lines(invoices, lines):
     """Reconcile OINV settlement totals with INV1 sales lines, read-only."""
     active = {str(row.get("DocEntry")): row for row in invoices if str(row.get("CANCELED", "N")).upper() == "N"}
