@@ -36,7 +36,9 @@ type TraceablePayload = { data_source?: string; updated_at?: string; freshness_s
 type SalesRecord = { store_code?: string; store_name?: string; sales?: number; sales_amount?: number; orders?: number; order_count?: number; average_order_value?: number; trend?: number | string; status?: string };
 type SalesPayload = TraceablePayload & SalesRecord & { summary?: SalesRecord; stores?: SalesRecord[]; trend_series?: { label?: string; date?: string; value?: number }[]; ai_advice?: IntelligenceItem };
 type MemberRecord = { member_id?: string; employee_id?: string; name?: string; display_name?: string; store_name?: string; sales?: number; sales_amount?: number; orders?: number; order_count?: number; trend?: number | string };
-type MembersPayload = TraceablePayload & { members?: MemberRecord[]; data?: MemberRecord[] };
+type MembersPayload = TraceablePayload & { members?: MemberRecord[]; summary?: { coverage_rate?: number; pending_rows?: number } };
+type CustomerPayload = TraceablePayload & { customers?: { customer_id: string; customer_name?: string; consumption_amount?: number; purchase_count?: number; value_segment?: string; opportunity?: string }[] };
+type SupplierPayload = TraceablePayload & { domain?: "supply_chain"; suppliers?: { supplier_id?: string; supplier_code?: string; supplier_name?: string; name?: string; purchase_amount?: number; purchase_count?: number; delivery_status?: string }[] };
 type LoadState<T> = { phase: "loading" | "ready" | "empty" | "forbidden" | "error"; data?: T };
 
 const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
@@ -79,6 +81,8 @@ function Provenance({ payload, state }: { payload?: TraceablePayload; state: Loa
 function BusinessAnalysis() {
   const [sales, setSales] = useState<LoadState<SalesPayload>>({ phase: "loading" });
   const [members, setMembers] = useState<LoadState<MembersPayload>>({ phase: "loading" });
+  const [customers, setCustomers] = useState<LoadState<CustomerPayload>>({ phase: "loading" });
+  const [suppliers, setSuppliers] = useState<LoadState<SupplierPayload>>({ phase: "loading" });
   const load = async <T,>(path: string, update: (state: LoadState<T>) => void) => {
     update({ phase: "loading" });
     try {
@@ -91,11 +95,11 @@ function BusinessAnalysis() {
       update({ phase: empty ? "empty" : "ready", data: payload });
     } catch { update({ phase: "error" }); }
   };
-  useEffect(() => { void load("/api/core/sales", setSales); void load("/api/core/members", setMembers); }, []);
+  useEffect(() => { void load("/api/business/sales-analysis", setSales); void load("/api/business/member-analysis", setMembers); void load("/api/business/customer-analysis", setCustomers); void load("/api/business/supplier-analysis", setSuppliers); }, []);
   const summary = sales.data?.summary || sales.data;
-  const memberRows = members.data?.members || members.data?.data || [];
+  const memberRows = members.data?.members || [];
   const stateMessage = (state: LoadState<unknown>) => state.phase === "loading" ? "正在读取…" : state.phase === "forbidden" ? "无权查看该经营范围" : state.phase === "error" ? "数据暂不可用，请稍后重试" : state.phase === "empty" ? "当前范围暂无数据" : "";
-  const retry = () => { void load("/api/core/sales", setSales); void load("/api/core/members", setMembers); };
+  const retry = () => { void load("/api/business/sales-analysis", setSales); void load("/api/business/member-analysis", setMembers); void load("/api/business/customer-analysis", setCustomers); void load("/api/business/supplier-analysis", setSuppliers); };
   const advice = sales.data?.ai_advice;
   return <section className="business-analysis" id="operations" aria-labelledby="business-title">
     <div className="analysis-hero business-hero"><div><p className="eyebrow">BUSINESS ANALYSIS · V1.4</p><h1 id="business-title">经营分析</h1><p>基于授权经营范围，查看整体、门店、员工、顾客与供应商表现。</p></div><button type="button" onClick={retry}>刷新数据</button></div>
@@ -108,7 +112,7 @@ function BusinessAnalysis() {
 
     <article className="business-module"><div className="module-title"><span>03</span><div><h2>员工销售分析</h2><p>仅展示成员 API 返回的授权销售字段</p></div></div><Provenance payload={members.data} state={members.phase} />{members.phase === "ready" && memberRows.length ? <div className="member-table"><div className="member-table-head"><span>员工</span><span>门店</span><span>销售</span><span>订单</span><span>趋势</span></div>{memberRows.map((row, index) => <div key={row.member_id || row.employee_id || index}><strong>{row.display_name || row.name || pending}</strong><span>{row.store_name || pending}</span><span>{metric(saleValue(row), "money")}</span><span>{metric(orderValue(row))}</span><span>{trendLabel(row.trend).replace(unavailable, pending)}</span></div>)}</div> : <p className="module-state">{members.phase === "ready" ? "销售数据待补齐" : stateMessage(members)}</p>}</article>
 
-    <div className="domain-grid"><article className="business-module domain-pending"><div className="module-title"><span>04</span><div><h2>顾客购买分析</h2><p>Customer360 独立客户事实域</p></div></div><Provenance state="empty" /><div className="pending-columns">{["客户价值", "购买行为", "机会"].map((label) => <div key={label}><span>{label}</span><strong>{pending}</strong></div>)}</div></article><article className="business-module domain-pending supplier-domain"><div className="module-title"><span>05</span><div><h2>供应商销售分析</h2><p>独立供应链数据域 · 不混入客户数据</p></div></div><Provenance state="empty" /><p className="module-state">供应链数据待补齐</p></article></div>
+    <div className="domain-grid"><article className="business-module"><div className="module-title"><span>04</span><div><h2>顾客购买分析</h2><p>Customer360 独立客户事实域</p></div></div><Provenance payload={customers.data} state={customers.phase} />{customers.phase === "ready" && customers.data?.customers?.length ? <div className="member-table">{customers.data.customers.map((row) => <div key={row.customer_id}><strong>{row.customer_name || "授权客户"}</strong><span>{metric(row.consumption_amount, "money")}</span><span>{metric(row.purchase_count)}</span><span>{row.value_segment || pending}</span><span>{row.opportunity || pending}</span></div>)}</div> : <p className="module-state">{stateMessage(customers) || "客户数据待补齐"}</p>}</article><article className="business-module supplier-domain"><div className="module-title"><span>05</span><div><h2>供应商销售分析</h2><p>独立供应链数据域 · 不混入客户数据</p></div></div><Provenance payload={suppliers.data} state={suppliers.phase} />{suppliers.phase === "ready" && suppliers.data?.suppliers?.length ? <div className="member-table">{suppliers.data.suppliers.map((row, index) => <div key={row.supplier_id || row.supplier_code || index}><strong>{row.supplier_name || row.name || pending}</strong><span>{metric(row.purchase_amount, "money")}</span><span>{metric(row.purchase_count)}</span><span>{row.delivery_status || pending}</span></div>)}</div> : <p className="module-state">{stateMessage(suppliers) || "供应链数据待补齐"}</p>}</article></div>
 
     <article className="business-module ai-advice"><div className="module-title"><span>AI</span><div><h2>经营建议</h2><p>AI 不覆盖事实，仅展示接口返回的辅助判断</p></div></div><div className="advice-grid"><div><span>结论</span><p>{advice?.conclusion || pending}</p></div><div><span>依据</span><p>{advice?.evidence?.join("；") || pending}</p></div><div><span>建议</span><p>{advice?.recommendation?.join("；") || pending}</p></div></div></article>
   </section>;
