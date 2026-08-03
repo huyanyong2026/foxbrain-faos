@@ -11,7 +11,7 @@ from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
 
 from packages.vafox_foundation.http import json_response, service_app
-from services.business.data_validation import ACTIVE_STORES, STORE_ALIASES, filter_inventory, top_brands
+from services.business.data_validation import ACTIVE_STORES, STORE_ALIASES, cost_governance, filter_inventory, top_brands
 from services.memory.acl import auth_context
 
 ADVISORY_NOTICE = "AI 仅提供查询、分析与建议；需由授权员工核实并人工执行。"
@@ -55,11 +55,11 @@ class BusinessStore:
         # not injected (tests/offline shell). Production adapters may provide
         # the same fields from the read-only CEO API contract.
         self.sales_snapshot = [
-            {"store": "南山店", "brand": "KAILAS", "amount": 128000},
-            {"store": "航苑店", "brand": "LOWA", "amount": 96000},
-            {"store": "振兴店", "brand": "KAILAS", "amount": 85000},
-            {"store": "金沙店", "brand": "THE NORTH FACE", "amount": 76000},
-            {"store": "网店", "brand": "KAILAS", "amount": 112000},
+            {"store": "南山店", "brand": "KAILAS", "sku": "MONT-M", "amount": 128000, "cost": 71680, "units": 64, "employee_id": "E102"},
+            {"store": "航苑店", "brand": "LOWA", "sku": "SHOE-42", "amount": 96000, "cost": 58560, "units": 48, "employee_id": "E206"},
+            {"store": "振兴店", "brand": "KAILAS", "sku": "VEST-L", "amount": 85000, "cost": 50150, "units": 50, "employee_id": "E301"},
+            {"store": "金沙店", "brand": "THE NORTH FACE", "sku": "PACK-30", "amount": 76000, "cost": 47120, "units": 40, "employee_id": "E408"},
+            {"store": "网店", "brand": "KAILAS", "sku": "SHELL-S", "amount": 112000, "cost": 64960, "units": 56, "employee_id": None},
         ]
         self.inventory_snapshot = [
             {"store": "南山店", "sku": "MONT-M", "inventory": 2, "last_sale_date": "2026-07-28"},
@@ -187,11 +187,20 @@ def create_app(store=None):
         ctx, error = context(environ, start_response, CEO_ROLES)
         if error: return json_response(start_response, *error)
         inventory = filter_inventory(store.inventory_snapshot)
-        business = {"version": "V6.1.10.2", "trust_status": "CEO_Dashboard_Data_Trusted_Complete",
+        attributed = [row for row in store.sales_snapshot if row.get("employee_id")]
+        customer360 = {"profiles": len(store.customers.profiles),
+                       "purchase_profiles": len(store.customers.purchases),
+                       "wecom_bound_profiles": 0, "fusion_status": "pending_authorized_wecom_binding"}
+        business = {"version": "V6.1.11.3", "trust_status": "CEO_Dashboard_Data_Trusted_Complete",
                     "operating_stores": [{"id": code, "name": name, "status": "ACTIVE"} for code, name in STORE_NAMES.items()],
                     "sales_summary": {"amount": sum(row["amount"] for row in store.sales_snapshot), "currency": "CNY", "source": "Data Core read-only snapshot"},
                     "inventory_validation": {"effective_skus": len(inventory["effective"]), "history_skus": len(inventory["history"])},
                     "ai_summary": "五个经营主体销售已纳入日报，包括网店。", "top_brands": top_brands(store.sales_snapshot),
+                    "cost_governance": cost_governance(store.sales_snapshot),
+                    "employee_attribution": {"sales_rows": len(store.sales_snapshot), "attributed_rows": len(attributed),
+                                             "pending_rows": len(store.sales_snapshot) - len(attributed)},
+                    "customer360": customer360,
+                    "suppliers": {"status": "available_via_data_core", "write_enabled": False},
                     "inventory_risks": [*store.retail.alerts["nanshan"], *store.retail.alerts["online"]],
                     "customer_opportunities": store.opportunities(ctx), "ai_recommendations": ["复核销售与库存风险。"]}
         store.audit(ctx, "ceo_daily_report_read")
