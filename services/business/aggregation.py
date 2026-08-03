@@ -58,6 +58,52 @@ def member_analysis(members_payload, sales_payload):
     return {**_meta(members_payload, sales_payload), "summary": {"sales_rows": len(sales), "covered_rows": matched, "coverage_rate": round(matched / len(sales), 4) if sales else 0, "pending_rows": len(sales) - matched}, "members": items}
 
 
+def organization_analysis(members_payload, sales_payload):
+    """Aggregate only explicitly attributed Core sales; never estimate contribution."""
+    members = _rows(members_payload, "members", "employees", "rows", "data", "items")
+    sales = _rows(sales_payload, "sales", "rows", "data", "items")
+    directory = {}
+    for row in members:
+        if not isinstance(row, dict): continue
+        employee_id = str(row.get("employee_id") or row.get("member_id") or row.get("id") or "").strip()
+        if employee_id: directory[employee_id] = row
+    facts = defaultdict(lambda: {"sales": 0.0, "orders": set(), "products": set(), "customers": set(), "dates": defaultdict(float)})
+    pending_sales, pending_orders, all_orders = 0.0, set(), set()
+    for index, row in enumerate(sales):
+        if not isinstance(row, dict): continue
+        employee_id = str(row.get("employee_id") or row.get("member_id") or "").strip()
+        amount = _number(row.get("sales_amount", row.get("amount", row.get("sales"))))
+        order = str(row.get("order_id") or row.get("document_id") or f"row:{index}"); all_orders.add(order)
+        if not employee_id or employee_id not in directory:
+            pending_sales += amount; pending_orders.add(order); continue
+        fact = facts[employee_id]; fact["sales"] += amount; fact["orders"].add(order)
+        product = str(row.get("sku") or row.get("sku_code") or row.get("product_id") or "").strip()
+        customer = str(row.get("customer_id") or row.get("card_code") or "").strip()
+        day = str(row.get("date") or row.get("document_date") or "")[:10]
+        if product: fact["products"].add(product)
+        if customer: fact["customers"].add(customer)
+        if day: fact["dates"][day] += amount
+    employee_rows = []
+    for employee_id, row in directory.items():
+        fact = facts[employee_id]; order_count = len(fact["orders"])
+        store_code = str(row.get("store_code") or row.get("department_code") or "").strip().lower()
+        store_name = row.get("store_name") or STORE_NAMES.get(store_code)
+        series = [{"date": day, "value": round(value, 2)} for day, value in sorted(fact["dates"].items())]
+        employee_rows.append({"employee_id": employee_id, "employee": row.get("display_name") or row.get("name") or "待补齐", "store_code": store_code or None,
+            "store_name": store_name or "销售归属待补齐。", "attribution_status": "complete" if store_name else "pending", "sales_amount": round(fact["sales"], 2),
+            "order_count": order_count, "average_order_value": round(fact["sales"] / order_count, 2) if order_count else 0, "trend_series": series,
+            "capability": {"sales": {"sales_amount": round(fact["sales"], 2), "order_count": order_count}, "product": {"distinct_products": len(fact["products"])}, "customer": {"distinct_customers": len(fact["customers"])}}})
+    teams = []
+    for code, name in STORE_NAMES.items():
+        team = [item for item in employee_rows if item["store_code"] == code]; team_sales = round(sum(item["sales_amount"] for item in team), 2); daily = defaultdict(float)
+        for item in team:
+            for point in item["trend_series"]: daily[point["date"]] += point["value"]
+        teams.append({"store_code": code, "team": name, "employee_count": len(team), "team_sales": team_sales, "sales_per_employee": round(team_sales / len(team), 2) if team else None, "trend_series": [{"date": day, "value": round(value, 2)} for day, value in sorted(daily.items())]})
+    attributed_sales = round(sum(item["sales_amount"] for item in employee_rows), 2); active = sum(item["order_count"] > 0 for item in employee_rows)
+    advice = {"conclusion": "员工销售归属仍有待补齐记录。" if pending_orders else "当前销售记录均已关联员工。", "evidence": [f"已归属销售 {attributed_sales:.2f}，待归属销售 {pending_sales:.2f}。", f"有销售员工 {active}/{len(employee_rows)}。"], "recommendation": ["优先补齐销售单据的员工与门店归属。"] if pending_orders else ["持续维护员工与销售单据的稳定标识关联。"]}
+    return {**_meta(members_payload, sales_payload), "overview": {"employee_count": len(employee_rows), "selling_employee_count": active, "sales_coverage_rate": round((len(all_orders) - len(pending_orders)) / len(all_orders), 4) if all_orders else 0, "order_count": len(all_orders), "attributed_sales": attributed_sales, "pending_order_count": len(pending_orders), "pending_sales": round(pending_sales, 2)}, "employees": employee_rows, "teams": teams, "growth_advice": advice, "attribution_policy": {"missing_label": "销售归属待补齐。", "average_allocation": False, "estimated_contribution": False}}
+
+
 def customer_analysis(customers_payload, sales_payload):
     customers, sales = _rows(customers_payload, "customers", "members", "rows", "data", "items"), _rows(sales_payload, "sales", "rows", "data", "items")
     spend, purchases = defaultdict(float), defaultdict(set)
