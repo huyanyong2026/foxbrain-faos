@@ -12,7 +12,7 @@ from wsgiref.simple_server import make_server
 
 from packages.vafox_foundation.http import json_response, service_app
 from services.business.data_validation import ACTIVE_STORES, STORE_ALIASES, cost_governance, filter_inventory, top_brands
-from services.business.aggregation import customer_analysis, inventory_analysis, member_analysis, product_analysis, sales_analysis, supplier_analysis
+from services.business.aggregation import customer_analysis, customer_intelligence, inventory_analysis, member_analysis, product_analysis, sales_analysis, supplier_analysis
 from services.memory.acl import auth_context
 
 ADVISORY_NOTICE = "AI 仅提供查询、分析与建议；需由授权员工核实并人工执行。"
@@ -299,6 +299,20 @@ def create_app(store=None):
         store.audit(ctx, "business_inventory_analysis_read")
         return json_response(start_response, 200, payload)
 
+    def customer_intelligence_view(environ, start_response):
+        ctx, error = context(environ, start_response, CEO_ROLES)
+        if error: return json_response(start_response, *error)
+        if environ.get("HTTP_X_VAFOX_DATA_SCOPE") != "ALL_DATA":
+            return json_response(start_response, 403, {"error": "all_data_scope_required"})
+        client = store.core_client
+        if client is None or any(not hasattr(client, method) for method in ("get_customer360", "get_customer_opportunities")):
+            return json_response(start_response, 503, {"error": "customer_intelligence_data_unavailable"})
+        try: payload = customer_intelligence(client.get_customer360(), client.get_customer_opportunities())
+        except (KeyError, TypeError, ValueError, RuntimeError):
+            return json_response(start_response, 503, {"error": "customer_intelligence_data_unavailable"})
+        store.audit(ctx, "business_customer_intelligence_read")
+        return json_response(start_response, 200, payload)
+
     def kailas(environ, start_response):
         ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
         if error: return json_response(start_response, *error)
@@ -412,7 +426,7 @@ def create_app(store=None):
         if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
         store.audit(ctx, "wechat_store_report_generated", {"store_id": code}); return json_response(start_response, 200, {"report_type": "store_manager_daily", "store": {"id": code, "name": STORE_NAMES[code]}, "sales": store.retail.sales[code], "inventory_alerts": store.retail.alerts[code], "customer_opportunities": ["人工跟进已授权重点客户。"], "tasks": ["核实重点尺码库存", "复核今日销售节奏"], "delivery": "manual_or_scheduled_wecom_push", "advisory_only": True, "notice": ADVISORY_NOTICE})
 
-    routes = {("GET", "/api/business/inventory-analysis"): inventory_intelligence, ("GET", "/api/business/product-analysis"): product_intelligence, ("GET", "/api/business/sales-analysis"): lambda e, s: business_analysis(e, s, "sales"), ("GET", "/api/business/member-analysis"): lambda e, s: business_analysis(e, s, "member"), ("GET", "/api/business/customer-analysis"): lambda e, s: business_analysis(e, s, "customer"), ("GET", "/api/business/supplier-analysis"): lambda e, s: business_analysis(e, s, "supplier"), ("GET", "/api/ceo/today"): ceo_today, ("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/ceo/overview"): dashboard, ("GET", "/api/ceo/business"): dashboard, ("GET", "/api/ceo/stores"): ceo_stores, ("GET", "/api/ceo/daily-report"): daily_report, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
+    routes = {("GET", "/api/business/customer-intelligence"): customer_intelligence_view, ("GET", "/api/business/inventory-analysis"): inventory_intelligence, ("GET", "/api/business/product-analysis"): product_intelligence, ("GET", "/api/business/sales-analysis"): lambda e, s: business_analysis(e, s, "sales"), ("GET", "/api/business/member-analysis"): lambda e, s: business_analysis(e, s, "member"), ("GET", "/api/business/customer-analysis"): lambda e, s: business_analysis(e, s, "customer"), ("GET", "/api/business/supplier-analysis"): lambda e, s: business_analysis(e, s, "supplier"), ("GET", "/api/ceo/today"): ceo_today, ("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/ceo/overview"): dashboard, ("GET", "/api/ceo/business"): dashboard, ("GET", "/api/ceo/stores"): ceo_stores, ("GET", "/api/ceo/daily-report"): daily_report, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
     health = service_app("business")
     def app(environ, start_response):
         path = environ["PATH_INFO"]; method = environ["REQUEST_METHOD"]

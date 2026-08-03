@@ -43,6 +43,8 @@ type ProductPayload = TraceablePayload & { cost_status?: string; cost_message?: 
 type ProductSku = { sku: string; product_name: string; sales_amount: number; inventory_quantity: number; movement_status: string; risk_status: string; trend?: number };
 type InventoryItem = { sku: string; product_name: string; brand_name: string; inventory_amount: number; inventory_quantity: number; last_sale_date?: string; inventory_age_days?: number; health_status: "正常库存" | "高库存" | "滞销库存" | "缺货风险"; risk_level: string; recommendation: string; sales_velocity: number; trend?: number };
 type InventoryPayload = TraceablePayload & { cost_status: string; cost_message?: string; scope: { dataset: "effective_skus"; excluded: string[] }; overview: { inventory_amount: number; effective_skus: number; inventory_quantity: number; brand_structure: { name: string; quantity: number; share: number }[]; store_structure: { name: string; quantity: number; share: number }[] }; health: Record<InventoryItem["health_status"], InventoryItem[]>; items: InventoryItem[]; slow_moving: InventoryItem[]; replenishment_recommendations: { conclusion: string; evidence: string; recommendation: string }[] };
+type CustomerOpportunity = { customer_id: string; customer: string; opportunity_type: "复购" | "升级" | "召回" | "交叉销售"; reason?: string; evidence?: string; recommended_action?: string; owner?: string };
+type CustomerIntelligencePayload = TraceablePayload & { overview: { customer_count: number; active_customers: number; consumption_amount: number; order_count: number; average_consumption: number; vip_count: number }; value_segments: { name: "VIP" | "高价值" | "成长" | "正常" | "流失风险"; count: number }[]; purchase_behavior: { brand_preferences: { customer_id: string; customer_name: string; preference: string }[]; category_preferences: { customer_id: string; customer_name: string; preference: string }[]; purchase_cycles: { customer_id: string; customer_name: string; purchase_cycle: string | number }[]; purchase_trends: { customer_id: string; customer_name: string; purchase_trend: string | number }[] }; customer_opportunities: CustomerOpportunity[]; wecom: { interface_reserved: true; delivery_enabled: false } };
 type LoadState<T> = { phase: "loading" | "ready" | "empty" | "forbidden" | "error"; data?: T };
 
 const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
@@ -162,6 +164,26 @@ function InventoryIntelligence() {
   </section>;
 }
 
+
+function CustomerIntelligence() {
+  const [state, setState] = useState<LoadState<CustomerIntelligencePayload>>({ phase: "loading" });
+  const load = async () => { setState({ phase: "loading" }); try { const response = await gatewayFetch("/api/business/customer-intelligence"); if (response.status === 401 || response.status === 403) return setState({ phase: "forbidden" }); if (!response.ok) return setState({ phase: "error" }); setState({ phase: "ready", data: await response.json() as CustomerIntelligencePayload }); } catch { setState({ phase: "error" }); } };
+  useEffect(() => { void load(); }, []);
+  const data = state.data; const text = state.phase === "loading" ? "正在读取 Customer360 数据…" : state.phase === "forbidden" ? "无权查看该经营范围" : state.phase === "error" ? "Customer360 数据暂不可用，请稍后重试" : "";
+  const behavior = data?.purchase_behavior;
+  const behaviorGroups = [{ title: "品牌偏好", rows: behavior?.brand_preferences.map(row => ({ ...row, value: row.preference })) }, { title: "品类偏好", rows: behavior?.category_preferences.map(row => ({ ...row, value: row.preference })) }, { title: "消费周期", rows: behavior?.purchase_cycles.map(row => ({ ...row, value: row.purchase_cycle })) }, { title: "购买趋势", rows: behavior?.purchase_trends.map(row => ({ ...row, value: row.purchase_trend })) }];
+  return <section className="business-analysis customer-intelligence" id="customers" aria-labelledby="customer-title">
+    <div className="analysis-hero business-hero"><div><p className="eyebrow">CUSTOMER INTELLIGENCE · V1.7</p><h1 id="customer-title">客户分析</h1><p>基于真实 Customer360 API，理解客户价值、购买行为与授权机会。</p></div><button type="button" onClick={() => void load()}>刷新数据</button></div>
+    <Provenance payload={data} state={state.phase} />{state.phase !== "ready" && <p className="module-state">{text}</p>}
+    {data && <>
+      <article className="business-module"><div className="module-title"><span>01</span><div><h2>客户总览</h2><p>客户规模 · 活跃 · 消费 · 订单 · VIP</p></div></div><div className="business-metrics customer-metrics">{[["客户数量", data.overview.customer_count], ["活跃客户", data.overview.active_customers], ["消费金额", money(data.overview.consumption_amount)], ["订单数量", data.overview.order_count], ["平均消费", money(data.overview.average_consumption)], ["VIP数量", data.overview.vip_count]].map(([label,value]) => <div key={label}><span>{label}</span><strong>{typeof value === "number" ? value.toLocaleString("zh-CN") : value}</strong></div>)}</div></article>
+      <article className="business-module"><div className="module-title"><span>02</span><div><h2>客户价值分层</h2><p>Customer360 返回的价值标签</p></div></div><div className="segment-grid">{data.value_segments.map(row => <div key={row.name}><span>{row.name}</span><strong>{row.count.toLocaleString("zh-CN")}</strong><small>位客户</small></div>)}</div></article>
+      <article className="business-module"><div className="module-title"><span>03</span><div><h2>购买行为分析</h2><p>品牌偏好 · 品类偏好 · 消费周期 · 购买趋势</p></div></div><div className="behavior-grid">{behaviorGroups.map(group => <section key={group.title}><h3>{group.title}</h3>{group.rows?.length ? group.rows.map(row => <div key={`${row.customer_id}-${String(row.value)}`}><span>{row.customer_name}</span><b>{String(row.value)}</b></div>) : <p>Customer360 暂无返回数据</p>}</section>)}</div></article>
+      <article className="business-module"><div className="module-title"><span>04</span><div><h2>客户机会池</h2><p>customer_opportunities · 复购 · 升级 · 召回 · 交叉销售</p></div></div><div className="product-table customer-opportunity-table"><div><b>客户</b><b>机会类型</b><b>原因</b><b>依据</b><b>建议动作</b><b>负责人</b></div>{data.customer_opportunities.map(row => <div key={`${row.customer_id}-${row.opportunity_type}`}><strong>{row.customer}<small>{row.customer_id}</small></strong><em>{row.opportunity_type}</em><span>{row.reason || pending}</span><span>{row.evidence || pending}</span><span>{row.recommended_action || pending}</span><span>{row.owner || pending}</span></div>)}</div>{!data.customer_opportunities.length && <p className="module-state">当前没有 Customer360 返回的客户机会</p>}<div className="wecom-reserved"><b>企业微信</b><span>接口已预留 · 未启用推送 · 不自动执行</span></div></article>
+    </>}
+  </section>;
+}
+
 export default function HuyanPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [status, setStatus] = useState("正在同步经营数据");
@@ -208,7 +230,7 @@ export default function HuyanPage() {
     { label: "客户机会", value: failed ? unavailable : data?.customer_opportunities.length ?? "—", suffix: data ? " 条" : "", note: "已授权机会", tone: data?.customer_opportunities.length ? "warning" : "status" },
   ];
 
-  const sectionMeta = activeSection !== "today" && activeSection !== "advisor" && activeSection !== "operations" && activeSection !== "products" && activeSection !== "inventory" ? analysisModules[activeSection] : null;
+  const sectionMeta = activeSection !== "today" && activeSection !== "advisor" && activeSection !== "operations" && activeSection !== "products" && activeSection !== "inventory" && activeSection !== "customers" ? analysisModules[activeSection] : null;
   const todayIntelligence = data?.today_intelligence;
   const conclusion = todayIntelligence?.conclusion ?? data?.ai_summary;
   const evidence = todayIntelligence?.evidence ?? data?.ai_evidence;
@@ -275,6 +297,7 @@ export default function HuyanPage() {
     {activeSection === "operations" && <BusinessAnalysis />}
     {activeSection === "products" && <ProductIntelligence />}
     {activeSection === "inventory" && <InventoryIntelligence />}
+    {activeSection === "customers" && <CustomerIntelligence />}
     {sectionMeta && <section className="analysis-page" id={activeSection} aria-labelledby="analysis-title">
       <div className="analysis-hero"><p className="eyebrow">{sectionMeta.eyebrow}</p><h1 id="analysis-title">{sectionMeta.title}</h1><p>{sectionMeta.description}</p></div>
       <div className="analysis-grid">{sectionMeta.items.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2, "0")}</span><div><h2>{item}</h2><p>沿用现有权限与 CEO API 数据口径</p></div><b aria-hidden="true">→</b></article>)}</div>

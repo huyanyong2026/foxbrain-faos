@@ -75,6 +75,47 @@ def customer_analysis(customers_payload, sales_payload):
     return {**_meta(customers_payload, sales_payload), "summary": {"customer_count": len(items), "consumption_amount": round(sum(item["consumption_amount"] for item in items), 2)}, "customers": items}
 
 
+def customer_intelligence(customer360_payload, opportunities_payload):
+    """Normalize live Customer360 rows without synthesizing customers or opportunities."""
+    customers = _rows(customer360_payload, "customers", "profiles", "rows", "data", "items")
+    opportunities = _rows(opportunities_payload, "customer_opportunities", "opportunities", "rows", "data", "items")
+    segment_names = ("VIP", "高价值", "成长", "正常", "流失风险")
+    type_names = {"repurchase": "复购", "repeat_purchase": "复购", "复购": "复购", "upgrade": "升级", "升级": "升级", "recall": "召回", "win_back": "召回", "召回": "召回", "cross_sell": "交叉销售", "交叉销售": "交叉销售"}
+    segments = {name: [] for name in segment_names}
+    brand_preferences, category_preferences, cycles, trends = [], [], [], []
+    customer_ids, active, vip, total_spend, order_count = set(), set(), set(), 0.0, 0
+    for row in customers:
+        if not isinstance(row, dict): continue
+        customer_id = str(row.get("customer_id") or row.get("id") or row.get("card_code") or "").strip()
+        if not customer_id: continue
+        customer_ids.add(customer_id)
+        name = row.get("customer_name") or row.get("display_name") or row.get("name") or "授权客户"
+        amount = _number(row.get("consumption_amount", row.get("total_spend"))); orders = int(_number(row.get("order_count", row.get("purchase_count"))))
+        total_spend += amount; order_count += orders
+        if row.get("active") is True or str(row.get("status", "")).lower() == "active": active.add(customer_id)
+        segment = str(row.get("value_segment") or row.get("segment") or "").strip()
+        if segment in segments:
+            segments[segment].append({"customer_id": customer_id, "customer_name": name, "consumption_amount": amount, "order_count": orders})
+            if segment == "VIP": vip.add(customer_id)
+        for source, target, keys in (("brand_preferences", brand_preferences, ("brand", "name")), ("category_preferences", category_preferences, ("category", "name"))):
+            values = row.get(source)
+            if isinstance(values, list):
+                for value in values:
+                    label = next((value.get(key) for key in keys if isinstance(value, dict) and value.get(key)), None) if isinstance(value, dict) else value
+                    if label: target.append({"customer_id": customer_id, "customer_name": name, "preference": str(label)})
+        if row.get("purchase_cycle") is not None: cycles.append({"customer_id": customer_id, "customer_name": name, "purchase_cycle": row["purchase_cycle"]})
+        if row.get("purchase_trend") is not None: trends.append({"customer_id": customer_id, "customer_name": name, "purchase_trend": row["purchase_trend"]})
+    normalized = []
+    for row in opportunities:
+        if not isinstance(row, dict): continue
+        opportunity_type = type_names.get(str(row.get("opportunity_type") or row.get("type") or "").strip()); customer_id = str(row.get("customer_id") or "").strip()
+        if not opportunity_type or not customer_id: continue
+        normalized.append({"customer_id": customer_id, "customer": row.get("customer") or row.get("customer_name") or "授权客户", "opportunity_type": opportunity_type, "reason": row.get("reason"), "evidence": row.get("evidence"), "recommended_action": row.get("recommended_action") or row.get("action"), "owner": row.get("owner") or row.get("assignee")})
+    summary = customer360_payload.get("summary", {}) if isinstance(customer360_payload, dict) else {}
+    value = lambda key, fallback: _number(summary[key]) if key in summary else fallback
+    return {**_meta(customer360_payload, opportunities_payload), "overview": {"customer_count": int(value("customer_count", len(customer_ids))), "active_customers": int(value("active_customers", len(active))), "consumption_amount": value("consumption_amount", round(total_spend, 2)), "order_count": int(value("order_count", order_count)), "average_consumption": value("average_consumption", round(total_spend / order_count, 2) if order_count else 0), "vip_count": int(value("vip_count", len(vip)))}, "value_segments": [{"name": name, "count": len(segments[name]), "customers": segments[name]} for name in segment_names], "purchase_behavior": {"brand_preferences": brand_preferences, "category_preferences": category_preferences, "purchase_cycles": cycles, "purchase_trends": trends}, "customer_opportunities": normalized, "wecom": {"interface_reserved": True, "delivery_enabled": False}, "read_only": True}
+
+
 def supplier_analysis(payload):
     allowed = ("supplier_id", "supplier_code", "supplier_name", "name", "purchase_amount", "purchase_count", "delivery_status", "inventory_status")
     items = [{key: row[key] for key in allowed if key in row} for row in _rows(payload, "suppliers", "rows", "data", "items") if isinstance(row, dict)]
