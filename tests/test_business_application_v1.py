@@ -73,6 +73,11 @@ def test_ceo_today_uses_only_production_contract_and_has_no_snapshot_fallback():
                 "top_brands": [{"brand_name": "KAILAS", "brand_code": "K", "sales": 10}],
                 "risks": [], "ai_summary": "摘要", "ai_recommendations": [],
                 "data_source": "Data Core", "updated_at": "2026-08-03T00:00:00Z", "confidence": 0.99,
+                "freshness_status": "fresh",
+                "sales_change_analysis": [{"dimension": "store", "name": "南山", "change": 8,
+                                           "reasons": ["订单增长"], "internal_note": "不得透传"}],
+                "customer_actions": [{"customer_name": "客户 A", "action": "回访", "reason": "近期购买",
+                                      "phone": "不得透传"}],
             }
 
     status, payload = call(create_app(BusinessStore(core_client=CoreClient())), "GET", "/api/ceo/today", roles="ceo")
@@ -81,3 +86,7 @@ def test_ceo_today_uses_only_production_contract_and_has_no_snapshot_fallback():
     assert payload["operating_stores"] == [{"store_code": "nanshan", "store_name": "南山", "status": "营业"}]
     assert payload["top_brands"] == [{"brand_name": "KAILAS", "sales": 10}]
     assert payload["customer_opportunities"] == [{"title": "客户 A", "reason": "待回访"}]
+    assert payload["freshness_status"] == "fresh"
+    assert payload["sales_change_analysis"] == [{"dimension": "store", "name": "南山", "change": 8,
+                                                  "reasons": ["订单增长"]}]
+    assert payload["customer_actions"] == [{"customer_name": "客户 A", "action": "回访", "reason": "近期购买"}]

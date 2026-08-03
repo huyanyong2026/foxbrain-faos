@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { gatewayFetch } from "@foxbrain/api-client";
 
 type Risk = { type: string; title: string; severity: string; message: string };
+type IntelligenceItem = { conclusion?: string; evidence?: string[]; recommendation?: string[] };
+type SalesChange = { dimension: "store" | "brand" | "category" | "customer"; name: string; change?: number | string; reasons: string[]; evidence?: string[] };
+type CapitalRisk = { risk: string; reason: string; recommendation: string; severity?: string };
+type BrandScore = { brand_name: string; sales_contribution?: number | string; trend?: number | string; inventory_health?: number | string; customer_recognition?: number | string; overall_score?: number | string };
+type CustomerAction = { customer_name?: string; customer_segment?: string; action: string; reason: string; priority?: string };
 type Dashboard = {
   ai_summary: string;
   ai_evidence?: string[];
@@ -19,6 +24,12 @@ type Dashboard = {
   data_source: string;
   updated_at: string;
   confidence: number | string;
+  freshness_status?: string;
+  today_intelligence?: IntelligenceItem;
+  sales_change_analysis?: SalesChange[];
+  inventory_capital_risks?: CapitalRisk[];
+  brand_operating_scores?: BrandScore[];
+  customer_actions?: CustomerAction[];
 };
 
 const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
@@ -38,6 +49,8 @@ const money = (value: number) => new Intl.NumberFormat("zh-CN", { style: "curren
 const statusLabel = (status: string) => status === "ACTIVE" ? "正常营业" : status;
 const riskMatches = (risk: Risk, key: string) => risk.type.toLowerCase().includes(key);
 const trendLabel = (trend?: number | string) => trend === undefined ? unavailable : typeof trend === "number" ? `${trend >= 0 ? "+" : ""}${trend}%` : trend;
+const dimensionLabels = { store: "门店", brand: "品牌", category: "品类", customer: "客户" };
+const scoreLabel = (value?: number | string) => value === undefined ? unavailable : typeof value === "number" ? `${value.toFixed(0)} / 100` : value;
 
 export default function HuyanPage() {
   const [data, setData] = useState<Dashboard | null>(null);
@@ -86,6 +99,10 @@ export default function HuyanPage() {
   ];
 
   const sectionMeta = activeSection !== "today" && activeSection !== "advisor" ? analysisModules[activeSection] : null;
+  const todayIntelligence = data?.today_intelligence;
+  const conclusion = todayIntelligence?.conclusion ?? data?.ai_summary;
+  const evidence = todayIntelligence?.evidence ?? data?.ai_evidence;
+  const recommendations = todayIntelligence?.recommendation ?? data?.ai_recommendations;
 
   return <div className="portal-shell">
     <aside className="sidebar">
@@ -109,11 +126,11 @@ export default function HuyanPage() {
     <section className="ai-summary executive-summary" id="advisor" aria-labelledby="ai-title">
       <div className="panel-kicker"><span className="ai-icon">AI</span><div><p id="ai-title">AI 经营摘要</p><small>AI 不覆盖事实数据，仅提供辅助判断</small></div><span className="confidence-chip">可信状态 · {failed ? unavailable : data?.confidence ?? "—"}</span></div>
       <div className="summary-columns">
-        <div><span>结论</span><blockquote>{failed ? unavailable : data?.ai_summary ?? "正在读取经营摘要…"}</blockquote></div>
-        <div><span>依据</span>{failed || (data && !data.ai_evidence?.length) ? <p>{unavailable}</p> : data?.ai_evidence?.length ? <ul>{data.ai_evidence.map((item) => <li key={item}>{item}</li>)}</ul> : <p>正在读取数据依据…</p>}</div>
-        <div><span>建议</span>{failed || (data && !data.ai_recommendations.length) ? <p>{unavailable}</p> : <ol>{data?.ai_recommendations.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ol>}</div>
+        <div><span>结论</span><blockquote>{failed ? unavailable : conclusion ?? "正在读取经营摘要…"}</blockquote></div>
+        <div><span>依据</span>{failed || (data && !evidence?.length) ? <p>{unavailable}</p> : evidence?.length ? <ul>{evidence.map((item) => <li key={item}>{item}</li>)}</ul> : <p>正在读取数据依据…</p>}</div>
+        <div><span>建议</span>{failed || (data && !recommendations?.length) ? <p>{unavailable}</p> : <ol>{recommendations?.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ol>}</div>
       </div>
-      <footer><span><b>数据来源</b>{failed ? unavailable : data?.data_source ?? "—"}</span><span><b>更新时间</b>{failed ? unavailable : data?.updated_at ?? "—"}</span><span><b>可信状态</b>{failed ? unavailable : data?.confidence ?? "—"}</span></footer>
+      <footer><span><b>数据来源</b>{failed ? unavailable : data?.data_source ?? "—"}</span><span><b>更新时间</b>{failed ? unavailable : data?.updated_at ?? "—"}</span><span><b>数据鲜度</b>{failed ? unavailable : data?.freshness_status ?? "—"}</span></footer>
     </section>
 
     <section className="metrics-grid" id="operations" aria-label="六个核心经营指标">{metrics.map((metric) => <article className={`metric-card ${metric.tone ?? ""}`} key={metric.label}><div className="metric-head"><span>{metric.label}</span><i>↗</i></div><strong>{metric.value}<small>{metric.suffix}</small></strong><p>{metric.note}</p></article>)}</section>
@@ -142,6 +159,10 @@ export default function HuyanPage() {
     {sectionMeta && <section className="analysis-page" id={activeSection} aria-labelledby="analysis-title">
       <div className="analysis-hero"><p className="eyebrow">{sectionMeta.eyebrow}</p><h1 id="analysis-title">{sectionMeta.title}</h1><p>{sectionMeta.description}</p></div>
       <div className="analysis-grid">{sectionMeta.items.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2, "0")}</span><div><h2>{item}</h2><p>沿用现有权限与 CEO API 数据口径</p></div><b aria-hidden="true">→</b></article>)}</div>
+      {activeSection === "operations" && <div className="intelligence-panel"><div className="section-title compact"><div><p className="eyebrow">CHANGE DRIVER</p><h2>销售变化原因分析</h2></div></div><div className="intelligence-list">{data?.sales_change_analysis?.length ? data.sales_change_analysis.map((item) => <article key={`${item.dimension}-${item.name}`}><div className="intel-heading"><span>{dimensionLabels[item.dimension]}</span><strong>{item.name}</strong><em>{trendLabel(item.change)}</em></div><div className="intel-detail"><b>原因</b><p>{item.reasons.join("；")}</p><b>依据</b><p>{item.evidence?.join("；") || unavailable}</p></div></article>) : <p className="empty-state">{failed ? unavailable : data ? "Core API 暂未返回销售变化原因分析。" : "正在读取销售变化分析…"}</p>}</div></div>}
+      {activeSection === "inventory" && <div className="intelligence-panel"><div className="section-title compact"><div><p className="eyebrow">CAPITAL RISK</p><h2>库存资金风险分析</h2></div></div><div className="three-part-list">{data?.inventory_capital_risks?.length ? data.inventory_capital_risks.map((item) => <article key={item.risk}><span>{item.severity ?? "风险"}</span><div><b>风险</b><p>{item.risk}</p></div><div><b>原因</b><p>{item.reason}</p></div><div><b>建议</b><p>{item.recommendation}</p></div></article>) : <p className="empty-state">{failed ? unavailable : data ? "Core API 暂未返回库存资金风险分析。" : "正在读取库存资金风险…"}</p>}</div></div>}
+      {activeSection === "products" && <div className="intelligence-panel"><div className="section-title compact"><div><p className="eyebrow">BRAND SCORECARD</p><h2>品牌经营评分</h2></div></div><div className="score-table"><div className="score-head"><span>品牌</span><span>销售贡献</span><span>趋势</span><span>库存健康</span><span>客户认可</span><span>综合评分</span></div>{data?.brand_operating_scores?.length ? data.brand_operating_scores.map((item) => <div className="score-row" key={item.brand_name}><strong>{item.brand_name}</strong><span>{scoreLabel(item.sales_contribution)}</span><span>{trendLabel(item.trend)}</span><span>{scoreLabel(item.inventory_health)}</span><span>{scoreLabel(item.customer_recognition)}</span><b>{scoreLabel(item.overall_score)}</b></div>) : <p className="empty-state">{failed ? unavailable : data ? "Core API 暂未返回品牌经营评分。" : "正在读取品牌评分…"}</p>}</div></div>}
+      {activeSection === "customers" && <div className="intelligence-panel"><div className="section-title compact"><div><p className="eyebrow">CUSTOMER360 ACTION</p><h2>客户行动建议</h2></div><span className="customer-only">基于 Customer360 · 仅授权客户</span></div><div className="customer-actions">{data?.customer_actions?.length ? data.customer_actions.map((item, index) => <article key={`${item.customer_name}-${index}`}><span>{item.priority ?? String(index + 1).padStart(2, "0")}</span><div><strong>{item.customer_name ?? item.customer_segment ?? "授权客户"}</strong><small>{item.customer_segment}</small><p>{item.reason}</p></div><b>{item.action}</b></article>) : <p className="empty-state">{failed ? unavailable : data ? "Core API 暂未返回 Customer360 行动建议。" : "正在读取客户行动建议…"}</p>}</div></div>}
       <div className="architecture-note"><span>数据连接保持不变</span><p>SAP B1 · Data Core · CEO API · Auth · AI Runtime</p></div>
     </section>}
 
@@ -149,6 +170,7 @@ export default function HuyanPage() {
       <div className="advisor-hero"><span className="ai-icon">AI</span><div><p className="eyebrow">CEO BUSINESS ADVISOR</p><h1 id="advisor-title">AI顾问</h1><p>CEO经营问答</p></div></div>
       <div className="advisor-card"><label htmlFor="ceo-question">向 AI 顾问提出经营问题</label><div><input id="ceo-question" placeholder="例如：今天最需要关注的经营风险是什么？" /><button type="button">开始分析</button></div><small>基于现有 AI Runtime 与授权经营数据提供辅助判断，不改变事实数据。</small></div>
       <div className="question-prompts"><span>常用问题</span>{["五店销售表现有什么异常？", "哪些库存风险需要优先处理？", "本周最值得跟进的客户机会是什么？"].map((question) => <button type="button" key={question}>{question}<b>→</b></button>)}</div>
+      <div className="advisor-answer"><div><span>结论</span><p>{failed ? unavailable : conclusion ?? "请提出经营问题。"}</p></div><div><span>依据</span><p>{failed ? unavailable : evidence?.join("；") || unavailable}</p></div><div><span>建议</span><p>{failed ? unavailable : recommendations?.join("；") || unavailable}</p></div><footer><span><b>数据来源</b>{failed ? unavailable : data?.data_source ?? "—"}</span><span><b>更新时间</b>{failed ? unavailable : data?.updated_at ?? "—"}</span></footer></div>
     </section>}
     <footer className="page-footer"><span>VAFOX CEO Portal · huyan.vafox.com</span><span>董事、CEO 与授权管理层专用 · 页面只读</span></footer>
     </main>
