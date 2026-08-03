@@ -51,6 +51,7 @@ const riskMatches = (risk: Risk, key: string) => risk.type.toLowerCase().include
 const trendLabel = (trend?: number | string) => trend === undefined ? unavailable : typeof trend === "number" ? `${trend >= 0 ? "+" : ""}${trend}%` : trend;
 const dimensionLabels = { store: "门店", brand: "品牌", category: "品类", customer: "客户" };
 const scoreLabel = (value?: number | string) => value === undefined ? unavailable : typeof value === "number" ? `${value.toFixed(0)} / 100` : value;
+const provenanceValue = (value?: string) => value?.trim() || "等待 CEO API 返回";
 
 export default function HuyanPage() {
   const [data, setData] = useState<Dashboard | null>(null);
@@ -106,14 +107,14 @@ export default function HuyanPage() {
 
   return <div className="portal-shell">
     <aside className="sidebar">
-      <div className="brand-lockup"><span className="brand-mark">V</span><strong>VAFOX</strong></div>
+      <div className="brand-lockup" aria-label="VAFOX"><strong>VAFOX</strong><span>®</span></div>
       <div className="portal-name"><span>HUYAN</span><b>CEO Portal</b></div>
       <nav aria-label="CEO Portal 主导航">{navItems.map(([label, anchor], index) => <a className={activeSection === anchor ? "is-active" : ""} href={`#${anchor}`} key={anchor} aria-current={activeSection === anchor ? "page" : undefined}><i>{String(index + 1).padStart(2, "0")}</i><span>{label}</span></a>)}</nav>
       <div className="sidebar-foot"><span>管理层专用</span><small>只读 · 安全数据链</small></div>
     </aside>
     <main className="app-shell">
     <header className="topbar">
-      <div className="mobile-brand"><span className="brand-mark">V</span><strong>VAFOX CEO Portal</strong></div>
+      <div className="mobile-brand" aria-label="VAFOX CEO Portal"><strong>VAFOX</strong><span>CEO Portal</span></div>
       <div className="current-location"><span>CEO PORTAL</span><strong>{navItems.find(([, key]) => key === activeSection)?.[0]}</strong></div>
       <div className="header-meta"><span className={`data-state ${data ? "is-live" : ""}`}><i />{status}</span><span className="access-badge">管理层专用</span><span className="avatar">CEO</span></div>
     </header>
@@ -121,6 +122,12 @@ export default function HuyanPage() {
     <section className="welcome" id="today" aria-labelledby="page-title">
       <div><p className="eyebrow">CEO TODAY</p><h1 id="page-title">今日经营全景</h1><p>聚焦关键结果、经营风险与下一步动作。</p></div>
       <div className="scope"><span>经营范围</span><strong>振兴 · 南山 · 航苑 · 金沙 · 网店</strong><small>只读 · API 实时数据</small></div>
+    </section>
+
+    <section className="data-provenance" aria-label="数据来源与更新时间" aria-live="polite">
+      <span><b>数据来源</b><strong>{failed ? unavailable : provenanceValue(data?.data_source)}</strong></span>
+      <span><b>更新时间</b><strong>{failed ? unavailable : provenanceValue(data?.updated_at)}</strong></span>
+      <span><b>数据鲜度</b><strong>{failed ? unavailable : provenanceValue(data?.freshness_status)}</strong></span>
     </section>
 
     <section className="ai-summary executive-summary" id="advisor" aria-labelledby="ai-title">
@@ -150,7 +157,7 @@ export default function HuyanPage() {
     </section>
 
     <section className="bottom-grid">
-      <article className="table-panel" id="products"><div className="section-title compact"><div><p className="eyebrow">BRAND SALES</p><h2>TOP 品牌</h2></div><span className="period">今日</span></div><div className="brand-head"><span>品牌名称</span><span>销售额</span><span>趋势</span></div><div className="brand-list">{failed ? <p className="empty-state">{unavailable}</p> : data?.top_brands.length ? data.top_brands.slice(0, 5).map((brand, index) => <div className="brand-row" key={brand.brand_name}><b>{String(index + 1).padStart(2, "0")}</b><strong>{brand.brand_name}</strong><span>{money(brand.sales)}</span><em>{trendLabel(brand.trend)}</em></div>) : <p className="empty-state">{data ? unavailable : "正在读取品牌销售…"}</p>}</div></article>
+      <article className="table-panel" id="products"><div className="section-title compact"><div><p className="eyebrow">BRAND SALES</p><h2>TOP 品牌</h2></div><span className="period">今日</span></div><div className="brand-head"><span>品牌名称</span><span>销售额</span><span>趋势</span></div><div className="brand-list">{failed ? <div className="brand-empty is-error"><span aria-hidden="true">!</span><div><strong>品牌排行暂不可用</strong><p>经营数据读取失败，请稍后刷新页面。</p></div></div> : data?.top_brands.length ? data.top_brands.slice(0, 5).map((brand, index) => <div className="brand-row" key={brand.brand_name}><b>{String(index + 1).padStart(2, "0")}</b><strong>{brand.brand_name}</strong><span>{money(brand.sales)}</span><em>{trendLabel(brand.trend)}</em></div>) : data ? <div className="brand-empty"><span aria-hidden="true">—</span><div><strong>今日暂无品牌销售排行</strong><p>当前筛选范围内没有品牌销售记录，数据口径保持不变。</p></div></div> : <div className="brand-empty is-loading"><span aria-hidden="true">•••</span><div><strong>正在读取品牌销售</strong><p>排行将在 CEO API 返回后自动显示。</p></div></div>}</div></article>
       <article className="table-panel" id="customers"><div className="section-title compact"><div><p className="eyebrow">CUSTOMER OPPORTUNITY</p><h2>客户机会 TOP5</h2></div><span className="customer-only">仅授权客户</span></div><div className="opportunity-list">{data?.customer_opportunities.slice(0, 5).map((item, index) => <div className="opportunity-row" key={`${item.title}-${index}`}><b>{index + 1}</b><div><strong>{item.title}</strong><small>{item.opportunity_type ?? unavailable}</small><p>{item.reason}</p></div><span>{item.recommended_action ?? unavailable}</span></div>) ?? <p className="empty-state">{failed ? unavailable : "正在读取客户机会…"}</p>}{data && data.customer_opportunities.length === 0 && <p className="empty-state">当前暂无已授权客户机会。</p>}</div></article>
     </section>
 

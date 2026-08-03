@@ -22,3 +22,12 @@ test("Huyan IA V1.1 keeps the confirmed navigation and production CEO API", () =
   assert.match(source, /gatewayFetch\("\/api\/ceo\/today"\)/);
   assert.doesNotMatch(source, /mock(Data)?|fixture|faker/i);
 });
+
+test("Huyan V1.3 stabilization keeps the contract and exposes trustworthy empty and provenance states", () => {
+  const source = readFileSync("apps/huyan-web/app/page.tsx", "utf8");
+  for (const label of ["数据来源", "更新时间", "数据鲜度", "今日暂无品牌销售排行", "品牌排行暂不可用"])
+    assert.match(source, new RegExp(label));
+  assert.match(source, /gatewayFetch\("\/api\/ceo\/today"\)/);
+  assert.doesNotMatch(source, /gatewayFetch\("\/api\/ceo\/overview"\)/);
+  assert.doesNotMatch(source, /className="brand-mark"/);
+});
