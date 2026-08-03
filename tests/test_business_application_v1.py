@@ -4,10 +4,10 @@ import json
 from services.business.app import BusinessStore, create_app
 
 
-def call(app, method, path, roles="employee", body=None, department="north"):
+def call(app, method, path, roles="employee", body=None, department="north", data_scope="ALL_DATA"):
     raw = json.dumps(body or {}).encode()
     result = []
-    output = b"".join(app({"REQUEST_METHOD": method, "PATH_INFO": path, "QUERY_STRING": "", "wsgi.input": io.BytesIO(raw), "CONTENT_LENGTH": str(len(raw)), "CONTENT_TYPE": "application/json", "HTTP_X_VAFOX_USER_ID": "u-1", "HTTP_X_VAFOX_ORGANIZATION_ID": "org-1", "HTTP_X_VAFOX_DEPARTMENT_ID": department, "HTTP_X_VAFOX_ROLE_SCOPE": roles}, lambda status, _: result.append(status)))
+    output = b"".join(app({"REQUEST_METHOD": method, "PATH_INFO": path, "QUERY_STRING": "", "wsgi.input": io.BytesIO(raw), "CONTENT_LENGTH": str(len(raw)), "CONTENT_TYPE": "application/json", "HTTP_X_VAFOX_USER_ID": "u-1", "HTTP_X_VAFOX_ORGANIZATION_ID": "org-1", "HTTP_X_VAFOX_DEPARTMENT_ID": department, "HTTP_X_VAFOX_ROLE_SCOPE": roles, "HTTP_X_VAFOX_DATA_SCOPE": data_scope}, lambda status, _: result.append(status)))
     return int(result[0].split()[0]), json.loads(output)
 
 
@@ -90,3 +90,9 @@ def test_ceo_today_uses_only_production_contract_and_has_no_snapshot_fallback():
     assert payload["sales_change_analysis"] == [{"dimension": "store", "name": "南山", "change": 8,
                                                   "reasons": ["订单增长"]}]
     assert payload["customer_actions"] == [{"customer_name": "客户 A", "action": "回访", "reason": "近期购买"}]
+
+
+def test_ceo_business_analysis_requires_all_data_scope():
+    app = create_app(BusinessStore(core_client=object()))
+    for path in ("/api/business/sales-analysis", "/api/business/member-analysis", "/api/business/customer-analysis"):
+        assert call(app, "GET", path, roles="ceo", data_scope="STORE_DATA") == (403, {"error": "all_data_scope_required"})
