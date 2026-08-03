@@ -17,6 +17,7 @@ def business_authorization(claims: dict, path: str) -> tuple[list[str], str]:
         "/api/business/member-analysis",
         "/api/business/customer-analysis",
         "/api/business/product-analysis",
+        "/api/business/inventory-analysis",
     }
     if (path in aligned_paths and claims.get("portal") == HUYAN_PORTAL
             and HUYAN_CEO_ROLE in roles and data_scope == ALL_DATA):

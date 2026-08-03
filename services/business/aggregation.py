@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 STORE_NAMES = {"zhenxing": "振兴", "nanshan": "南山", "hangyuan": "航苑", "jinsha": "金沙", "online": "网店"}
 
@@ -130,3 +130,67 @@ def product_analysis(products_payload, sales_payload, inventory_payload):
                "recommendation": "核实补货与到货节奏" if row["risk_status"] == "缺货风险" else "暂停追加并制定去化方案"} for row in risks]
     return {**_meta(products_payload, sales_payload, inventory_payload), "cost_status": "trusted" if cost_trusted else "governing", "cost_message": None if cost_trusted else "成本数据治理中。",
             "brands": brand_rows, "categories": category_rows, "skus": {"hot": sorted(sku_rows, key=lambda row: row["sales_amount"], reverse=True), "risk": risks, "items": sku_rows}, "procurement_recommendations": advice}
+
+
+def inventory_analysis(products_payload, sales_payload, inventory_payload):
+    """Build V1.6 inventory intelligence exclusively from current Core rows."""
+    products = _rows(products_payload, "products", "rows", "data", "items")
+    sales = _rows(sales_payload, "sales", "rows", "data", "items")
+    inventory = _rows(inventory_payload, "inventory", "rows", "data", "items")
+    catalog = {}
+    for row in products:
+        if not isinstance(row, dict): continue
+        sku = str(row.get("sku") or row.get("sku_code") or row.get("product_id") or row.get("id") or "").strip()
+        if sku: catalog[sku] = row
+    sold, previous, last_sale = defaultdict(float), defaultdict(float), {}
+    for row in sales:
+        if not isinstance(row, dict): continue
+        sku = str(row.get("sku") or row.get("sku_code") or row.get("product_id") or "").strip()
+        if not sku: continue
+        quantity = _number(row.get("quantity", row.get("units", row.get("sales_quantity"))))
+        target = previous if str(row.get("period") or row.get("trend_period") or "current").lower() in {"previous", "prior", "last_period"} else sold
+        target[sku] += quantity
+        raw_date = str(row.get("date") or row.get("document_date") or row.get("sale_date") or "")[:10]
+        if raw_date and raw_date > last_sale.get(sku, ""): last_sale[sku] = raw_date
+    stock, values, stores_by_sku = defaultdict(float), defaultdict(float), defaultdict(lambda: defaultdict(float))
+    cost_trusted = bool(inventory)
+    for row in inventory:
+        if not isinstance(row, dict): continue
+        sku = str(row.get("sku") or row.get("sku_code") or row.get("product_id") or "").strip()
+        if not sku: continue
+        quantity = _number(row.get("quantity", row.get("on_hand", row.get("inventory_qty"))))
+        stock[sku] += quantity
+        store = str(row.get("store_name") or row.get("store_code") or row.get("store") or "待补齐")
+        stores_by_sku[sku][store] += quantity
+        amount, cost = row.get("inventory_amount", row.get("stock_amount")), row.get("unit_cost", row.get("cost"))
+        if isinstance(amount, (int, float)) and not isinstance(amount, bool): values[sku] += float(amount)
+        elif isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost >= 0: values[sku] += quantity * float(cost)
+        else: cost_trusted = False
+    source_meta = _meta(products_payload, sales_payload, inventory_payload)
+    try: as_of = date.fromisoformat(str(source_meta["updated_at"])[:10])
+    except ValueError: as_of = datetime.now(timezone.utc).date()
+    effective = []
+    for sku in sorted(set(catalog) | set(stock) | set(sold)):
+        item, quantity = catalog.get(sku, {}), stock[sku]
+        marker = " ".join(str(item.get(key, "")) for key in ("status", "sku_status", "label", "tags")).upper()
+        if "HISTORY SKU" in marker or "HISTORY_SKU" in marker: continue
+        if quantity <= 0 and (not last_sale.get(sku) or last_sale[sku] < "2026-01-01"): continue
+        recent, prior = sold[sku], previous[sku]
+        coverage = quantity / recent * 30 if recent > 0 else None
+        if quantity <= 0 and recent > 0: health, risk, advice = "缺货风险", "高", "核实在途与安全库存，人工确认补货。"
+        elif quantity > 0 and recent <= 0: health, risk, advice = "滞销库存", "高", "暂停追加，制定调拨、陈列或去化方案。"
+        elif coverage is not None and coverage > 90: health, risk, advice = "高库存", "中", "控制采购并复核销售节奏。"
+        else: health, risk, advice = "正常库存", "低", "保持监控，按销售速度滚动复核。"
+        age = (as_of - date.fromisoformat(last_sale[sku])).days if last_sale.get(sku) else None
+        effective.append({"sku": sku, "product_name": item.get("product_name") or item.get("name") or sku, "brand_name": item.get("brand_name") or item.get("brand") or "待补齐", "inventory_amount": round(values[sku], 2), "inventory_quantity": round(quantity, 2), "last_sale_date": last_sale.get(sku), "inventory_age_days": age, "health_status": health, "risk_level": risk, "recommendation": advice, "sales_velocity": round(recent, 2), "trend": round((recent - prior) / prior * 100, 2) if prior else None})
+    total_quantity = sum(row["inventory_quantity"] for row in effective)
+    brand_quantity, store_quantity = defaultdict(float), defaultdict(float)
+    effective_skus = {row["sku"] for row in effective}
+    for row in effective: brand_quantity[row["brand_name"]] += row["inventory_quantity"]
+    for sku in effective_skus:
+        for store, quantity in stores_by_sku[sku].items(): store_quantity[store] += quantity
+    def structure(values):
+        return [{"name": name, "quantity": round(quantity, 2), "share": round(quantity / total_quantity, 4) if total_quantity else 0} for name, quantity in sorted(values.items(), key=lambda pair: pair[1], reverse=True)]
+    slow = sorted((row for row in effective if row["health_status"] == "滞销库存"), key=lambda row: row["inventory_amount"], reverse=True)
+    recommendations = [{"conclusion": row["health_status"], "evidence": f'{row["product_name"]}：销售速度 {row["sales_velocity"]}，库存 {row["inventory_quantity"]}，趋势 {row["trend"] if row["trend"] is not None else "待补齐"}', "recommendation": row["recommendation"]} for row in effective if row["health_status"] != "正常库存"]
+    return {**source_meta, "scope": {"dataset": "effective_skus", "excluded": ["HISTORY SKU", "2026年前零库存无经营商品"]}, "cost_status": "trusted" if cost_trusted else "governing", "cost_message": None if cost_trusted else "成本数据治理中", "overview": {"inventory_amount": round(sum(row["inventory_amount"] for row in effective), 2), "effective_skus": len(effective), "inventory_quantity": round(total_quantity, 2), "brand_structure": structure(brand_quantity), "store_structure": structure(store_quantity)}, "health": {name: [row for row in effective if row["health_status"] == name] for name in ("正常库存", "高库存", "滞销库存", "缺货风险")}, "items": effective, "slow_moving": slow, "replenishment_recommendations": recommendations}
