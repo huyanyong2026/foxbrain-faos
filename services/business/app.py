@@ -254,6 +254,9 @@ def create_app(store=None):
         """Aggregate live Core responses; never substitute local snapshot data."""
         ctx, error = context(environ, start_response, CEO_ROLES)
         if error: return json_response(start_response, *error)
+        if kind in {"sales", "member", "customer"} and environ.get("HTTP_X_VAFOX_DATA_SCOPE") != "ALL_DATA":
+            store.audit(ctx, "api_access_denied", {"reason": "all_data_scope_required", "analysis": kind})
+            return json_response(start_response, 403, {"error": "all_data_scope_required"})
         client = store.core_client
         required = {"sales": ("get_sales",), "member": ("get_members", "get_sales"), "customer": ("get_customers", "get_sales"), "supplier": ("get_suppliers",)}[kind]
         if client is None or any(not hasattr(client, method) for method in required):

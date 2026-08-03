@@ -7,6 +7,7 @@ from wsgiref.simple_server import make_server
 
 from packages.vafox_foundation.auth import verify_token
 from packages.vafox_foundation.http import json_response, service_app
+from services.gateway.huyan_authorization import business_authorization
 
 UPSTREAMS = {
     "/api/v1/auth": "http://auth:8080",
@@ -23,6 +24,7 @@ UPSTREAMS = {
     "/api/customer": "http://business:8080",
     "/api/retail": "http://business:8080",
     "/api/store": "http://business:8080",
+    "/api/business": "http://business:8080",
 }
 
 
@@ -42,11 +44,13 @@ def proxy(environ, start_response):
     body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH") or 0))
     headers = {"Content-Type": environ.get("CONTENT_TYPE", "application/json")}
     if claims:
+        roles, data_scope = business_authorization(claims, path)
         # Only the verified gateway claim set is forwarded to internal services.
         headers.update({"X-VAFOX-Organization-ID": str(claims.get("organization_id", claims.get("org_id", ""))),
                         "X-VAFOX-User-ID": str(claims.get("sub", "")),
                         "X-VAFOX-Department-ID": str(claims.get("department_id", "")),
-                        "X-VAFOX-Role-Scope": ",".join(str(role) for role in claims.get("role_scopes", claims.get("roles", [])))})
+                        "X-VAFOX-Role-Scope": ",".join(roles),
+                        "X-VAFOX-Data-Scope": data_scope})
     request = Request(upstream + path, data=body if body else None, method=environ["REQUEST_METHOD"], headers=headers)
     try:
         with urlopen(request, timeout=float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "5"))) as response:
