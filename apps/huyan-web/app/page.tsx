@@ -41,6 +41,8 @@ type CustomerPayload = TraceablePayload & { customers?: { customer_id: string; c
 type SupplierPayload = TraceablePayload & { domain?: "supply_chain"; suppliers?: { supplier_id?: string; supplier_code?: string; supplier_name?: string; name?: string; purchase_amount?: number; purchase_count?: number; delivery_status?: string }[] };
 type ProductPayload = TraceablePayload & { cost_status?: string; cost_message?: string; brands?: { brand_name: string; sales_amount: number; sales_share: number; sku_count: number; inventory_amount: number; movement_status: string }[]; categories?: { category_name: string; sales_amount: number; sales_share: number; trend?: number; inventory_quantity: number }[]; skus?: { hot: ProductSku[]; risk: ProductSku[]; items: ProductSku[] }; procurement_recommendations?: { conclusion: string; evidence: string; recommendation: string }[] };
 type ProductSku = { sku: string; product_name: string; sales_amount: number; inventory_quantity: number; movement_status: string; risk_status: string; trend?: number };
+type InventoryItem = { sku: string; product_name: string; brand_name: string; inventory_amount: number; inventory_quantity: number; last_sale_date?: string; inventory_age_days?: number; health_status: "正常库存" | "高库存" | "滞销库存" | "缺货风险"; risk_level: string; recommendation: string; sales_velocity: number; trend?: number };
+type InventoryPayload = TraceablePayload & { cost_status: string; cost_message?: string; scope: { dataset: "effective_skus"; excluded: string[] }; overview: { inventory_amount: number; effective_skus: number; inventory_quantity: number; brand_structure: { name: string; quantity: number; share: number }[]; store_structure: { name: string; quantity: number; share: number }[] }; health: Record<InventoryItem["health_status"], InventoryItem[]>; items: InventoryItem[]; slow_moving: InventoryItem[]; replenishment_recommendations: { conclusion: string; evidence: string; recommendation: string }[] };
 type LoadState<T> = { phase: "loading" | "ready" | "empty" | "forbidden" | "error"; data?: T };
 
 const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
@@ -138,6 +140,28 @@ function ProductIntelligence() {
   </section>;
 }
 
+
+function InventoryIntelligence() {
+  const [state, setState] = useState<LoadState<InventoryPayload>>({ phase: "loading" });
+  const [healthFilter, setHealthFilter] = useState<InventoryItem["health_status"]>("正常库存");
+  const load = async () => { setState({ phase: "loading" }); try { const response = await gatewayFetch("/api/business/inventory-analysis"); if (response.status === 401 || response.status === 403) return setState({ phase: "forbidden" }); if (!response.ok) return setState({ phase: "error" }); setState({ phase: "ready", data: await response.json() as InventoryPayload }); } catch { setState({ phase: "error" }); } };
+  useEffect(() => { void load(); }, []);
+  const data = state.data; const trusted = data?.cost_status === "trusted";
+  const stateText = state.phase === "loading" ? "正在读取库存数据…" : state.phase === "forbidden" ? "无权查看该经营范围" : state.phase === "error" ? "库存数据暂不可用，请稍后重试" : "";
+  const amount = (value: number) => trusted ? money(value) : "成本数据治理中";
+  return <section className="business-analysis inventory-intelligence" id="inventory" aria-labelledby="inventory-title">
+    <div className="analysis-hero business-hero"><div><p className="eyebrow">INVENTORY INTELLIGENCE · V1.6</p><h1 id="inventory-title">库存分析</h1><p>基于 effective_skus 识别库存结构、健康风险与补货行动。</p></div><button type="button" onClick={() => void load()}>刷新数据</button></div>
+    <Provenance payload={data} state={state.phase} />{state.phase !== "ready" && <p className="module-state">{stateText}</p>}
+    {data && <><div className="inventory-scope"><b>有效口径</b><span>{data.scope.dataset}</span><b>排除</b><span>{data.scope.excluded.join(" · ")}</span></div>
+      {!trusted && <p className="cost-governance">{data.cost_message || "成本数据治理中"}</p>}
+      <article className="business-module"><div className="module-title"><span>01</span><div><h2>库存总览</h2><p>库存金额 · 有效SKU数量 · 库存数量 · 品牌与门店库存结构</p></div></div><div className="business-metrics inventory-metrics"><div><span>库存金额</span><strong>{amount(data.overview.inventory_amount)}</strong></div><div><span>有效SKU数量</span><strong>{data.overview.effective_skus.toLocaleString("zh-CN")}</strong></div><div><span>库存数量</span><strong>{data.overview.inventory_quantity.toLocaleString("zh-CN")}</strong></div></div><div className="structure-grid"><section><h3>品牌库存结构</h3>{data.overview.brand_structure.map(row => <div key={row.name}><span>{row.name}</span><i style={{ width: `${row.share * 100}%` }} /><b>{(row.share * 100).toFixed(1)}%</b></div>)}</section><section><h3>门店库存结构</h3>{data.overview.store_structure.map(row => <div key={row.name}><span>{row.name}</span><i style={{ width: `${row.share * 100}%` }} /><b>{(row.share * 100).toFixed(1)}%</b></div>)}</section></div></article>
+      <article className="business-module"><div className="module-title"><span>02</span><div><h2>库存健康分析</h2><p>正常库存 · 高库存 · 滞销库存 · 缺货风险</p></div></div><div className="health-tabs">{(["正常库存", "高库存", "滞销库存", "缺货风险"] as const).map(name => <button className={healthFilter === name ? "is-active" : ""} type="button" key={name} onClick={() => setHealthFilter(name)}>{name}<b>{data.health[name].length}</b></button>)}</div><div className="product-table inventory-health-table"><div><b>SKU / 商品</b><b>品牌</b><b>金额</b><b>数量</b><b>风险等级</b><b>建议</b></div>{data.health[healthFilter].map(row => <div key={row.sku}><strong>{row.product_name}<small>{row.sku}</small></strong><span>{row.brand_name}</span><span>{amount(row.inventory_amount)}</span><span>{row.inventory_quantity}</span><em>{row.risk_level}</em><span>{row.recommendation}</span></div>)}</div>{!data.health[healthFilter].length && <p className="module-state">当前没有{healthFilter}商品</p>}</article>
+      <article className="business-module"><div className="module-title"><span>03</span><div><h2>滞销库存分析</h2><p>最近销售与库龄驱动去化行动</p></div></div><div className="product-table slow-table"><div><b>商品</b><b>品牌</b><b>库存金额</b><b>库存数量</b><b>最近销售</b><b>库龄</b><b>建议动作</b></div>{data.slow_moving.map(row => <div key={row.sku}><strong>{row.product_name}<small>{row.sku}</small></strong><span>{row.brand_name}</span><span>{amount(row.inventory_amount)}</span><span>{row.inventory_quantity}</span><span>{row.last_sale_date || "无销售记录"}</span><span>{row.inventory_age_days === undefined || row.inventory_age_days === null ? "待补齐" : `${row.inventory_age_days} 天`}</span><span>{row.recommendation}</span></div>)}</div>{!data.slow_moving.length && <p className="module-state">当前没有滞销库存</p>}</article>
+      <article className="business-module"><div className="module-title"><span>04</span><div><h2>补货建议</h2><p>基于销售速度 · 库存 · 趋势</p></div></div><div className="advice-grid">{data.replenishment_recommendations.length ? data.replenishment_recommendations.map((row, index) => <div key={`${row.conclusion}-${index}`}><span>结论</span><p>{row.conclusion}</p><span>依据</span><p>{row.evidence}</p><span>建议</span><p>{row.recommendation}</p></div>) : <p className="module-state">当前没有补货风险建议</p>}</div></article>
+    </>}
+  </section>;
+}
+
 export default function HuyanPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [status, setStatus] = useState("正在同步经营数据");
@@ -184,7 +208,7 @@ export default function HuyanPage() {
     { label: "客户机会", value: failed ? unavailable : data?.customer_opportunities.length ?? "—", suffix: data ? " 条" : "", note: "已授权机会", tone: data?.customer_opportunities.length ? "warning" : "status" },
   ];
 
-  const sectionMeta = activeSection !== "today" && activeSection !== "advisor" && activeSection !== "operations" && activeSection !== "products" ? analysisModules[activeSection] : null;
+  const sectionMeta = activeSection !== "today" && activeSection !== "advisor" && activeSection !== "operations" && activeSection !== "products" && activeSection !== "inventory" ? analysisModules[activeSection] : null;
   const todayIntelligence = data?.today_intelligence;
   const conclusion = todayIntelligence?.conclusion ?? data?.ai_summary;
   const evidence = todayIntelligence?.evidence ?? data?.ai_evidence;
@@ -250,6 +274,7 @@ export default function HuyanPage() {
 
     {activeSection === "operations" && <BusinessAnalysis />}
     {activeSection === "products" && <ProductIntelligence />}
+    {activeSection === "inventory" && <InventoryIntelligence />}
     {sectionMeta && <section className="analysis-page" id={activeSection} aria-labelledby="analysis-title">
       <div className="analysis-hero"><p className="eyebrow">{sectionMeta.eyebrow}</p><h1 id="analysis-title">{sectionMeta.title}</h1><p>{sectionMeta.description}</p></div>
       <div className="analysis-grid">{sectionMeta.items.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2, "0")}</span><div><h2>{item}</h2><p>沿用现有权限与 CEO API 数据口径</p></div><b aria-hidden="true">→</b></article>)}</div>
