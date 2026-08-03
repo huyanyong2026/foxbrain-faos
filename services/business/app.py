@@ -223,6 +223,25 @@ def create_app(store=None):
             payload["operating_stores"] = [dict(item) for item in source["operating_stores"] if item.get("store_code") in ACTIVE_STORES]
             payload["top_brands"] = [{"brand_name": item["brand_name"], "sales": item["sales"]} for item in source["top_brands"] if item.get("brand_name")]
             payload["customer_opportunities"] = [{"title": item["title"], "reason": item["reason"]} for item in source["customer_opportunities"] if item.get("title") and item.get("reason")]
+            optional_contract = {
+                "freshness_status": None,
+                "ai_evidence": None,
+                "today_intelligence": ("conclusion", "evidence", "recommendation"),
+                "sales_change_analysis": ("dimension", "name", "change", "reasons", "evidence"),
+                "inventory_capital_risks": ("risk", "reason", "recommendation", "severity"),
+                "brand_operating_scores": ("brand_name", "sales_contribution", "trend", "inventory_health", "customer_recognition", "overall_score"),
+                "customer_actions": ("customer_name", "customer_segment", "action", "reason", "priority"),
+            }
+            for key, allowed in optional_contract.items():
+                if key not in source:
+                    continue
+                if allowed is None:
+                    payload[key] = source[key]
+                elif isinstance(source[key], dict):
+                    payload[key] = {field: source[key][field] for field in allowed if field in source[key]}
+                elif isinstance(source[key], list):
+                    payload[key] = [{field: item[field] for field in allowed if field in item}
+                                    for item in source[key] if isinstance(item, dict)]
             if not all(isinstance(payload[key], (int, float)) for key in ("sales", "orders", "effective_skus")):
                 raise ValueError("invalid_ceo_today_metrics")
         except (KeyError, TypeError, ValueError, RuntimeError):
