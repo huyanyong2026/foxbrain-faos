@@ -24,7 +24,7 @@ type Dashboard = {
 const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]];
 const activeStores = ["zhenxing", "nanshan", "hangyuan", "jinsha", "online"];
 const riskTypes = [["库存风险", "inventory"], ["销售异常", "sales"], ["客户风险", "customer"], ["供应链风险", "supply"], ["数据异常", "data"]];
-const unavailable = "数据暂不可用";
+const unavailable = "数据暂不可用。";
 const money = (value: number) => new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(value);
 const statusLabel = (status: string) => status === "ACTIVE" ? "正常营业" : status;
 const riskMatches = (risk: Risk, key: string) => risk.type.toLowerCase().includes(key);
@@ -40,7 +40,16 @@ export default function HuyanPage() {
       .then(async (response) => {
         if (!response.ok) throw new Error(String(response.status));
         const report = await response.json() as Dashboard;
-        if (![report.sales, report.orders, report.effective_skus].every(Number.isFinite) || !report.data_source || !report.updated_at) throw new Error("invalid_ceo_api_payload");
+        if (
+          ![report.sales, report.orders, report.effective_skus].every(Number.isFinite)
+          || !report.data_source
+          || !report.updated_at
+          || !Array.isArray(report.operating_stores)
+          || !Array.isArray(report.top_brands)
+          || !Array.isArray(report.risks)
+          || !Array.isArray(report.customer_opportunities)
+          || !Array.isArray(report.ai_recommendations)
+        ) throw new Error("invalid_ceo_api_payload");
         setData(report);
         setStatus("数据已更新");
       })
@@ -52,8 +61,8 @@ export default function HuyanPage() {
     { label: "订单数", value: failed ? unavailable : data?.orders ?? "—", suffix: data ? " 单" : "", note: "今日有效订单" },
     { label: "客单价", value: failed ? unavailable : data && data.orders > 0 ? money(data.sales / data.orders) : "—", note: "销售额 / 订单数" },
     { label: "库存金额", value: failed ? unavailable : data?.inventory_amount === undefined ? unavailable : money(data.inventory_amount), note: "仅展示 API 返回值" },
-    { label: "客户机会", value: failed ? unavailable : data?.customer_opportunities.length ?? "—", suffix: data ? " 条" : "", note: "已授权机会" },
-    { label: "经营风险", value: failed ? unavailable : data?.risks.length ?? "—", suffix: data ? " 项" : "", note: "待关注风险", tone: data?.risks.length ? "warning" : "status" },
+    { label: "有效 SKU", value: failed ? unavailable : data?.effective_skus ?? "—", suffix: data ? " 个" : "", note: "当前有效商品" },
+    { label: "客户机会", value: failed ? unavailable : data?.customer_opportunities.length ?? "—", suffix: data ? " 条" : "", note: "已授权机会", tone: data?.customer_opportunities.length ? "warning" : "status" },
   ];
 
   return <main className="app-shell">
@@ -72,8 +81,8 @@ export default function HuyanPage() {
       <div className="panel-kicker"><span className="ai-icon">AI</span><div><p id="ai-title">AI 经营摘要</p><small>AI 不覆盖事实数据，仅提供辅助判断</small></div><span className="confidence-chip">可信状态 · {failed ? unavailable : data?.confidence ?? "—"}</span></div>
       <div className="summary-columns">
         <div><span>结论</span><blockquote>{failed ? unavailable : data?.ai_summary ?? "正在读取经营摘要…"}</blockquote></div>
-        <div><span>依据</span>{failed ? <p>{unavailable}</p> : data?.ai_evidence?.length ? <ul>{data.ai_evidence.map((item) => <li key={item}>{item}</li>)}</ul> : <p>销售、订单、门店、库存、客户机会与风险 API 数据</p>}</div>
-        <div><span>建议</span>{failed ? <p>{unavailable}</p> : <ol>{data?.ai_recommendations.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ol>}</div>
+        <div><span>依据</span>{failed || (data && !data.ai_evidence?.length) ? <p>{unavailable}</p> : data?.ai_evidence?.length ? <ul>{data.ai_evidence.map((item) => <li key={item}>{item}</li>)}</ul> : <p>正在读取数据依据…</p>}</div>
+        <div><span>建议</span>{failed || (data && !data.ai_recommendations.length) ? <p>{unavailable}</p> : <ol>{data?.ai_recommendations.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ol>}</div>
       </div>
       <footer><span><b>数据来源</b>{failed ? unavailable : data?.data_source ?? "—"}</span><span><b>更新时间</b>{failed ? unavailable : data?.updated_at ?? "—"}</span><span><b>可信状态</b>{failed ? unavailable : data?.confidence ?? "—"}</span></footer>
     </section>
@@ -82,17 +91,20 @@ export default function HuyanPage() {
 
     <section className="section-block" id="organization">
       <div className="section-title"><div><p className="eyebrow">STORE STATUS</p><h2>五店经营状态</h2></div><span className="quiet-badge">仅当前经营主体</span></div>
-      <div className="store-grid">{failed ? <p className="empty-state">{unavailable}</p> : data?.operating_stores.filter((store) => activeStores.includes(store.store_code)).sort((a, b) => activeStores.indexOf(a.store_code) - activeStores.indexOf(b.store_code)).map((store) => <article key={store.store_code}><span className="store-icon">店</span><div><strong>{store.store_name}</strong><small><i />{statusLabel(store.status)}</small></div></article>) ?? <p className="empty-state">正在读取门店状态…</p>}</div>
+      <div className="store-grid">{failed ? <p className="empty-state">{unavailable}</p> : data ? activeStores.map((storeCode) => {
+        const store = data.operating_stores.find((item) => item.store_code === storeCode);
+        return <article className={!store ? "is-unavailable" : ""} key={storeCode}><span className="store-icon">店</span><div><strong>{store?.store_name ?? unavailable}</strong><small>{store ? <><i />{statusLabel(store.status)}</> : unavailable}</small></div></article>;
+      }) : <p className="empty-state">正在读取门店状态…</p>}</div>
     </section>
 
     <section className="section-block risk-panel" id="inventory">
-      <div className="section-title compact"><div><p className="eyebrow">RISK ALERT</p><h2>风险预警</h2></div><span className="risk-count">{data?.risks.length ?? 0}</span></div>
-      <div className="risk-categories">{riskTypes.map(([label, key]) => <div key={key}><span>{label}</span><strong>{failed ? "—" : data ? data.risks.filter((risk) => riskMatches(risk, key)).length : "—"}</strong></div>)}</div>
+      <div className="section-title compact"><div><p className="eyebrow">RISK ALERT</p><h2>风险预警</h2></div><span className={`risk-count ${failed ? "is-unavailable" : ""}`}>{failed ? "—" : data?.risks.length ?? "—"}</span></div>
+      <div className="risk-categories">{riskTypes.map(([label, key]) => <div key={key}><span>{label}</span><strong>{failed ? unavailable : data ? data.risks.filter((risk) => riskMatches(risk, key)).length : "—"}</strong></div>)}</div>
       <div className="risk-list">{failed ? <p className="empty-state">{unavailable}</p> : data?.risks.slice(0, 5).map((risk) => <div className="risk-item" key={`${risk.type}-${risk.title}`}><span>!</span><div><strong>{risk.title}</strong><p>{risk.message}</p></div><small>{risk.severity}</small></div>) ?? <p className="empty-state">正在读取风险数据…</p>}{data && data.risks.length === 0 && <p className="empty-state">当前没有需要处理的风险。</p>}</div>
     </section>
 
     <section className="bottom-grid">
-      <article className="table-panel" id="products"><div className="section-title compact"><div><p className="eyebrow">BRAND SALES</p><h2>TOP 品牌</h2></div><span className="period">今日</span></div><div className="brand-head"><span>品牌名称</span><span>销售额</span><span>趋势</span></div><div className="brand-list">{data?.top_brands.slice(0, 5).map((brand, index) => <div className="brand-row" key={brand.brand_name}><b>{String(index + 1).padStart(2, "0")}</b><strong>{brand.brand_name}</strong><span>{money(brand.sales)}</span><em>{trendLabel(brand.trend)}</em></div>) ?? <p className="empty-state">{failed ? unavailable : "正在读取品牌销售…"}</p>}</div></article>
+      <article className="table-panel" id="products"><div className="section-title compact"><div><p className="eyebrow">BRAND SALES</p><h2>TOP 品牌</h2></div><span className="period">今日</span></div><div className="brand-head"><span>品牌名称</span><span>销售额</span><span>趋势</span></div><div className="brand-list">{failed ? <p className="empty-state">{unavailable}</p> : data?.top_brands.length ? data.top_brands.slice(0, 5).map((brand, index) => <div className="brand-row" key={brand.brand_name}><b>{String(index + 1).padStart(2, "0")}</b><strong>{brand.brand_name}</strong><span>{money(brand.sales)}</span><em>{trendLabel(brand.trend)}</em></div>) : <p className="empty-state">{data ? unavailable : "正在读取品牌销售…"}</p>}</div></article>
       <article className="table-panel" id="customers"><div className="section-title compact"><div><p className="eyebrow">CUSTOMER OPPORTUNITY</p><h2>客户机会 TOP5</h2></div><span className="customer-only">仅授权客户</span></div><div className="opportunity-list">{data?.customer_opportunities.slice(0, 5).map((item, index) => <div className="opportunity-row" key={`${item.title}-${index}`}><b>{index + 1}</b><div><strong>{item.title}</strong><small>{item.opportunity_type ?? unavailable}</small><p>{item.reason}</p></div><span>{item.recommended_action ?? unavailable}</span></div>) ?? <p className="empty-state">{failed ? unavailable : "正在读取客户机会…"}</p>}{data && data.customer_opportunities.length === 0 && <p className="empty-state">当前暂无已授权客户机会。</p>}</div></article>
     </section>
 
