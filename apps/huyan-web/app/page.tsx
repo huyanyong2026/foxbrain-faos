@@ -39,6 +39,8 @@ type MemberRecord = { member_id?: string; employee_id?: string; name?: string; d
 type MembersPayload = TraceablePayload & { members?: MemberRecord[]; summary?: { coverage_rate?: number; pending_rows?: number } };
 type CustomerPayload = TraceablePayload & { customers?: { customer_id: string; customer_name?: string; consumption_amount?: number; purchase_count?: number; value_segment?: string; opportunity?: string }[] };
 type SupplierPayload = TraceablePayload & { domain?: "supply_chain"; suppliers?: { supplier_id?: string; supplier_code?: string; supplier_name?: string; name?: string; purchase_amount?: number; purchase_count?: number; delivery_status?: string }[] };
+type ProductPayload = TraceablePayload & { cost_status?: string; cost_message?: string; brands?: { brand_name: string; sales_amount: number; sales_share: number; sku_count: number; inventory_amount: number; movement_status: string }[]; categories?: { category_name: string; sales_amount: number; sales_share: number; trend?: number; inventory_quantity: number }[]; skus?: { hot: ProductSku[]; risk: ProductSku[]; items: ProductSku[] }; procurement_recommendations?: { conclusion: string; evidence: string; recommendation: string }[] };
+type ProductSku = { sku: string; product_name: string; sales_amount: number; inventory_quantity: number; movement_status: string; risk_status: string; trend?: number };
 type LoadState<T> = { phase: "loading" | "ready" | "empty" | "forbidden" | "error"; data?: T };
 
 const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
@@ -118,6 +120,24 @@ function BusinessAnalysis() {
   </section>;
 }
 
+function ProductIntelligence() {
+  const [state, setState] = useState<LoadState<ProductPayload>>({ phase: "loading" });
+  const load = async () => { setState({ phase: "loading" }); try { const response = await gatewayFetch("/api/business/product-analysis"); if (response.status === 401 || response.status === 403) return setState({ phase: "forbidden" }); if (!response.ok) return setState({ phase: "error" }); const payload = await response.json() as ProductPayload; setState({ phase: "ready", data: payload }); } catch { setState({ phase: "error" }); } };
+  useEffect(() => { void load(); }, []);
+  const data = state.data;
+  const stateText = state.phase === "loading" ? "正在读取商品数据…" : state.phase === "forbidden" ? "无权查看该经营范围" : state.phase === "error" ? "商品数据暂不可用，请稍后重试" : "";
+  return <section className="business-analysis product-intelligence" id="products" aria-labelledby="product-title">
+    <div className="analysis-hero business-hero"><div><p className="eyebrow">PRODUCT INTELLIGENCE · V1.5</p><h1 id="product-title">商品分析</h1><p>基于真实销售、库存与趋势，识别商品结构和采购行动。</p></div><button type="button" onClick={() => void load()}>刷新数据</button></div>
+    <Provenance payload={data} state={state.phase} />{state.phase !== "ready" && <p className="module-state">{stateText}</p>}
+    {state.phase === "ready" && <>
+      <article className="business-module"><div className="module-title"><span>01</span><div><h2>品牌分析</h2><p>品牌名称 · 销售额 · 销售占比 · SKU数量 · 库存金额 · 动销状态</p></div></div>{data?.cost_status !== "trusted" && <p className="cost-governance">{data?.cost_message || "成本数据治理中。"}</p>}<div className="product-table brand-analysis-table"><div><b>品牌名称</b><b>销售额</b><b>销售占比</b><b>SKU数量</b><b>库存金额</b><b>动销状态</b></div>{data?.brands?.map((row) => <div key={row.brand_name}><strong>{row.brand_name}</strong><span>{money(row.sales_amount)}</span><span>{(row.sales_share * 100).toFixed(1)}%</span><span>{row.sku_count}</span><span>{data.cost_status === "trusted" ? money(row.inventory_amount) : "成本数据治理中。"}</span><em>{row.movement_status}</em></div>)}</div></article>
+      <article className="business-module"><div className="module-title"><span>02</span><div><h2>品类分析</h2><p>品类销售结构 · 趋势 · 库存结构</p></div></div><div className="category-cards">{data?.categories?.map((row) => <section key={row.category_name}><strong>{row.category_name}</strong><dl><div><dt>销售结构</dt><dd>{(row.sales_share * 100).toFixed(1)}%</dd></div><div><dt>趋势</dt><dd>{trendLabel(row.trend).replace(unavailable, pending)}</dd></div><div><dt>库存结构</dt><dd>{row.inventory_quantity.toLocaleString("zh-CN")}</dd></div></dl></section>)}</div></article>
+      <article className="business-module"><div className="module-title"><span>03</span><div><h2>SKU分析</h2><p>热销SKU · 风险SKU · 库存 · 销售 · 动销</p></div></div><div className="product-table sku-analysis-table"><div><b>SKU / 商品</b><b>销售</b><b>库存</b><b>动销</b><b>风险</b></div>{data?.skus?.items.map((row) => <div key={row.sku}><strong>{row.product_name}<small>{row.sku}</small></strong><span>{money(row.sales_amount)}</span><span>{row.inventory_quantity}</span><em>{row.movement_status}</em><em>{row.risk_status}</em></div>)}</div></article>
+      <article className="business-module"><div className="module-title"><span>04</span><div><h2>采购建议</h2><p>基于销售 · 库存 · 趋势</p></div></div><div className="advice-grid">{data?.procurement_recommendations?.length ? data.procurement_recommendations.map((row, index) => <div key={`${row.conclusion}-${index}`}><span>结论</span><p>{row.conclusion}</p><span>依据</span><p>{row.evidence}</p><span>建议</span><p>{row.recommendation}</p></div>) : <p className="module-state">当前没有采购风险建议</p>}</div></article>
+    </>}
+  </section>;
+}
+
 export default function HuyanPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [status, setStatus] = useState("正在同步经营数据");
@@ -164,7 +184,7 @@ export default function HuyanPage() {
     { label: "客户机会", value: failed ? unavailable : data?.customer_opportunities.length ?? "—", suffix: data ? " 条" : "", note: "已授权机会", tone: data?.customer_opportunities.length ? "warning" : "status" },
   ];
 
-  const sectionMeta = activeSection !== "today" && activeSection !== "advisor" && activeSection !== "operations" ? analysisModules[activeSection] : null;
+  const sectionMeta = activeSection !== "today" && activeSection !== "advisor" && activeSection !== "operations" && activeSection !== "products" ? analysisModules[activeSection] : null;
   const todayIntelligence = data?.today_intelligence;
   const conclusion = todayIntelligence?.conclusion ?? data?.ai_summary;
   const evidence = todayIntelligence?.evidence ?? data?.ai_evidence;
@@ -229,6 +249,7 @@ export default function HuyanPage() {
     </>}
 
     {activeSection === "operations" && <BusinessAnalysis />}
+    {activeSection === "products" && <ProductIntelligence />}
     {sectionMeta && <section className="analysis-page" id={activeSection} aria-labelledby="analysis-title">
       <div className="analysis-hero"><p className="eyebrow">{sectionMeta.eyebrow}</p><h1 id="analysis-title">{sectionMeta.title}</h1><p>{sectionMeta.description}</p></div>
       <div className="analysis-grid">{sectionMeta.items.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2, "0")}</span><div><h2>{item}</h2><p>沿用现有权限与 CEO API 数据口径</p></div><b aria-hidden="true">→</b></article>)}</div>

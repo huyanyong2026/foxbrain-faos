@@ -79,3 +79,54 @@ def supplier_analysis(payload):
     allowed = ("supplier_id", "supplier_code", "supplier_name", "name", "purchase_amount", "purchase_count", "delivery_status", "inventory_status")
     items = [{key: row[key] for key in allowed if key in row} for row in _rows(payload, "suppliers", "rows", "data", "items") if isinstance(row, dict)]
     return {**_meta(payload), "domain": "supply_chain", "summary": {"supplier_count": len(items)}, "suppliers": items}
+
+
+def product_analysis(products_payload, sales_payload, inventory_payload):
+    """Aggregate the product view from live Core rows without local fallbacks."""
+    products = _rows(products_payload, "products", "rows", "data", "items")
+    sales = _rows(sales_payload, "sales", "rows", "data", "items")
+    inventory = _rows(inventory_payload, "inventory", "rows", "data", "items")
+    catalog = {}
+    for row in products:
+        if not isinstance(row, dict): continue
+        sku = str(row.get("sku") or row.get("sku_code") or row.get("product_id") or row.get("id") or "").strip()
+        if sku: catalog[sku] = row
+    sold, previous, stock, stock_value = defaultdict(float), defaultdict(float), defaultdict(float), defaultdict(float)
+    cost_trusted = bool(inventory)
+    for row in sales:
+        if not isinstance(row, dict): continue
+        sku = str(row.get("sku") or row.get("sku_code") or row.get("product_id") or "").strip()
+        amount = _number(row.get("sales_amount", row.get("amount", row.get("sales"))))
+        target = previous if str(row.get("period") or row.get("trend_period") or "current").lower() in {"previous", "prior", "last_period"} else sold
+        target[sku] += amount
+    for row in inventory:
+        if not isinstance(row, dict): continue
+        sku = str(row.get("sku") or row.get("sku_code") or row.get("product_id") or "").strip()
+        quantity = _number(row.get("quantity", row.get("on_hand", row.get("inventory_qty"))))
+        stock[sku] += quantity
+        value, cost = row.get("inventory_amount", row.get("stock_amount")), row.get("unit_cost", row.get("cost"))
+        if isinstance(value, (int, float)) and not isinstance(value, bool): stock_value[sku] += float(value)
+        elif isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost >= 0: stock_value[sku] += quantity * float(cost)
+        else: cost_trusted = False
+    sku_rows = []
+    for sku in sorted(set(catalog) | set(sold) | set(stock)):
+        item, current, prior = catalog.get(sku, {}), sold[sku], previous[sku]
+        risk = "缺货风险" if current > 0 and stock[sku] <= 0 else "滞销风险" if current <= 0 and stock[sku] > 0 else "正常"
+        sku_rows.append({"sku": sku, "product_name": item.get("product_name") or item.get("name") or sku,
+                         "brand_name": item.get("brand_name") or item.get("brand") or "待补齐", "category_name": item.get("category_name") or item.get("category") or "待补齐",
+                         "sales_amount": round(current, 2), "inventory_quantity": round(stock[sku], 2), "movement_status": "动销" if current > 0 else "未动销",
+                         "risk_status": risk, "trend": round((current - prior) / prior * 100, 2) if prior else None})
+    total_sales, brands, categories = sum(sold.values()), {}, {}
+    for item in sku_rows:
+        brand = brands.setdefault(item["brand_name"], {"brand_name": item["brand_name"], "sales_amount": 0.0, "sku_count": 0, "inventory_amount": 0.0, "moving": 0})
+        brand["sales_amount"] += item["sales_amount"]; brand["sku_count"] += 1; brand["inventory_amount"] += stock_value[item["sku"]]; brand["moving"] += item["movement_status"] == "动销"
+        category = categories.setdefault(item["category_name"], {"category_name": item["category_name"], "sales_amount": 0.0, "inventory_quantity": 0.0, "previous": 0.0})
+        category["sales_amount"] += item["sales_amount"]; category["inventory_quantity"] += item["inventory_quantity"]; category["previous"] += previous[item["sku"]]
+    brand_rows = [{**{key: value for key, value in row.items() if key != "moving"}, "sales_share": round(row["sales_amount"] / total_sales, 4) if total_sales else 0, "movement_status": "动销" if row["moving"] else "未动销"} for row in brands.values()]
+    category_rows = [{"category_name": row["category_name"], "sales_amount": round(row["sales_amount"], 2), "sales_share": round(row["sales_amount"] / total_sales, 4) if total_sales else 0,
+                      "trend": round((row["sales_amount"] - row["previous"]) / row["previous"] * 100, 2) if row["previous"] else None, "inventory_quantity": round(row["inventory_quantity"], 2)} for row in categories.values()]
+    risks = [row for row in sku_rows if row["risk_status"] != "正常"]
+    advice = [{"conclusion": row["risk_status"], "evidence": f'{row["product_name"]}：销售 {row["sales_amount"]}，库存 {row["inventory_quantity"]}，趋势 {row["trend"] if row["trend"] is not None else "待补齐"}',
+               "recommendation": "核实补货与到货节奏" if row["risk_status"] == "缺货风险" else "暂停追加并制定去化方案"} for row in risks]
+    return {**_meta(products_payload, sales_payload, inventory_payload), "cost_status": "trusted" if cost_trusted else "governing", "cost_message": None if cost_trusted else "成本数据治理中。",
+            "brands": brand_rows, "categories": category_rows, "skus": {"hot": sorted(sku_rows, key=lambda row: row["sales_amount"], reverse=True), "risk": risks, "items": sku_rows}, "procurement_recommendations": advice}
