@@ -56,3 +56,28 @@ def test_ceo_correction_routes_include_active_online_sales_and_daily_report():
     assert business["employee_attribution"] == {"sales_rows": 5, "attributed_rows": 4, "pending_rows": 1}
     assert business["customer360"]["fusion_status"] == "pending_authorized_wecom_binding"
     assert business["suppliers"]["write_enabled"] is False
+
+
+def test_ceo_today_uses_only_production_contract_and_has_no_snapshot_fallback():
+    assert call(create_app(), "GET", "/api/ceo/today", roles="ceo") == (503, {"error": "ceo_data_unavailable"})
+
+    class CoreClient:
+        def get_ceo_today(self):
+            return {
+                "sales": 10, "orders": 2, "effective_skus": 8,
+                "customer_opportunities": [{"title": "客户 A", "reason": "待回访", "supplier": "不得透传"}],
+                "operating_stores": [
+                    {"store_code": "nanshan", "store_name": "南山", "status": "营业"},
+                    {"store_code": "wuhouci", "store_name": "武侯祠", "status": "历史"},
+                ],
+                "top_brands": [{"brand_name": "KAILAS", "brand_code": "K", "sales": 10}],
+                "risks": [], "ai_summary": "摘要", "ai_recommendations": [],
+                "data_source": "Data Core", "updated_at": "2026-08-03T00:00:00Z", "confidence": 0.99,
+            }
+
+    status, payload = call(create_app(BusinessStore(core_client=CoreClient())), "GET", "/api/ceo/today", roles="ceo")
+    assert status == 200
+    assert payload["sales"] / payload["orders"] == 5
+    assert payload["operating_stores"] == [{"store_code": "nanshan", "store_name": "南山", "status": "营业"}]
+    assert payload["top_brands"] == [{"brand_name": "KAILAS", "sales": 10}]
+    assert payload["customer_opportunities"] == [{"title": "客户 A", "reason": "待回访"}]

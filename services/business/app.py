@@ -206,6 +206,30 @@ def create_app(store=None):
         store.audit(ctx, "ceo_daily_report_read")
         return json_response(start_response, 200, {"report_type": "ceo_daily", "generated_at": _now(), "business": business, "read_only": True, "notice": ADVISORY_NOTICE})
 
+    def ceo_today(environ, start_response):
+        """Return only Data Core's production CEO Today contract, without fallback data."""
+        ctx, error = context(environ, start_response, CEO_ROLES)
+        if error: return json_response(start_response, *error)
+        if store.core_client is None or not hasattr(store.core_client, "get_ceo_today"):
+            return json_response(start_response, 503, {"error": "ceo_data_unavailable"})
+        try:
+            source = store.core_client.get_ceo_today()
+            required = ("sales", "orders", "effective_skus", "customer_opportunities",
+                        "operating_stores", "top_brands", "risks", "ai_summary",
+                        "ai_recommendations", "data_source", "updated_at", "confidence")
+            if not isinstance(source, dict) or any(key not in source for key in required):
+                raise ValueError("invalid_ceo_today_contract")
+            payload = {key: source[key] for key in required}
+            payload["operating_stores"] = [dict(item) for item in source["operating_stores"] if item.get("store_code") in ACTIVE_STORES]
+            payload["top_brands"] = [{"brand_name": item["brand_name"], "sales": item["sales"]} for item in source["top_brands"] if item.get("brand_name")]
+            payload["customer_opportunities"] = [{"title": item["title"], "reason": item["reason"]} for item in source["customer_opportunities"] if item.get("title") and item.get("reason")]
+            if not all(isinstance(payload[key], (int, float)) for key in ("sales", "orders", "effective_skus")):
+                raise ValueError("invalid_ceo_today_metrics")
+        except (KeyError, TypeError, ValueError, RuntimeError):
+            return json_response(start_response, 503, {"error": "ceo_data_unavailable"})
+        store.audit(ctx, "ceo_today_read")
+        return json_response(start_response, 200, payload)
+
     def kailas(environ, start_response):
         ctx, error = context(environ, start_response, EMPLOYEE_ROLES)
         if error: return json_response(start_response, *error)
@@ -319,7 +343,7 @@ def create_app(store=None):
         if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
         store.audit(ctx, "wechat_store_report_generated", {"store_id": code}); return json_response(start_response, 200, {"report_type": "store_manager_daily", "store": {"id": code, "name": STORE_NAMES[code]}, "sales": store.retail.sales[code], "inventory_alerts": store.retail.alerts[code], "customer_opportunities": ["人工跟进已授权重点客户。"], "tasks": ["核实重点尺码库存", "复核今日销售节奏"], "delivery": "manual_or_scheduled_wecom_push", "advisory_only": True, "notice": ADVISORY_NOTICE})
 
-    routes = {("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/ceo/overview"): dashboard, ("GET", "/api/ceo/business"): dashboard, ("GET", "/api/ceo/stores"): ceo_stores, ("GET", "/api/ceo/daily-report"): daily_report, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
+    routes = {("GET", "/api/ceo/today"): ceo_today, ("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/ceo/overview"): dashboard, ("GET", "/api/ceo/business"): dashboard, ("GET", "/api/ceo/stores"): ceo_stores, ("GET", "/api/ceo/daily-report"): daily_report, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
     health = service_app("business")
     def app(environ, start_response):
         path = environ["PATH_INFO"]; method = environ["REQUEST_METHOD"]
