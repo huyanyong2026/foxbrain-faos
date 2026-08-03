@@ -21,7 +21,16 @@ type Dashboard = {
   confidence: number | string;
 };
 
-const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]];
+const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
+type SectionKey = typeof navItems[number][1];
+const analysisModules: Record<Exclude<SectionKey, "today" | "advisor">, { eyebrow: string; title: string; description: string; items: string[] }> = {
+  operations: { eyebrow: "BUSINESS ANALYSIS", title: "经营分析", description: "从整体到店铺、员工、顾客与供应商，统一查看销售表现。", items: ["整体销售分析", "店铺销售分析", "员工销售分析", "顾客购买分析", "供应商销售分析"] },
+  products: { eyebrow: "PRODUCT ANALYSIS", title: "商品分析", description: "围绕商品结构、销售贡献与补货决策展开分析。", items: ["品牌", "品类", "SKU", "采购建议"] },
+  inventory: { eyebrow: "INVENTORY ANALYSIS", title: "库存分析", description: "识别库存资金占用、健康度与周转风险。", items: ["库存金额", "有效库存", "滞销", "缺货", "周转"] },
+  customers: { eyebrow: "CUSTOMER ANALYSIS", title: "客户分析", description: "在授权范围内理解客户、分层客户并发现经营机会。", items: ["Customer360", "客户分层", "客户机会"] },
+  organization: { eyebrow: "ORGANIZATION ANALYSIS", title: "组织分析", description: "从个人与团队两个层级观察组织经营贡献。", items: ["员工销售", "团队表现"] },
+  "supply-chain": { eyebrow: "SUPPLY CHAIN", title: "供应链分析", description: "联动供应商、采购与库存，提升供应链协同效率。", items: ["供应商", "采购", "库存协同"] },
+};
 const activeStores = ["zhenxing", "nanshan", "hangyuan", "jinsha", "online"];
 const riskTypes = [["库存风险", "inventory"], ["销售异常", "sales"], ["客户风险", "customer"], ["供应链风险", "supply"], ["数据异常", "data"]];
 const unavailable = "数据暂不可用。";
@@ -34,6 +43,7 @@ export default function HuyanPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [status, setStatus] = useState("正在同步经营数据");
   const [failed, setFailed] = useState(false);
+  const [activeSection, setActiveSection] = useState<SectionKey>("today");
 
   useEffect(() => {
     gatewayFetch("/api/ceo/today")
@@ -56,6 +66,16 @@ export default function HuyanPage() {
       .catch(() => { setFailed(true); setStatus(unavailable); });
   }, []);
 
+  useEffect(() => {
+    const syncSection = () => {
+      const section = window.location.hash.slice(1) as SectionKey;
+      if (navItems.some(([, key]) => key === section)) setActiveSection(section);
+    };
+    syncSection();
+    window.addEventListener("hashchange", syncSection);
+    return () => window.removeEventListener("hashchange", syncSection);
+  }, []);
+
   const metrics = [
     { label: "销售额", value: failed ? unavailable : data ? money(data.sales) : "—", note: "五店今日合计", tone: "primary" },
     { label: "订单数", value: failed ? unavailable : data?.orders ?? "—", suffix: data ? " 单" : "", note: "今日有效订单" },
@@ -65,13 +85,22 @@ export default function HuyanPage() {
     { label: "客户机会", value: failed ? unavailable : data?.customer_opportunities.length ?? "—", suffix: data ? " 条" : "", note: "已授权机会", tone: data?.customer_opportunities.length ? "warning" : "status" },
   ];
 
-  return <main className="app-shell">
+  const sectionMeta = activeSection !== "today" && activeSection !== "advisor" ? analysisModules[activeSection] : null;
+
+  return <div className="portal-shell">
+    <aside className="sidebar">
+      <div className="brand-lockup"><span className="brand-mark">V</span><strong>VAFOX</strong></div>
+      <div className="portal-name"><span>HUYAN</span><b>CEO Portal</b></div>
+      <nav aria-label="CEO Portal 主导航">{navItems.map(([label, anchor], index) => <a className={activeSection === anchor ? "is-active" : ""} href={`#${anchor}`} key={anchor} aria-current={activeSection === anchor ? "page" : undefined}><i>{String(index + 1).padStart(2, "0")}</i><span>{label}</span></a>)}</nav>
+      <div className="sidebar-foot"><span>管理层专用</span><small>只读 · 安全数据链</small></div>
+    </aside>
+    <main className="app-shell">
     <header className="topbar">
-      <div className="brand-lockup"><span className="brand-mark">V</span><strong>VAFOX</strong><span className="brand-divider" /><span>CEO 经营驾驶舱</span></div>
+      <div className="mobile-brand"><span className="brand-mark">V</span><strong>VAFOX CEO Portal</strong></div>
+      <div className="current-location"><span>CEO PORTAL</span><strong>{navItems.find(([, key]) => key === activeSection)?.[0]}</strong></div>
       <div className="header-meta"><span className={`data-state ${data ? "is-live" : ""}`}><i />{status}</span><span className="access-badge">管理层专用</span><span className="avatar">CEO</span></div>
     </header>
-    <nav className="primary-nav" aria-label="CEO 驾驶舱主导航">{navItems.map(([label, anchor]) => <a href={`#${anchor}`} key={anchor}>{label}</a>)}</nav>
-
+    {activeSection === "today" && <>
     <section className="welcome" id="today" aria-labelledby="page-title">
       <div><p className="eyebrow">CEO TODAY</p><h1 id="page-title">今日经营全景</h1><p>聚焦关键结果、经营风险与下一步动作。</p></div>
       <div className="scope"><span>经营范围</span><strong>振兴 · 南山 · 航苑 · 金沙 · 网店</strong><small>只读 · API 实时数据</small></div>
@@ -108,7 +137,20 @@ export default function HuyanPage() {
       <article className="table-panel" id="customers"><div className="section-title compact"><div><p className="eyebrow">CUSTOMER OPPORTUNITY</p><h2>客户机会 TOP5</h2></div><span className="customer-only">仅授权客户</span></div><div className="opportunity-list">{data?.customer_opportunities.slice(0, 5).map((item, index) => <div className="opportunity-row" key={`${item.title}-${index}`}><b>{index + 1}</b><div><strong>{item.title}</strong><small>{item.opportunity_type ?? unavailable}</small><p>{item.reason}</p></div><span>{item.recommended_action ?? unavailable}</span></div>) ?? <p className="empty-state">{failed ? unavailable : "正在读取客户机会…"}</p>}{data && data.customer_opportunities.length === 0 && <p className="empty-state">当前暂无已授权客户机会。</p>}</div></article>
     </section>
 
-    <section className="module-strip" id="supply-chain" aria-label="深度分析模块">{navItems.slice(1).map(([label, anchor]) => <a href={`#${anchor}`} key={anchor}><span>{label}</span><b>进入分析 →</b></a>)}</section>
+    </>}
+
+    {sectionMeta && <section className="analysis-page" id={activeSection} aria-labelledby="analysis-title">
+      <div className="analysis-hero"><p className="eyebrow">{sectionMeta.eyebrow}</p><h1 id="analysis-title">{sectionMeta.title}</h1><p>{sectionMeta.description}</p></div>
+      <div className="analysis-grid">{sectionMeta.items.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2, "0")}</span><div><h2>{item}</h2><p>沿用现有权限与 CEO API 数据口径</p></div><b aria-hidden="true">→</b></article>)}</div>
+      <div className="architecture-note"><span>数据连接保持不变</span><p>SAP B1 · Data Core · CEO API · Auth · AI Runtime</p></div>
+    </section>}
+
+    {activeSection === "advisor" && <section className="advisor-page" id="advisor" aria-labelledby="advisor-title">
+      <div className="advisor-hero"><span className="ai-icon">AI</span><div><p className="eyebrow">CEO BUSINESS ADVISOR</p><h1 id="advisor-title">AI顾问</h1><p>CEO经营问答</p></div></div>
+      <div className="advisor-card"><label htmlFor="ceo-question">向 AI 顾问提出经营问题</label><div><input id="ceo-question" placeholder="例如：今天最需要关注的经营风险是什么？" /><button type="button">开始分析</button></div><small>基于现有 AI Runtime 与授权经营数据提供辅助判断，不改变事实数据。</small></div>
+      <div className="question-prompts"><span>常用问题</span>{["五店销售表现有什么异常？", "哪些库存风险需要优先处理？", "本周最值得跟进的客户机会是什么？"].map((question) => <button type="button" key={question}>{question}<b>→</b></button>)}</div>
+    </section>}
     <footer className="page-footer"><span>VAFOX CEO Portal · huyan.vafox.com</span><span>董事、CEO 与授权管理层专用 · 页面只读</span></footer>
-  </main>;
+    </main>
+  </div>;
 }
