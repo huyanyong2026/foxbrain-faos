@@ -39,7 +39,7 @@ def test_ceo_wechat_kailas_and_audit():
     assert {event["action"] for event in store.audit_events} >= {"ceo_dashboard_read", "kailas_product_read", "wechat_message"}
 
 
-def test_ceo_correction_routes_include_active_online_sales_and_daily_report():
+def test_ceo_correction_routes_include_active_online_sales_and_daily_report_fails_closed():
     app = create_app()
     for path in ("/api/ceo/overview", "/api/ceo/business"):
         status, payload = call(app, "GET", path, roles="ceo")
@@ -49,13 +49,7 @@ def test_ceo_correction_routes_include_active_online_sales_and_daily_report():
     online = next(item for item in stores["items"] if item["id"] == "online")
     assert status == 200 and stores["includes_online_store"] and online["operating_status"] == "ACTIVE" and online["sales_amount"] > 0
     status, report = call(app, "GET", "/api/ceo/daily-report", roles="ceo")
-    assert status == 200 and report["business"]["sales_summary"]["amount"] >= online["sales_amount"]
-    business = report["business"]
-    assert business["version"] == "V6.1.11.3"
-    assert business["cost_governance"][0]["brand"] == "KAILAS"
-    assert business["employee_attribution"] == {"sales_rows": 5, "attributed_rows": 4, "pending_rows": 1}
-    assert business["customer360"]["fusion_status"] == "pending_authorized_wecom_binding"
-    assert business["suppliers"]["write_enabled"] is False
+    assert status == 400 and report == {"error": "report_date_required"}
 
 
 def test_ceo_today_uses_only_production_contract_and_has_no_snapshot_fallback():

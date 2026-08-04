@@ -31,3 +31,10 @@ def test_supply_chain_intelligence_is_mapped_for_huyan_ceo_all_data():
 def test_ai_advisor_inherits_huyan_ceo_all_data_authorization():
     roles, scope = business_authorization(HUYAN_CEO, "/api/ceo/ai-advisor")
     assert "VAFOX_CEO" in roles and "ceo" in roles and scope == "ALL_DATA"
+
+
+def test_daily_report_routes_inherit_huyan_ceo_all_data_authorization():
+    for path in ("/api/ceo/daily-report", "/api/ceo/daily-report/latest",
+                 "/api/ceo/daily-report/history", "/api/ceo/daily-report/generate"):
+        roles, scope = business_authorization(HUYAN_CEO, path)
+        assert "ceo" in roles and scope == "ALL_DATA"
