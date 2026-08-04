@@ -60,6 +60,7 @@ type SupplyChainPayload = {
 };
 type PeopleSort = "employee" | "store_name" | "sales_amount" | "order_count" | "average_order_value";
 type LoadState<T> = { phase: "loading" | "ready" | "empty" | "forbidden" | "error"; data?: T };
+type AdvisorResponse = { content?: string; source?: string; confidence?: number | string; generated_at?: string; citations?: { source?: string; statement?: string }[] };
 
 const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
 type SectionKey = typeof navItems[number][1];
@@ -96,6 +97,42 @@ const metric = (value: number | undefined, kind: "money" | "count" = "count") =>
 function Provenance({ payload, state }: { payload?: TraceablePayload; state: LoadState<unknown>["phase"] }) {
   const stateText = state === "loading" ? "正在读取" : state === "forbidden" ? "无权查看该经营范围" : state === "error" ? "数据暂不可用" : state === "empty" ? "当前范围暂无数据" : payload?.data_status || payload?.freshness_status || "数据状态待补齐";
   return <div className="analysis-provenance"><span><b>数据来源</b>{payload?.data_source || "数据溯源待补齐"}</span><span><b>更新时间</b>{payload?.updated_at || pending}</span><span><b>数据状态</b>{stateText}</span></div>;
+}
+
+const advisorPrompts = ["五店销售表现有什么异常？", "哪些库存风险需要优先处理？", "本周最值得跟进的客户机会是什么？", "哪些商品需要调整经营策略？", "员工与供应链有哪些协同风险？"];
+const advisorSection = (content: string, labels: string[]) => {
+  const line = content.split("\n").find((item) => labels.some((label) => item.startsWith(`${label}：`)));
+  return line?.slice(line.indexOf("：") + 1).trim() || "—";
+};
+
+function AIAdvisor() {
+  const [question, setQuestion] = useState("");
+  const [phase, setPhase] = useState<"idle" | "loading" | "ready" | "forbidden" | "error">("idle");
+  const [answer, setAnswer] = useState<AdvisorResponse>();
+  const ask = async (selected = question) => {
+    const value = selected.trim();
+    if (!value || phase === "loading") return;
+    setQuestion(value); setPhase("loading"); setAnswer(undefined);
+    try {
+      const response = await gatewayFetch("/api/ceo/ai-advisor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: value }) });
+      if (response.status === 401 || response.status === 403) return setPhase("forbidden");
+      if (!response.ok) return setPhase("error");
+      setAnswer(await response.json() as AdvisorResponse); setPhase("ready");
+    } catch { setPhase("error"); }
+  };
+  const content = answer?.content || "";
+  const conclusion = advisorSection(content, ["结论", "经营摘要"]);
+  const evidence = answer?.citations?.map((item) => item.statement || item.source).filter(Boolean).join("；") || advisorSection(content, ["依据", "数据依据"]);
+  const recommendation = advisorSection(content, ["建议", "AI建议", "建议行动"]);
+  return <section className="advisor-page" id="advisor" aria-labelledby="advisor-title">
+    <div className="advisor-hero"><span className="ai-icon">AI</span><div><p className="eyebrow">CEO BUSINESS ADVISOR · V2.0.1</p><h1 id="advisor-title">AI顾问</h1><p>连接销售、商品、库存、客户、员工与供应链经营上下文</p></div></div>
+    <form className="advisor-card" onSubmit={(event) => { event.preventDefault(); void ask(); }}><label htmlFor="ceo-question">向 AI 顾问提出经营问题</label><div><input id="ceo-question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="例如：今天最需要关注的经营风险是什么？" aria-describedby="advisor-scope" /><button type="submit" disabled={!question.trim() || phase === "loading"}>{phase === "loading" ? "分析中…" : "开始分析"}</button></div><small id="advisor-scope">仅基于 VAFOX_CEO · ALL_DATA 授权范围进行只读分析；问题文本不能扩大数据权限。</small></form>
+    <div className="question-prompts"><span>常用经营问题</span>{advisorPrompts.map((prompt) => <button type="button" key={prompt} onClick={() => void ask(prompt)}>{prompt}<b>→</b></button>)}</div>
+    {phase === "forbidden" && <div className="advisor-status" role="alert">无权使用 AI 顾问，仅 VAFOX_CEO · ALL_DATA 可访问。</div>}
+    {phase === "error" && <div className="advisor-status is-error" role="alert">AI服务暂不可用</div>}
+    {(phase === "idle" || phase === "loading") && <div className="advisor-status" aria-live="polite">{phase === "loading" ? "正在分析授权经营数据…" : "请选择常用问题或输入经营问题。"}</div>}
+    {phase === "ready" && <div className="advisor-answer" aria-live="polite"><div><span>结论</span><p>{conclusion}</p></div><div><span>依据</span><p>{evidence}</p></div><div><span>建议</span><p>{recommendation}</p></div><footer><span><b>数据来源</b>{answer?.source || answer?.citations?.map((item) => item.source).filter(Boolean).join("、") || "—"}</span><span><b>更新时间</b>{answer?.generated_at ? new Date(answer.generated_at).toLocaleString("zh-CN") : "—"}</span><span><b>可信度</b>{answer?.confidence ?? "—"}</span></footer></div>}
+  </section>;
 }
 
 function BusinessAnalysis() {
@@ -358,12 +395,7 @@ export default function HuyanPage() {
     {activeSection === "supply-chain" && <SupplyChainIntelligence />}
 
 
-    {activeSection === "advisor" && <section className="advisor-page" id="advisor" aria-labelledby="advisor-title">
-      <div className="advisor-hero"><span className="ai-icon">AI</span><div><p className="eyebrow">CEO BUSINESS ADVISOR</p><h1 id="advisor-title">AI顾问</h1><p>CEO经营问答</p></div></div>
-      <div className="advisor-card"><label htmlFor="ceo-question">向 AI 顾问提出经营问题</label><div><input id="ceo-question" placeholder="例如：今天最需要关注的经营风险是什么？" /><button type="button">开始分析</button></div><small>基于现有 AI Runtime 与授权经营数据提供辅助判断，不改变事实数据。</small></div>
-      <div className="question-prompts"><span>常用问题</span>{["五店销售表现有什么异常？", "哪些库存风险需要优先处理？", "本周最值得跟进的客户机会是什么？"].map((question) => <button type="button" key={question}>{question}<b>→</b></button>)}</div>
-      <div className="advisor-answer"><div><span>结论</span><p>{failed ? unavailable : conclusion ?? "请提出经营问题。"}</p></div><div><span>依据</span><p>{failed ? unavailable : evidence?.join("；") || unavailable}</p></div><div><span>建议</span><p>{failed ? unavailable : recommendations?.join("；") || unavailable}</p></div><footer><span><b>数据来源</b>{failed ? unavailable : data?.data_source ?? "—"}</span><span><b>更新时间</b>{failed ? unavailable : data?.updated_at ?? "—"}</span></footer></div>
-    </section>}
+    {activeSection === "advisor" && <AIAdvisor />}
     <footer className="page-footer"><span>VAFOX CEO Portal · huyan.vafox.com</span><span>董事、CEO 与授权管理层专用 · 页面只读</span></footer>
     </main>
   </div>;
