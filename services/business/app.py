@@ -13,11 +13,14 @@ from wsgiref.simple_server import make_server
 from packages.vafox_foundation.http import json_response, service_app
 from services.business.data_validation import ACTIVE_STORES, STORE_ALIASES, cost_governance, filter_inventory, top_brands
 from services.business.aggregation import customer_analysis, customer_intelligence, inventory_analysis, member_analysis, organization_analysis, product_analysis, sales_analysis, supplier_analysis, supply_chain_intelligence
+from services.business.daily_report import DailyReportRepository, DailyReportService, ReportInputError, parse_report_date
 from services.memory.acl import auth_context
 
 ADVISORY_NOTICE = "AI 仅提供查询、分析与建议；需由授权员工核实并人工执行。"
 EMPLOYEE_ROLES = frozenset({"employee", "sales", "store_manager", "operation", "ceo", "admin"})
 CEO_ROLES = frozenset({"ceo", "admin"})
+DAILY_REPORT_READ_ROLES = frozenset({"ceo", "admin", "ceo_daily_report:read"})
+DAILY_REPORT_GENERATE_ROLES = frozenset({"ceo", "admin", "ceo_daily_report:generate"})
 
 KAILAS_BRAND = {
     "brand": "KAILAS", "positioning": "面向专业户外与山地活动的技术装备品牌",
@@ -113,8 +116,11 @@ def _store_code(value):
     return STORE_ALIASES.get(str(value or "").strip().lower()) or STORE_ALIASES.get(str(value or "").strip())
 
 
-def create_app(store=None):
+def create_app(store=None, daily_report_service=None):
     store = store or BusinessStore()
+    daily_reports = daily_report_service or DailyReportService(
+        DailyReportRepository(), store.core_client, getattr(store, "ai_runtime_client", None)
+    )
 
     def context(environ, start_response, allowed):
         value = auth_context(environ)
@@ -185,27 +191,44 @@ def create_app(store=None):
         return json_response(start_response, 200, {"items": items, "includes_online_store": True, "read_only": True})
 
     def daily_report(environ, start_response):
-        ctx, error = context(environ, start_response, CEO_ROLES)
+        ctx, error = context(environ, start_response, DAILY_REPORT_READ_ROLES)
         if error: return json_response(start_response, *error)
-        inventory = filter_inventory(store.inventory_snapshot)
-        attributed = [row for row in store.sales_snapshot if row.get("employee_id")]
-        customer360 = {"profiles": len(store.customers.profiles),
-                       "purchase_profiles": len(store.customers.purchases),
-                       "wecom_bound_profiles": 0, "fusion_status": "pending_authorized_wecom_binding"}
-        business = {"version": "V6.1.11.3", "trust_status": "CEO_Dashboard_Data_Trusted_Complete",
-                    "operating_stores": [{"id": code, "name": name, "status": "ACTIVE"} for code, name in STORE_NAMES.items()],
-                    "sales_summary": {"amount": sum(row["amount"] for row in store.sales_snapshot), "currency": "CNY", "source": "Data Core read-only snapshot"},
-                    "inventory_validation": {"effective_skus": len(inventory["effective"]), "history_skus": len(inventory["history"])},
-                    "ai_summary": "五个经营主体销售已纳入日报，包括网店。", "top_brands": top_brands(store.sales_snapshot),
-                    "cost_governance": cost_governance(store.sales_snapshot),
-                    "employee_attribution": {"sales_rows": len(store.sales_snapshot), "attributed_rows": len(attributed),
-                                             "pending_rows": len(store.sales_snapshot) - len(attributed)},
-                    "customer360": customer360,
-                    "suppliers": {"status": "available_via_data_core", "write_enabled": False},
-                    "inventory_risks": [*store.retail.alerts["nanshan"], *store.retail.alerts["online"]],
-                    "customer_opportunities": store.opportunities(ctx), "ai_recommendations": ["复核销售与库存风险。"]}
-        store.audit(ctx, "ceo_daily_report_read")
-        return json_response(start_response, 200, {"report_type": "ceo_daily", "generated_at": _now(), "business": business, "read_only": True, "notice": ADVISORY_NOTICE})
+        query = _query(environ)
+        try: report_date = parse_report_date(query["report_date"])
+        except KeyError: return json_response(start_response, 400, {"error": "report_date_required"})
+        except ReportInputError as exc: return json_response(start_response, 400, {"error": str(exc)})
+        report = daily_reports.repository.get(ctx.organization_id, report_date)
+        store.audit(ctx, "ceo_daily_report_read", {"report_date": report_date, "found": bool(report)})
+        return json_response(start_response, 200, report) if report else json_response(start_response, 404, {"error": "daily_report_not_found", "report_date": report_date})
+
+    def latest_daily_report(environ, start_response):
+        ctx, error = context(environ, start_response, DAILY_REPORT_READ_ROLES)
+        if error: return json_response(start_response, *error)
+        report = daily_reports.repository.latest(ctx.organization_id)
+        store.audit(ctx, "ceo_daily_report_latest_read", {"found": bool(report)})
+        return json_response(start_response, 200, report) if report else json_response(start_response, 404, {"error": "daily_report_not_found"})
+
+    def daily_report_history(environ, start_response):
+        ctx, error = context(environ, start_response, DAILY_REPORT_READ_ROLES)
+        if error: return json_response(start_response, *error)
+        try:
+            query = _query(environ); limit, offset = int(query.get("limit", 30)), int(query.get("offset", 0))
+            if limit < 1 or limit > 100 or offset < 0: raise ValueError
+        except ValueError: return json_response(start_response, 400, {"error": "invalid_pagination"})
+        payload = daily_reports.repository.history(ctx.organization_id, limit, offset)
+        store.audit(ctx, "ceo_daily_report_history_read", {"limit": limit, "offset": offset})
+        return json_response(start_response, 200, payload)
+
+    def generate_daily_report(environ, start_response):
+        ctx, error = context(environ, start_response, DAILY_REPORT_GENERATE_ROLES)
+        if error: return json_response(start_response, *error)
+        if environ.get("HTTP_X_VAFOX_DATA_SCOPE") != "ALL_DATA":
+            return json_response(start_response, 403, {"error": "all_data_scope_required"})
+        try: report_date = parse_report_date(_body(environ).get("report_date", ""))
+        except (ReportInputError, ValueError) as exc: return json_response(start_response, 400, {"error": str(exc)})
+        report = daily_reports.generate(ctx.organization_id, report_date)
+        store.audit(ctx, "ceo_daily_report_generate", {"report_date": report_date, "status": report["status"], "audit_id": report["audit_id"]})
+        return json_response(start_response, 201 if report["status"] in {"published", "degraded"} else 422, report)
 
     def ceo_today(environ, start_response):
         """Return only Data Core's production CEO Today contract, without fallback data."""
@@ -465,7 +488,7 @@ def create_app(store=None):
         if code not in STORE_NAMES: return json_response(start_response, 404, {"error": "store_not_found"})
         store.audit(ctx, "wechat_store_report_generated", {"store_id": code}); return json_response(start_response, 200, {"report_type": "store_manager_daily", "store": {"id": code, "name": STORE_NAMES[code]}, "sales": store.retail.sales[code], "inventory_alerts": store.retail.alerts[code], "customer_opportunities": ["人工跟进已授权重点客户。"], "tasks": ["核实重点尺码库存", "复核今日销售节奏"], "delivery": "manual_or_scheduled_wecom_push", "advisory_only": True, "notice": ADVISORY_NOTICE})
 
-    routes = {("GET", "/api/business/supply-chain-intelligence"): supply_chain_view, ("GET", "/api/business/organization-analysis"): organization_intelligence, ("GET", "/api/business/customer-intelligence"): customer_intelligence_view, ("GET", "/api/business/inventory-analysis"): inventory_intelligence, ("GET", "/api/business/product-analysis"): product_intelligence, ("GET", "/api/business/sales-analysis"): lambda e, s: business_analysis(e, s, "sales"), ("GET", "/api/business/member-analysis"): lambda e, s: business_analysis(e, s, "member"), ("GET", "/api/business/customer-analysis"): lambda e, s: business_analysis(e, s, "customer"), ("GET", "/api/business/supplier-analysis"): lambda e, s: business_analysis(e, s, "supplier"), ("GET", "/api/ceo/today"): ceo_today, ("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/ceo/overview"): dashboard, ("GET", "/api/ceo/business"): dashboard, ("GET", "/api/ceo/stores"): ceo_stores, ("GET", "/api/ceo/daily-report"): daily_report, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
+    routes = {("GET", "/api/business/supply-chain-intelligence"): supply_chain_view, ("GET", "/api/business/organization-analysis"): organization_intelligence, ("GET", "/api/business/customer-intelligence"): customer_intelligence_view, ("GET", "/api/business/inventory-analysis"): inventory_intelligence, ("GET", "/api/business/product-analysis"): product_intelligence, ("GET", "/api/business/sales-analysis"): lambda e, s: business_analysis(e, s, "sales"), ("GET", "/api/business/member-analysis"): lambda e, s: business_analysis(e, s, "member"), ("GET", "/api/business/customer-analysis"): lambda e, s: business_analysis(e, s, "customer"), ("GET", "/api/business/supplier-analysis"): lambda e, s: business_analysis(e, s, "supplier"), ("GET", "/api/ceo/today"): ceo_today, ("GET", "/api/workspace/tasks"): tasks, ("GET", "/api/workspace/opportunities"): opportunities, ("POST", "/api/workspace/advice"): advice, ("GET", "/api/ceo/dashboard"): dashboard, ("GET", "/api/ceo/overview"): dashboard, ("GET", "/api/ceo/business"): dashboard, ("GET", "/api/ceo/stores"): ceo_stores, ("GET", "/api/ceo/daily-report"): daily_report, ("GET", "/api/ceo/daily-report/latest"): latest_daily_report, ("GET", "/api/ceo/daily-report/history"): daily_report_history, ("POST", "/api/ceo/daily-report/generate"): generate_daily_report, ("GET", "/api/kailas/product"): kailas, ("POST", "/api/wechat/message"): wechat, ("GET", "/api/retail/store-insight"): store_insight, ("GET", "/api/retail/inventory-alerts"): inventory_alerts, ("GET", "/api/store/dashboard"): store_dashboard, ("POST", "/api/store/feedback"): feedback, ("GET", "/api/wechat/store-report"): wechat_store_report}
     health = service_app("business")
     def app(environ, start_response):
         path = environ["PATH_INFO"]; method = environ["REQUEST_METHOD"]
