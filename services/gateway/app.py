@@ -26,11 +26,13 @@ UPSTREAMS = {
     "/api/store": "http://business:8080",
     "/api/business": "http://business:8080",
 }
+HUYAN_ADVISOR_PATH = "/api/ceo/ai-advisor"
+AI_RESPOND_PATH = "/api/v1/ai/respond"
 
 
 def proxy(environ, start_response):
     path = environ["PATH_INFO"]
-    upstream = next((value for prefix, value in UPSTREAMS.items() if path == prefix or path.startswith(prefix + "/")), None)
+    upstream = "http://ai:8080" if path == HUYAN_ADVISOR_PATH else next((value for prefix, value in UPSTREAMS.items() if path == prefix or path.startswith(prefix + "/")), None)
     if not upstream:
         return json_response(start_response, 404, {"error": "route_not_found"}), 404
     claims = None
@@ -51,8 +53,28 @@ def proxy(environ, start_response):
                         "X-VAFOX-Department-ID": str(claims.get("department_id", "")),
                         "X-VAFOX-Role-Scope": ",".join(roles),
                         "X-VAFOX-Data-Scope": data_scope})
+        if path == HUYAN_ADVISOR_PATH:
+            if environ["REQUEST_METHOD"] != "POST":
+                return json_response(start_response, 405, {"error": "method_not_allowed"}), 405
+            raw_roles = claims.get("role_scopes", claims.get("roles", claims.get("role", [])))
+            raw_roles = [raw_roles] if isinstance(raw_roles, str) else raw_roles
+            if (claims.get("portal") != "huyan.vafox.com" or "VAFOX_CEO" not in (raw_roles or []) or data_scope != "ALL_DATA"):
+                return json_response(start_response, 403, {"error": "ceo_all_data_required"}), 403
+            try:
+                advisor_request = json.loads(body or b"{}")
+            except json.JSONDecodeError:
+                return json_response(start_response, 400, {"error": "invalid_json"}), 400
+            question = str(advisor_request.get("question", "")).strip()
+            if not question:
+                return json_response(start_response, 400, {"error": "question_required"}), 400
+            # Security fields come only from verified claims; question text and
+            # browser-supplied fields can never expand the caller's data access.
+            body = json.dumps({"question": question, "agent": "huyan-ceo-intelligence", "role": "ceo",
+                               "is_ceo_identity": True, "permission_scope": ["enterprise:read"],
+                               "context_domains": ["sales", "product", "inventory", "customer", "employee", "supply_chain"]}).encode()
     query = environ.get("QUERY_STRING", "")
-    request = Request(upstream + path + (f"?{query}" if query else ""), data=body if body else None, method=environ["REQUEST_METHOD"], headers=headers)
+    upstream_path = AI_RESPOND_PATH if path == HUYAN_ADVISOR_PATH else path
+    request = Request(upstream + upstream_path + (f"?{query}" if query else ""), data=body if body else None, method=environ["REQUEST_METHOD"], headers=headers)
     try:
         with urlopen(request, timeout=float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "5"))) as response:
             payload, status = response.read(), response.status
