@@ -51,7 +51,8 @@ def proxy(environ, start_response):
                         "X-VAFOX-Department-ID": str(claims.get("department_id", "")),
                         "X-VAFOX-Role-Scope": ",".join(roles),
                         "X-VAFOX-Data-Scope": data_scope})
-    request = Request(upstream + path, data=body if body else None, method=environ["REQUEST_METHOD"], headers=headers)
+    query = environ.get("QUERY_STRING", "")
+    request = Request(upstream + path + (f"?{query}" if query else ""), data=body if body else None, method=environ["REQUEST_METHOD"], headers=headers)
     try:
         with urlopen(request, timeout=float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "5"))) as response:
             payload, status = response.read(), response.status
