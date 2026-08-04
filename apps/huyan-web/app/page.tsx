@@ -61,10 +61,13 @@ type SupplyChainPayload = {
 type PeopleSort = "employee" | "store_name" | "sales_amount" | "order_count" | "average_order_value";
 type LoadState<T> = { phase: "loading" | "ready" | "empty" | "forbidden" | "error"; data?: T };
 type AdvisorResponse = { content?: string; source?: string; confidence?: number | string; generated_at?: string; citations?: { source?: string; statement?: string }[] };
+type DailyEvidence = { evidence_id: string; domain: string; metric_key: string; observed_value: unknown; comparison?: string; scope: string; source_ref: string; updated_at: string };
+type DailyReportItem = { item_id: string; priority: "critical" | "high" | "normal"; conclusion: string; evidence: DailyEvidence[]; recommendation: string; data_source: string[]; updated_at: string; freshness_status: string; confidence: { level: string; reason: string } };
+type DailyReport = { report_id: string; report_date: string; status: "published" | "degraded"; generated_at: string; data_source: string[]; updated_at: string; freshness_status: string; confidence: { level: string; reason: string }; sections: Record<"business_summary" | "business_opportunities" | "business_risks" | "ceo_actions", DailyReportItem[]>; coverage: { included_domains: string[]; excluded_domains: string[]; reason: string } };
 
-const navItems = [["CEO Today", "today"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
+const navItems = [["CEO Today", "today"], ["AI经营日报", "daily-report"], ["经营分析", "operations"], ["商品分析", "products"], ["库存分析", "inventory"], ["客户分析", "customers"], ["组织分析", "organization"], ["供应链分析", "supply-chain"], ["AI顾问", "advisor"]] as const;
 type SectionKey = typeof navItems[number][1];
-const analysisModules: Record<Exclude<SectionKey, "today" | "advisor">, { eyebrow: string; title: string; description: string; items: string[] }> = {
+const analysisModules: Record<Exclude<SectionKey, "today" | "daily-report" | "advisor">, { eyebrow: string; title: string; description: string; items: string[] }> = {
   operations: { eyebrow: "BUSINESS ANALYSIS", title: "经营分析", description: "从整体到店铺、员工、顾客与供应商，统一查看销售表现。", items: ["整体销售分析", "店铺销售分析", "员工销售分析", "顾客购买分析", "供应商销售分析"] },
   products: { eyebrow: "PRODUCT ANALYSIS", title: "商品分析", description: "围绕商品结构、销售贡献与补货决策展开分析。", items: ["品牌", "品类", "SKU", "采购建议"] },
   inventory: { eyebrow: "INVENTORY ANALYSIS", title: "库存分析", description: "识别库存资金占用、健康度与周转风险。", items: ["库存金额", "有效库存", "滞销", "缺货", "周转"] },
@@ -132,6 +135,40 @@ function AIAdvisor() {
     {phase === "error" && <div className="advisor-status is-error" role="alert">AI服务暂不可用</div>}
     {(phase === "idle" || phase === "loading") && <div className="advisor-status" aria-live="polite">{phase === "loading" ? "正在分析授权经营数据…" : "请选择常用问题或输入经营问题。"}</div>}
     {phase === "ready" && <div className="advisor-answer" aria-live="polite"><div><span>结论</span><p>{conclusion}</p></div><div><span>依据</span><p>{evidence}</p></div><div><span>建议</span><p>{recommendation}</p></div><footer><span><b>数据来源</b>{answer?.source || answer?.citations?.map((item) => item.source).filter(Boolean).join("、") || "—"}</span><span><b>更新时间</b>{answer?.generated_at ? new Date(answer.generated_at).toLocaleString("zh-CN") : "—"}</span><span><b>可信度</b>{answer?.confidence ?? "—"}</span></footer></div>}
+  </section>;
+}
+
+const reportSections = [
+  ["business_summary", "经营总结", "BUSINESS SUMMARY"],
+  ["business_opportunities", "经营机会", "BUSINESS OPPORTUNITY"],
+  ["business_risks", "经营风险", "BUSINESS RISK"],
+  ["ceo_actions", "CEO行动建议", "CEO ACTIONS"],
+] as const;
+const dailyValue = (value: unknown) => typeof value === "string" ? value : typeof value === "number" ? value.toLocaleString("zh-CN") : JSON.stringify(value);
+const confidenceLabel = (value: string) => ({ high: "高", medium: "中", low: "低", unavailable: "不可用" }[value] || value);
+
+function AIDailyReport() {
+  const [report, setReport] = useState<DailyReport>();
+  const [phase, setPhase] = useState<"loading" | "ready" | "unavailable">("loading");
+  const load = async () => {
+    setPhase("loading"); setReport(undefined);
+    try {
+      const response = await gatewayFetch("/api/ceo/daily-report/latest");
+      if (!response.ok) throw new Error(String(response.status));
+      const payload = await response.json() as DailyReport;
+      const sectionsValid = payload.sections && reportSections.every(([key]) => Array.isArray(payload.sections[key]));
+      if (!sectionsValid || !["published", "degraded"].includes(payload.status) || !payload.report_date || !payload.updated_at || !Array.isArray(payload.data_source) || !payload.confidence?.level) throw new Error("invalid_daily_report_payload");
+      setReport(payload); setPhase("ready");
+    } catch { setPhase("unavailable"); }
+  };
+  useEffect(() => { void load(); }, []);
+  if (phase !== "ready" || !report) return <section className="daily-report-page" id="daily-report" aria-labelledby="daily-report-title"><div className="daily-report-hero"><div><p className="eyebrow">CEO AI DAILY REPORT · V2.0.2.1</p><h1 id="daily-report-title">今日AI经营日报</h1><p>来自已发布日报 API 的只读经营判断。</p></div></div><div className={`daily-report-state ${phase === "unavailable" ? "is-error" : ""}`} role={phase === "unavailable" ? "alert" : "status"}><span>{phase === "loading" ? "AI" : "!"}</span><div><strong>{phase === "loading" ? "正在读取日报" : "日报暂不可用"}</strong><p>{phase === "loading" ? "正在连接 CEO AI Daily Report API…" : "未取得可验证的已发布日报，不展示替代内容。"}</p>{phase === "unavailable" && <button type="button" onClick={() => void load()}>重新读取</button>}</div></div></section>;
+  return <section className="daily-report-page" id="daily-report" aria-labelledby="daily-report-title">
+    <div className="daily-report-hero"><div><p className="eyebrow">CEO AI DAILY REPORT · V2.0.2.1</p><h1 id="daily-report-title">今日AI经营日报</h1><p>{report.report_date} · {report.status === "degraded" ? "有限发布" : "已发布"}</p></div><button type="button" onClick={() => void load()}>刷新日报</button></div>
+    <div className="daily-report-provenance"><span><b>数据来源</b>{report.data_source.join(" · ")}</span><span><b>更新时间</b>{report.updated_at}</span><span><b>可信度</b>{confidenceLabel(report.confidence.level)} · {report.confidence.reason}</span></div>
+    {report.status === "degraded" && <div className="coverage-warning">有限发布 · 当前仅覆盖 {report.coverage.included_domains.join("、")}；未覆盖 {report.coverage.excluded_domains.join("、") || "无"}</div>}
+    <nav className="daily-report-index" aria-label="日报目录">{reportSections.map(([key, title]) => <a href={`#report-${key}`} key={key}>{title}</a>)}</nav>
+    <div className="daily-report-sections">{reportSections.map(([key, title, eyebrow], sectionIndex) => <article className="daily-report-section" id={`report-${key}`} key={key}><header><span>{String(sectionIndex + 1).padStart(2, "0")}</span><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2></div></header>{report.sections[key].length ? <div className="daily-report-cards">{report.sections[key].map((item) => <section className="daily-report-card" key={item.item_id}><div className="daily-report-content"><div><b>结论</b><p>{item.conclusion}</p></div><div><b>依据</b><ul>{item.evidence.map((evidence) => <li key={evidence.evidence_id}><strong>{evidence.metric_key}</strong><span>{dailyValue(evidence.observed_value)}{evidence.comparison ? ` · ${evidence.comparison}` : ""}</span></li>)}</ul></div><div><b>建议</b><p>{item.recommendation}</p></div></div><footer><span><b>数据来源</b>{item.data_source.join(" · ")}</span><span><b>更新时间</b>{item.updated_at}</span><span><b>可信度</b>{confidenceLabel(item.confidence.level)} · {item.confidence.reason}</span></footer></section>)}</div> : <p className="daily-report-empty">当前板块暂无已验证内容。</p>}</article>)}</div>
   </section>;
 }
 
@@ -344,7 +381,7 @@ export default function HuyanPage() {
     </header>
     {activeSection === "today" && <>
     <section className="welcome" id="today" aria-labelledby="page-title">
-      <div><p className="eyebrow">CEO TODAY</p><h1 id="page-title">今日经营全景</h1><p>聚焦关键结果、经营风险与下一步动作。</p></div>
+      <div><p className="eyebrow">CEO TODAY</p><h1 id="page-title">今日经营全景</h1><p>聚焦关键结果、经营风险与下一步动作。</p><a className="daily-report-entry" href="#daily-report"><span>AI</span><strong>今日AI经营日报</strong><small>查看经营总结、机会、风险与 CEO 行动建议</small><b>打开日报 →</b></a></div>
       <div className="scope"><span>经营范围</span><strong>振兴 · 南山 · 航苑 · 金沙 · 网店</strong><small>只读 · API 实时数据</small></div>
     </section>
 
@@ -387,6 +424,7 @@ export default function HuyanPage() {
 
     </>}
 
+    {activeSection === "daily-report" && <AIDailyReport />}
     {activeSection === "operations" && <BusinessAnalysis />}
     {activeSection === "products" && <ProductIntelligence />}
     {activeSection === "inventory" && <InventoryIntelligence />}
