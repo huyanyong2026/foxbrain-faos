@@ -4,6 +4,8 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timezone
 
+from services.business.supply_chain import supply_chain_intelligence
+
 STORE_NAMES = {"zhenxing": "振兴", "nanshan": "南山", "hangyuan": "航苑", "jinsha": "金沙", "online": "网店"}
 
 
